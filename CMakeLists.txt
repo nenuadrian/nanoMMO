@@ -17,6 +17,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(abseil)
 
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/v1.18.0.tar.gz
+)
+FetchContent_MakeAvailable(googletest)
+enable_testing()
+
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 add_subdirectory(server)
