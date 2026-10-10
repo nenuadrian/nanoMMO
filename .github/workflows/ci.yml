@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the code style
+        run: docker build --target lint .
+
+      - name: Build and run the tests
+        run: docker build --target test .
+
+      - name: Build the server image
+        run: docker build --target server .
+
+      - name: Generate the API docs
+        run: docker build --target docs --output site .
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  docs:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5
