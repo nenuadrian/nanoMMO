@@ -12,3 +12,8 @@ RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
 
 FROM build AS test
 RUN ctest --test-dir build --output-on-failure
+
+FROM ubuntu:24.04 AS server
+COPY --from=test /src/build/bin/nanommo_server /usr/local/bin/
+USER ubuntu
+ENTRYPOINT ["nanommo_server"]
