@@ -178,7 +178,14 @@ void Characters::Hold(const std::string& path, float length, Shader shader) {
   const Matrix sized =
       MatrixMultiply(MatrixTranslate(0.0f, -(box.min.y + kGrip * height), 0.0f),
                      MatrixScale(scale, scale, scale));
-  const Matrix in_hand = MatrixTranslate(0.0f, kPalm, 0.0f);
+  // Mixamo's hand: y along the fingers, x along the knuckles, palm facing z.
+  // The fist holds the blade along x, leaning 20 degrees towards the fingers.
+  const Matrix along = MatrixRotateZ(-(90.0f - 20.0f) * DEG2RAD);
+  // Mixamo's clips turn the hands in, so we turn the blade 40 degrees out,
+  // clear of the legs.
+  const Matrix out = MatrixRotateY(40.0f * DEG2RAD);
+  const Matrix in_hand = MatrixMultiply(MatrixMultiply(along, out),
+                                        MatrixTranslate(0.0f, kPalm, 0.0f));
   grip_ = MatrixMultiply(sized, in_hand);
   weapon_ = weapon;
 }
