@@ -165,7 +165,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   const auto ramp = std::chrono::seconds(ramp_seconds);
-  const std::string transport = argc > 6 ? argv[6] : "tcp";
+  const std::string transport = argc > 6 ? argv[6] : "udp";
 
   nanommo::BotMetrics metrics(transport);
   prometheus::Exposer exposer("0.0.0.0:" + std::to_string(kMetricsPort));
