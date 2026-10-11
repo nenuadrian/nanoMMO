@@ -3,6 +3,7 @@
 #include <array>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <string>
 #include <utility>
 #include <vector>
@@ -15,11 +16,18 @@
 #include "protocol/nanommo.pb.h"
 #include "protocol/parts.h"
 #include "server/listen.h"
+#include "server/monsters.h"
 #include "tracy/Tracy.hpp"
 
 namespace nanommo {
 
 namespace {
+
+constexpr std::array<std::pair<float, float>, 3> kSkeletons = {{
+    {-3.5f, -3.0f},
+    {3.5f, -2.5f},
+    {3.0f, 3.5f},
+}};
 
 protocol::Motion ToProtocol(Motion motion) {
   switch (motion) {
@@ -53,6 +61,7 @@ Server::Server(asio::io_context& io, std::chrono::nanoseconds interval,
       udp_(io),
       timer_(io),
       interval_(interval),
+      world_(std::random_device()()),
       metrics_(metrics),
       tokens_(tokens),
       players_(players) {}
@@ -71,6 +80,9 @@ absl::Status Server::Start(uint16_t port) {
   std::error_code ignored;
   udp_.set_option(asio::socket_base::send_buffer_size(4 * 1024 * 1024),
                   ignored);
+  for (const auto& [x, z] : kSkeletons) {
+    world_.Spawn(Skeleton(x, z));
+  }
   Accept();
   Receive();
   timer_.expires_after(interval_);
@@ -201,9 +213,19 @@ void Server::Broadcast() {
     sent->set_yaw(player.yaw);
     sent->set_motion(ToProtocol(player.motion));
   }
+  for (const auto& [id, monster] : world_.monsters()) {
+    protocol::Monster* sent = message.add_monsters();
+    sent->set_id(id);
+    sent->set_name(monster.name);
+    sent->set_x(monster.x);
+    sent->set_z(monster.z);
+    sent->set_yaw(monster.yaw);
+    sent->set_motion(ToProtocol(monster.motion));
+  }
   message.set_sent(NowMicros());
-  // The players are the same for everyone, so we serialize them once, and
-  // all the sessions share the bytes until each has written them.
+  // The players and the monsters are the same for everyone, so we serialize
+  // them once, and all the sessions share the bytes until each has written
+  // them.
   std::shared_ptr<const std::string> players;
   {
     ZoneScopedN("serialize");

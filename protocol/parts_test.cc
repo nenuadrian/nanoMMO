@@ -44,8 +44,12 @@ TEST(Parts, SplitsAWorldIntoDatagrams) {
 }
 
 TEST(Parts, LeavesThePlayersOfALostPartWhereTheyWere) {
+  nanommo::protocol::World first = MakeWorld(200, 1);
+  for (uint32_t id = 1; id <= 3; ++id) {
+    first.add_monsters()->set_id(id);
+  }
   nanommo::Parts assembled;
-  for (const auto& part : nanommo::Split(MakeWorld(200, 1))) {
+  for (const auto& part : nanommo::Split(first)) {
     assembled.Add(part);
   }
   const auto next = nanommo::Split(MakeWorld(200, 2, 0.5f));
@@ -57,6 +61,7 @@ TEST(Parts, LeavesThePlayersOfALostPartWhereTheyWere) {
   ASSERT_EQ(result.players_size(), 200);
   EXPECT_EQ(result.players(0).x(), 1.0f);
   EXPECT_EQ(result.players(199).x(), 200.5f);
+  EXPECT_EQ(result.monsters_size(), 3);
 }
 
 TEST(Parts, DropsPlayersWhoLeftAndPartsThatArriveLate) {

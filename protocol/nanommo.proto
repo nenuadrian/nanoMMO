@@ -23,12 +23,22 @@ message Player {
   Motion motion = 6;
 }
 
+message Monster {
+  uint32 id = 1;
+  string name = 2;
+  float x = 3;
+  float z = 4;
+  float yaw = 5;
+  Motion motion = 6;
+}
+
 message World {
   uint32 you = 1;
   repeated Player players = 2;
   int64 sent = 3;
   uint32 part = 4;
   uint32 parts = 5;
+  repeated Monster monsters = 6;
 }
 
 message LoginRequest {

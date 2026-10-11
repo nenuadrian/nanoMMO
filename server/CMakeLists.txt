@@ -1,7 +1,7 @@
 add_library(nanommo_server_core
-  tick.cc listen.cc world.cc session.cc server.cc metrics.cc
-  password.cc database.cc accounts.cc players.cc
-  redis.cc tokens.cc login_server.cc
+  tick.cc listen.cc world.cc monsters.cc session.cc server.cc
+  metrics.cc password.cc database.cc accounts.cc
+  players.cc redis.cc tokens.cc login_server.cc
 )
 target_include_directories(nanommo_server_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_server_core PUBLIC
@@ -17,9 +17,9 @@ add_executable(nanommo_login login_main.cc)
 target_link_libraries(nanommo_login PRIVATE nanommo_server_core)
 
 add_executable(nanommo_server_tests
-  tick_test.cc world_test.cc metrics_test.cc
-  password_test.cc accounts_test.cc players_test.cc
-  tokens_test.cc login_server_test.cc
+  tick_test.cc world_test.cc monsters_test.cc
+  metrics_test.cc password_test.cc accounts_test.cc
+  players_test.cc tokens_test.cc login_server_test.cc
 )
 target_link_libraries(nanommo_server_tests PRIVATE nanommo_server_core GTest::gtest_main)
 

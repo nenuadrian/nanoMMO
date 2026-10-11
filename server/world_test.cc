@@ -6,6 +6,7 @@
 #include <numbers>
 
 #include "gtest/gtest.h"
+#include "server/monsters.h"
 
 namespace {
 
@@ -94,4 +95,15 @@ TEST(World, IgnoresInputThatIsNotANumber) {
   RunOneSecond(world);
 
   EXPECT_EQ(world.players().at(id).x, start);
+}
+
+TEST(World, SpawnsMonstersWithIdsOfTheirOwn) {
+  nanommo::World world;
+
+  const uint32_t first = world.Spawn(nanommo::Skeleton(2.0f, -1.0f));
+  const uint32_t second = world.Spawn(nanommo::Skeleton(-3.0f, 0.0f));
+
+  EXPECT_EQ(first, 1u);
+  EXPECT_EQ(second, 2u);
+  EXPECT_EQ(world.monsters().at(first).home_x, 2.0f);
 }

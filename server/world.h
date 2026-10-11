@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <map>
+#include <random>
 #include <string>
 
 namespace nanommo {
@@ -22,6 +23,19 @@ struct Player {
   bool input_run = false;
 };
 
+struct Monster {
+  std::string name;
+  float x = 0.0f;
+  float z = 0.0f;
+  float yaw = 0.0f;
+  Motion motion = Motion::kIdle;
+  float home_x = 0.0f;
+  float home_z = 0.0f;
+  float target_x = 0.0f;
+  float target_z = 0.0f;
+  std::chrono::nanoseconds rest{0};
+};
+
 class World {
  public:
   /// In tiles a second. A tile is a metre, and that's the walk clip's speed.
@@ -32,18 +46,26 @@ class World {
   /// Six tiles to the ground's edge, less half a tile, so players stay on it.
   static constexpr float kEdge = 5.5f;
 
+  explicit World(uint32_t seed = std::mt19937::default_seed);
+
   void Join(uint32_t id, Player player);
 
   void Leave(uint32_t id);
 
   void SetInput(uint32_t id, float x, float z, bool run);
 
+  uint32_t Spawn(Monster monster);
+
   void Step(std::chrono::nanoseconds time);
 
   const std::map<uint32_t, Player>& players() const { return players_; }
+  const std::map<uint32_t, Monster>& monsters() const { return monsters_; }
 
  private:
   std::map<uint32_t, Player> players_;
+  std::map<uint32_t, Monster> monsters_;
+  uint32_t next_monster_ = 1;
+  std::mt19937 random_;
 };
 
 }  // namespace nanommo

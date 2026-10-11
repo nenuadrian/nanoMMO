@@ -28,8 +28,10 @@ class Parts {
   uint32_t you_ = 0;
   int64_t sent_ = 0;
   std::map<uint32_t, protocol::Player> players_;
+  std::map<uint32_t, protocol::Monster> monsters_;
   std::set<uint32_t> arrived_;
   std::set<uint32_t> seen_;
+  std::set<uint32_t> seen_monsters_;
 };
 
 }  // namespace nanommo
