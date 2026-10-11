@@ -1,5 +1,6 @@
 #include "server/session.h"
 
+#include <array>
 #include <string>
 #include <utility>
 
@@ -46,11 +47,20 @@ void Session::Read() {
 }
 
 void Session::Send(std::string bytes) {
+  Send(Outgoing{std::move(bytes), nullptr, {}});
+}
+
+void Session::Send(std::shared_ptr<const std::string> shared, std::string own) {
+  const std::size_t size = shared->size() + own.size();
+  Send(Outgoing{Header(size), std::move(shared), std::move(own)});
+}
+
+void Session::Send(Outgoing outgoing) {
   ZoneScoped;
   if (closed_) {
     return;
   }
-  outbox_.push_back(std::move(bytes));
+  outbox_.push_back(std::move(outgoing));
   // Writes mustn't overlap, so if one is under way, it picks these up next.
   if (outbox_.size() == 1) {
     Write();
@@ -58,8 +68,13 @@ void Session::Send(std::string bytes) {
 }
 
 void Session::Write() {
+  const Outgoing& next = outbox_.front();
+  const std::array buffers{
+      asio::buffer(next.head),
+      next.shared ? asio::buffer(*next.shared) : asio::const_buffer(),
+      asio::buffer(next.tail)};
   asio::async_write(
-      socket_, asio::buffer(outbox_.front()),
+      socket_, buffers,
       [self = shared_from_this()](std::error_code error, std::size_t) {
         if (error) {
           self->Close();

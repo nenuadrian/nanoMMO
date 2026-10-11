@@ -23,10 +23,19 @@ class Session : public std::enable_shared_from_this<Session> {
 
   void Send(std::string bytes);
 
+  void Send(std::shared_ptr<const std::string> shared, std::string own);
+
   void Close();
 
  private:
+  struct Outgoing {
+    std::string head;
+    std::shared_ptr<const std::string> shared;
+    std::string tail;
+  };
+
   void Read();
+  void Send(Outgoing outgoing);
   void Write();
 
   asio::ip::tcp::socket socket_;
@@ -34,7 +43,7 @@ class Session : public std::enable_shared_from_this<Session> {
   OnClose on_close_;
   std::array<char, 4096> buffer_;
   FrameReader reader_;
-  std::deque<std::string> outbox_;
+  std::deque<Outgoing> outbox_;
   bool closed_ = false;
 };
 

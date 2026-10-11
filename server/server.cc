@@ -164,15 +164,19 @@ void Server::Broadcast() {
     sent->set_yaw(player.yaw);
     sent->set_motion(ToProtocol(player.motion));
   }
+  // The players are the same for everyone, so we serialize them once, and
+  // all the sessions share the bytes until each has written them.
+  std::shared_ptr<const std::string> players;
+  {
+    ZoneScopedN("serialize");
+    players = std::make_shared<const std::string>(message.SerializeAsString());
+  }
   for (const auto& [id, session] : sessions_) {
-    message.set_you(id);
-    std::string bytes;
-    {
-      ZoneScopedN("serialize");
-      bytes = Frame(message);
-    }
-    metrics_.AddBytesSent(bytes.size());
-    session->Send(std::move(bytes));
+    protocol::World you;
+    you.set_you(id);
+    std::string own = you.SerializeAsString();
+    metrics_.AddBytesSent(kHeaderSize + players->size() + own.size());
+    session->Send(players, std::move(own));
   }
 }
 

@@ -11,8 +11,12 @@
 
 namespace nanommo {
 
+constexpr std::size_t kHeaderSize = 4;
+
 /// Anything bigger is garbage. Without a cap, we might buffer up to 4 GB.
 constexpr std::size_t kMaxMessageSize = 64 * 1024;
+
+std::string Header(std::size_t size);
 
 /// The size goes in front, as four bytes in network byte order.
 std::string Frame(const google::protobuf::MessageLite& message);

@@ -5,24 +5,15 @@
 
 namespace nanommo {
 
-namespace {
-
-constexpr std::size_t kHeaderSize = 4;
-
+std::string Header(std::size_t size) {
+  const auto value = static_cast<uint32_t>(size);
+  return {static_cast<char>(value >> 24), static_cast<char>(value >> 16),
+          static_cast<char>(value >> 8), static_cast<char>(value)};
 }
 
 std::string Frame(const google::protobuf::MessageLite& message) {
   const std::string body = message.SerializeAsString();
-  const auto size = static_cast<uint32_t>(body.size());
-
-  std::string bytes;
-  bytes.reserve(kHeaderSize + body.size());
-  bytes.push_back(static_cast<char>(size >> 24));
-  bytes.push_back(static_cast<char>(size >> 16));
-  bytes.push_back(static_cast<char>(size >> 8));
-  bytes.push_back(static_cast<char>(size));
-  bytes += body;
-  return bytes;
+  return Header(body.size()) + body;
 }
 
 void FrameReader::Append(std::string_view bytes) { buffer_.append(bytes); }

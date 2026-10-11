@@ -23,6 +23,10 @@ float XOf(const std::string& bytes) {
 
 }  // namespace
 
+TEST(Framing, WritesTheSizeMostSignificantByteFirst) {
+  EXPECT_EQ(nanommo::Header(258), std::string("\0\0\x01\x02", 4));
+}
+
 TEST(Framing, WaitsForTheWholeMessage) {
   const std::string bytes = nanommo::Frame(MakeInput(1.0f, -1.0f));
   nanommo::FrameReader reader;

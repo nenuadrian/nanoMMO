@@ -26,6 +26,22 @@ TEST(Protocol, WorldSurvivesTheRoundTrip) {
   EXPECT_EQ(received.players(0).motion(), nanommo::protocol::MOTION_RUN);
 }
 
+TEST(Protocol, ReadsMessagesBackToBackAsOne) {
+  nanommo::protocol::World players;
+  players.add_players()->set_id(7);
+  nanommo::protocol::World you;
+  you.set_you(7);
+
+  const std::string bytes =
+      players.SerializeAsString() + you.SerializeAsString();
+
+  nanommo::protocol::World received;
+  ASSERT_TRUE(received.ParseFromString(bytes));
+  EXPECT_EQ(received.you(), 7u);
+  ASSERT_EQ(received.players_size(), 1);
+  EXPECT_EQ(received.players(0).id(), 7u);
+}
+
 TEST(Protocol, ZeroesAreNotSent) {
   nanommo::protocol::Input input;
   input.set_x(1.0f);
