@@ -20,6 +20,9 @@ std::chrono::nanoseconds RandomRest(std::mt19937& random);
 void Wander(Monster& monster, std::chrono::nanoseconds time,
             std::mt19937& random);
 
+void Revive(Monster& monster, std::chrono::nanoseconds time,
+            std::mt19937& random);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_SERVER_MONSTERS_H_

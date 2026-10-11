@@ -89,11 +89,13 @@ int main(int argc, char* argv[]) {
     if (connection) {
       const Vector3 direction = nanommo::Movement();
       const bool run = nanommo::Running();
+      const bool attack = nanommo::Attacking();
       if (direction.x != sent.x() || direction.z != sent.z() ||
-          run != sent.run()) {
+          run != sent.run() || attack != sent.attack()) {
         sent.set_x(direction.x);
         sent.set_z(direction.z);
         sent.set_run(run);
+        sent.set_attack(attack);
         connection->Send(sent);
       }
 

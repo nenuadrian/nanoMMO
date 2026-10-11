@@ -15,6 +15,8 @@ Level LevelFor(uint32_t experience);
 
 int MaxHealth(int level);
 
+int Damage(int level);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_SERVER_LEVELS_H_

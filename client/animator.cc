@@ -23,11 +23,15 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
               float seconds) {
   const Vector3 target{unit.x(), 0.0f, unit.z()};
   const auto found = figures.find(unit.id());
-  Figure figure = found != figures.end() ? found->second
-                                         : Figure{.position = target,
-                                                  .yaw = unit.yaw(),
-                                                  .from = unit.motion(),
-                                                  .to = unit.motion()};
+  const bool back = found != figures.end() &&
+                    found->second.to == protocol::MOTION_DEAD &&
+                    unit.motion() != protocol::MOTION_DEAD;
+  Figure figure = found != figures.end() && !back
+                      ? found->second
+                      : Figure{.position = target,
+                               .yaw = unit.yaw(),
+                               .from = unit.motion(),
+                               .to = unit.motion()};
   figure.id = unit.id();
   figure.name = unit.name();
   figure.level = static_cast<int>(unit.level());

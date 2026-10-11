@@ -114,3 +114,43 @@ TEST(World, SpawnsMonstersWithIdsOfTheirOwn) {
   EXPECT_EQ(second, 2u);
   EXPECT_EQ(world.monsters().at(first).home_x, 2.0f);
 }
+
+TEST(World, SwingsAtTheNearestMonsterInReach) {
+  nanommo::World world;
+  world.Join(1, {});
+  const uint32_t near = world.Spawn(nanommo::Skeleton(1.0f, 0.0f));
+  const uint32_t far = world.Spawn(nanommo::Skeleton(0.0f, -1.5f));
+
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  world.Step(kTick);
+
+  const nanommo::Player& player = world.players().at(1);
+  EXPECT_EQ(player.motion, nanommo::Motion::kAttack);
+  EXPECT_FLOAT_EQ(player.yaw, std::numbers::pi_v<float> / 2);
+  RunOneSecond(world);
+  EXPECT_EQ(world.monsters().at(near).health, 50 - 15);
+  EXPECT_EQ(world.monsters().at(far).health, 50);
+}
+
+TEST(World, KillsMonstersForTheirExperienceAndTheyComeBack) {
+  nanommo::World world;
+  world.Join(1, {.experience = 60});
+  nanommo::Monster weak = nanommo::Skeleton(1.0f, 0.0f);
+  weak.max_health = 10;
+  const uint32_t id = world.Spawn(weak);
+
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  RunOneSecond(world);
+
+  EXPECT_EQ(world.monsters().at(id).motion, nanommo::Motion::kDead);
+  EXPECT_EQ(world.players().at(1).experience, 110u);
+  EXPECT_EQ(world.players().at(1).health, 120);
+
+  world.SetInput(1, 0.0f, 0.0f, false);
+  for (int second = 0; second < nanommo::World::kRespawnTime.count();
+       ++second) {
+    RunOneSecond(world);
+  }
+  EXPECT_NE(world.monsters().at(id).motion, nanommo::Motion::kDead);
+  EXPECT_EQ(world.monsters().at(id).health, 10);
+}

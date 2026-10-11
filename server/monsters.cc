@@ -22,7 +22,12 @@ void PickTarget(Monster& monster, std::mt19937& random) {
 }  // namespace
 
 Monster Skeleton(float x, float z) {
-  return {.name = "Skeleton", .x = x, .z = z, .level = 1, .max_health = 50};
+  return {.name = "Skeleton",
+          .x = x,
+          .z = z,
+          .level = 1,
+          .max_health = 50,
+          .experience = 50};
 }
 
 std::chrono::nanoseconds RandomRest(std::mt19937& random) {
@@ -57,6 +62,19 @@ void Wander(Monster& monster, std::chrono::nanoseconds time,
   monster.x += dx / distance * step;
   monster.z += dz / distance * step;
   monster.yaw = std::atan2(dx, dz);
+}
+
+void Revive(Monster& monster, std::chrono::nanoseconds time,
+            std::mt19937& random) {
+  monster.respawn -= time;
+  if (monster.respawn > std::chrono::nanoseconds::zero()) {
+    return;
+  }
+  monster.x = monster.home_x;
+  monster.z = monster.home_z;
+  monster.health = monster.max_health;
+  monster.motion = Motion::kIdle;
+  monster.rest = RandomRest(random);
 }
 
 }  // namespace nanommo

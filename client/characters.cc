@@ -15,7 +15,10 @@ namespace nanommo {
 
 namespace {
 
-constexpr std::array<const char*, 3> kClips = {"idle", "walk", "run"};
+// In the protocol's order of motions, with attac for the skeleton's attack,
+// whose name raylib cuts at 31 characters.
+constexpr std::array<const char*, 5> kClips = {"idle", "walk", "run", "attac",
+                                               "death"};
 
 constexpr std::string_view kRightHand = "mixamorig:RightHand";
 
@@ -33,10 +36,13 @@ bool HasWord(std::string name, std::string_view word) {
   return name.find(word) != std::string::npos;
 }
 
-// raylib samples glTF clips sixty times a second, and the last frame is the
-// first one again, so a clip loops after one frame fewer.
-float FrameAt(const ModelAnimation& clip, float time) {
+// raylib samples glTF clips 60 times a second, and the last frame is the
+// first again, so a loop skips it, and the death stops just before it.
+float FrameAt(const ModelAnimation& clip, float time, bool loops) {
   const int frames = clip.keyframeCount > 1 ? clip.keyframeCount - 1 : 1;
+  if (!loops) {
+    return std::min(time * 60.0f, static_cast<float>(frames - 1));
+  }
   return std::fmod(time * 60.0f, static_cast<float>(frames));
 }
 
@@ -121,12 +127,12 @@ Characters::Characters(const std::string& folder,
     }
     // Without a walk, a character walks with its run, played slower. The
     // skeleton's feet keep up with our walk at 0.4.
-    auto& [idle, walk, run] = character.clip_for;
+    auto& [idle, walk, run, attack, death] = character.clip_for;
     if (walk < 0 && run >= 0) {
       walk = run;
       character.speed[protocol::MOTION_WALK] = 0.4f;
     }
-    if (idle < 0 || walk < 0 || run < 0) {
+    if (idle < 0 || walk < 0 || run < 0 || attack < 0 || death < 0) {
       TraceLog(LOG_WARNING, "%s doesn't have the clips we need", file.c_str());
       UnloadModelAnimations(character.clips, character.clip_count);
       UnloadModel(character.model);
@@ -193,7 +199,7 @@ void Characters::Hold(const std::string& path, float length, Shader shader) {
 void Characters::Draw(const Figure& figure, Color color) const {
   const Character& character = characters_[figure.id % characters_.size()];
   const auto index = [](protocol::Motion motion) {
-    return motion >= 0 && motion < 3 ? motion : 0;
+    return motion >= 0 && motion < std::ssize(kClips) ? motion : 0;
   };
   const int from = index(figure.from);
   const int to = index(figure.to);
@@ -203,8 +209,12 @@ void Characters::Draw(const Figure& figure, Color color) const {
   // Players share the model's bones, so we pose them right before each draw.
   UpdateModelAnimationEx(
       character.model, from_clip,
-      FrameAt(from_clip, figure.from_time * character.speed[from]), to_clip,
-      FrameAt(to_clip, figure.to_time * character.speed[to]), figure.blend);
+      FrameAt(from_clip, figure.from_time * character.speed[from],
+              from != protocol::MOTION_DEAD),
+      to_clip,
+      FrameAt(to_clip, figure.to_time * character.speed[to],
+              to != protocol::MOTION_DEAD),
+      figure.blend);
   const float scale = character.scale;
   DrawModelEx(character.model, figure.position, {0.0f, 1.0f, 0.0f},
               figure.yaw * RAD2DEG, {scale, scale, scale}, color);

@@ -6,12 +6,15 @@ message Input {
   float x = 1;
   float z = 2;
   bool run = 3;
+  bool attack = 4;
 }
 
 enum Motion {
   MOTION_IDLE = 0;
   MOTION_WALK = 1;
   MOTION_RUN = 2;
+  MOTION_ATTACK = 3;
+  MOTION_DEAD = 4;
 }
 
 message Player {

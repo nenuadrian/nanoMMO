@@ -39,8 +39,8 @@ class Characters {
     Model model;
     ModelAnimation* clips = nullptr;
     int clip_count = 0;
-    std::array<int, 3> clip_for{};
-    std::array<float, 3> speed{1.0f, 1.0f, 1.0f};
+    std::array<int, 5> clip_for{};
+    std::array<float, 5> speed{1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
     float scale = 1.0f;
     int hand = -1;
   };

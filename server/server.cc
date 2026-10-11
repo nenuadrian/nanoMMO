@@ -36,6 +36,10 @@ protocol::Motion ToProtocol(Motion motion) {
       return protocol::MOTION_WALK;
     case Motion::kRun:
       return protocol::MOTION_RUN;
+    case Motion::kAttack:
+      return protocol::MOTION_ATTACK;
+    case Motion::kDead:
+      return protocol::MOTION_DEAD;
     case Motion::kIdle:
       break;
   }
@@ -115,7 +119,8 @@ void Server::Accept() {
         }
         protocol::Input input;
         if (input.ParseFromString(bytes)) {
-          world_.SetInput(*id, input.x(), input.z(), input.run());
+          world_.SetInput(*id, input.x(), input.z(), input.run(),
+                          input.attack());
         }
       };
       const auto on_close = [this, id] {

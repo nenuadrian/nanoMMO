@@ -27,4 +27,6 @@ bool Running() {
   return IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
 }
 
+bool Attacking() { return IsKeyDown(KEY_SPACE); }
+
 }  // namespace nanommo

@@ -10,6 +10,8 @@ Vector3 Movement();
 
 bool Running();
 
+bool Attacking();
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_INPUT_H_

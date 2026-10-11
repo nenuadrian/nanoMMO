@@ -14,4 +14,6 @@ Level LevelFor(uint32_t experience) {
 
 int MaxHealth(int level) { return 100 + 20 * (level - 1); }
 
+int Damage(int level) { return 15 + 5 * (level - 1); }
+
 }  // namespace nanommo

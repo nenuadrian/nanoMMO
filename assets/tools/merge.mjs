@@ -6,6 +6,8 @@ import { MeshoptSimplifier } from 'meshoptimizer';
 
 const KEEP = 0.1;
 
+const IN_PLACE = new Set(['walk', 'run']);
+
 const [characterPath, outPath, ...clipPaths] = process.argv.slice(2);
 const io = new NodeIO();
 const doc = await io.read(characterPath);
@@ -57,7 +59,7 @@ clips.forEach((clip, i) => {
       const sampler = channel.getSampler();
       const times = sampler.getInput().getArray().slice();
       const values = sampler.getOutput().getArray().slice();
-      if (bone === joints[0] && channel.getTargetPath() === 'translation') {
+      if (bone === joints[0] && channel.getTargetPath() === 'translation' && IN_PLACE.has(name)) {
         inPlace(name, times, values);
       }
       const copy = doc
@@ -74,6 +76,7 @@ clips.forEach((clip, i) => {
 
 // Mixamo's walk and run carry the hips forward. Our server moves the players,
 // so we take that out, and print the speed that keeps the feet from sliding.
+// The other clips keep theirs: a player falls back as it dies.
 function inPlace(name, times, values) {
   const last = times.length - 1;
   if (times[last] === 0) return;

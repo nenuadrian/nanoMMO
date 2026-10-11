@@ -9,7 +9,7 @@
 
 namespace nanommo {
 
-enum class Motion { kIdle, kWalk, kRun };
+enum class Motion { kIdle, kWalk, kRun, kAttack, kDead };
 
 struct Player {
   std::string name;
@@ -20,9 +20,12 @@ struct Player {
   Motion motion = Motion::kIdle;
   uint32_t experience = 0;
   int health = 0;
+  uint32_t target = 0;
+  std::chrono::nanoseconds swing{0};
   float input_x = 0.0f;
   float input_z = 0.0f;
   bool input_run = false;
+  bool input_attack = false;
 };
 
 struct Monster {
@@ -34,11 +37,13 @@ struct Monster {
   int level = 1;
   int health = 0;
   int max_health = 0;
+  uint32_t experience = 0;
   float home_x = 0.0f;
   float home_z = 0.0f;
   float target_x = 0.0f;
   float target_z = 0.0f;
   std::chrono::nanoseconds rest{0};
+  std::chrono::nanoseconds respawn{0};
 };
 
 class World {
@@ -51,13 +56,22 @@ class World {
   /// Six tiles to the ground's edge, less half a tile, so players stay on it.
   static constexpr float kEdge = 5.5f;
 
+  static constexpr float kReach = 1.6f;
+
+  /// As long as the slash animation.
+  static constexpr std::chrono::milliseconds kSwingTime{2000};
+
+  static constexpr std::chrono::milliseconds kHitTime{900};
+
+  static constexpr std::chrono::seconds kRespawnTime{10};
+
   explicit World(uint32_t seed = std::mt19937::default_seed);
 
   void Join(uint32_t id, Player player);
 
   void Leave(uint32_t id);
 
-  void SetInput(uint32_t id, float x, float z, bool run);
+  void SetInput(uint32_t id, float x, float z, bool run, bool attack = false);
 
   uint32_t Spawn(Monster monster);
 
@@ -67,6 +81,11 @@ class World {
   const std::map<uint32_t, Monster>& monsters() const { return monsters_; }
 
  private:
+  void Act(Player& player, std::chrono::nanoseconds time);
+  void Move(Player& player, std::chrono::nanoseconds time);
+  void Swing(Player& player);
+  void Hit(Player& player);
+
   std::map<uint32_t, Player> players_;
   std::map<uint32_t, Monster> monsters_;
   uint32_t next_monster_ = 1;
