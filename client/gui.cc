@@ -16,6 +16,7 @@ Gui::Gui() {
   });
   rlImGuiSetup(true);
   ImGui::GetIO().IniFilename = nullptr;
+  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 }
 
 Gui::~Gui() { rlImGuiShutdown(); }

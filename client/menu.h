@@ -9,7 +9,8 @@ namespace nanommo {
 
 class Menu {
  public:
-  void Build(Window& window, std::array<float, 3>& background);
+  /// Returns true when the player picks Log out.
+  bool Build(Window& window, std::array<float, 3>& background);
 
  private:
   bool show_settings_ = false;

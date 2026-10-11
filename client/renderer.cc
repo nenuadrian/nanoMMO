@@ -46,15 +46,18 @@ Renderer::~Renderer() {
 }
 
 void Renderer::Draw() const {
-  ClearBackground(ColorFromNormalized(
-      {background_[0], background_[1], background_[2], 1.0f}));
-
+  Clear();
   BeginMode3D(GameCamera());
   for (const Cube& cube : cubes_) {
     DrawModelEx(cube_, cube.position, {0.0f, 1.0f, 0.0f}, 0.0f, cube.size,
                 cube.color);
   }
   EndMode3D();
+}
+
+void Renderer::Clear() const {
+  ClearBackground(ColorFromNormalized(
+      {background_[0], background_[1], background_[2], 1.0f}));
 }
 
 }  // namespace nanommo

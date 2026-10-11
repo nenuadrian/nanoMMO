@@ -7,26 +7,53 @@
 #include <utility>
 
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "client/connection.h"
 #include "client/gui.h"
 #include "client/input.h"
+#include "client/login_screen.h"
 #include "client/menu.h"
+#include "client/nameplates.h"
 #include "client/renderer.h"
 #include "client/scene.h"
 #include "client/window.h"
+#include "protocol/login_client.h"
+
+namespace {
+
+constexpr uint16_t kGamePort = 7777;
+constexpr uint16_t kLoginPort = 7778;
+
+std::unique_ptr<nanommo::Connection> Enter(
+    const std::string& host, const nanommo::protocol::LoginRequest& request,
+    nanommo::LoginScreen& screen) {
+  absl::StatusOr<nanommo::protocol::LoginReply> reply_or =
+      nanommo::LogIn(host, kLoginPort, request);
+  if (!reply_or.ok()) {
+    screen.ShowError(absl::StrCat("Couldn't reach the server: ",
+                                  reply_or.status().message()));
+    return nullptr;
+  }
+  const nanommo::protocol::LoginReply& reply = *reply_or;
+  if (!reply.ok()) {
+    screen.ShowError(reply.error());
+    return nullptr;
+  }
+  std::cout << "nanommo client: logged in as " << request.username() << '\n';
+  absl::StatusOr<std::unique_ptr<nanommo::Connection>> connection_or =
+      nanommo::Connection::Create(host, kGamePort, reply.token());
+  if (!connection_or.ok()) {
+    screen.ShowError(absl::StrCat("Couldn't reach the server: ",
+                                  connection_or.status().message()));
+    return nullptr;
+  }
+  return *std::move(connection_or);
+}
+
+}  // namespace
 
 int main(int argc, char* argv[]) {
   const std::string host = argc > 1 ? argv[1] : "localhost";
-  constexpr uint16_t kPort = 7777;
-  absl::StatusOr<std::unique_ptr<nanommo::Connection>> connection_or =
-      nanommo::Connection::Create(host, kPort);
-  if (!connection_or.ok()) {
-    std::cerr << "nanommo client: " << connection_or.status() << "\n";
-    return 1;
-  }
-  const std::unique_ptr<nanommo::Connection> connection =
-      *std::move(connection_or);
-  std::cout << "nanommo client: connected to " << host << ":" << kPort << '\n';
 
   absl::StatusOr<std::unique_ptr<nanommo::Window>> window_or =
       nanommo::Window::Create("nanoMMO", 1280, 720);
@@ -37,37 +64,56 @@ int main(int argc, char* argv[]) {
   const std::unique_ptr<nanommo::Window> window = *std::move(window_or);
   nanommo::Gui gui;
   nanommo::Menu menu;
+  nanommo::LoginScreen login_screen;
   nanommo::Renderer renderer;
 
+  std::unique_ptr<nanommo::Connection> connection;
   nanommo::protocol::Input sent;
   int online = 0;
 
   while (!window->ShouldClose()) {
-    connection->Poll();
-    if (!connection->connected()) {
-      std::cerr << "nanommo client: lost the connection to the server\n";
-      return 1;
+    if (connection) {
+      connection->Poll();
+      if (!connection->connected()) {
+        connection.reset();
+        login_screen.ShowError("Lost the connection to the server.");
+      }
     }
 
-    const Vector3 direction = nanommo::Movement();
-    if (direction.x != sent.x() || direction.z != sent.z()) {
-      sent.set_x(direction.x);
-      sent.set_z(direction.z);
-      connection->Send(sent);
-    }
+    if (connection) {
+      const Vector3 direction = nanommo::Movement();
+      if (direction.x != sent.x() || direction.z != sent.z()) {
+        sent.set_x(direction.x);
+        sent.set_z(direction.z);
+        connection->Send(sent);
+      }
 
-    const nanommo::protocol::World& world = connection->world();
-    if (world.players_size() != online) {
-      online = world.players_size();
-      std::cout << "nanommo client: we're player " << world.you() << ", "
-                << online << " online" << '\n';
+      const nanommo::protocol::World& world = connection->world();
+      if (world.players_size() != online) {
+        online = world.players_size();
+        std::cout << "nanommo client: we're player " << world.you() << ", "
+                  << online << " online" << '\n';
+      }
+      renderer.set_cubes(nanommo::Scene(world));
     }
-    renderer.set_cubes(nanommo::Scene(world));
 
     BeginDrawing();
-    renderer.Draw();
+    if (connection) {
+      renderer.Draw();
+    } else {
+      renderer.Clear();
+    }
     gui.Begin();
-    menu.Build(*window, *renderer.mutable_background());
+    if (connection) {
+      nanommo::DrawNameplates(connection->world());
+      if (menu.Build(*window, *renderer.mutable_background())) {
+        connection.reset();
+      }
+    } else if (const auto request = login_screen.Build()) {
+      connection = Enter(host, *request, login_screen);
+      sent.Clear();
+      online = 0;
+    }
     gui.End();
     EndDrawing();
   }

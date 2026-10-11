@@ -21,6 +21,8 @@ class Renderer {
 
   void Draw() const;
 
+  void Clear() const;
+
   const std::array<float, 3>& background() const { return background_; }
   void set_background(const std::array<float, 3>& background) {
     background_ = background;

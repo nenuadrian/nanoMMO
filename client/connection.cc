@@ -12,9 +12,9 @@
 namespace nanommo {
 
 absl::StatusOr<std::unique_ptr<Connection>> Connection::Create(
-    const std::string& host, uint16_t port) {
+    const std::string& host, uint16_t port, const std::string& token) {
   std::unique_ptr<Connection> connection = absl::WrapUnique(new Connection());
-  const absl::Status started = connection->Start(host, port);
+  const absl::Status started = connection->Start(host, port, token);
   if (!started.ok()) {
     return started;
   }
@@ -23,7 +23,8 @@ absl::StatusOr<std::unique_ptr<Connection>> Connection::Create(
 
 Connection::Connection() : socket_(io_) {}
 
-absl::Status Connection::Start(const std::string& host, uint16_t port) {
+absl::Status Connection::Start(const std::string& host, uint16_t port,
+                               const std::string& token) {
   asio::ip::tcp::resolver resolver(io_);
   std::error_code error;
   const asio::ip::tcp::resolver::results_type endpoints =
@@ -37,6 +38,13 @@ absl::Status Connection::Start(const std::string& host, uint16_t port) {
   }
   std::error_code ignored;
   socket_.set_option(asio::ip::tcp::no_delay(true), ignored);
+  protocol::Hello hello;
+  hello.set_token(token);
+  asio::write(socket_, asio::buffer(Frame(hello)), error);
+  if (error) {
+    return absl::UnavailableError(
+        absl::StrCat("couldn't say hello to the server: ", error.message()));
+  }
   Read();
   return absl::OkStatus();
 }

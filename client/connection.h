@@ -19,7 +19,7 @@ class Connection {
  public:
   /// Connects to the server, or returns why it couldn't.
   static absl::StatusOr<std::unique_ptr<Connection>> Create(
-      const std::string& host, uint16_t port);
+      const std::string& host, uint16_t port, const std::string& token);
 
   Connection(const Connection&) = delete;
   Connection& operator=(const Connection&) = delete;
@@ -35,7 +35,8 @@ class Connection {
  private:
   Connection();
 
-  absl::Status Start(const std::string& host, uint16_t port);
+  absl::Status Start(const std::string& host, uint16_t port,
+                     const std::string& token);
   void Read();
 
   asio::io_context io_;

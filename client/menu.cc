@@ -24,9 +24,11 @@ constexpr std::array<Preset, 4> kPresets = {{
 
 }  // namespace
 
-void Menu::Build(Window& window, std::array<float, 3>& background) {
+bool Menu::Build(Window& window, std::array<float, 3>& background) {
+  bool log_out = false;
   if (ImGui::BeginMainMenuBar()) {
     if (ImGui::BeginMenu("Game")) {
+      log_out = ImGui::MenuItem(ICON_FA_RIGHT_FROM_BRACKET " Log out");
       if (ImGui::MenuItem(ICON_FA_POWER_OFF " Quit")) {
         window.Close();
       }
@@ -58,6 +60,7 @@ void Menu::Build(Window& window, std::array<float, 3>& background) {
   if (show_demo_) {
     ImGui::ShowDemoWindow(&show_demo_);
   }
+  return log_out;
 }
 
 }  // namespace nanommo
