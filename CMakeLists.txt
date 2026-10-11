@@ -49,6 +49,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(protobuf)
 include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
 
+FetchContent_Declare(
+  asio
+  URL https://github.com/chriskohlhoff/asio/archive/refs/tags/asio-1-38-2.tar.gz
+)
+FetchContent_MakeAvailable(asio)
+add_library(asio INTERFACE)
+target_include_directories(asio SYSTEM INTERFACE ${asio_SOURCE_DIR}/asio/include)
+
 add_library(imgui
   ${imgui_SOURCE_DIR}/imgui.cpp
   ${imgui_SOURCE_DIR}/imgui_demo.cpp
