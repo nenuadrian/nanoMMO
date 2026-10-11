@@ -21,12 +21,16 @@ jobs:
       - name: Run the tests against MySQL and Redis
         run: docker compose run --rm tests
 
+      - name: Test the website
+        run: docker build --target test web
+
       - name: Build the server images
         run: |
           docker build --target server .
           docker build --target login .
           docker build --target profile .
           docker build --target netem .
+          docker build web
 
       - name: Generate the API docs
         run: docker build --target docs --output site .

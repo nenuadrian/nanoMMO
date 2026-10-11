@@ -3,6 +3,14 @@ RUN install-php-extensions pdo_mysql redis zip
 COPY --from=composer:2.10.3 /usr/bin/composer /usr/local/bin/
 WORKDIR /app
 
+FROM php AS test
+COPY composer.json composer.lock ./
+RUN composer install --no-scripts --no-autoloader
+COPY . .
+RUN composer dump-autoload \
+ && vendor/bin/pint --test \
+ && vendor/bin/phpunit
+
 FROM php AS web
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader

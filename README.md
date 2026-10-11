@@ -54,6 +54,12 @@ time you log in, you're where you left off.
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
 it, and all sides use the C++ it generates.
 
+## Code style
+
+The code follows [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
+clang-format lays it out, and cpplint checks the rest. `docker build --target lint .` runs both, as
+CI does.
+
 ## Characters
 
 The players are Mixamo's X Bot and Y Bot, with an idle, a walk, a run, a sword slash and a death.
@@ -172,11 +178,37 @@ docker build --target docs --output site .
 In Docker, the client's tests open their window on a virtual display from Xvfb, and render with
 llvmpipe, Mesa's OpenGL driver that runs on the CPU. So they don't need a screen or a GPU.
 
-## Code style
+## The website
 
-The code follows [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-clang-format lays it out, and cpplint checks the rest. `docker build --target lint .` runs both, as
-CI does.
+`web/` is the game's website, a [Laravel](https://laravel.com) app. It ranks the players by
+experience, and you can create an account on it, log in and log out. It reads and writes the same
+MySQL tables as the servers, so an account made on the website logs into the game, and the other way
+round. It hashes passwords with Argon2id, with the login server's settings, in
+`web/config/hashing.php`, so each reads the other's hashes. It keeps its sessions in Redis.
+
+It runs in Docker, on [FrankenPHP](https://frankenphp.dev), a web server with PHP built in:
+
+```bash
+docker compose up -d --build web
+```
+
+Then open http://localhost:8080. [Pico CSS](https://picocss.com), from a CDN, styles the plain HTML,
+so there's no CSS of our own, and nothing to build with npm.
+
+- The rankings are the hundred players with the most experience. An account that has never played
+  isn't on them, as the game server saves a player when it leaves.
+- Each address gets ten tries a minute at creating an account or logging in, since each try hashes
+  a password, which takes 64 MiB and tens of milliseconds.
+- The tables are still the ones from `db/schema.sql`. The website has no migrations of its own.
+- `APP_KEY` in `compose.yaml` encrypts the website's cookies. Like the MySQL password next to it,
+  it's for your own machine. Before the website goes anywhere public, make a new one with
+  `docker compose run --rm --no-deps web php artisan key:generate --show`, and keep it out of git.
+
+The website's tests, and Pint, Laravel's formatter, which fails on code it would change:
+
+```bash
+docker build --target test web
+```
 
 ## Monitoring and load
 
