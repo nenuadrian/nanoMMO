@@ -2,4 +2,5 @@
 build/
 site/
 compose.yaml
+db/
 monitoring/

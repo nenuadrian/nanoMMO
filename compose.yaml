@@ -1,6 +1,23 @@
 name: nanommo
 
 services:
+  mysql:
+    image: mysql:9.7.2
+    environment:
+      MYSQL_DATABASE: nanommo
+      MYSQL_USER: nanommo
+      MYSQL_PASSWORD: nanommo
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    volumes:
+      - mysql:/var/lib/mysql
+      - ./db:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 2s
+      retries: 30
+
   server:
     build:
       context: .
@@ -37,3 +54,6 @@ services:
       - server
     profiles:
       - load
+
+volumes:
+  mysql:
