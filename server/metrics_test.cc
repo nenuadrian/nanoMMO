@@ -29,3 +29,16 @@ TEST(Metrics, PutsEachTickInItsBucket) {
   EXPECT_TRUE(
       Has(text, R"(nanommo_tick_duration_seconds_bucket{le="0.0005"} 1)"));
 }
+
+TEST(Metrics, KeepsTicksOverTheBudgetApart) {
+  nanommo::Metrics metrics;
+  metrics.ObserveTick(std::chrono::milliseconds(60));
+  metrics.ObserveTick(std::chrono::milliseconds(300));
+  const std::string text = Scrape(metrics);
+
+  EXPECT_TRUE(
+      Has(text, R"(nanommo_tick_duration_seconds_bucket{le="0.05"} 0)"));
+  EXPECT_TRUE(
+      Has(text, R"(nanommo_tick_duration_seconds_bucket{le="0.075"} 1)"));
+  EXPECT_TRUE(Has(text, R"(nanommo_tick_duration_seconds_bucket{le="0.5"} 2)"));
+}

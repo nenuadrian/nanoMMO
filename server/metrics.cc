@@ -9,15 +9,15 @@ Metrics::Metrics()
                    .Help("Players connected to the server")
                    .Register(*registry_)
                    .Add({})),
-      // From a tenth of a millisecond up to the whole fifty-millisecond tick.
-      tick_seconds_(prometheus::BuildHistogram()
-                        .Name("nanommo_tick_duration_seconds")
-                        .Help("Time spent in each tick")
-                        .Register(*registry_)
-                        .Add({},
-                             prometheus::Histogram::BucketBoundaries{
-                                 0.0001, 0.00025, 0.0005, 0.001, 0.0025, 0.005,
-                                 0.01, 0.025, 0.05})),
+      tick_seconds_(
+          prometheus::BuildHistogram()
+              .Name("nanommo_tick_duration_seconds")
+              .Help("Time spent in each tick")
+              .Register(*registry_)
+              .Add({},
+                   prometheus::Histogram::BucketBoundaries{
+                       0.0001, 0.00025, 0.0005, 0.001, 0.0025, 0.005, 0.01,
+                       0.02, 0.03, 0.04, 0.05, 0.075, 0.1, 0.25, 0.5, 1})),
       bytes_sent_(prometheus::BuildCounter()
                       .Name("nanommo_bytes_sent_total")
                       .Help("Bytes queued to send to clients")

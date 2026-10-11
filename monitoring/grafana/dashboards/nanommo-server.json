@@ -51,6 +51,59 @@
       }
     },
     {
+      "id": 5,
+      "type": "stat",
+      "title": "Ticks per second",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(nanommo_tick_duration_seconds_count[15s])"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 19.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
       "id": 2,
       "type": "timeseries",
       "title": "Tick duration",
@@ -59,9 +112,9 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "x": 6,
+        "x": 12,
         "y": 0,
-        "w": 18,
+        "w": 12,
         "h": 9
       },
       "fieldConfig": {
@@ -69,7 +122,23 @@
           "unit": "s",
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 10
+            "fillOpacity": 10,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
           }
         },
         "overrides": []
