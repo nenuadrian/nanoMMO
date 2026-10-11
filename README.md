@@ -43,10 +43,11 @@ The client opens on a login screen: type a name and a password, then Create acco
 and Log in after that. It connects to `localhost`, or to the host you give it
 (`./build/bin/nanommo_client 192.168.1.20`). It gets the world over UDP, unless you put `tcp` after the
 host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP](#packet-loss-tcp-and-udp).
-Each player is an animated character on a board of tiles, with its level, name and health over it,
-or a cube until you've made the characters (see below). Three skeletons wander around the board. W,
-A, S and D, or the arrow keys, move yours, which has a white marker over it, and Shift makes it run.
-The frame in the top left corner shows your health, and your experience towards the next level.
+Each player is an animated character with a sword, on a board of tiles, with its level, name and
+health over it, or a cube until you've made the characters (see below). Three skeletons wander
+around the board. W, A, S and D, or the arrow keys, move yours, which has a white marker over it,
+Shift makes it run, and Space swings the sword. The frame in the top left corner shows your health,
+and your experience towards the next level.
 View, Settings changes the background, and Game, Log out takes you back to the login screen. Next
 time you log in, you're where you left off.
 
@@ -55,9 +56,10 @@ it, and all sides use the C++ it generates.
 
 ## Characters
 
-The players are Mixamo's X Bot and Y Bot, with an idle, a walk and a run. Mixamo's terms don't let us
-share its files, so they're not in the repo: [assets/mixamo/README.md](assets/mixamo/README.md) lists
-what to download from mixamo.com. Then make the characters:
+The players are Mixamo's X Bot and Y Bot, with an idle, a walk, a run, a sword slash and a death.
+Mixamo's terms don't let us share its files, so they're not in the repo:
+[assets/mixamo/README.md](assets/mixamo/README.md) lists what to download from mixamo.com. Then make
+the characters:
 
 ```bash
 docker build --target characters --output assets/characters .
@@ -66,8 +68,15 @@ docker build --target characters --output assets/characters .
 The `characters` stage converts the FBX files to glTF with FBX2glTF, and
 [assets/tools/merge.mjs](assets/tools/merge.mjs) puts each character and the clips into one `.glb`
 that raylib can load: one skeleton, the walk and the run in place, and a tenth of the triangles. The
-build copies `assets/characters` next to the client, which loads them from there. Without them, the
-players are cubes, and the client's character tests skip themselves.
+slash and the death keep their motion, so a player falls back as it dies. The build copies
+`assets/characters` next to the client, which loads them from there. Without them, the players are
+cubes, and the client's character tests skip themselves.
+
+Each player holds Quaternius's sword, from [Poly Pizza](https://poly.pizza/m/ajOJ2NLz5m), which is
+public domain and in the repo, as it was downloaded, in `assets/weapons`. The client scales it to a
+metre and, each frame, puts it where the right hand's bone is in the pose: along the knuckles, with
+the blade out past the index finger. glTF colours are linear, so the client turns the sword's into
+sRGB, as our shader writes colours out as they are.
 
 The server decides which way each player faces, and whether it stands, walks or runs. It moves them
 at 1.8 and 3.1 metres a second, the speeds of the walk and the run, so that the feet don't slide.
@@ -87,6 +96,25 @@ skeleton's arms rest about 70 degrees from where its mesh was bound.
 The server spawns three skeletons, and runs their AI each tick: a monster rests for two to six
 seconds, walks to a random place within three metres of where it spawned, at 1.8 metres a second,
 and rests again. The world's random generator takes a seed, so the tests pick theirs.
+
+## Fighting
+
+Space swings your sword at the nearest monster within 1.6 metres, and turns you to face it. A swing
+takes two seconds, the length of the slash animation, and you stand still until it's over. The
+sword hits 0.9 seconds in, as it comes across the front, if the monster is still alive and in reach:
+fifteen health at level one, and five more for each level after it. Holding Space down swings again
+and again. All of it happens on the server: the client only says that Space is down, in `Input`.
+
+A monster goes for the nearest living player within three metres of it, if that player is within
+four metres of the monster's home. Each skeleton's home is further than that from the middle of the
+board, so the middle, where players start and come back, is safe. A monster runs at them at the
+players' running speed, and swings once it's within 1.2 metres. The skeleton's swing takes 0.9 seconds, its attack animation, and hits for five,
+0.65 seconds in. Run, or die, and it gives up and wanders back.
+
+A monster with no health left dies, and whoever killed it gets its experience, fifty for a skeleton.
+Going up a level fills your health, to the new level's most. A player with no health left dies. The
+dead play their death animation, lie there for ten seconds, and come back: a monster where it
+spawned, and a player in the middle of the board, both at full health.
 
 Players and monsters have a level and health, which everyone sees. A player's experience is its own:
 the server works out its level, and sends its experience into the level, and what the next level
