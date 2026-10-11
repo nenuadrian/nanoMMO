@@ -89,5 +89,5 @@ if(DOXYGEN_FOUND)
     ${doxygen_awesome_SOURCE_DIR}/doxygen-awesome.css
     ${doxygen_awesome_SOURCE_DIR}/doxygen-awesome-sidebar-only.css
   )
-  doxygen_add_docs(docs README.md server client)
+  doxygen_add_docs(docs README.md protocol server client)
 endif()
