@@ -22,3 +22,22 @@ TEST(Renderer, ClearsToTheBackgroundColor) {
   EXPECT_EQ(target.ReadPixel(0, 0), expected);
   EXPECT_EQ(target.ReadPixel(63, 63), expected);
 }
+
+TEST(Renderer, DrawsACubeInTheMiddle) {
+  const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
+      nanommo::Window::Create("test", 64, 64,
+                              nanommo::Window::Visibility::kHidden);
+  ASSERT_TRUE(window.ok());
+  nanommo::Offscreen target(64, 64);
+  nanommo::Renderer renderer;
+  renderer.set_background({30 / 255.0f, 144 / 255.0f, 255 / 255.0f});
+  renderer.set_cubes({{.color = Color{255, 0, 0, 255}}});
+
+  target.Render(renderer);
+
+  const nanommo::Pixel middle = target.ReadPixel(32, 32);
+  EXPECT_GT(middle.r, 100);
+  EXPECT_EQ(middle.g, 0);
+  EXPECT_EQ(middle.b, 0);
+  EXPECT_EQ(target.ReadPixel(0, 0), (nanommo::Pixel{30, 144, 255, 255}));
+}

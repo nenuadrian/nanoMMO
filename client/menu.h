@@ -13,7 +13,7 @@ class Menu {
 
  private:
   bool show_settings_ = false;
-  bool show_demo_ = true;
+  bool show_demo_ = false;
 };
 
 }  // namespace nanommo

@@ -21,6 +21,7 @@ int main() {
   nanommo::Gui gui;
   nanommo::Menu menu;
   nanommo::Renderer renderer;
+  renderer.set_cubes({{.color = Color{242, 140, 51, 255}}});
 
   while (!window->ShouldClose()) {
     BeginDrawing();

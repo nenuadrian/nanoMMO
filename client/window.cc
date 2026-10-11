@@ -14,7 +14,7 @@ absl::StatusOr<std::unique_ptr<Window>> Window::Create(const std::string& title,
                                                        int width, int height,
                                                        Visibility visibility) {
   SetTraceLogLevel(LOG_WARNING);
-  unsigned int flags = FLAG_WINDOW_HIGHDPI;
+  unsigned int flags = FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT;
   if (visibility == Visibility::kHidden) {
     flags |= FLAG_WINDOW_HIDDEN;
   }
