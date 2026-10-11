@@ -6,9 +6,11 @@
 #include <random>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
+#include "asio/ip/udp.hpp"
 #include "asio/steady_timer.hpp"
 #include "protocol/framing.h"
 
@@ -16,7 +18,7 @@ namespace nanommo {
 
 class Bot {
  public:
-  Bot(asio::io_context& io, uint32_t seed);
+  Bot(asio::io_context& io, uint32_t seed, bool udp);
 
   Bot(const Bot&) = delete;
   Bot& operator=(const Bot&) = delete;
@@ -26,19 +28,28 @@ class Bot {
 
   bool connected() const { return connected_; }
 
-  int64_t newest() const { return newest_; }
+  const std::vector<int64_t>& newest() const { return newest_; }
 
  private:
   void Read();
+  void HelloOverUdp();
+  void ReceiveOverUdp();
   void Receive(std::string_view bytes);
   void Wander();
+  void Stop();
 
   asio::ip::tcp::socket socket_;
+  asio::ip::udp::socket udp_socket_;
   asio::steady_timer timer_;
+  asio::steady_timer hello_timer_;
   std::mt19937 random_;
+  bool udp_;
+  std::string token_;
   std::array<char, 65536> buffer_;
+  std::array<char, 2048> datagram_;
   FrameReader reader_;
-  int64_t newest_ = 0;
+  std::vector<int64_t> newest_;
+  bool udp_worlds_ = false;
   std::string outgoing_;
   bool connected_ = false;
 };

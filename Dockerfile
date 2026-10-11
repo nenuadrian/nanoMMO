@@ -24,7 +24,7 @@ RUN apt-get update \
 FROM runtime AS server
 COPY --from=test /src/build/bin/nanommo_server /usr/local/bin/
 USER ubuntu
-EXPOSE 7777 9464
+EXPOSE 7777 7777/udp 9464
 ENTRYPOINT ["nanommo_server"]
 
 FROM runtime AS login
@@ -64,7 +64,7 @@ RUN mkdir /opt/flamegraph \
 ENV PATH=/opt/flamegraph:$PATH
 COPY --from=profile-build /src/build/bin/nanommo_server /usr/local/bin/
 COPY bench/profile.sh /usr/local/bin/
-EXPOSE 7777 9464 8086
+EXPOSE 7777 7777/udp 9464 8086
 ENTRYPOINT ["nanommo_server"]
 
 FROM build AS docs-build

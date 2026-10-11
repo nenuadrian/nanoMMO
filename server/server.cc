@@ -1,14 +1,19 @@
 #include "server/server.h"
 
+#include <array>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/memory/memory.h"
+#include "asio/buffer.hpp"
+#include "asio/socket_base.hpp"
 #include "protocol/clock.h"
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
+#include "protocol/parts.h"
 #include "server/listen.h"
 #include "tracy/Tracy.hpp"
 
@@ -45,6 +50,7 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
 Server::Server(asio::io_context& io, std::chrono::nanoseconds interval,
                Metrics& metrics, Tokens& tokens, Players& players)
     : acceptor_(io),
+      udp_(io),
       timer_(io),
       interval_(interval),
       metrics_(metrics),
@@ -56,7 +62,17 @@ absl::Status Server::Start(uint16_t port) {
   if (!listening.ok()) {
     return listening;
   }
+  const absl::Status bound = Bind(udp_, port);
+  if (!bound.ok()) {
+    return bound;
+  }
+  // One socket sends all the datagrams, so it gets more room for those on
+  // their way out than the two hundred kilobytes Linux gives by default.
+  std::error_code ignored;
+  udp_.set_option(asio::socket_base::send_buffer_size(4 * 1024 * 1024),
+                  ignored);
   Accept();
+  Receive();
   timer_.expires_after(interval_);
   timer_.async_wait([this](std::error_code) { Tick(); });
   return absl::OkStatus();
@@ -122,6 +138,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   }
   world_.Join(*id, *player);
   sessions_[*id] = session.shared_from_this();
+  udp_tokens_[hello.token()] = *id;
   metrics_.SetPlayers(world_.players().size());
   std::cout << world_.players().at(*id).name << " joined, as player " << *id
             << std::endl;
@@ -137,7 +154,26 @@ void Server::Leave(uint32_t id) {
   }
   world_.Leave(id);
   sessions_.erase(id);
+  std::erase_if(udp_tokens_,
+                [id](const auto& token) { return token.second == id; });
+  udp_clients_.erase(id);
   metrics_.SetPlayers(world_.players().size());
+}
+
+void Server::Receive() {
+  udp_.async_receive_from(
+      asio::buffer(datagram_), sender_,
+      [this](std::error_code error, std::size_t size) {
+        protocol::Hello hello;
+        if (!error &&
+            hello.ParseFromArray(datagram_.data(), static_cast<int>(size))) {
+          const auto token = udp_tokens_.find(hello.token());
+          if (token != udp_tokens_.end()) {
+            udp_clients_[token->second] = sender_;
+          }
+        }
+        Receive();
+      });
 }
 
 void Server::Tick() {
@@ -173,13 +209,38 @@ void Server::Broadcast() {
     ZoneScopedN("serialize");
     players = std::make_shared<const std::string>(message.SerializeAsString());
   }
+  std::vector<std::shared_ptr<const std::string>> parts;
+  if (!udp_clients_.empty()) {
+    for (const protocol::World& part : Split(message)) {
+      parts.push_back(
+          std::make_shared<const std::string>(part.SerializeAsString()));
+    }
+  }
   for (const auto& [id, session] : sessions_) {
     protocol::World you;
     you.set_you(id);
     std::string own = you.SerializeAsString();
-    metrics_.AddBytesSent(kHeaderSize + players->size() + own.size());
-    session->Send(players, std::move(own));
+    const auto udp = udp_clients_.find(id);
+    if (udp != udp_clients_.end()) {
+      // A datagram arrives whole or not at all, so it needs no size in front.
+      for (const auto& part : parts) {
+        metrics_.AddBytesSent(part->size() + own.size());
+        SendTo(udp->second, part, own);
+      }
+    } else {
+      metrics_.AddBytesSent(kHeaderSize + players->size() + own.size());
+      session->Send(players, std::move(own));
+    }
   }
+}
+
+void Server::SendTo(const asio::ip::udp::endpoint& client,
+                    std::shared_ptr<const std::string> part, std::string own) {
+  auto tail = std::make_shared<const std::string>(std::move(own));
+  const std::array buffers{asio::buffer(*part), asio::buffer(*tail)};
+  // The handler keeps the bytes alive until the datagram has gone.
+  udp_.async_send_to(buffers, client,
+                     [part, tail](std::error_code, std::size_t) {});
 }
 
 }  // namespace nanommo

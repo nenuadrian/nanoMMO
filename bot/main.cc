@@ -53,12 +53,14 @@ class Swarm {
  public:
   Swarm(asio::io_context& io, std::string login,
         asio::ip::tcp::resolver::results_type server, int count,
-        std::chrono::milliseconds ramp, int first, nanommo::BotMetrics& metrics)
+        std::chrono::milliseconds ramp, int first, bool udp,
+        nanommo::BotMetrics& metrics)
       : io_(io),
         login_(std::move(login)),
         server_(std::move(server)),
         count_(count),
         first_(first),
+        udp_(udp),
         gap_(count > 0 ? ramp / count : ramp),
         metrics_(metrics),
         timer_(io),
@@ -76,8 +78,8 @@ class Swarm {
       return;
     }
     const int number = first_ + static_cast<int>(bots_.size());
-    auto bot =
-        std::make_unique<nanommo::Bot>(io_, static_cast<uint32_t>(number));
+    auto bot = std::make_unique<nanommo::Bot>(
+        io_, static_cast<uint32_t>(number), udp_);
     const absl::StatusOr<std::string> token = LogIn(login_, number);
     if (token.ok()) {
       bot->Start(server_, *token);
@@ -115,8 +117,13 @@ class Swarm {
   void Look() {
     const int64_t now = nanommo::NowMicros();
     for (const auto& bot : bots_) {
-      if (bot->connected() && bot->newest() > 0) {
-        metrics_.ObserveAge(std::chrono::microseconds(now - bot->newest()));
+      if (!bot->connected()) {
+        continue;
+      }
+      for (const int64_t sent : bot->newest()) {
+        if (sent > 0) {
+          metrics_.ObserveAge(std::chrono::microseconds(now - sent));
+        }
       }
     }
     frame_.expires_at(frame_.expiry() + kFrame);
@@ -132,6 +139,7 @@ class Swarm {
   asio::ip::tcp::resolver::results_type server_;
   int count_;
   int first_;
+  bool udp_;
   std::chrono::milliseconds gap_;
   nanommo::BotMetrics& metrics_;
   asio::steady_timer timer_;
@@ -157,8 +165,9 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   const auto ramp = std::chrono::seconds(ramp_seconds);
+  const std::string transport = argc > 6 ? argv[6] : "tcp";
 
-  nanommo::BotMetrics metrics("tcp");
+  nanommo::BotMetrics metrics(transport);
   prometheus::Exposer exposer("0.0.0.0:" + std::to_string(kMetricsPort));
   exposer.RegisterCollectable(metrics.registry());
 
@@ -174,8 +183,10 @@ int main(int argc, char* argv[]) {
   }
   std::cout << "nanommo bot: starting " << count << " bots against " << host
             << ", logging in on " << login << ", over " << ramp.count()
-            << " s, from bot" << first << std::endl;
-  Swarm swarm(io, login, server, count, ramp, first, metrics);
+            << " s, from bot" << first << ", worlds over " << transport
+            << std::endl;
+  Swarm swarm(io, login, server, count, ramp, first, transport == "udp",
+              metrics);
 
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });

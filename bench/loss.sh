@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-bots=${1:-200}
+transport=${1:-tcp}
+bots=${2:-200}
 delay=50
 hold=60
 ready_timeout=120
@@ -35,7 +36,8 @@ trap stop EXIT
 docker compose --progress quiet build bots netem
 
 docker compose --progress quiet run -d --rm --use-aliases \
-  --label nanommo.bench=true bots login server "$bots" 10 > /dev/null
+  --label nanommo.bench=true \
+  bots login server "$bots" 10 1 "$transport" > /dev/null
 
 window="$((hold - 10))s"
 age="sum by (le) (rate(nanommo_bot_world_age_seconds_bucket[$window]))"

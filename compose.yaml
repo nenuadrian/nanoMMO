@@ -51,6 +51,7 @@ services:
       NANOMMO_REDIS_HOST: redis
     ports:
       - "7777:7777"
+      - "7777:7777/udp"
       - "9464:9464"
     depends_on:
       mysql:

@@ -30,4 +30,18 @@ absl::Status Listen(asio::ip::tcp::acceptor& acceptor, uint16_t port) {
   return absl::OkStatus();
 }
 
+absl::Status Bind(asio::ip::udp::socket& socket, uint16_t port) {
+  const asio::ip::udp::endpoint endpoint(asio::ip::udp::v4(), port);
+  std::error_code error;
+  socket.open(endpoint.protocol(), error);
+  if (!error) {
+    socket.bind(endpoint, error);
+  }
+  if (error) {
+    return absl::UnavailableError(
+        absl::StrCat("couldn't bind UDP port ", port, ": ", error.message()));
+  }
+  return absl::OkStatus();
+}
+
 }  // namespace nanommo
