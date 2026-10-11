@@ -29,7 +29,27 @@ FetchContent_Declare(
   URL https://github.com/raysan5/raylib/archive/refs/tags/6.0.tar.gz
   SYSTEM
 )
-FetchContent_MakeAvailable(raylib)
+FetchContent_Declare(
+  imgui
+  URL https://github.com/ocornut/imgui/archive/refs/tags/v1.92.9b.tar.gz
+)
+FetchContent_Declare(
+  rlimgui
+  URL https://github.com/raylib-extras/rlImGui/archive/1550009359ad975927f7f0e4a3f47e3f27123ea9.tar.gz
+)
+FetchContent_MakeAvailable(raylib imgui rlimgui)
+
+add_library(imgui
+  ${imgui_SOURCE_DIR}/imgui.cpp
+  ${imgui_SOURCE_DIR}/imgui_demo.cpp
+  ${imgui_SOURCE_DIR}/imgui_draw.cpp
+  ${imgui_SOURCE_DIR}/imgui_tables.cpp
+  ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+  ${rlimgui_SOURCE_DIR}/rlImGui.cpp
+)
+target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${rlimgui_SOURCE_DIR})
+target_link_libraries(imgui PUBLIC raylib)
+target_compile_options(imgui PRIVATE -w)
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
