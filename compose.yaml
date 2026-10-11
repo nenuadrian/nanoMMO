@@ -1,0 +1,27 @@
+name: nanommo
+
+services:
+  server:
+    build:
+      context: .
+      target: server
+    ports:
+      - "7777:7777"
+      - "9464:9464"
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  bots:
+    build:
+      context: .
+      target: bot
+    command: ["server", "7777", "300", "120"]
+    depends_on:
+      - server
+    profiles:
+      - load
