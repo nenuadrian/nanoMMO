@@ -8,18 +8,26 @@
 
 namespace nanommo {
 
+enum class Motion { kIdle, kWalk, kRun };
+
 struct Player {
   std::string name;
   float x = 0.0f;
   float z = 0.0f;
+  /// In radians, around the vertical. Zero faces along z, towards the camera.
+  float yaw = 0.0f;
+  Motion motion = Motion::kIdle;
   float input_x = 0.0f;
   float input_z = 0.0f;
+  bool input_run = false;
 };
 
 class World {
  public:
-  /// In tiles per second.
-  static constexpr float kSpeed = 4.0f;
+  /// In tiles a second. A tile is a metre, and that's the walk clip's speed.
+  static constexpr float kWalkSpeed = 1.8f;
+
+  static constexpr float kRunSpeed = 3.1f;
 
   /// Six tiles to the ground's edge, less half a tile, so players stay on it.
   static constexpr float kEdge = 5.5f;
@@ -28,7 +36,7 @@ class World {
 
   void Leave(uint32_t id);
 
-  void SetInput(uint32_t id, float x, float z);
+  void SetInput(uint32_t id, float x, float z, bool run);
 
   void Step(std::chrono::nanoseconds time);
 

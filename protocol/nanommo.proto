@@ -5,6 +5,13 @@ package nanommo.protocol;
 message Input {
   float x = 1;
   float z = 2;
+  bool run = 3;
+}
+
+enum Motion {
+  MOTION_IDLE = 0;
+  MOTION_WALK = 1;
+  MOTION_RUN = 2;
 }
 
 message Player {
@@ -12,6 +19,8 @@ message Player {
   float x = 2;
   float z = 3;
   string name = 4;
+  float yaw = 5;
+  Motion motion = 6;
 }
 
 message World {

@@ -12,6 +12,22 @@
 
 namespace nanommo {
 
+namespace {
+
+protocol::Motion ToProtocol(Motion motion) {
+  switch (motion) {
+    case Motion::kWalk:
+      return protocol::MOTION_WALK;
+    case Motion::kRun:
+      return protocol::MOTION_RUN;
+    case Motion::kIdle:
+      break;
+  }
+  return protocol::MOTION_IDLE;
+}
+
+}  // namespace
+
 absl::StatusOr<std::unique_ptr<Server>> Server::Create(
     asio::io_context& io, uint16_t port, std::chrono::nanoseconds interval,
     Metrics& metrics, Tokens& tokens, Players& players) {
@@ -68,7 +84,7 @@ void Server::Accept() {
         }
         protocol::Input input;
         if (input.ParseFromString(bytes)) {
-          world_.SetInput(*id, input.x(), input.z());
+          world_.SetInput(*id, input.x(), input.z(), input.run());
         }
       };
       const auto on_close = [this, id] {
@@ -140,6 +156,8 @@ void Server::Broadcast() {
     sent->set_x(player.x);
     sent->set_z(player.z);
     sent->set_name(player.name);
+    sent->set_yaw(player.yaw);
+    sent->set_motion(ToProtocol(player.motion));
   }
   for (const auto& [id, session] : sessions_) {
     message.set_you(id);

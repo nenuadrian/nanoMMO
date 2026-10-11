@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <numbers>
 
 #include "gtest/gtest.h"
 
@@ -28,16 +29,17 @@ TEST(World, JoinsPlayersWhereTheyAre) {
   EXPECT_EQ(player.z, -1.0f);
 }
 
-TEST(World, MovesFourTilesASecond) {
+TEST(World, WalksAtTheWalkSpeed) {
   nanommo::World world;
   const uint32_t id = 1;
   world.Join(id, {});
   const float start = world.players().at(id).x;
 
-  world.SetInput(id, 1.0f, 0.0f);
+  world.SetInput(id, 1.0f, 0.0f, false);
   RunOneSecond(world);
 
-  EXPECT_FLOAT_EQ(world.players().at(id).x, start + 4.0f);
+  EXPECT_FLOAT_EQ(world.players().at(id).x, start + nanommo::World::kWalkSpeed);
+  EXPECT_EQ(world.players().at(id).motion, nanommo::Motion::kWalk);
 }
 
 TEST(World, DiagonalsAreNoFaster) {
@@ -46,11 +48,26 @@ TEST(World, DiagonalsAreNoFaster) {
   world.Join(id, {});
   const nanommo::Player start = world.players().at(id);
 
-  world.SetInput(id, 1.0f, 1.0f);
+  world.SetInput(id, 1.0f, 1.0f, false);
   RunOneSecond(world);
 
   const nanommo::Player& end = world.players().at(id);
-  EXPECT_FLOAT_EQ(std::hypot(end.x - start.x, end.z - start.z), 4.0f);
+  EXPECT_FLOAT_EQ(std::hypot(end.x - start.x, end.z - start.z),
+                  nanommo::World::kWalkSpeed);
+}
+
+TEST(World, FacesTheWayItMoves) {
+  nanommo::World world;
+  const uint32_t id = 1;
+  world.Join(id, {});
+
+  world.SetInput(id, 1.0f, 0.0f, false);
+  world.Step(kTick);
+  EXPECT_FLOAT_EQ(world.players().at(id).yaw, std::numbers::pi_v<float> / 2);
+
+  world.SetInput(id, 0.0f, -1.0f, false);
+  world.Step(kTick);
+  EXPECT_FLOAT_EQ(world.players().at(id).yaw, std::numbers::pi_v<float>);
 }
 
 TEST(World, KeepsPlayersOnTheGround) {
@@ -58,12 +75,13 @@ TEST(World, KeepsPlayersOnTheGround) {
   const uint32_t id = 1;
   world.Join(id, {});
 
-  world.SetInput(id, 0.0f, -1.0f);
+  world.SetInput(id, 0.0f, -1.0f, true);
   for (int second = 0; second < 10; ++second) {
     RunOneSecond(world);
   }
 
   EXPECT_EQ(world.players().at(id).z, -nanommo::World::kEdge);
+  EXPECT_EQ(world.players().at(id).motion, nanommo::Motion::kIdle);
 }
 
 TEST(World, IgnoresInputThatIsNotANumber) {
@@ -72,7 +90,7 @@ TEST(World, IgnoresInputThatIsNotANumber) {
   world.Join(id, {});
   const float start = world.players().at(id).x;
 
-  world.SetInput(id, std::numeric_limits<float>::quiet_NaN(), 0.0f);
+  world.SetInput(id, std::numeric_limits<float>::quiet_NaN(), 0.0f, false);
   RunOneSecond(world);
 
   EXPECT_EQ(world.players().at(id).x, start);
