@@ -4,3 +4,4 @@ site/
 compose.yaml
 db/
 monitoring/
+assets/tools/node_modules/

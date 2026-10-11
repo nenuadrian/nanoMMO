@@ -44,6 +44,26 @@ RUN cmake --build build --target docs
 FROM scratch AS docs
 COPY --from=docs-build /src/build/docs/html /
 
+# FBX2glTF only comes built for x86-64 Linux, so on an Arm Mac it's emulated.
+FROM --platform=linux/amd64 node:24.21.0-bookworm-slim AS characters-build
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends unzip \
+ && rm -rf /var/lib/apt/lists/*
+ADD --checksum=sha256:52243ec1bf25c4501bdd4977057b6782702fe3ae1b79e2ac13039d2207870bec \
+    https://github.com/godotengine/FBX2glTF/releases/download/v0.13.1/FBX2glTF-linux-x86_64.zip /tmp/
+RUN unzip -p /tmp/FBX2glTF-linux-x86_64.zip FBX2glTF-linux-x86_64/FBX2glTF-linux-x86_64 \
+      > /usr/local/bin/fbx2gltf \
+ && chmod +x /usr/local/bin/fbx2gltf
+WORKDIR /assets
+COPY assets/tools/package.json assets/tools/package-lock.json tools/
+RUN npm ci --prefix tools
+COPY assets/tools/ tools/
+COPY assets/mixamo/ mixamo/
+RUN tools/build.sh
+
+FROM scratch AS characters
+COPY --from=characters-build /assets/out/ /
+
 FROM python:3.13-slim AS lint
 RUN pip install --no-cache-dir clang-format==18.1.3 cpplint==2.0.2
 # cpplint names each header guard after the path from the folder above this
