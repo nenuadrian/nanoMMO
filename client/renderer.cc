@@ -61,7 +61,9 @@ Renderer::Renderer()
       character_shader_(
           LoadShaderFromMemory(kSkinnedVertexShader, kFragmentShader)),
       cube_(LoadModelFromMesh(GenMeshCube(1.0f, 1.0f, 1.0f))),
-      characters_(CharactersFolder(), character_shader_) {
+      characters_(CharactersFolder(), {"x_bot.glb", "y_bot.glb"}, 1.8f,
+                  character_shader_),
+      monsters_(MonstersFolder(), {"skeleton.glb"}, 1.6f, character_shader_) {
   cube_.materials[0].shader = cube_shader_;
 }
 
@@ -80,9 +82,10 @@ void Renderer::Draw() const {
                 cube.color);
   }
   for (const Figure& figure : figures_) {
-    const Color color = PlayerColor(figure.id);
-    if (characters_.size() > 0) {
-      characters_.Draw(figure, color);
+    const Characters& looks = figure.monster ? monsters_ : characters_;
+    const Color color = figure.monster ? WHITE : PlayerColor(figure.id);
+    if (looks.size() > 0) {
+      looks.Draw(figure, color);
     } else {
       const Vector3& at = figure.position;
       DrawModelEx(cube_, {at.x, 0.5f, at.z}, {0.0f, 1.0f, 0.0f}, 0.0f,

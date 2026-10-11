@@ -18,43 +18,58 @@ float Turn(float from, float to, float step) {
   return from + std::clamp(gap, -step, step);
 }
 
+template <typename Unit>
+Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
+              float seconds) {
+  const Vector3 target{unit.x(), 0.0f, unit.z()};
+  const auto found = figures.find(unit.id());
+  Figure figure = found != figures.end() ? found->second
+                                         : Figure{.position = target,
+                                                  .yaw = unit.yaw(),
+                                                  .from = unit.motion(),
+                                                  .to = unit.motion()};
+  figure.id = unit.id();
+  figure.name = unit.name();
+
+  figure.from_time += seconds;
+  figure.to_time += seconds;
+  if (unit.motion() != figure.to) {
+    figure.from = figure.to;
+    figure.from_time = figure.to_time;
+    figure.to = unit.motion();
+    figure.to_time = 0.0f;
+    figure.blend = 0.0f;
+  }
+  figure.blend = std::min(figure.blend + seconds / Animator::kBlendTime, 1.0f);
+
+  const float follow = 1.0f - std::exp(-Animator::kFollowRate * seconds);
+  figure.position = Vector3Lerp(figure.position, target, follow);
+  figure.yaw = Turn(figure.yaw, unit.yaw(), Animator::kTurnRate * seconds);
+  return figure;
+}
+
 }  // namespace
 
 std::vector<Figure> Animator::Update(const protocol::World& world,
                                      float seconds) {
-  std::map<uint32_t, Figure> next;
+  std::map<uint32_t, Figure> players;
+  std::map<uint32_t, Figure> monsters;
   std::vector<Figure> figures;
   for (const protocol::Player& player : world.players()) {
-    const Vector3 target{player.x(), 0.0f, player.z()};
-    const auto found = figures_.find(player.id());
-    Figure figure = found != figures_.end() ? found->second
-                                            : Figure{.position = target,
-                                                     .yaw = player.yaw(),
-                                                     .from = player.motion(),
-                                                     .to = player.motion()};
-    figure.id = player.id();
-    figure.name = player.name();
+    Figure figure = Follow(players_, player, seconds);
     figure.you = player.id() == world.you();
-
-    figure.from_time += seconds;
-    figure.to_time += seconds;
-    if (player.motion() != figure.to) {
-      figure.from = figure.to;
-      figure.from_time = figure.to_time;
-      figure.to = player.motion();
-      figure.to_time = 0.0f;
-      figure.blend = 0.0f;
-    }
-    figure.blend = std::min(figure.blend + seconds / kBlendTime, 1.0f);
-
-    const float follow = 1.0f - std::exp(-kFollowRate * seconds);
-    figure.position = Vector3Lerp(figure.position, target, follow);
-    figure.yaw = Turn(figure.yaw, player.yaw(), kTurnRate * seconds);
-
-    next[player.id()] = figure;
+    players[player.id()] = figure;
     figures.push_back(std::move(figure));
   }
-  figures_ = std::move(next);
+  for (const protocol::Monster& monster : world.monsters()) {
+    Figure figure = Follow(monsters_, monster, seconds);
+    figure.monster = true;
+    monsters[monster.id()] = figure;
+    figures.push_back(std::move(figure));
+  }
+  // Players who left, and monsters that went, drop out here.
+  players_ = std::move(players);
+  monsters_ = std::move(monsters);
   return figures;
 }
 

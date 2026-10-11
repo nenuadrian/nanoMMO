@@ -63,3 +63,17 @@ TEST(Animator, TurnsTheShortWayRound) {
       WorldWith(0, 0, -pi + 0.1f, nanommo::protocol::MOTION_WALK), 0.1f);
   EXPECT_NEAR(figures[0].yaw, pi + 0.1f, 0.001f);
 }
+
+TEST(Animator, KeepsPlayersAndMonstersApart) {
+  nanommo::protocol::World world =
+      WorldWith(0, 0, 0, nanommo::protocol::MOTION_IDLE);
+  nanommo::protocol::Monster* monster = world.add_monsters();
+  monster->set_id(1);
+  monster->set_name("Skeleton");
+
+  const auto figures = nanommo::Animator().Update(world, 0.1f);
+  ASSERT_EQ(figures.size(), 2u);
+  EXPECT_FALSE(figures[0].monster);
+  EXPECT_TRUE(figures[1].monster);
+  EXPECT_EQ(figures[1].name, "Skeleton");
+}

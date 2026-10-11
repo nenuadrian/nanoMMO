@@ -17,6 +17,7 @@ struct Figure {
   uint32_t id = 0;
   std::string name;
   bool you = false;
+  bool monster = false;
   Vector3 position{0.0f, 0.0f, 0.0f};
   float yaw = 0.0f;
   protocol::Motion from = protocol::MOTION_IDLE;
@@ -38,7 +39,9 @@ class Animator {
   std::vector<Figure> Update(const protocol::World& world, float seconds);
 
  private:
-  std::map<uint32_t, Figure> figures_;
+  // Players and monsters each have ids of their own, so they're kept apart.
+  std::map<uint32_t, Figure> players_;
+  std::map<uint32_t, Figure> monsters_;
 };
 
 }  // namespace nanommo

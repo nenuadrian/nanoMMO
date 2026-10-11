@@ -48,6 +48,7 @@ class Renderer {
   Shader character_shader_;
   Model cube_;
   Characters characters_;
+  Characters monsters_;
 };
 
 }  // namespace nanommo

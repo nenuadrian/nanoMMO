@@ -14,9 +14,12 @@ namespace nanommo {
 
 std::string CharactersFolder();
 
+std::string MonstersFolder();
+
 class Characters {
  public:
-  Characters(const std::string& folder, Shader shader);
+  Characters(const std::string& folder, const std::vector<std::string>& files,
+             float height, Shader shader);
   ~Characters();
 
   Characters(const Characters&) = delete;
@@ -32,6 +35,8 @@ class Characters {
     ModelAnimation* clips = nullptr;
     int clip_count = 0;
     std::array<int, 3> clip_for{};
+    std::array<float, 3> speed{1.0f, 1.0f, 1.0f};
+    float scale = 1.0f;
   };
 
   std::vector<Character> characters_;
