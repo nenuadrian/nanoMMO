@@ -1,4 +1,5 @@
 build/
+bench/results/
 site/
 assets/mixamo/*.fbx
 assets/characters/*.glb

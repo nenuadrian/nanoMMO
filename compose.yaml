@@ -81,7 +81,7 @@ services:
     build:
       context: .
       target: bot
-    command: ["login", "server", "300", "120"]
+    command: ["login", "server", "${BOTS:-300}", "${RAMP:-120}"]
     depends_on:
       - login
       - server

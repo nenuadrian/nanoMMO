@@ -45,11 +45,12 @@ class Swarm {
  public:
   Swarm(asio::io_context& io, std::string login,
         asio::ip::tcp::resolver::results_type server, int count,
-        std::chrono::milliseconds ramp)
+        std::chrono::milliseconds ramp, int first)
       : io_(io),
         login_(std::move(login)),
         server_(std::move(server)),
         count_(count),
+        first_(first),
         gap_(count > 0 ? ramp / count : ramp),
         timer_(io),
         report_(io) {
@@ -62,7 +63,7 @@ class Swarm {
     if (static_cast<int>(bots_.size()) >= count_) {
       return;
     }
-    const int number = static_cast<int>(bots_.size()) + 1;
+    const int number = first_ + static_cast<int>(bots_.size());
     auto bot =
         std::make_unique<nanommo::Bot>(io_, static_cast<uint32_t>(number));
     const absl::StatusOr<std::string> token = LogIn(login_, number);
@@ -103,6 +104,7 @@ class Swarm {
   std::string login_;
   asio::ip::tcp::resolver::results_type server_;
   int count_;
+  int first_;
   std::chrono::milliseconds gap_;
   asio::steady_timer timer_;
   asio::steady_timer report_;
@@ -117,10 +119,12 @@ int main(int argc, char* argv[]) {
   const std::string host = argc > 2 ? argv[2] : "localhost";
   int count = 100;
   int ramp_seconds = 10;
+  int first = 1;
   if ((argc > 3 && !absl::SimpleAtoi(argv[3], &count)) ||
-      (argc > 4 && !absl::SimpleAtoi(argv[4], &ramp_seconds))) {
-    std::cerr << "nanommo bot: the number of bots and the ramp in seconds "
-                 "should be numbers\n";
+      (argc > 4 && !absl::SimpleAtoi(argv[4], &ramp_seconds)) ||
+      (argc > 5 && !absl::SimpleAtoi(argv[5], &first))) {
+    std::cerr << "nanommo bot: the number of bots, the ramp in seconds and the "
+                 "first bot's number should be numbers\n";
     return 1;
   }
   const auto ramp = std::chrono::seconds(ramp_seconds);
@@ -136,9 +140,9 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   std::cout << "nanommo bot: starting " << count << " bots against " << host
-            << ", logging in on " << login << ", over " << ramp.count() << " s"
-            << std::endl;
-  Swarm swarm(io, login, server, count, ramp);
+            << ", logging in on " << login << ", over " << ramp.count()
+            << " s, from bot" << first << std::endl;
+  Swarm swarm(io, login, server, count, ramp, first);
 
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });
