@@ -7,6 +7,8 @@ protocol::Input RandomDirection(std::mt19937& random) {
   protocol::Input input;
   input.set_x(static_cast<float>(key(random)));
   input.set_z(static_cast<float>(key(random)));
+  std::bernoulli_distribution shift(1.0 / 3.0);
+  input.set_run(shift(random));
   return input;
 }
 

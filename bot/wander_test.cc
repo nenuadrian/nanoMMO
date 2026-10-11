@@ -22,6 +22,17 @@ TEST(Wander, HoldsDirectionsLikeTheKeysWould) {
   }
 }
 
+TEST(Wander, RunsAboutAThirdOfTheTime) {
+  std::mt19937 random(1);
+  int runs = 0;
+  for (int i = 0; i < 1000; ++i) {
+    runs += nanommo::RandomDirection(random).run() ? 1 : 0;
+  }
+
+  EXPECT_GT(runs, 280);
+  EXPECT_LT(runs, 390);
+}
+
 TEST(Wander, HoldsForHalfASecondToThreeSeconds) {
   std::mt19937 random(1);
   for (int i = 0; i < 1000; ++i) {
