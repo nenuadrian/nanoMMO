@@ -18,6 +18,9 @@ struct Figure {
   std::string name;
   bool you = false;
   bool monster = false;
+  int level = 1;
+  int health = 0;
+  int max_health = 0;
   Vector3 position{0.0f, 0.0f, 0.0f};
   float yaw = 0.0f;
   protocol::Motion from = protocol::MOTION_IDLE;

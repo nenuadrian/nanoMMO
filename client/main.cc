@@ -15,6 +15,7 @@
 #include "client/login_screen.h"
 #include "client/menu.h"
 #include "client/nameplates.h"
+#include "client/player_frame.h"
 #include "client/renderer.h"
 #include "client/scene.h"
 #include "client/window.h"
@@ -114,6 +115,7 @@ int main(int argc, char* argv[]) {
     gui.Begin();
     if (connection) {
       nanommo::DrawNameplates(renderer.figures());
+      nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
       if (menu.Build(*window, *renderer.mutable_background())) {
         connection.reset();
       }

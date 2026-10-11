@@ -3,12 +3,33 @@
 #include <imgui.h>
 #include <raylib.h>
 
+#include <algorithm>
 #include <cfloat>
+#include <string>
 #include <vector>
 
 #include "client/camera.h"
 
 namespace nanommo {
+
+namespace {
+
+constexpr ImU32 kShadow = IM_COL32(0, 0, 0, 200);
+constexpr ImU32 kLevel = IM_COL32(190, 190, 190, 255);
+constexpr ImU32 kMonsterName = IM_COL32(255, 140, 120, 255);
+constexpr ImU32 kPlayerHealth = IM_COL32(90, 200, 90, 255);
+constexpr ImU32 kMonsterHealth = IM_COL32(220, 70, 60, 255);
+
+constexpr ImVec2 kBar{64.0f, 6.0f};
+
+void DrawShadowedText(ImDrawList* draw, float size, ImVec2 at, ImU32 color,
+                      const std::string& text) {
+  ImFont* font = ImGui::GetFont();
+  draw->AddText(font, size, {at.x + 1, at.y + 1}, kShadow, text.c_str());
+  draw->AddText(font, size, at, color, text.c_str());
+}
+
+}  // namespace
 
 void DrawNameplates(const std::vector<Figure>& figures) {
   ImDrawList* draw = ImGui::GetBackgroundDrawList();
@@ -16,14 +37,32 @@ void DrawNameplates(const std::vector<Figure>& figures) {
   const float font_size = ImGui::GetFontSize() * 1.4f;
   for (const Figure& figure : figures) {
     const Vector3& position = figure.position;
+    const float above = figure.monster ? 1.9f : 2.35f;
     const Vector2 at =
-        GetWorldToScreen({position.x, 2.35f, position.z}, GameCamera());
-    const char* name = figure.name.c_str();
-    const ImVec2 size = font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, name);
-    const ImVec2 corner{at.x - size.x / 2, at.y - size.y};
-    draw->AddText(font, font_size, {corner.x + 1, corner.y + 1},
-                  IM_COL32(0, 0, 0, 200), name);
-    draw->AddText(font, font_size, corner, IM_COL32_WHITE, name);
+        GetWorldToScreen({position.x, above, position.z}, GameCamera());
+
+    const ImVec2 bar_min{at.x - kBar.x / 2, at.y - kBar.y};
+    const ImVec2 bar_max{at.x + kBar.x / 2, at.y};
+    const float share =
+        figure.max_health > 0
+            ? std::clamp(static_cast<float>(figure.health) / figure.max_health,
+                         0.0f, 1.0f)
+            : 0.0f;
+    draw->AddRectFilled(bar_min, bar_max, kShadow);
+    draw->AddRectFilled(bar_min, {bar_min.x + kBar.x * share, bar_max.y},
+                        figure.monster ? kMonsterHealth : kPlayerHealth);
+
+    const std::string level = std::to_string(figure.level) + " ";
+    const float level_width =
+        font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, level.c_str()).x;
+    const ImVec2 name_size =
+        font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, figure.name.c_str());
+    const float left = at.x - (level_width + name_size.x) / 2;
+    const float top = bar_min.y - 2.0f - name_size.y;
+    DrawShadowedText(draw, font_size, {left, top}, kLevel, level);
+    DrawShadowedText(draw, font_size, {left + level_width, top},
+                     figure.monster ? kMonsterName : IM_COL32_WHITE,
+                     figure.name);
   }
 }
 

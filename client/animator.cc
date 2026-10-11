@@ -30,6 +30,9 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
                                                   .to = unit.motion()};
   figure.id = unit.id();
   figure.name = unit.name();
+  figure.level = static_cast<int>(unit.level());
+  figure.health = static_cast<int>(unit.health());
+  figure.max_health = static_cast<int>(unit.max_health());
 
   figure.from_time += seconds;
   figure.to_time += seconds;
