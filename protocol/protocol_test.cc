@@ -34,6 +34,7 @@ TEST(Protocol, ReadsMessagesBackToBackAsOne) {
   players.add_players()->set_id(7);
   nanommo::protocol::World you;
   you.set_you(7);
+  you.set_experience(40);
 
   const std::string bytes =
       players.SerializeAsString() + you.SerializeAsString();
@@ -41,6 +42,7 @@ TEST(Protocol, ReadsMessagesBackToBackAsOne) {
   nanommo::protocol::World received;
   ASSERT_TRUE(received.ParseFromString(bytes));
   EXPECT_EQ(received.you(), 7u);
+  EXPECT_EQ(received.experience(), 40u);
   ASSERT_EQ(received.players_size(), 1);
   EXPECT_EQ(received.players(0).id(), 7u);
 }

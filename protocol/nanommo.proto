@@ -21,6 +21,9 @@ message Player {
   string name = 4;
   float yaw = 5;
   Motion motion = 6;
+  uint32 level = 7;
+  uint32 health = 8;
+  uint32 max_health = 9;
 }
 
 message Monster {
@@ -30,6 +33,9 @@ message Monster {
   float z = 4;
   float yaw = 5;
   Motion motion = 6;
+  uint32 level = 7;
+  uint32 health = 8;
+  uint32 max_health = 9;
 }
 
 message World {
@@ -39,6 +45,8 @@ message World {
   uint32 part = 4;
   uint32 parts = 5;
   repeated Monster monsters = 6;
+  uint32 experience = 7;
+  uint32 next_level = 8;
 }
 
 message LoginRequest {

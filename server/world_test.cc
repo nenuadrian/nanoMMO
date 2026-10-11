@@ -30,6 +30,13 @@ TEST(World, JoinsPlayersWhereTheyAre) {
   EXPECT_EQ(player.z, -1.0f);
 }
 
+TEST(World, JoinsPlayersAtFullHealth) {
+  nanommo::World world;
+  world.Join(7, {.name = "alice", .experience = 100});
+
+  EXPECT_EQ(world.players().at(7).health, 120);
+}
+
 TEST(World, WalksAtTheWalkSpeed) {
   nanommo::World world;
   const uint32_t id = 1;

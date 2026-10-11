@@ -4,6 +4,7 @@
 #include <cmath>
 #include <utility>
 
+#include "server/levels.h"
 #include "server/monsters.h"
 #include "tracy/Tracy.hpp"
 
@@ -12,6 +13,7 @@ namespace nanommo {
 World::World(uint32_t seed) : random_(seed) {}
 
 void World::Join(uint32_t id, Player player) {
+  player.health = MaxHealth(LevelFor(player.experience).number);
   players_[id] = std::move(player);
 }
 
@@ -20,6 +22,7 @@ void World::Leave(uint32_t id) { players_.erase(id); }
 uint32_t World::Spawn(Monster monster) {
   monster.home_x = monster.x;
   monster.home_z = monster.z;
+  monster.health = monster.max_health;
   // A rest of its own, so that the monsters don't all set off together.
   monster.rest = RandomRest(random_);
   const uint32_t id = next_monster_++;

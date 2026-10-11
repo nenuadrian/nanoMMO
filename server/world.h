@@ -18,6 +18,8 @@ struct Player {
   /// In radians, around the vertical. Zero faces along z, towards the camera.
   float yaw = 0.0f;
   Motion motion = Motion::kIdle;
+  uint32_t experience = 0;
+  int health = 0;
   float input_x = 0.0f;
   float input_z = 0.0f;
   bool input_run = false;
@@ -29,6 +31,9 @@ struct Monster {
   float z = 0.0f;
   float yaw = 0.0f;
   Motion motion = Motion::kIdle;
+  int level = 1;
+  int health = 0;
+  int max_health = 0;
   float home_x = 0.0f;
   float home_z = 0.0f;
   float target_x = 0.0f;

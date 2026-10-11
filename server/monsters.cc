@@ -22,7 +22,7 @@ void PickTarget(Monster& monster, std::mt19937& random) {
 }  // namespace
 
 Monster Skeleton(float x, float z) {
-  return {.name = "Skeleton", .x = x, .z = z};
+  return {.name = "Skeleton", .x = x, .z = z, .level = 1, .max_health = 50};
 }
 
 std::chrono::nanoseconds RandomRest(std::mt19937& random) {

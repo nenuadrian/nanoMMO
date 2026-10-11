@@ -15,6 +15,7 @@
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
 #include "protocol/parts.h"
+#include "server/levels.h"
 #include "server/listen.h"
 #include "server/monsters.h"
 #include "tracy/Tracy.hpp"
@@ -212,6 +213,10 @@ void Server::Broadcast() {
     sent->set_name(player.name);
     sent->set_yaw(player.yaw);
     sent->set_motion(ToProtocol(player.motion));
+    const int level = LevelFor(player.experience).number;
+    sent->set_level(level);
+    sent->set_health(player.health);
+    sent->set_max_health(MaxHealth(level));
   }
   for (const auto& [id, monster] : world_.monsters()) {
     protocol::Monster* sent = message.add_monsters();
@@ -221,6 +226,9 @@ void Server::Broadcast() {
     sent->set_z(monster.z);
     sent->set_yaw(monster.yaw);
     sent->set_motion(ToProtocol(monster.motion));
+    sent->set_level(monster.level);
+    sent->set_health(monster.health);
+    sent->set_max_health(monster.max_health);
   }
   message.set_sent(NowMicros());
   // The players and the monsters are the same for everyone, so we serialize
@@ -239,8 +247,11 @@ void Server::Broadcast() {
     }
   }
   for (const auto& [id, session] : sessions_) {
+    const Level level = LevelFor(world_.players().at(id).experience);
     protocol::World you;
     you.set_you(id);
+    you.set_experience(level.experience);
+    you.set_next_level(level.next);
     std::string own = you.SerializeAsString();
     const auto udp = udp_clients_.find(id);
     if (udp != udp_clients_.end()) {

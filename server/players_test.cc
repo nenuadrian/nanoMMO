@@ -51,10 +51,14 @@ TEST_F(PlayersTest, StartsANewPlayerInTheMiddle) {
 TEST_F(PlayersTest, LoadsWhereThePlayerWasSaved) {
   nanommo::Players players(*database_);
   ASSERT_TRUE(players.Save(id_, {.name = name_, .x = 2.5f, .z = -4.0f}).ok());
-  ASSERT_TRUE(players.Save(id_, {.name = name_, .x = 3.5f, .z = -1.0f}).ok());
+  ASSERT_TRUE(
+      players
+          .Save(id_, {.name = name_, .x = 3.5f, .z = -1.0f, .experience = 40})
+          .ok());
 
   const absl::StatusOr<nanommo::Player> player = players.Load(id_);
   ASSERT_TRUE(player.ok());
   EXPECT_EQ(player->x, 3.5f);
   EXPECT_EQ(player->z, -1.0f);
+  EXPECT_EQ(player->experience, 40u);
 }
