@@ -19,7 +19,8 @@ class Bot {
   Bot(const Bot&) = delete;
   Bot& operator=(const Bot&) = delete;
 
-  void Start(const asio::ip::tcp::resolver::results_type& server);
+  void Start(const asio::ip::tcp::resolver::results_type& server,
+             const std::string& token);
 
   bool connected() const { return connected_; }
 

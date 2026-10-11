@@ -7,20 +7,47 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
 #include "asio/signal_set.hpp"
 #include "asio/steady_timer.hpp"
 #include "bot/bot.h"
+#include "protocol/login_client.h"
 
 namespace {
 
+constexpr uint16_t kGamePort = 7777;
+constexpr uint16_t kLoginPort = 7778;
+
+absl::StatusOr<std::string> LogIn(const std::string& host, int number) {
+  nanommo::protocol::LoginRequest request;
+  request.set_username("bot" + std::to_string(number));
+  request.set_password("bot-password");
+  absl::StatusOr<nanommo::protocol::LoginReply> reply_or =
+      nanommo::LogIn(host, kLoginPort, request);
+  if (reply_or.ok() && !reply_or->ok()) {
+    request.set_new_account(true);
+    reply_or = nanommo::LogIn(host, kLoginPort, request);
+  }
+  if (!reply_or.ok()) {
+    return reply_or.status();
+  }
+  if (!reply_or->ok()) {
+    return absl::PermissionDeniedError(reply_or->error());
+  }
+  return reply_or->token();
+}
+
 class Swarm {
  public:
-  Swarm(asio::io_context& io, asio::ip::tcp::resolver::results_type server,
-        int count, std::chrono::milliseconds ramp)
+  Swarm(asio::io_context& io, std::string login,
+        asio::ip::tcp::resolver::results_type server, int count,
+        std::chrono::milliseconds ramp)
       : io_(io),
+        login_(std::move(login)),
         server_(std::move(server)),
         count_(count),
         gap_(count > 0 ? ramp / count : ramp),
@@ -35,9 +62,16 @@ class Swarm {
     if (static_cast<int>(bots_.size()) >= count_) {
       return;
     }
-    auto bot = std::make_unique<nanommo::Bot>(
-        io_, static_cast<uint32_t>(bots_.size() + 1));
-    bot->Start(server_);
+    const int number = static_cast<int>(bots_.size()) + 1;
+    auto bot =
+        std::make_unique<nanommo::Bot>(io_, static_cast<uint32_t>(number));
+    const absl::StatusOr<std::string> token = LogIn(login_, number);
+    if (token.ok()) {
+      bot->Start(server_, *token);
+    } else {
+      std::cerr << "nanommo bot: bot" << number
+                << " couldn't log in: " << token.status() << "\n";
+    }
     bots_.push_back(std::move(bot));
     timer_.expires_after(gap_);
     timer_.async_wait([this](std::error_code error) {
@@ -66,6 +100,7 @@ class Swarm {
   }
 
   asio::io_context& io_;
+  std::string login_;
   asio::ip::tcp::resolver::results_type server_;
   int count_;
   std::chrono::milliseconds gap_;
@@ -78,8 +113,8 @@ class Swarm {
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  const std::string host = argc > 1 ? argv[1] : "localhost";
-  const std::string port = argc > 2 ? argv[2] : "7777";
+  const std::string login = argc > 1 ? argv[1] : "localhost";
+  const std::string host = argc > 2 ? argv[2] : "localhost";
   int count = 100;
   int ramp_seconds = 10;
   if ((argc > 3 && !absl::SimpleAtoi(argv[3], &count)) ||
@@ -94,15 +129,16 @@ int main(int argc, char* argv[]) {
   asio::ip::tcp::resolver resolver(io);
   std::error_code error;
   const asio::ip::tcp::resolver::results_type server =
-      resolver.resolve(host, port, error);
+      resolver.resolve(host, std::to_string(kGamePort), error);
   if (error) {
     std::cerr << "nanommo bot: couldn't find " << host << ": "
               << error.message() << "\n";
     return 1;
   }
   std::cout << "nanommo bot: starting " << count << " bots against " << host
-            << ":" << port << ", over " << ramp.count() << " s" << std::endl;
-  Swarm swarm(io, server, count, ramp);
+            << ", logging in on " << login << ", over " << ramp.count() << " s"
+            << std::endl;
+  Swarm swarm(io, login, server, count, ramp);
 
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });

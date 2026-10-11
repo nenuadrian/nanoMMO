@@ -1,21 +1,24 @@
 #include "bot/bot.h"
 
 #include <iostream>
+#include <string>
 
 #include "asio/buffer.hpp"
 #include "asio/connect.hpp"
 #include "asio/write.hpp"
 #include "bot/wander.h"
 #include "protocol/framing.h"
+#include "protocol/nanommo.pb.h"
 
 namespace nanommo {
 
 Bot::Bot(asio::io_context& io, uint32_t seed)
     : socket_(io), timer_(io), random_(seed) {}
 
-void Bot::Start(const asio::ip::tcp::resolver::results_type& server) {
+void Bot::Start(const asio::ip::tcp::resolver::results_type& server,
+                const std::string& token) {
   asio::async_connect(
-      socket_, server, [this](std::error_code error, const auto&) {
+      socket_, server, [this, token](std::error_code error, const auto&) {
         if (error) {
           std::cerr << "nanommo bot: couldn't connect: " << error.message()
                     << '\n';
@@ -23,6 +26,13 @@ void Bot::Start(const asio::ip::tcp::resolver::results_type& server) {
         }
         std::error_code ignored;
         socket_.set_option(asio::ip::tcp::no_delay(true), ignored);
+        // Blocking is fine: a hello this small fits in the socket's buffer.
+        protocol::Hello hello;
+        hello.set_token(token);
+        asio::write(socket_, asio::buffer(Frame(hello)), error);
+        if (error) {
+          return;
+        }
         connected_ = true;
         Read();
         Wander();
