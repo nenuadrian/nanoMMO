@@ -20,6 +20,8 @@ void Offscreen::Render(const Renderer& renderer) {
 
 Pixel Offscreen::ReadPixel(int x, int y) const {
   Image image = LoadImageFromTexture(target_.texture);
+  // OpenGL stores a texture's rows from the bottom up, so we flip the image.
+  ImageFlipVertical(&image);
   const Color color = GetImageColor(image, x, y);
   UnloadImage(image);
   return {color.r, color.g, color.b, color.a};
