@@ -43,11 +43,12 @@ The client opens on a login screen: type a name and a password, then Create acco
 and Log in after that. It connects to `localhost`, or to the host you give it
 (`./build/bin/nanommo_client 192.168.1.20`). It gets the world over UDP, unless you put `tcp` after the
 host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP](#packet-loss-tcp-and-udp).
-Each player is an animated character on a board of tiles,
-with its name over it, or a cube until you've made the characters (see below). W, A, S and D, or the
-arrow keys, move yours, which has a white marker over it, and Shift makes it run. View,
-Settings changes the background, and Game, Log out takes you back to the login screen. Next time you
-log in, you're where you left off.
+Each player is an animated character on a board of tiles, with its level, name and health over it,
+or a cube until you've made the characters (see below). Three skeletons wander around the board. W,
+A, S and D, or the arrow keys, move yours, which has a white marker over it, and Shift makes it run.
+The frame in the top left corner shows your health, and your experience towards the next level.
+View, Settings changes the background, and Game, Log out takes you back to the login screen. Next
+time you log in, you're where you left off.
 
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
 it, and all sides use the C++ it generates.
@@ -72,6 +73,31 @@ The server decides which way each player faces, and whether it stands, walks or 
 at 1.8 and 3.1 metres a second, the speeds of the walk and the run, so that the feet don't slide.
 The client blends from one clip into the next over a quarter of a second, and smooths each player's
 position between the server's ticks.
+
+## Monsters, health and levels
+
+The monsters are Quaternius's skeleton, from [Poly Pizza](https://poly.pizza/m/wODZYCgX5Z). It's
+public domain (CC0), so it's in the repo, in `assets/monsters`, as it was downloaded:
+[assets/monsters/README.md](assets/monsters/README.md) says where it's from. The client loads it as
+it is. It scales it to 1.6 metres, finds its clips by the word in their names, and walks with its
+run, played at 0.4 of its speed, which puts the feet at the walking speed. It reads the bind pose
+from the file's inverse bind matrices, as raylib binds the mesh to where the bones rest, and the
+skeleton's arms rest about 70 degrees from where its mesh was bound.
+
+The server spawns three skeletons, and runs their AI each tick: a monster rests for two to six
+seconds, walks to a random place within three metres of where it spawned, at 1.8 metres a second,
+and rests again. The world's random generator takes a seed, so the tests pick theirs.
+
+Players and monsters have a level and health, which everyone sees. A player's experience is its own:
+the server works out its level, and sends its experience into the level, and what the next level
+takes, to its client alone, in the message with its id that goes after the world, or with each part
+over UDP. Each level takes a hundred more experience than the one before, and a player has a hundred
+health at level one, and twenty more for each level after it.
+
+Experience is saved in the `players` table, with where you are. Health isn't saved yet: you join at
+full health. A MySQL volume from before experience was added doesn't have the column, as
+`db/schema.sql` only runs on an empty volume. `docker compose down -v` starts it again, without
+the accounts.
 
 ## Accounts and logins
 
@@ -253,6 +279,7 @@ How the world gets there over UDP:
   come back that way. The server sends that player's worlds to the address the datagram came from,
   which home routers let through, as the client spoke first. Until then, or if UDP can't get through,
   the worlds keep coming over TCP.
-- The players go out in parts of up to 1,200 bytes, so that each fits in a packet and IP doesn't split
-  it into fragments, which would all be lost with any one of them. A lost part leaves its players where
-  they were for a tick. `protocol/parts.h` splits the world and puts it back together.
+- The players and the monsters go out in parts of up to 1,200 bytes, so that each fits in a packet and
+  IP doesn't split it into fragments, which would all be lost with any one of them. A lost part leaves
+  its players and monsters where they were for a tick. `protocol/parts.h` splits the world and
+  puts it back together.
