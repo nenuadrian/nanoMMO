@@ -26,6 +26,8 @@ absl::StatusOr<std::unique_ptr<Window>> Window::Create(const std::string& title,
 
 Window::~Window() { CloseWindow(); }
 
-bool Window::ShouldClose() const { return WindowShouldClose(); }
+bool Window::ShouldClose() const { return closing_ || WindowShouldClose(); }
+
+void Window::Close() { closing_ = true; }
 
 }  // namespace nanommo

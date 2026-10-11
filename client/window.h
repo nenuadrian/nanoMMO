@@ -19,8 +19,12 @@ class Window {
 
   bool ShouldClose() const;
 
+  void Close();
+
  private:
   Window() = default;
+
+  bool closing_ = false;
 };
 
 }  // namespace nanommo

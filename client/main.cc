@@ -1,12 +1,13 @@
-#include <imgui.h>
 #include <raylib.h>
 
+#include <array>
 #include <iostream>
 #include <memory>
 #include <utility>
 
 #include "absl/status/statusor.h"
 #include "client/gui.h"
+#include "client/menu.h"
 #include "client/window.h"
 
 int main() {
@@ -18,11 +19,15 @@ int main() {
   }
   const std::unique_ptr<nanommo::Window> window = *std::move(window_or);
   nanommo::Gui gui;
+  nanommo::Menu menu;
+  std::array<float, 3> background = {0.07f, 0.08f, 0.12f};
+
   while (!window->ShouldClose()) {
     BeginDrawing();
-    ClearBackground(Color{18, 20, 31, 255});
+    ClearBackground(ColorFromNormalized(
+        {background[0], background[1], background[2], 1.0f}));
     gui.Begin();
-    ImGui::ShowDemoWindow();
+    menu.Build(*window, background);
     gui.End();
     EndDrawing();
   }
