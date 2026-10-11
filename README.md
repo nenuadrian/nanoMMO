@@ -41,7 +41,9 @@ Then, in another terminal, the game server, and in one or two more, the client:
 
 The client opens on a login screen: type a name and a password, then Create account the first time,
 and Log in after that. It connects to `localhost`, or to the host you give it
-(`./build/bin/nanommo_client 192.168.1.20`). Each player is an animated character on a board of tiles,
+(`./build/bin/nanommo_client 192.168.1.20`). It gets the world over UDP, unless you put `tcp` after the
+host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP](#packet-loss-tcp-and-udp).
+Each player is an animated character on a board of tiles,
 with its name over it, or a cube until you've made the characters (see below). W, A, S and D, or the
 arrow keys, move yours, which has a white marker over it, and Shift makes it run. View,
 Settings changes the background, and Game, Log out takes you back to the login screen. Next time you
@@ -125,7 +127,8 @@ CI does.
 ## Monitoring and load
 
 The server serves its metrics for Prometheus at http://localhost:9464/metrics: the players online,
-how long each tick takes, the bytes it sends and the messages it receives.
+how long each tick takes, the bytes it sends and the messages it receives. The bots serve theirs on
+port 9465: how old the world on a player's screen would be, by transport.
 
 `compose.yaml` starts the servers, MySQL and Redis together with Prometheus, which scrapes the game
 server every two seconds, and Grafana, with a dashboard of those metrics. The dashboard and Grafana's data source are files in
@@ -140,13 +143,18 @@ docker compose up -d --build
 
 `nanommo_bot` connects a swarm of bots that wander around like players at their keys, running a third of
 the time. Each one logs in as bot1, bot2 and so on, and creates its account the first time. It takes the login server's
-host, the game server's host, how many bots, how many seconds to spread their arrival over, and the
-number of its first bot, so that several swarms can play on one server:
+host, the game server's host, how many bots, how many seconds to spread their arrival over, the
+number of its first bot, so that several swarms can play on one server, and the transport for the
+worlds, `udp` or `tcp`, UDP by default:
 
 ```bash
 ./build/bin/nanommo_bot localhost localhost 100 10
-./build/bin/nanommo_bot localhost localhost 100 10 101
+./build/bin/nanommo_bot localhost localhost 100 10 101 tcp
 ```
+
+About sixty times a second, like a client's frames, the bots look at how old their newest world is,
+from the time the server puts in each world, and Prometheus finds them through Docker's DNS, under the
+name `bots`. The bots and the server have to share a clock for that, as they do on one machine.
 
 Or in Docker, next to the server: 300 bots, arriving over two minutes, unless `BOTS` and `RAMP` say
 otherwise.
@@ -203,3 +211,48 @@ The broadcast used to serialize the whole world once for each client, so its wor
 of the players. Now it serializes the players once a tick, and all the sessions write those bytes,
 followed by each client's own id. What's left grows with the square of the players too, as each
 client still gets all of them: that's the kernel sending the bytes.
+
+## Packet loss: TCP and UDP
+
+The server sends each client the world over TCP, or over UDP once the client asks for it. To see what
+a bad network does to each, `compose.yaml` has a `netem` service. It runs `bench/netem.sh` in the
+server's network namespace, with the `NET_ADMIN` capability, and uses Linux's netem to delay the
+server's packets and drop a share of them: a delay in milliseconds, then a loss in percent.
+
+```bash
+docker compose up -d --build
+docker compose run --rm netem 50 5
+docker compose run --rm netem 0 0
+```
+
+It turns off segmentation offload on the server's interface first. Otherwise the kernel hands netem
+up to 64 KB at a time, to be cut into packets later, and netem drops all of those packets together.
+It also lets netem hold 100,000 packets, as its default of 1,000 drops packets of its own once a busy
+server has more than that waiting.
+
+`bench/loss.sh` starts 200 bots over the transport you give it, then steps the loss from none to ten
+percent, with 50 ms of delay, and after a minute at each step asks Prometheus for the p50 and p99 of
+the bots' world age. Like `load.sh`, it needs `curl` and `jq`.
+
+```bash
+mkdir -p bench/results
+bench/loss.sh tcp > bench/results/tcp.json
+bench/loss.sh udp > bench/results/udp.json
+```
+
+Without loss, the two are level: a world is up to a tick old, plus the delay. Over TCP, the p99 climbs
+with each step of loss, as the worlds wait for each lost packet to be sent again, and at ten percent
+TCP can't keep up with 200 clients at all. Over UDP, the p99 stays within a tick or two of no loss. So
+the client and the bots take their worlds over UDP by default.
+
+How the world gets there over UDP:
+
+- The client logs in and says hello over TCP, as before. Its input keeps going over TCP, and so does
+  anything that has to arrive.
+- It then sends its token again, in a UDP datagram, to port 7777, four times a second until worlds
+  come back that way. The server sends that player's worlds to the address the datagram came from,
+  which home routers let through, as the client spoke first. Until then, or if UDP can't get through,
+  the worlds keep coming over TCP.
+- The players go out in parts of up to 1,200 bytes, so that each fits in a packet and IP doesn't split
+  it into fragments, which would all be lost with any one of them. A lost part leaves its players where
+  they were for a tick. `protocol/parts.h` splits the world and puts it back together.
