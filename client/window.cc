@@ -11,9 +11,14 @@
 namespace nanommo {
 
 absl::StatusOr<std::unique_ptr<Window>> Window::Create(const std::string& title,
-                                                       int width, int height) {
+                                                       int width, int height,
+                                                       Visibility visibility) {
   SetTraceLogLevel(LOG_WARNING);
-  SetConfigFlags(FLAG_WINDOW_HIGHDPI);
+  unsigned int flags = FLAG_WINDOW_HIGHDPI;
+  if (visibility == Visibility::kHidden) {
+    flags |= FLAG_WINDOW_HIDDEN;
+  }
+  SetConfigFlags(flags);
   InitWindow(width, height, title.c_str());
   if (!IsWindowReady()) {
     return absl::UnavailableError("couldn't open the window");

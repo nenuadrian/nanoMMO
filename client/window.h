@@ -10,8 +10,12 @@ namespace nanommo {
 
 class Window {
  public:
+  /// raylib needs a window even to draw into a texture, so tests hide theirs.
+  enum class Visibility { kShown, kHidden };
+
   static absl::StatusOr<std::unique_ptr<Window>> Create(
-      const std::string& title, int width, int height);
+      const std::string& title, int width, int height,
+      Visibility visibility = Visibility::kShown);
   ~Window();
 
   Window(const Window&) = delete;
