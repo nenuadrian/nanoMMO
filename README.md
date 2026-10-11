@@ -14,48 +14,61 @@ the system's OpenGL.
 - Ubuntu: `sudo apt install pkg-config libmysqlclient-dev libsodium-dev xorg-dev libgl1-mesa-dev`,
   where the last two are the X11 and OpenGL headers.
 
-CMake fetches and builds the other libraries: GoogleTest, raylib, Dear ImGui, rlImGui, abseil, protobuf,
-Asio and prometheus-cpp. The first build compiles protobuf, so it takes a few minutes.
+CMake fetches and builds the other libraries: GoogleTest, raylib, Dear ImGui, rlImGui, abseil,
+protobuf, Asio, prometheus-cpp and hiredis. The first build compiles protobuf, so it takes a few
+minutes.
 
 ```bash
 cmake -S . -B build -G Ninja
 cmake --build build
 ctest --test-dir build
-./build/bin/nanommo_server
 ```
 
-Then, in another terminal or two:
+The servers keep accounts and players in MySQL, and hand logins over through Redis. Docker Compose
+runs both, with the tables from `db/schema.sql`:
 
 ```bash
+docker compose up -d mysql redis
+./build/bin/nanommo_login
+```
+
+Then, in another terminal, the game server, and in one or two more, the client:
+
+```bash
+./build/bin/nanommo_server
 ./build/bin/nanommo_client
 ```
 
-The server listens on TCP port 7777, and the client connects to `localhost`, or to the host you give
-it (`./build/bin/nanommo_client 192.168.1.20`). Each player is a cube on a board of tiles. W, A, S and D,
-or the arrow keys, move yours, which has a white marker over it. View, Settings changes the
-background.
+The client opens on a login screen: type a name and a password, then Create account the first time,
+and Log in after that. It connects to `localhost`, or to the host you give it
+(`./build/bin/nanommo_client 192.168.1.20`). Each player is a cube on a board of tiles, with its name
+over it. W, A, S and D, or the arrow keys, move yours, which has a white marker over it. View,
+Settings changes the background, and Game, Log out takes you back to the login screen. Next time you
+log in, you're where you left off.
 
-`protocol/nanommo.proto` is the contract between the client and the server. The build runs protoc on it,
-and both sides use the C++ it generates.
+`protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
+it, and all sides use the C++ it generates.
 
-## Accounts
+## Accounts and logins
 
-Accounts live in MySQL, in the `accounts` table from `db/schema.sql`, next to a `players` table for
-where each player is. Docker Compose runs MySQL, and loads the schema the first time it starts:
+- The login server, `nanommo_login`, listens on TCP port 7778. It creates accounts and checks passwords,
+  against the `accounts` table. Passwords are hashed with Argon2id, through libsodium, so the
+  database never holds a password itself.
+- Once you're logged in, it puts a token in Redis, which works once, within 30 seconds, and sends
+  it to the client.
+- The client takes the token to the game server, `nanommo_server`, on port 7777. The game server takes
+  the token out of Redis, and loads your player from the `players` table. It saves where you are
+  when you leave, and saves everyone when it stops.
+
+The password goes over the network as it is typed. That's fine on your own machine. Before anyone
+plays over the internet, the login server needs TLS.
+
+The servers find MySQL and Redis on `127.0.0.1`, or wherever `NANOMMO_MYSQL_HOST` and `NANOMMO_REDIS_HOST`
+point. The tests that need them skip themselves unless those are set:
 
 ```bash
-docker compose up -d mysql
-```
-
-`server/accounts.h` creates an account and finds one by its name. A name is 3 to 16 letters, digits
-and underscores, and a password 8 to 128 characters. Passwords are hashed with Argon2id, through
-libsodium, so the database never holds a password itself. The servers don't log anyone in yet.
-
-The tests that need MySQL find it at `NANOMMO_MYSQL_HOST`, and skip themselves unless that's set:
-
-```bash
-NANOMMO_MYSQL_HOST=127.0.0.1 ./build/bin/nanommo_server_tests
-# Or all in Docker, next to MySQL.
+NANOMMO_MYSQL_HOST=127.0.0.1 NANOMMO_REDIS_HOST=127.0.0.1 ./build/bin/nanommo_server_tests
+# Or all in Docker, next to MySQL and Redis.
 docker compose run --rm tests
 ```
 
@@ -72,8 +85,8 @@ docker build --target test .
 docker build --target lint .
 # The server image, if the tests pass.
 docker build --target server -t nanommo-server .
-# Run the server, on port 7777, with its metrics on 9464.
-docker run --rm -p 7777:7777 -p 9464:9464 nanommo-server
+# The login server's image.
+docker build --target login -t nanommo-login .
 # API docs in site/.
 docker build --target docs --output site .
 ```
@@ -92,8 +105,8 @@ CI does.
 The server serves its metrics for Prometheus at http://localhost:9464/metrics: the players online,
 how long each tick takes, the bytes it sends and the messages it receives.
 
-`compose.yaml` starts the server together with Prometheus, which scrapes it every two seconds, and
-Grafana, with a dashboard of those metrics. The dashboard and Grafana's data source are files in
+`compose.yaml` starts the servers, MySQL and Redis together with Prometheus, which scrapes the game
+server every two seconds, and Grafana, with a dashboard of those metrics. The dashboard and Grafana's data source are files in
 `monitoring/`, so they're set up the same way on any machine.
 
 ```bash
@@ -103,11 +116,12 @@ docker compose up -d --build
 - Grafana: http://localhost:3000, which opens on the nanoMMO server dashboard.
 - Prometheus: http://localhost:9090.
 
-`nanommo_bot` connects a swarm of bots that wander around like players at their keys. It takes the
-host, the port, how many bots, and how many seconds to spread their arrival over:
+`nanommo_bot` connects a swarm of bots that wander around like players at their keys. Each one logs
+in as bot1, bot2 and so on, and creates its account the first time. It takes the login server's
+host, the game server's host, how many bots, and how many seconds to spread their arrival over:
 
 ```bash
-./build/bin/nanommo_bot localhost 7777 100 10
+./build/bin/nanommo_bot localhost localhost 100 10
 ```
 
 Or in Docker, next to the server: 300 bots, arriving over two minutes.
