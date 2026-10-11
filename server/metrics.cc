@@ -1,0 +1,46 @@
+#include "server/metrics.h"
+
+namespace nanommo {
+
+Metrics::Metrics()
+    : registry_(std::make_shared<prometheus::Registry>()),
+      players_(prometheus::BuildGauge()
+                   .Name("nanommo_players_online")
+                   .Help("Players connected to the server")
+                   .Register(*registry_)
+                   .Add({})),
+      // From a tenth of a millisecond up to the whole fifty-millisecond tick.
+      tick_seconds_(prometheus::BuildHistogram()
+                        .Name("nanommo_tick_duration_seconds")
+                        .Help("Time spent in each tick")
+                        .Register(*registry_)
+                        .Add({},
+                             prometheus::Histogram::BucketBoundaries{
+                                 0.0001, 0.00025, 0.0005, 0.001, 0.0025, 0.005,
+                                 0.01, 0.025, 0.05})),
+      bytes_sent_(prometheus::BuildCounter()
+                      .Name("nanommo_bytes_sent_total")
+                      .Help("Bytes queued to send to clients")
+                      .Register(*registry_)
+                      .Add({})),
+      messages_received_(prometheus::BuildCounter()
+                             .Name("nanommo_messages_received_total")
+                             .Help("Messages received from clients")
+                             .Register(*registry_)
+                             .Add({})) {}
+
+void Metrics::SetPlayers(std::size_t count) {
+  players_.Set(static_cast<double>(count));
+}
+
+void Metrics::ObserveTick(std::chrono::nanoseconds time) {
+  tick_seconds_.Observe(std::chrono::duration<double>(time).count());
+}
+
+void Metrics::AddBytesSent(std::size_t bytes) {
+  bytes_sent_.Increment(static_cast<double>(bytes));
+}
+
+void Metrics::AddMessageReceived() { messages_received_.Increment(); }
+
+}  // namespace nanommo

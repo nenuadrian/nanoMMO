@@ -11,6 +11,8 @@
 #include "absl/time/time.h"
 #include "asio/io_context.hpp"
 #include "asio/signal_set.hpp"
+#include "prometheus/exposer.h"
+#include "server/metrics.h"
 #include "server/server.h"
 #include "server/tick.h"
 
@@ -31,9 +33,15 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  constexpr uint16_t kMetricsPort = 9464;
+  nanommo::Metrics metrics;
+  prometheus::Exposer exposer("0.0.0.0:" + std::to_string(kMetricsPort));
+  exposer.RegisterCollectable(metrics.registry());
+
   asio::io_context io;
   absl::StatusOr<std::unique_ptr<nanommo::Server>> server_or =
-      nanommo::Server::Create(io, static_cast<uint16_t>(port), *interval);
+      nanommo::Server::Create(io, static_cast<uint16_t>(port), *interval,
+                              metrics);
   if (!server_or.ok()) {
     std::cerr << "nanommo server: " << server_or.status() << "\n";
     return 1;
@@ -43,6 +51,8 @@ int main(int argc, char* argv[]) {
             << kTicksPerSecond << " ticks/s, "
             << absl::FormatDuration(absl::FromChrono(*interval)) << " per tick"
             << std::endl;
+  std::cout << "nanommo server: metrics on port " << kMetricsPort
+            << ", at /metrics" << std::endl;
 
   // As process one in a container, SIGTERM does nothing unless we handle it.
   asio::signal_set signals(io, SIGINT, SIGTERM);

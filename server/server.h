@@ -11,6 +11,7 @@
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
 #include "asio/steady_timer.hpp"
+#include "server/metrics.h"
 #include "server/session.h"
 #include "server/world.h"
 
@@ -21,10 +22,12 @@ class Server {
   /// Starts the server, or returns why it couldn't, such as the port
   /// being taken.
   static absl::StatusOr<std::unique_ptr<Server>> Create(
-      asio::io_context& io, uint16_t port, std::chrono::nanoseconds interval);
+      asio::io_context& io, uint16_t port, std::chrono::nanoseconds interval,
+      Metrics& metrics);
 
  private:
-  Server(asio::io_context& io, std::chrono::nanoseconds interval);
+  Server(asio::io_context& io, std::chrono::nanoseconds interval,
+         Metrics& metrics);
 
   absl::Status Start(uint16_t port);
   void Accept();
@@ -35,6 +38,7 @@ class Server {
   asio::steady_timer timer_;
   std::chrono::nanoseconds interval_;
   World world_;
+  Metrics& metrics_;
   std::map<uint32_t, std::shared_ptr<Session>> sessions_;
 };
 

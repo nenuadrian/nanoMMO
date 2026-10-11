@@ -13,8 +13,10 @@
 namespace nanommo {
 
 absl::StatusOr<std::unique_ptr<Server>> Server::Create(
-    asio::io_context& io, uint16_t port, std::chrono::nanoseconds interval) {
-  std::unique_ptr<Server> server = absl::WrapUnique(new Server(io, interval));
+    asio::io_context& io, uint16_t port, std::chrono::nanoseconds interval,
+    Metrics& metrics) {
+  std::unique_ptr<Server> server =
+      absl::WrapUnique(new Server(io, interval, metrics));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -22,8 +24,9 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
   return server;
 }
 
-Server::Server(asio::io_context& io, std::chrono::nanoseconds interval)
-    : acceptor_(io), timer_(io), interval_(interval) {}
+Server::Server(asio::io_context& io, std::chrono::nanoseconds interval,
+               Metrics& metrics)
+    : acceptor_(io), timer_(io), interval_(interval), metrics_(metrics) {}
 
 absl::Status Server::Start(uint16_t port) {
   const absl::Status listening = Listen(acceptor_, port);
@@ -41,11 +44,13 @@ void Server::Accept() {
                                 asio::ip::tcp::socket socket) {
     if (!error) {
       const uint32_t id = world_.Join();
+      metrics_.SetPlayers(world_.players().size());
       std::error_code ignored;
       std::cout << "player " << id << " joined from "
                 << socket.remote_endpoint(ignored) << std::endl;
 
       const auto on_message = [this, id](const std::string& bytes) {
+        metrics_.AddMessageReceived();
         protocol::Input input;
         if (input.ParseFromString(bytes)) {
           world_.SetInput(id, input.x(), input.z());
@@ -54,6 +59,7 @@ void Server::Accept() {
       const auto on_close = [this, id] {
         world_.Leave(id);
         sessions_.erase(id);
+        metrics_.SetPlayers(world_.players().size());
         std::cout << "player " << id << " left" << std::endl;
       };
       auto session =
@@ -66,8 +72,10 @@ void Server::Accept() {
 }
 
 void Server::Tick() {
+  const auto start = std::chrono::steady_clock::now();
   world_.Step(interval_);
   Broadcast();
+  metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
   // From the last expiry, not from now, so that the ticks don't drift.
   timer_.expires_at(timer_.expiry() + interval_);
   timer_.async_wait([this](std::error_code) { Tick(); });
@@ -83,7 +91,9 @@ void Server::Broadcast() {
   }
   for (const auto& [id, session] : sessions_) {
     message.set_you(id);
-    session->Send(Frame(message));
+    std::string bytes = Frame(message);
+    metrics_.AddBytesSent(bytes.size());
+    session->Send(std::move(bytes));
   }
 }
 

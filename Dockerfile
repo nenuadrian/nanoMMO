@@ -18,7 +18,7 @@ RUN xvfb-run --auto-servernum ctest --test-dir build --output-on-failure
 FROM ubuntu:24.04 AS server
 COPY --from=test /src/build/bin/nanommo_server /usr/local/bin/
 USER ubuntu
-EXPOSE 7777
+EXPOSE 7777 9464
 ENTRYPOINT ["nanommo_server"]
 
 FROM build AS docs-build

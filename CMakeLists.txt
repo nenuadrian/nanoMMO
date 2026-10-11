@@ -57,6 +57,16 @@ FetchContent_MakeAvailable(asio)
 add_library(asio INTERFACE)
 target_include_directories(asio SYSTEM INTERFACE ${asio_SOURCE_DIR}/asio/include)
 
+set(ENABLE_PUSH OFF)
+set(ENABLE_COMPRESSION OFF)
+set(ENABLE_TESTING OFF)
+FetchContent_Declare(
+  prometheus-cpp
+  URL https://github.com/jupp0r/prometheus-cpp/releases/download/v1.3.0/prometheus-cpp-with-submodules.tar.gz
+  SYSTEM
+)
+FetchContent_MakeAvailable(prometheus-cpp)
+
 add_library(imgui
   ${imgui_SOURCE_DIR}/imgui.cpp
   ${imgui_SOURCE_DIR}/imgui_demo.cpp
