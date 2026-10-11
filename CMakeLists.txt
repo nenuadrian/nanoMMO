@@ -68,6 +68,17 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(prometheus-cpp)
 
 find_package(PkgConfig REQUIRED)
+# Homebrew keeps mysql-client out of the places pkg-config looks in.
+if(APPLE)
+  execute_process(
+    COMMAND brew --prefix mysql-client
+    OUTPUT_VARIABLE mysql_client_prefix
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+  )
+  list(APPEND CMAKE_PREFIX_PATH ${mysql_client_prefix})
+endif()
+pkg_check_modules(mysqlclient REQUIRED IMPORTED_TARGET mysqlclient)
 pkg_check_modules(sodium REQUIRED IMPORTED_TARGET libsodium)
 
 add_library(imgui

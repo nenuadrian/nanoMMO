@@ -55,5 +55,18 @@ services:
     profiles:
       - load
 
+  tests:
+    build:
+      context: .
+      target: build
+    command: ["build/bin/nanommo_server_tests"]
+    environment:
+      NANOMMO_MYSQL_HOST: mysql
+    depends_on:
+      mysql:
+        condition: service_healthy
+    profiles:
+      - test
+
 volumes:
   mysql:

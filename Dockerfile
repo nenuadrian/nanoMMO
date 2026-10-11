@@ -3,7 +3,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       build-essential cmake ninja-build ca-certificates doxygen pkg-config \
       xorg-dev libgl1-mesa-dev xvfb xauth libgl1-mesa-dri \
-      libsodium-dev \
+      libmysqlclient-dev libsodium-dev \
  && rm -rf /var/lib/apt/lists/*
 
 FROM toolchain AS build
@@ -18,7 +18,7 @@ RUN xvfb-run --auto-servernum ctest --test-dir build --output-on-failure
 
 FROM ubuntu:24.04 AS runtime
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libsodium23 \
+ && apt-get install -y --no-install-recommends libmysqlclient21 libsodium23 \
  && rm -rf /var/lib/apt/lists/*
 
 FROM runtime AS server
