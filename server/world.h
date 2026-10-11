@@ -4,10 +4,12 @@
 #include <chrono>
 #include <cstdint>
 #include <map>
+#include <string>
 
 namespace nanommo {
 
 struct Player {
+  std::string name;
   float x = 0.0f;
   float z = 0.0f;
   float input_x = 0.0f;
@@ -22,7 +24,7 @@ class World {
   /// Six tiles to the ground's edge, less half a tile, so players stay on it.
   static constexpr float kEdge = 5.5f;
 
-  uint32_t Join();
+  void Join(uint32_t id, Player player);
 
   void Leave(uint32_t id);
 
@@ -33,7 +35,6 @@ class World {
   const std::map<uint32_t, Player>& players() const { return players_; }
 
  private:
-  uint32_t next_id_ = 1;
   std::map<uint32_t, Player> players_;
 };
 

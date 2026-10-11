@@ -14,9 +14,9 @@ namespace nanommo {
 
 absl::StatusOr<std::unique_ptr<Server>> Server::Create(
     asio::io_context& io, uint16_t port, std::chrono::nanoseconds interval,
-    Metrics& metrics) {
+    Metrics& metrics, Tokens& tokens, Players& players) {
   std::unique_ptr<Server> server =
-      absl::WrapUnique(new Server(io, interval, metrics));
+      absl::WrapUnique(new Server(io, interval, metrics, tokens, players));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -25,8 +25,13 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
 }
 
 Server::Server(asio::io_context& io, std::chrono::nanoseconds interval,
-               Metrics& metrics)
-    : acceptor_(io), timer_(io), interval_(interval), metrics_(metrics) {}
+               Metrics& metrics, Tokens& tokens, Players& players)
+    : acceptor_(io),
+      timer_(io),
+      interval_(interval),
+      metrics_(metrics),
+      tokens_(tokens),
+      players_(players) {}
 
 absl::Status Server::Start(uint16_t port) {
   const absl::Status listening = Listen(acceptor_, port);
@@ -39,36 +44,82 @@ absl::Status Server::Start(uint16_t port) {
   return absl::OkStatus();
 }
 
+void Server::SaveAll() {
+  for (const auto& [id, player] : world_.players()) {
+    const absl::Status saved = players_.Save(id, player);
+    if (!saved.ok()) {
+      std::cerr << "couldn't save " << player.name << ": " << saved << "\n";
+    }
+  }
+}
+
 void Server::Accept() {
   acceptor_.async_accept([this](std::error_code error,
                                 asio::ip::tcp::socket socket) {
     if (!error) {
-      const uint32_t id = world_.Join();
-      metrics_.SetPlayers(world_.players().size());
-      std::error_code ignored;
-      std::cout << "player " << id << " joined from "
-                << socket.remote_endpoint(ignored) << std::endl;
+      auto id = std::make_shared<uint32_t>(0);
 
-      const auto on_message = [this, id](Session&, const std::string& bytes) {
+      const auto on_message = [this, id](Session& session,
+                                         const std::string& bytes) {
         metrics_.AddMessageReceived();
+        if (*id == 0) {
+          *id = HandleHello(session, bytes);
+          return;
+        }
         protocol::Input input;
         if (input.ParseFromString(bytes)) {
-          world_.SetInput(id, input.x(), input.z());
+          world_.SetInput(*id, input.x(), input.z());
         }
       };
       const auto on_close = [this, id] {
-        world_.Leave(id);
-        sessions_.erase(id);
-        metrics_.SetPlayers(world_.players().size());
-        std::cout << "player " << id << " left" << std::endl;
+        if (*id != 0) {
+          Leave(*id);
+        }
       };
       auto session =
           std::make_shared<Session>(std::move(socket), on_message, on_close);
-      sessions_[id] = session;
       session->Start();
     }
     Accept();
   });
+}
+
+uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
+  protocol::Hello hello;
+  const absl::StatusOr<uint32_t> id =
+      hello.ParseFromString(bytes) ? tokens_.Redeem(hello.token())
+                                   : absl::InvalidArgumentError("not a hello");
+  if (!id.ok() || world_.players().contains(*id)) {
+    std::cout << "refused a client: unknown token, or already playing"
+              << std::endl;
+    session.Close();
+    return 0;
+  }
+  const absl::StatusOr<Player> player = players_.Load(*id);
+  if (!player.ok()) {
+    std::cerr << "couldn't load player " << *id << ": " << player.status()
+              << "\n";
+    session.Close();
+    return 0;
+  }
+  world_.Join(*id, *player);
+  sessions_[*id] = session.shared_from_this();
+  metrics_.SetPlayers(world_.players().size());
+  std::cout << world_.players().at(*id).name << " joined, as player " << *id
+            << std::endl;
+  return *id;
+}
+
+void Server::Leave(uint32_t id) {
+  const Player& player = world_.players().at(id);
+  std::cout << player.name << " left" << std::endl;
+  const absl::Status saved = players_.Save(id, player);
+  if (!saved.ok()) {
+    std::cerr << "couldn't save " << player.name << ": " << saved << "\n";
+  }
+  world_.Leave(id);
+  sessions_.erase(id);
+  metrics_.SetPlayers(world_.players().size());
 }
 
 void Server::Tick() {
@@ -88,6 +139,7 @@ void Server::Broadcast() {
     sent->set_id(id);
     sent->set_x(player.x);
     sent->set_z(player.z);
+    sent->set_name(player.name);
   }
   for (const auto& [id, session] : sessions_) {
     message.set_you(id);

@@ -46,9 +46,17 @@ services:
     build:
       context: .
       target: server
+    environment:
+      NANOMMO_MYSQL_HOST: mysql
+      NANOMMO_REDIS_HOST: redis
     ports:
       - "7777:7777"
       - "9464:9464"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus:v3.15.0

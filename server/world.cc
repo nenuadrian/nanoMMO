@@ -2,15 +2,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace nanommo {
 
-uint32_t World::Join() {
-  const uint32_t id = next_id_++;
-  Player player;
-  player.x = static_cast<float>((id - 1) % 4) * 2.0f - 3.0f;
-  players_[id] = player;
-  return id;
+void World::Join(uint32_t id, Player player) {
+  players_[id] = std::move(player);
 }
 
 void World::Leave(uint32_t id) { players_.erase(id); }

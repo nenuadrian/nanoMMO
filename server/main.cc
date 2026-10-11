@@ -12,9 +12,14 @@
 #include "asio/io_context.hpp"
 #include "asio/signal_set.hpp"
 #include "prometheus/exposer.h"
+#include "server/database.h"
 #include "server/metrics.h"
+#include "server/players.h"
+#include "server/redis.h"
 #include "server/server.h"
+#include "server/settings.h"
 #include "server/tick.h"
+#include "server/tokens.h"
 
 int main(int argc, char* argv[]) {
   constexpr int kTicksPerSecond = 20;
@@ -38,10 +43,30 @@ int main(int argc, char* argv[]) {
   prometheus::Exposer exposer("0.0.0.0:" + std::to_string(kMetricsPort));
   exposer.RegisterCollectable(metrics.registry());
 
+  absl::StatusOr<std::unique_ptr<nanommo::Database>> database_or =
+      nanommo::Database::Create(
+          nanommo::Setting("NANOMMO_MYSQL_HOST", "127.0.0.1"), "nanommo",
+          nanommo::Setting("NANOMMO_MYSQL_PASSWORD", "nanommo"), "nanommo");
+  if (!database_or.ok()) {
+    std::cerr << "nanommo server: " << database_or.status() << "\n";
+    return 1;
+  }
+  const std::unique_ptr<nanommo::Database> database = *std::move(database_or);
+  absl::StatusOr<std::unique_ptr<nanommo::Redis>> redis_or =
+      nanommo::Redis::Create(
+          nanommo::Setting("NANOMMO_REDIS_HOST", "127.0.0.1"));
+  if (!redis_or.ok()) {
+    std::cerr << "nanommo server: " << redis_or.status() << "\n";
+    return 1;
+  }
+  const std::unique_ptr<nanommo::Redis> redis = *std::move(redis_or);
+  nanommo::Tokens tokens(*redis);
+  nanommo::Players players(*database);
+
   asio::io_context io;
   absl::StatusOr<std::unique_ptr<nanommo::Server>> server_or =
       nanommo::Server::Create(io, static_cast<uint16_t>(port), *interval,
-                              metrics);
+                              metrics, tokens, players);
   if (!server_or.ok()) {
     std::cerr << "nanommo server: " << server_or.status() << "\n";
     return 1;
@@ -58,6 +83,7 @@ int main(int argc, char* argv[]) {
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });
   io.run();
-  std::cout << "nanommo server: stopped" << std::endl;
+  server->SaveAll();
+  std::cout << "nanommo server: saved everyone, and stopped" << std::endl;
   return 0;
 }
