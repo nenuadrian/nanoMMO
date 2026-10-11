@@ -14,7 +14,7 @@ namespace nanommo {
 
 class Session : public std::enable_shared_from_this<Session> {
  public:
-  using OnMessage = std::function<void(const std::string&)>;
+  using OnMessage = std::function<void(Session&, const std::string&)>;
   using OnClose = std::function<void()>;
 
   Session(asio::ip::tcp::socket socket, OnMessage on_message, OnClose on_close);
@@ -23,10 +23,11 @@ class Session : public std::enable_shared_from_this<Session> {
 
   void Send(std::string bytes);
 
+  void Close();
+
  private:
   void Read();
   void Write();
-  void Close();
 
   asio::ip::tcp::socket socket_;
   OnMessage on_message_;

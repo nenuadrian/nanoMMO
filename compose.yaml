@@ -27,6 +27,21 @@ services:
       interval: 2s
       retries: 30
 
+  login:
+    build:
+      context: .
+      target: login
+    environment:
+      NANOMMO_MYSQL_HOST: mysql
+      NANOMMO_REDIS_HOST: redis
+    ports:
+      - "7778:7778"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   server:
     build:
       context: .

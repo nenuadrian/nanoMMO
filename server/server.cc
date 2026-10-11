@@ -49,7 +49,7 @@ void Server::Accept() {
       std::cout << "player " << id << " joined from "
                 << socket.remote_endpoint(ignored) << std::endl;
 
-      const auto on_message = [this, id](const std::string& bytes) {
+      const auto on_message = [this, id](Session&, const std::string& bytes) {
         metrics_.AddMessageReceived();
         protocol::Input input;
         if (input.ParseFromString(bytes)) {

@@ -31,7 +31,10 @@ void Session::Read() {
         }
         self->reader_.Append({self->buffer_.data(), size});
         while (const auto message = self->reader_.Next()) {
-          self->on_message_(*message);
+          self->on_message_(*self, *message);
+          if (self->closed_) {
+            return;
+          }
         }
         if (!self->reader_.status().ok()) {
           self->Close();

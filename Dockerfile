@@ -27,6 +27,12 @@ USER ubuntu
 EXPOSE 7777 9464
 ENTRYPOINT ["nanommo_server"]
 
+FROM runtime AS login
+COPY --from=test /src/build/bin/nanommo_login /usr/local/bin/
+USER ubuntu
+EXPOSE 7778
+ENTRYPOINT ["nanommo_login"]
+
 FROM ubuntu:24.04 AS bot
 COPY --from=test /src/build/bin/nanommo_bot /usr/local/bin/
 USER ubuntu
