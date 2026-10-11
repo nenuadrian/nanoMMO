@@ -59,6 +59,27 @@ services:
       redis:
         condition: service_healthy
 
+  web:
+    build: web
+    environment:
+      APP_NAME: nanoMMO
+      APP_KEY: base64:0zEQ9+zkW8PjBBbb4weJGMOYEOOKyUrz7e0YE1W+TDU=
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_DATABASE: nanommo
+      DB_USERNAME: nanommo
+      DB_PASSWORD: nanommo
+      REDIS_HOST: redis
+      SESSION_DRIVER: redis
+      CACHE_STORE: redis
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   prometheus:
     image: prom/prometheus:v3.15.0
     volumes:
