@@ -15,6 +15,17 @@
             </ul>
             <ul>
                 <li><a href="/">Rankings</a></li>
+                @auth
+                    <li>{{ auth()->user()->username }}</li>
+                    <li>
+                        <form method="post" action="/logout">
+                            <button>Log out</button>
+                        </form>
+                    </li>
+                @else
+                    <li><a href="/login">Log in</a></li>
+                    <li><a href="/register">Create account</a></li>
+                @endauth
             </ul>
         </nav>
     </header>

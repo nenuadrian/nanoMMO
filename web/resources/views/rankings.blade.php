@@ -13,7 +13,13 @@
             @forelse ($players as $player)
                 <tr>
                     <td>{{ $loop->iteration }}</td>
-                    <td>{{ $player->username }}</td>
+                    <td>
+                        @if ($player->account_id === auth()->id())
+                            <mark>{{ $player->username }}</mark>
+                        @else
+                            {{ $player->username }}
+                        @endif
+                    </td>
                     <td>{{ $player->level }}</td>
                     <td>{{ $player->experience }}</td>
                 </tr>
