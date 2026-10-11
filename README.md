@@ -6,13 +6,15 @@ C++ client, and everything around them. Each episode's code is a git tag (`ep001
 
 ## Build, test and run
 
-You need CMake, Ninja and a C++20 compiler. The client draws with raylib, on top of the system's
-OpenGL:
+You need CMake, Ninja and a C++20 compiler, and two libraries from your system's package manager:
+MySQL's client library, and libsodium for hashing passwords. The client draws with raylib, on top of
+the system's OpenGL.
 
-- macOS and Windows: nothing more to install.
-- Ubuntu: `sudo apt install xorg-dev libgl1-mesa-dev`, the X11 and OpenGL headers.
+- macOS: `brew install mysql-client libsodium pkgconf`.
+- Ubuntu: `sudo apt install pkg-config libmysqlclient-dev libsodium-dev xorg-dev libgl1-mesa-dev`,
+  where the last two are the X11 and OpenGL headers.
 
-CMake fetches and builds the libraries: GoogleTest, raylib, Dear ImGui, rlImGui, abseil, protobuf,
+CMake fetches and builds the other libraries: GoogleTest, raylib, Dear ImGui, rlImGui, abseil, protobuf,
 Asio and prometheus-cpp. The first build compiles protobuf, so it takes a few minutes.
 
 ```bash
@@ -35,6 +37,31 @@ background.
 
 `protocol/nanommo.proto` is the contract between the client and the server. The build runs protoc on it,
 and both sides use the C++ it generates.
+
+## Accounts
+
+Accounts live in MySQL, in the `accounts` table from `db/schema.sql`, next to a `players` table for
+where each player is. Docker Compose runs MySQL, and loads the schema the first time it starts:
+
+```bash
+docker compose up -d mysql
+```
+
+`server/accounts.h` creates an account and finds one by its name. A name is 3 to 16 letters, digits
+and underscores, and a password 8 to 128 characters. Passwords are hashed with Argon2id, through
+libsodium, so the database never holds a password itself. The servers don't log anyone in yet.
+
+The tests that need MySQL find it at `NANOMMO_MYSQL_HOST`, and skip themselves unless that's set:
+
+```bash
+NANOMMO_MYSQL_HOST=127.0.0.1 ./build/bin/nanommo_server_tests
+# Or all in Docker, next to MySQL.
+docker compose run --rm tests
+```
+
+MySQL keeps its data in the `mysql` volume, so it survives `docker compose down`. MySQL runs
+`db/schema.sql` the first time it starts, on an empty volume. `docker compose down -v` deletes the
+volume, and with it all the accounts.
 
 Or with only Docker installed:
 
