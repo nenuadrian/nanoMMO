@@ -18,6 +18,15 @@ services:
       interval: 2s
       retries: 30
 
+  redis:
+    image: redis:8.8.3
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 30
+
   server:
     build:
       context: .
@@ -62,8 +71,11 @@ services:
     command: ["build/bin/nanommo_server_tests"]
     environment:
       NANOMMO_MYSQL_HOST: mysql
+      NANOMMO_REDIS_HOST: redis
     depends_on:
       mysql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     profiles:
       - test

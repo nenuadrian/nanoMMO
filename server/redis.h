@@ -1,0 +1,36 @@
+#ifndef NANOMMO_SERVER_REDIS_H_
+#define NANOMMO_SERVER_REDIS_H_
+
+#include <hiredis.h>
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "absl/status/statusor.h"
+
+namespace nanommo {
+
+class Redis {
+ public:
+  /// Connects to Redis, or returns why it couldn't.
+  static absl::StatusOr<std::unique_ptr<Redis>> Create(const std::string& host,
+                                                       int port = 6379);
+  ~Redis();
+
+  Redis(const Redis&) = delete;
+  Redis& operator=(const Redis&) = delete;
+
+  /// Returns the reply as text, or a NotFound error when Redis says nil. A
+  /// command that loses the connection fails, and the next one reconnects.
+  absl::StatusOr<std::string> Command(const std::vector<std::string>& words);
+
+ private:
+  explicit Redis(redisContext* context) : context_(context) {}
+
+  redisContext* context_;
+};
+
+}  // namespace nanommo
+
+#endif  // NANOMMO_SERVER_REDIS_H_

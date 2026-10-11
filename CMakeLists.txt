@@ -67,6 +67,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(prometheus-cpp)
 
+set(BUILD_SHARED_LIBS OFF)
+set(DISABLE_TESTS ON)
+FetchContent_Declare(
+  hiredis
+  URL https://github.com/redis/hiredis/archive/refs/tags/v1.4.1.tar.gz
+  SYSTEM
+)
+FetchContent_MakeAvailable(hiredis)
+
 find_package(PkgConfig REQUIRED)
 # Homebrew keeps mysql-client out of the places pkg-config looks in.
 if(APPLE)

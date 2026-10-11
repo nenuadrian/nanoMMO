@@ -18,7 +18,7 @@ jobs:
       - name: Build and run the tests
         run: docker build --target test .
 
-      - name: Run the tests against MySQL
+      - name: Run the tests against MySQL and Redis
         run: docker compose run --rm tests
 
       - name: Build the server image

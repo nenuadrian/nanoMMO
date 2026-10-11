@@ -10,6 +10,7 @@
 #include "absl/status/statusor.h"
 #include "gtest/gtest.h"
 #include "server/database.h"
+#include "server/redis.h"
 
 namespace nanommo::testing {
 
@@ -27,6 +28,20 @@ inline std::unique_ptr<Database> TestDatabase() {
     return nullptr;
   }
   return *std::move(database);
+}
+
+/// Redis at NANOMMO_REDIS_HOST, like TestDatabase.
+inline std::unique_ptr<Redis> TestRedis() {
+  const char* host = std::getenv("NANOMMO_REDIS_HOST");
+  if (host == nullptr) {
+    return nullptr;
+  }
+  absl::StatusOr<std::unique_ptr<Redis>> redis = Redis::Create(host);
+  if (!redis.ok()) {
+    ADD_FAILURE() << redis.status();
+    return nullptr;
+  }
+  return *std::move(redis);
 }
 
 inline std::string TestName() {
