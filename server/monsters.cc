@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <numbers>
 
 namespace nanommo {
@@ -27,7 +28,10 @@ Monster Skeleton(float x, float z) {
           .z = z,
           .level = 1,
           .max_health = 50,
-          .experience = 50};
+          .experience = 50,
+          .damage = 5,
+          .swing_time = std::chrono::milliseconds(900),
+          .hit_time = std::chrono::milliseconds(650)};
 }
 
 std::chrono::nanoseconds RandomRest(std::mt19937& random) {
@@ -62,6 +66,53 @@ void Wander(Monster& monster, std::chrono::nanoseconds time,
   monster.x += dx / distance * step;
   monster.z += dz / distance * step;
   monster.yaw = std::atan2(dx, dz);
+}
+
+uint32_t Spot(const Monster& monster,
+              const std::map<uint32_t, Player>& players) {
+  uint32_t nearest = 0;
+  float closest = kSight;
+  for (const auto& [id, player] : players) {
+    const float away = std::hypot(player.x - monster.x, player.z - monster.z);
+    const float from_home =
+        std::hypot(player.x - monster.home_x, player.z - monster.home_z);
+    if (player.motion != Motion::kDead && away <= closest &&
+        from_home <= kLeash) {
+      nearest = id;
+      closest = away;
+    }
+  }
+  return nearest;
+}
+
+void Hunt(Monster& monster, const std::map<uint32_t, Player>& players,
+          std::chrono::nanoseconds time, std::mt19937& random) {
+  monster.prey = Spot(monster, players);
+  if (monster.prey == 0) {
+    if (monster.motion == Motion::kRun) {
+      monster.motion = Motion::kIdle;
+      monster.rest = RandomRest(random);
+    }
+    Wander(monster, time, random);
+    return;
+  }
+
+  const Player& player = players.at(monster.prey);
+  const float dx = player.x - monster.x;
+  const float dz = player.z - monster.z;
+  const float distance = std::hypot(dx, dz);
+  monster.yaw = std::atan2(dx, dz);
+  if (distance <= kMonsterReach) {
+    monster.motion = Motion::kAttack;
+    monster.swing = std::chrono::nanoseconds::zero();
+    return;
+  }
+  const float step =
+      std::min(World::kRunSpeed * std::chrono::duration<float>(time).count(),
+               distance - kMonsterReach);
+  monster.x += dx / distance * step;
+  monster.z += dz / distance * step;
+  monster.motion = Motion::kRun;
 }
 
 void Revive(Monster& monster, std::chrono::nanoseconds time,

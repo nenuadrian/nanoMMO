@@ -62,15 +62,21 @@ void World::Step(std::chrono::nanoseconds time) {
     Act(player, time);
   }
   for (auto& [id, monster] : monsters_) {
-    if (monster.motion == Motion::kDead) {
-      Revive(monster, time, random_);
-    } else {
-      Wander(monster, time, random_);
-    }
+    Act(monster, time);
   }
 }
 
 void World::Act(Player& player, std::chrono::nanoseconds time) {
+  if (player.motion == Motion::kDead) {
+    player.respawn -= time;
+    if (player.respawn <= std::chrono::nanoseconds::zero()) {
+      player.x = 0.0f;
+      player.z = 0.0f;
+      player.motion = Motion::kIdle;
+      player.health = MaxHealth(LevelFor(player.experience).number);
+    }
+    return;
+  }
   if (player.motion == Motion::kAttack) {
     const auto before = player.swing;
     player.swing += time;
@@ -149,6 +155,43 @@ void World::Hit(Player& player) {
   if (now > level) {
     player.health = MaxHealth(now);
   }
+}
+
+void World::Act(Monster& monster, std::chrono::nanoseconds time) {
+  if (monster.motion == Motion::kDead) {
+    Revive(monster, time, random_);
+    return;
+  }
+  if (monster.motion == Motion::kAttack) {
+    const auto before = monster.swing;
+    monster.swing += time;
+    if (before < monster.hit_time && monster.swing >= monster.hit_time) {
+      Hit(monster);
+    }
+    if (monster.swing < monster.swing_time) {
+      return;
+    }
+    monster.motion = Motion::kIdle;
+  }
+  Hunt(monster, players_, time, random_);
+}
+
+void World::Hit(Monster& monster) {
+  const auto found = players_.find(monster.prey);
+  if (found == players_.end()) {
+    return;
+  }
+  Player& player = found->second;
+  if (player.motion == Motion::kDead ||
+      Distance(player, monster) > kMonsterReach) {
+    return;
+  }
+  player.health = std::max(player.health - monster.damage, 0);
+  if (player.health > 0) {
+    return;
+  }
+  player.motion = Motion::kDead;
+  player.respawn = kRespawnTime;
 }
 
 }  // namespace nanommo

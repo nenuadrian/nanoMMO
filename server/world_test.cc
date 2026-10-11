@@ -154,3 +154,23 @@ TEST(World, KillsMonstersForTheirExperienceAndTheyComeBack) {
   EXPECT_NE(world.monsters().at(id).motion, nanommo::Motion::kDead);
   EXPECT_EQ(world.monsters().at(id).health, 10);
 }
+
+TEST(World, MonstersKillPlayersWhoComeBackInTheMiddle) {
+  nanommo::World world;
+  world.Join(1, {.x = 2.0f});
+  world.Spawn(nanommo::Skeleton(3.0f, 0.0f));
+
+  for (int second = 0; second < 18; ++second) {
+    RunOneSecond(world);
+  }
+  EXPECT_EQ(world.players().at(1).health, 0);
+  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kDead);
+
+  for (int second = 0; second < nanommo::World::kRespawnTime.count();
+       ++second) {
+    RunOneSecond(world);
+  }
+  const nanommo::Player& player = world.players().at(1);
+  EXPECT_EQ(player.x, 0.0f);
+  EXPECT_EQ(player.health, 100);
+}

@@ -2,6 +2,8 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstdint>
+#include <map>
 #include <random>
 
 #include "gtest/gtest.h"
@@ -39,4 +41,33 @@ TEST(Monsters, StaysNearHomeAndOnTheBoard) {
     ASSERT_LE(monster.x, corner);
     ASSERT_LE(monster.z, corner);
   }
+}
+
+TEST(Monsters, RunsAtPlayersItSeesThenSwings) {
+  std::mt19937 random(7);
+  nanommo::Monster monster = nanommo::Skeleton(0.0f, 0.0f);
+  const std::map<uint32_t, nanommo::Player> players = {{1, {.x = 2.5f}}};
+
+  nanommo::Hunt(monster, players, kTick, random);
+  EXPECT_EQ(monster.prey, 1u);
+  EXPECT_EQ(monster.motion, nanommo::Motion::kRun);
+
+  for (int tick = 0; tick < 10; ++tick) {
+    nanommo::Hunt(monster, players, kTick, random);
+  }
+  EXPECT_FLOAT_EQ(monster.x, 2.5f - nanommo::kMonsterReach);
+  EXPECT_EQ(monster.motion, nanommo::Motion::kAttack);
+}
+
+TEST(Monsters, SpotsLivingPlayersInSightAndNearHome) {
+  nanommo::Monster monster = nanommo::Skeleton(-3.0f, 0.0f);
+  monster.home_x = -3.0f;
+
+  EXPECT_EQ(nanommo::Spot(monster, {{1, {.x = 0.5f}}}), 0u);
+  EXPECT_EQ(nanommo::Spot(
+                monster, {{1, {.x = -1.0f, .motion = nanommo::Motion::kDead}}}),
+            0u);
+  monster.x = 0.0f;
+  EXPECT_EQ(nanommo::Spot(monster, {{1, {.x = 1.5f}}}), 0u);
+  EXPECT_EQ(nanommo::Spot(monster, {{1, {.x = -1.0f}}, {2, {.x = 0.5f}}}), 2u);
 }

@@ -22,6 +22,7 @@ struct Player {
   int health = 0;
   uint32_t target = 0;
   std::chrono::nanoseconds swing{0};
+  std::chrono::nanoseconds respawn{0};
   float input_x = 0.0f;
   float input_z = 0.0f;
   bool input_run = false;
@@ -38,11 +39,16 @@ struct Monster {
   int health = 0;
   int max_health = 0;
   uint32_t experience = 0;
+  int damage = 0;
+  std::chrono::nanoseconds swing_time{0};
+  std::chrono::nanoseconds hit_time{0};
   float home_x = 0.0f;
   float home_z = 0.0f;
   float target_x = 0.0f;
   float target_z = 0.0f;
   std::chrono::nanoseconds rest{0};
+  uint32_t prey = 0;
+  std::chrono::nanoseconds swing{0};
   std::chrono::nanoseconds respawn{0};
 };
 
@@ -85,6 +91,8 @@ class World {
   void Move(Player& player, std::chrono::nanoseconds time);
   void Swing(Player& player);
   void Hit(Player& player);
+  void Act(Monster& monster, std::chrono::nanoseconds time);
+  void Hit(Monster& monster);
 
   std::map<uint32_t, Player> players_;
   std::map<uint32_t, Monster> monsters_;

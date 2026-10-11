@@ -126,11 +126,12 @@ Characters::Characters(const std::string& folder,
       character.clip_for[motion] = found;
     }
     // Without a walk, a character walks with its run, played slower. The
-    // skeleton's feet keep up with our walk at 0.4.
+    // skeleton's feet keep up with our walk at 0.4, and with our run at 0.7.
     auto& [idle, walk, run, attack, death] = character.clip_for;
     if (walk < 0 && run >= 0) {
       walk = run;
       character.speed[protocol::MOTION_WALK] = 0.4f;
+      character.speed[protocol::MOTION_RUN] = 0.7f;
     }
     if (idle < 0 || walk < 0 || run < 0 || attack < 0 || death < 0) {
       TraceLog(LOG_WARNING, "%s doesn't have the clips we need", file.c_str());
