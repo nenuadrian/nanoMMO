@@ -1,11 +1,11 @@
 add_library(nanommo_client_core
   window.cc gui.cc menu.cc renderer.cc offscreen.cc
-  camera.cc scene.cc input.cc
+  camera.cc scene.cc input.cc connection.cc
 )
 target_include_directories(nanommo_client_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_client_core PUBLIC
-  raylib imgui
-  absl::memory absl::status absl::statusor
+  raylib imgui nanommo_protocol asio
+  absl::memory absl::status absl::statusor absl::strings
 )
 
 add_executable(nanommo_client main.cc)
