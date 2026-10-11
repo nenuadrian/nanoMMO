@@ -27,6 +27,8 @@ message World {
   uint32 you = 1;
   repeated Player players = 2;
   int64 sent = 3;
+  uint32 part = 4;
+  uint32 parts = 5;
 }
 
 message LoginRequest {
