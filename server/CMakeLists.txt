@@ -5,7 +5,7 @@ add_library(nanommo_server_core
 )
 target_include_directories(nanommo_server_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_server_core PUBLIC
-  nanommo_protocol asio prometheus-cpp::core
+  nanommo_protocol asio prometheus-cpp::core Tracy::TracyClient
   PkgConfig::sodium PkgConfig::mysqlclient hiredis
   absl::memory absl::status absl::statusor absl::strings absl::absl_check
 )

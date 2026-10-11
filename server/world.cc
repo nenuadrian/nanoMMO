@@ -4,6 +4,8 @@
 #include <cmath>
 #include <utility>
 
+#include "tracy/Tracy.hpp"
+
 namespace nanommo {
 
 void World::Join(uint32_t id, Player player) {
@@ -30,6 +32,7 @@ void World::SetInput(uint32_t id, float x, float z, bool run) {
 }
 
 void World::Step(std::chrono::nanoseconds time) {
+  ZoneScoped;
   const float seconds = std::chrono::duration<float>(time).count();
   for (auto& [id, player] : players_) {
     const float speed = player.input_run ? kRunSpeed : kWalkSpeed;

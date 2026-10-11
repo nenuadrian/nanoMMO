@@ -9,6 +9,7 @@
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
 #include "server/listen.h"
+#include "tracy/Tracy.hpp"
 
 namespace nanommo {
 
@@ -139,16 +140,20 @@ void Server::Leave(uint32_t id) {
 }
 
 void Server::Tick() {
+  ZoneScoped;
   const auto start = std::chrono::steady_clock::now();
   world_.Step(interval_);
   Broadcast();
   metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
+  TracyPlot("players", static_cast<int64_t>(world_.players().size()));
+  FrameMark;
   // From the last expiry, not from now, so that the ticks don't drift.
   timer_.expires_at(timer_.expiry() + interval_);
   timer_.async_wait([this](std::error_code) { Tick(); });
 }
 
 void Server::Broadcast() {
+  ZoneScoped;
   protocol::World message;
   for (const auto& [id, player] : world_.players()) {
     protocol::Player* sent = message.add_players();
@@ -161,7 +166,11 @@ void Server::Broadcast() {
   }
   for (const auto& [id, session] : sessions_) {
     message.set_you(id);
-    std::string bytes = Frame(message);
+    std::string bytes;
+    {
+      ZoneScopedN("serialize");
+      bytes = Frame(message);
+    }
     metrics_.AddBytesSent(bytes.size());
     session->Send(std::move(bytes));
   }

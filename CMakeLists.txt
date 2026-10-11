@@ -61,6 +61,16 @@ FetchContent_MakeAvailable(asio)
 add_library(asio INTERFACE)
 target_include_directories(asio SYSTEM INTERFACE ${asio_SOURCE_DIR}/asio/include)
 
+# Tracy's macros compile to nothing without -DTRACY_ENABLE=ON. On demand,
+# it records nothing until a profiler connects.
+set(TRACY_ON_DEMAND ON)
+FetchContent_Declare(
+  tracy
+  URL https://github.com/wolfpld/tracy/archive/refs/tags/v0.14.1.tar.gz
+  SYSTEM
+)
+FetchContent_MakeAvailable(tracy)
+
 set(ENABLE_PUSH OFF)
 set(ENABLE_COMPRESSION OFF)
 set(ENABLE_TESTING OFF)

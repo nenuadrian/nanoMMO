@@ -5,6 +5,7 @@
 
 #include "asio/buffer.hpp"
 #include "asio/write.hpp"
+#include "tracy/Tracy.hpp"
 
 namespace nanommo {
 
@@ -45,6 +46,7 @@ void Session::Read() {
 }
 
 void Session::Send(std::string bytes) {
+  ZoneScoped;
   if (closed_) {
     return;
   }

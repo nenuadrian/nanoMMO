@@ -6,5 +6,7 @@ services:
     cap_add:
       - PERFMON
       - SYSLOG
+    ports:
+      - "8086:8086"
     volumes:
       - ./profile:/profile

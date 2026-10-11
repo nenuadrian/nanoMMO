@@ -38,6 +38,10 @@ COPY --from=test /src/build/bin/nanommo_bot /usr/local/bin/
 USER ubuntu
 ENTRYPOINT ["nanommo_bot"]
 
+FROM build AS profile-build
+RUN cmake -S . -B build -DTRACY_ENABLE=ON \
+ && cmake --build build --target nanommo_server
+
 # Ubuntu's perf wants a build for the running kernel, and Docker Desktop's
 # kernel isn't Ubuntu's, so we put the generic build on the path.
 FROM runtime AS profile
@@ -51,9 +55,9 @@ RUN mkdir /opt/flamegraph \
  && tar -xzf /tmp/41fee1f99f9276008b7cd112fca19dc3ea84ac32.tar.gz -C /opt/flamegraph --strip-components 1 \
  && rm /tmp/*.tar.gz
 ENV PATH=/opt/flamegraph:$PATH
-COPY --from=test /src/build/bin/nanommo_server /usr/local/bin/
+COPY --from=profile-build /src/build/bin/nanommo_server /usr/local/bin/
 COPY bench/profile.sh /usr/local/bin/
-EXPOSE 7777 9464
+EXPOSE 7777 9464 8086
 ENTRYPOINT ["nanommo_server"]
 
 FROM build AS docs-build
