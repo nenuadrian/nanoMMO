@@ -1,7 +1,7 @@
 add_library(nanommo_client_core
   window.cc gui.cc menu.cc renderer.cc offscreen.cc
   camera.cc scene.cc input.cc connection.cc
-  login_screen.cc nameplates.cc
+  login_screen.cc nameplates.cc animator.cc
 )
 target_include_directories(nanommo_client_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_client_core PUBLIC
@@ -12,7 +12,7 @@ target_link_libraries(nanommo_client_core PUBLIC
 add_executable(nanommo_client main.cc)
 target_link_libraries(nanommo_client PRIVATE nanommo_client_core)
 
-add_executable(nanommo_client_tests renderer_test.cc)
+add_executable(nanommo_client_tests renderer_test.cc animator_test.cc)
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)
 
 include(GoogleTest)
