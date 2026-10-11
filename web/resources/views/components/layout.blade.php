@@ -19,6 +19,7 @@
                     <li>{{ auth()->user()->username }}</li>
                     <li>
                         <form method="post" action="/logout">
+                            @csrf
                             <button>Log out</button>
                         </form>
                     </li>

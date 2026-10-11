@@ -1,6 +1,7 @@
 <x-layout>
     <h1>Log in</h1>
     <form method="post" action="/login">
+        @csrf
         <label>
             Name
             <input name="username" value="{{ old('username') }}" autocomplete="username" required

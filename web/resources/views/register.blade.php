@@ -1,6 +1,7 @@
 <x-layout>
     <h1>Create an account</h1>
     <form method="post" action="/register">
+        @csrf
         <label>
             Name
             <input name="username" value="{{ old('username') }}" autocomplete="username" required
