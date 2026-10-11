@@ -1,5 +1,6 @@
 #include "bot/bot.h"
 
+#include <algorithm>
 #include <iostream>
 #include <string>
 
@@ -7,7 +8,6 @@
 #include "asio/connect.hpp"
 #include "asio/write.hpp"
 #include "bot/wander.h"
-#include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
 
 namespace nanommo {
@@ -39,17 +39,33 @@ void Bot::Start(const asio::ip::tcp::resolver::results_type& server,
       });
 }
 
-// We ignore the world, but still read it so the server's writes don't back up.
+// Reading every world keeps the server's writes to us from backing up.
 void Bot::Read() {
   socket_.async_read_some(asio::buffer(buffer_),
-                          [this](std::error_code error, std::size_t) {
+                          [this](std::error_code error, std::size_t size) {
                             if (error) {
+                              connected_ = false;
+                              timer_.cancel();
+                              return;
+                            }
+                            reader_.Append({buffer_.data(), size});
+                            while (const auto message = reader_.Next()) {
+                              Receive(*message);
+                            }
+                            if (!reader_.status().ok()) {
                               connected_ = false;
                               timer_.cancel();
                               return;
                             }
                             Read();
                           });
+}
+
+void Bot::Receive(std::string_view bytes) {
+  protocol::World world;
+  if (world.ParseFromArray(bytes.data(), static_cast<int>(bytes.size()))) {
+    newest_ = std::max(newest_, world.sent());
+  }
 }
 
 void Bot::Wander() {

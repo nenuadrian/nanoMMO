@@ -15,12 +15,20 @@
 #include "asio/signal_set.hpp"
 #include "asio/steady_timer.hpp"
 #include "bot/bot.h"
+#include "bot/bot_metrics.h"
+#include "prometheus/exposer.h"
+#include "protocol/clock.h"
 #include "protocol/login_client.h"
 
 namespace {
 
 constexpr uint16_t kGamePort = 7777;
 constexpr uint16_t kLoginPort = 7778;
+constexpr uint16_t kMetricsPort = 9465;
+
+// Sixty frames a second, near enough. Sixteen doesn't divide the tick's
+// fifty, so the frames land all over the tick, like a client's would.
+constexpr std::chrono::milliseconds kFrame(16);
 
 absl::StatusOr<std::string> LogIn(const std::string& host, int number) {
   nanommo::protocol::LoginRequest request;
@@ -45,17 +53,21 @@ class Swarm {
  public:
   Swarm(asio::io_context& io, std::string login,
         asio::ip::tcp::resolver::results_type server, int count,
-        std::chrono::milliseconds ramp, int first)
+        std::chrono::milliseconds ramp, int first, nanommo::BotMetrics& metrics)
       : io_(io),
         login_(std::move(login)),
         server_(std::move(server)),
         count_(count),
         first_(first),
         gap_(count > 0 ? ramp / count : ramp),
+        metrics_(metrics),
         timer_(io),
-        report_(io) {
+        report_(io),
+        frame_(io) {
     Add();
     Report();
+    frame_.expires_after(kFrame);
+    frame_.async_wait([this](std::error_code) { Look(); });
   }
 
  private:
@@ -100,14 +112,31 @@ class Swarm {
     });
   }
 
+  void Look() {
+    const int64_t now = nanommo::NowMicros();
+    for (const auto& bot : bots_) {
+      if (bot->connected() && bot->newest() > 0) {
+        metrics_.ObserveAge(std::chrono::microseconds(now - bot->newest()));
+      }
+    }
+    frame_.expires_at(frame_.expiry() + kFrame);
+    frame_.async_wait([this](std::error_code error) {
+      if (!error) {
+        Look();
+      }
+    });
+  }
+
   asio::io_context& io_;
   std::string login_;
   asio::ip::tcp::resolver::results_type server_;
   int count_;
   int first_;
   std::chrono::milliseconds gap_;
+  nanommo::BotMetrics& metrics_;
   asio::steady_timer timer_;
   asio::steady_timer report_;
+  asio::steady_timer frame_;
   std::vector<std::unique_ptr<nanommo::Bot>> bots_;
   int reported_ = 0;
 };
@@ -129,6 +158,10 @@ int main(int argc, char* argv[]) {
   }
   const auto ramp = std::chrono::seconds(ramp_seconds);
 
+  nanommo::BotMetrics metrics("tcp");
+  prometheus::Exposer exposer("0.0.0.0:" + std::to_string(kMetricsPort));
+  exposer.RegisterCollectable(metrics.registry());
+
   asio::io_context io;
   asio::ip::tcp::resolver resolver(io);
   std::error_code error;
@@ -142,7 +175,7 @@ int main(int argc, char* argv[]) {
   std::cout << "nanommo bot: starting " << count << " bots against " << host
             << ", logging in on " << login << ", over " << ramp.count()
             << " s, from bot" << first << std::endl;
-  Swarm swarm(io, login, server, count, ramp, first);
+  Swarm swarm(io, login, server, count, ramp, first, metrics);
 
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });

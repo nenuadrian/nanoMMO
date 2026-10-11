@@ -246,6 +246,53 @@
           "legendFormat": "messages/s"
         }
       ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "World age at the bots",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le, transport) (rate(nanommo_bot_world_age_seconds_bucket[15s])))",
+          "legendFormat": "p50 {{transport}}"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.99, sum by (le, transport) (rate(nanommo_bot_world_age_seconds_bucket[15s])))",
+          "legendFormat": "p99 {{transport}}"
+        }
+      ]
     }
   ]
 }

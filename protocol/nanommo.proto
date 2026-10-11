@@ -26,6 +26,7 @@ message Player {
 message World {
   uint32 you = 1;
   repeated Player players = 2;
+  int64 sent = 3;
 }
 
 message LoginRequest {

@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
+#include "protocol/clock.h"
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
 #include "server/listen.h"
@@ -164,6 +165,7 @@ void Server::Broadcast() {
     sent->set_yaw(player.yaw);
     sent->set_motion(ToProtocol(player.motion));
   }
+  message.set_sent(NowMicros());
   // The players are the same for everyone, so we serialize them once, and
   // all the sessions share the bytes until each has written them.
   std::shared_ptr<const std::string> players;
