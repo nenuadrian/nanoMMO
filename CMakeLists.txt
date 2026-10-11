@@ -24,9 +24,17 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 enable_testing()
 
+FetchContent_Declare(
+  raylib
+  URL https://github.com/raysan5/raylib/archive/refs/tags/6.0.tar.gz
+  SYSTEM
+)
+FetchContent_MakeAvailable(raylib)
+
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 add_subdirectory(server)
+add_subdirectory(client)
 
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
