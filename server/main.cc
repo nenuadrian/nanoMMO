@@ -47,6 +47,7 @@ int main(int argc, char* argv[]) {
   // As process one in a container, SIGTERM does nothing unless we handle it.
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });
+  io.run();
   std::cout << "nanommo server: stopped" << std::endl;
   return 0;
 }
