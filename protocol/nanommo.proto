@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package nanommo.protocol;
+
+message Input {
+  float x = 1;
+  float z = 2;
+}
+
+message Player {
+  uint32 id = 1;
+  float x = 2;
+  float z = 3;
+}
+
+message World {
+  uint32 you = 1;
+  repeated Player players = 2;
+}

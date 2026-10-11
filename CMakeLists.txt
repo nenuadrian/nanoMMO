@@ -39,6 +39,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(raylib imgui rlimgui)
 
+set(protobuf_INSTALL OFF)
+set(protobuf_WITH_ZLIB OFF)
+FetchContent_Declare(
+  protobuf
+  URL https://github.com/protocolbuffers/protobuf/archive/refs/tags/v36.2.tar.gz
+  SYSTEM
+)
+FetchContent_MakeAvailable(protobuf)
+include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
+
 add_library(imgui
   ${imgui_SOURCE_DIR}/imgui.cpp
   ${imgui_SOURCE_DIR}/imgui_demo.cpp
@@ -53,6 +63,7 @@ target_compile_options(imgui PRIVATE -w)
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
+add_subdirectory(protocol)
 add_subdirectory(server)
 add_subdirectory(client)
 
