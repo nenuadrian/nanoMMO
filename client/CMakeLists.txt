@@ -17,6 +17,9 @@ add_custom_target(nanommo_client_assets ALL
   COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
     ${PROJECT_SOURCE_DIR}/assets/monsters
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/monsters
+  COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+    ${PROJECT_SOURCE_DIR}/assets/weapons
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/weapons
 )
 
 add_executable(nanommo_client main.cc)

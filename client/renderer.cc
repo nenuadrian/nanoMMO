@@ -65,6 +65,8 @@ Renderer::Renderer()
                   character_shader_),
       monsters_(MonstersFolder(), {"skeleton.glb"}, 1.6f, character_shader_) {
   cube_.materials[0].shader = cube_shader_;
+  // The sword has no bones, so it's drawn with the cube's shader.
+  characters_.Hold(WeaponsFolder() + "/sword.glb", 1.0f, cube_shader_);
 }
 
 // UnloadModel leaves the model's shader alone, as models can share one.

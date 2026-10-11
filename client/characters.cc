@@ -17,6 +17,13 @@ namespace {
 
 constexpr std::array<const char*, 3> kClips = {"idle", "walk", "run"};
 
+constexpr std::string_view kRightHand = "mixamorig:RightHand";
+
+// The middle of the sword's grip is a sixth of the way up from the pommel.
+constexpr float kGrip = 1.0f / 6.0f;
+
+constexpr float kPalm = 0.08f;
+
 // raylib cuts clip names at 31 characters, so the skeleton's run ends in
 // Runni, which still has the word run in it.
 bool HasWord(std::string name, std::string_view word) {
@@ -86,6 +93,10 @@ std::string MonstersFolder() {
   return std::string(GetApplicationDirectory()) + "monsters";
 }
 
+std::string WeaponsFolder() {
+  return std::string(GetApplicationDirectory()) + "weapons";
+}
+
 Characters::Characters(const std::string& folder,
                        const std::vector<std::string>& files, float height,
                        Shader shader) {
@@ -125,6 +136,11 @@ Characters::Characters(const std::string& folder,
     for (int i = 0; i < character.model.materialCount; ++i) {
       character.model.materials[i].shader = shader;
     }
+    for (int i = 0; i < character.model.skeleton.boneCount; ++i) {
+      if (character.model.skeleton.bones[i].name == kRightHand) {
+        character.hand = i;
+      }
+    }
     const BoundingBox box = GetModelBoundingBox(character.model);
     character.scale = height / (box.max.y - box.min.y);
     characters_.push_back(character);
@@ -136,6 +152,35 @@ Characters::~Characters() {
     UnloadModelAnimations(character.clips, character.clip_count);
     UnloadModel(character.model);
   }
+  if (weapon_) {
+    UnloadModel(*weapon_);
+  }
+}
+
+void Characters::Hold(const std::string& path, float length, Shader shader) {
+  if (!FileExists(path.c_str())) {
+    return;
+  }
+  Model weapon = LoadModel(path.c_str());
+  // glTF colours are linear, and our shader writes them out as they are, so
+  // we turn them into sRGB, or the sword comes out nearly black.
+  for (int i = 0; i < weapon.materialCount; ++i) {
+    weapon.materials[i].shader = shader;
+    Color& color = weapon.materials[i].maps[MATERIAL_MAP_DIFFUSE].color;
+    const Vector4 linear = ColorNormalize(color);
+    color = ColorFromNormalized({std::pow(linear.x, 1.0f / 2.2f),
+                                 std::pow(linear.y, 1.0f / 2.2f),
+                                 std::pow(linear.z, 1.0f / 2.2f), linear.w});
+  }
+  const BoundingBox box = GetModelBoundingBox(weapon);
+  const float height = box.max.y - box.min.y;
+  const float scale = length / height;
+  const Matrix sized =
+      MatrixMultiply(MatrixTranslate(0.0f, -(box.min.y + kGrip * height), 0.0f),
+                     MatrixScale(scale, scale, scale));
+  const Matrix in_hand = MatrixTranslate(0.0f, kPalm, 0.0f);
+  grip_ = MatrixMultiply(sized, in_hand);
+  weapon_ = weapon;
 }
 
 void Characters::Draw(const Figure& figure, Color color) const {
@@ -156,6 +201,23 @@ void Characters::Draw(const Figure& figure, Color color) const {
   const float scale = character.scale;
   DrawModelEx(character.model, figure.position, {0.0f, 1.0f, 0.0f},
               figure.yaw * RAD2DEG, {scale, scale, scale}, color);
+
+  if (!weapon_ || character.hand < 0) {
+    return;
+  }
+  const Transform& hand = character.model.currentPose[character.hand];
+  const Matrix bone = MatrixMultiply(
+      MatrixMultiply(MatrixScale(hand.scale.x, hand.scale.y, hand.scale.z),
+                     QuaternionToMatrix(hand.rotation)),
+      MatrixTranslate(hand.translation.x, hand.translation.y,
+                      hand.translation.z));
+  const Matrix placed = MatrixMultiply(
+      MatrixMultiply(MatrixScale(scale, scale, scale),
+                     MatrixRotateY(figure.yaw)),
+      MatrixTranslate(figure.position.x, figure.position.y, figure.position.z));
+  Model weapon = *weapon_;
+  weapon.transform = MatrixMultiply(MatrixMultiply(grip_, bone), placed);
+  DrawModel(weapon, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
 }
 
 }  // namespace nanommo

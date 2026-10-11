@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,8 @@ namespace nanommo {
 std::string CharactersFolder();
 
 std::string MonstersFolder();
+
+std::string WeaponsFolder();
 
 class Characters {
  public:
@@ -27,6 +30,8 @@ class Characters {
 
   std::size_t size() const { return characters_.size(); }
 
+  void Hold(const std::string& path, float length, Shader shader);
+
   void Draw(const Figure& figure, Color color) const;
 
  private:
@@ -37,9 +42,12 @@ class Characters {
     std::array<int, 3> clip_for{};
     std::array<float, 3> speed{1.0f, 1.0f, 1.0f};
     float scale = 1.0f;
+    int hand = -1;
   };
 
   std::vector<Character> characters_;
+  std::optional<Model> weapon_;
+  Matrix grip_{};
 };
 
 }  // namespace nanommo
