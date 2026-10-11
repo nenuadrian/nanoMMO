@@ -41,13 +41,35 @@ Then, in another terminal, the game server, and in one or two more, the client:
 
 The client opens on a login screen: type a name and a password, then Create account the first time,
 and Log in after that. It connects to `localhost`, or to the host you give it
-(`./build/bin/nanommo_client 192.168.1.20`). Each player is a cube on a board of tiles, with its name
-over it. W, A, S and D, or the arrow keys, move yours, which has a white marker over it. View,
+(`./build/bin/nanommo_client 192.168.1.20`). Each player is an animated character on a board of tiles,
+with its name over it, or a cube until you've made the characters (see below). W, A, S and D, or the
+arrow keys, move yours, which has a white marker over it, and Shift makes it run. View,
 Settings changes the background, and Game, Log out takes you back to the login screen. Next time you
 log in, you're where you left off.
 
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
 it, and all sides use the C++ it generates.
+
+## Characters
+
+The players are Mixamo's X Bot and Y Bot, with an idle, a walk and a run. Mixamo's terms don't let us
+share its files, so they're not in the repo: [assets/mixamo/README.md](assets/mixamo/README.md) lists
+what to download from mixamo.com. Then make the characters:
+
+```bash
+docker build --target characters --output assets/characters .
+```
+
+The `characters` stage converts the FBX files to glTF with FBX2glTF, and
+[assets/tools/merge.mjs](assets/tools/merge.mjs) puts each character and the clips into one `.glb`
+that raylib can load: one skeleton, the walk and the run in place, and a tenth of the triangles. The
+build copies `assets/characters` next to the client, which loads them from there. Without them, the
+players are cubes, and the client's character tests skip themselves.
+
+The server decides which way each player faces, and whether it stands, walks or runs. It moves them
+at 1.8 and 3.1 metres a second, the speeds of the walk and the run, so that the feet don't slide.
+The client blends from one clip into the next over a quarter of a second, and smooths each player's
+position between the server's ticks.
 
 ## Accounts and logins
 
@@ -116,8 +138,8 @@ docker compose up -d --build
 - Grafana: http://localhost:3000, which opens on the nanoMMO server dashboard.
 - Prometheus: http://localhost:9090.
 
-`nanommo_bot` connects a swarm of bots that wander around like players at their keys. Each one logs
-in as bot1, bot2 and so on, and creates its account the first time. It takes the login server's
+`nanommo_bot` connects a swarm of bots that wander around like players at their keys, running a third of
+the time. Each one logs in as bot1, bot2 and so on, and creates its account the first time. It takes the login server's
 host, the game server's host, how many bots, and how many seconds to spread their arrival over:
 
 ```bash
