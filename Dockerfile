@@ -21,6 +21,11 @@ USER ubuntu
 EXPOSE 7777 9464
 ENTRYPOINT ["nanommo_server"]
 
+FROM ubuntu:24.04 AS bot
+COPY --from=test /src/build/bin/nanommo_bot /usr/local/bin/
+USER ubuntu
+ENTRYPOINT ["nanommo_bot"]
+
 FROM build AS docs-build
 RUN cmake --build build --target docs
 
@@ -33,6 +38,6 @@ RUN pip install --no-cache-dir clang-format==18.1.3 cpplint==2.0.2
 # one, so the folder is named after the project: NANOMMO_SERVER_TICK_H_.
 WORKDIR /nanommo
 COPY . .
-RUN find server client protocol -name '*.cc' -o -name '*.h' \
+RUN find server bot client protocol -name '*.cc' -o -name '*.h' \
  | xargs clang-format --dry-run --Werror \
- && cpplint --root=.. --recursive --quiet server client protocol
+ && cpplint --root=.. --recursive --quiet server bot client protocol

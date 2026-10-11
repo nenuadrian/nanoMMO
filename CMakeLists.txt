@@ -83,6 +83,7 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 
 add_subdirectory(protocol)
 add_subdirectory(server)
+add_subdirectory(bot)
 add_subdirectory(client)
 
 find_package(Doxygen)
@@ -107,5 +108,5 @@ if(DOXYGEN_FOUND)
     ${doxygen_awesome_SOURCE_DIR}/doxygen-awesome.css
     ${doxygen_awesome_SOURCE_DIR}/doxygen-awesome-sidebar-only.css
   )
-  doxygen_add_docs(docs README.md protocol server client)
+  doxygen_add_docs(docs README.md protocol server bot client)
 endif()
