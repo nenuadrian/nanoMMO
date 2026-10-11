@@ -7,6 +7,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+add_compile_options(-fno-omit-frame-pointer)
+
 include(FetchContent)
 set(ABSL_PROPAGATE_CXX_STD ON)
 FetchContent_Declare(

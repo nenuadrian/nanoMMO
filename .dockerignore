@@ -1,8 +1,10 @@
 .git/
 build/
+profile/
 bench/results/
 site/
 compose.yaml
+compose.profile.yaml
 db/
 monitoring/
 assets/tools/node_modules/

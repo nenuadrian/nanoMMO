@@ -1,4 +1,5 @@
 build/
+profile/
 bench/results/
 site/
 assets/mixamo/*.fbx

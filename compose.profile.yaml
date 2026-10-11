@@ -1,0 +1,10 @@
+services:
+  server:
+    image: nanommo-server-profile
+    build:
+      target: profile
+    cap_add:
+      - PERFMON
+      - SYSLOG
+    volumes:
+      - ./profile:/profile

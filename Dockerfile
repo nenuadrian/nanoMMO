@@ -38,6 +38,24 @@ COPY --from=test /src/build/bin/nanommo_bot /usr/local/bin/
 USER ubuntu
 ENTRYPOINT ["nanommo_bot"]
 
+# Ubuntu's perf wants a build for the running kernel, and Docker Desktop's
+# kernel isn't Ubuntu's, so we put the generic build on the path.
+FROM runtime AS profile
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends linux-tools-generic perl \
+ && rm -rf /var/lib/apt/lists/* \
+ && ln -s /usr/lib/linux-tools/*/perf /usr/local/bin/perf
+ADD --checksum=sha256:b1ba3aaaf296ab72ced4dca84514377a4b2c8122831d743f726c106d3d339c2a \
+    https://github.com/brendangregg/FlameGraph/archive/41fee1f99f9276008b7cd112fca19dc3ea84ac32.tar.gz /tmp/
+RUN mkdir /opt/flamegraph \
+ && tar -xzf /tmp/41fee1f99f9276008b7cd112fca19dc3ea84ac32.tar.gz -C /opt/flamegraph --strip-components 1 \
+ && rm /tmp/*.tar.gz
+ENV PATH=/opt/flamegraph:$PATH
+COPY --from=test /src/build/bin/nanommo_server /usr/local/bin/
+COPY bench/profile.sh /usr/local/bin/
+EXPOSE 7777 9464
+ENTRYPOINT ["nanommo_server"]
+
 FROM build AS docs-build
 RUN cmake --build build --target docs
 

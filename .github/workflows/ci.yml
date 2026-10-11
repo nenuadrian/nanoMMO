@@ -25,6 +25,7 @@ jobs:
         run: |
           docker build --target server .
           docker build --target login .
+          docker build --target profile .
 
       - name: Generate the API docs
         run: docker build --target docs --output site .
