@@ -26,6 +26,7 @@ jobs:
           docker build --target server .
           docker build --target login .
           docker build --target profile .
+          docker build --target netem .
 
       - name: Generate the API docs
         run: docker build --target docs --output site .

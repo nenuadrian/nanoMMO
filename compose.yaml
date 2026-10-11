@@ -88,6 +88,16 @@ services:
     profiles:
       - load
 
+  netem:
+    build:
+      context: .
+      target: netem
+    network_mode: service:server
+    cap_add:
+      - NET_ADMIN
+    profiles:
+      - netem
+
   tests:
     build:
       context: .

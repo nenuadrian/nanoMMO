@@ -38,6 +38,13 @@ COPY --from=test /src/build/bin/nanommo_bot /usr/local/bin/
 USER ubuntu
 ENTRYPOINT ["nanommo_bot"]
 
+FROM ubuntu:24.04 AS netem
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends iproute2 ethtool \
+ && rm -rf /var/lib/apt/lists/*
+COPY bench/netem.sh /usr/local/bin/
+ENTRYPOINT ["netem.sh"]
+
 FROM build AS profile-build
 RUN cmake -S . -B build -DTRACY_ENABLE=ON \
  && cmake --build build --target nanommo_server
