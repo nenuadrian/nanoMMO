@@ -38,6 +38,8 @@ FetchContent_Declare(
   URL https://github.com/raylib-extras/rlImGui/archive/1550009359ad975927f7f0e4a3f47e3f27123ea9.tar.gz
 )
 FetchContent_MakeAvailable(raylib imgui rlimgui)
+# By default, raylib skins on the CPU. This leaves it to our vertex shader.
+target_compile_definitions(raylib PRIVATE SUPPORT_GPU_SKINNING=1)
 
 set(protobuf_INSTALL OFF)
 set(protobuf_WITH_ZLIB OFF)

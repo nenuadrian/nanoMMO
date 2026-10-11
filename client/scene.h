@@ -1,16 +1,20 @@
 #ifndef NANOMMO_CLIENT_SCENE_H_
 #define NANOMMO_CLIENT_SCENE_H_
 
+#include <raylib.h>
+
+#include <cstdint>
 #include <vector>
 
 #include "client/cube.h"
-#include "protocol/nanommo.pb.h"
 
 namespace nanommo {
 
 std::vector<Cube> Ground();
 
-std::vector<Cube> Scene(const protocol::World& world);
+constexpr float kMarkerHeight = 2.05f;
+
+Color PlayerColor(uint32_t id);
 
 }  // namespace nanommo
 

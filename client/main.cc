@@ -8,6 +8,7 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "client/animator.h"
 #include "client/connection.h"
 #include "client/gui.h"
 #include "client/input.h"
@@ -66,6 +67,8 @@ int main(int argc, char* argv[]) {
   nanommo::Menu menu;
   nanommo::LoginScreen login_screen;
   nanommo::Renderer renderer;
+  renderer.set_cubes(nanommo::Ground());
+  nanommo::Animator animator;
 
   std::unique_ptr<nanommo::Connection> connection;
   nanommo::protocol::Input sent;
@@ -82,9 +85,12 @@ int main(int argc, char* argv[]) {
 
     if (connection) {
       const Vector3 direction = nanommo::Movement();
-      if (direction.x != sent.x() || direction.z != sent.z()) {
+      const bool run = nanommo::Running();
+      if (direction.x != sent.x() || direction.z != sent.z() ||
+          run != sent.run()) {
         sent.set_x(direction.x);
         sent.set_z(direction.z);
+        sent.set_run(run);
         connection->Send(sent);
       }
 
@@ -94,7 +100,7 @@ int main(int argc, char* argv[]) {
         std::cout << "nanommo client: we're player " << world.you() << ", "
                   << online << " online" << '\n';
       }
-      renderer.set_cubes(nanommo::Scene(world));
+      renderer.set_figures(animator.Update(world, GetFrameTime()));
     }
 
     BeginDrawing();
@@ -105,7 +111,7 @@ int main(int argc, char* argv[]) {
     }
     gui.Begin();
     if (connection) {
-      nanommo::DrawNameplates(connection->world());
+      nanommo::DrawNameplates(renderer.figures());
       if (menu.Build(*window, *renderer.mutable_background())) {
         connection.reset();
       }

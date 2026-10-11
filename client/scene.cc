@@ -19,7 +19,6 @@ constexpr std::array<Color, 6> kPlayerColors = {{
     {242, 89, 102, 255},
     {242, 217, 77, 255},
 }};
-constexpr Color kMarker{255, 255, 255, 255};
 
 }  // namespace
 
@@ -38,20 +37,8 @@ std::vector<Cube> Ground() {
   return cubes;
 }
 
-std::vector<Cube> Scene(const protocol::World& world) {
-  std::vector<Cube> cubes = Ground();
-  for (const protocol::Player& player : world.players()) {
-    const Vector3 position{player.x(), 0.5f, player.z()};
-    cubes.push_back(
-        {.position = position,
-         .color = kPlayerColors[(player.id() - 1) % kPlayerColors.size()]});
-    if (player.id() == world.you()) {
-      cubes.push_back({.position = {position.x, position.y + 1.0f, position.z},
-                       .size = {0.25f, 0.25f, 0.25f},
-                       .color = kMarker});
-    }
-  }
-  return cubes;
+Color PlayerColor(uint32_t id) {
+  return kPlayerColors[(id - 1) % kPlayerColors.size()];
 }
 
 }  // namespace nanommo

@@ -4,19 +4,21 @@
 #include <raylib.h>
 
 #include <cfloat>
+#include <vector>
 
 #include "client/camera.h"
 
 namespace nanommo {
 
-void DrawNameplates(const protocol::World& world) {
+void DrawNameplates(const std::vector<Figure>& figures) {
   ImDrawList* draw = ImGui::GetBackgroundDrawList();
   ImFont* font = ImGui::GetFont();
   const float font_size = ImGui::GetFontSize() * 1.4f;
-  for (const protocol::Player& player : world.players()) {
+  for (const Figure& figure : figures) {
+    const Vector3& position = figure.position;
     const Vector2 at =
-        GetWorldToScreen({player.x(), 1.9f, player.z()}, GameCamera());
-    const char* name = player.name().c_str();
+        GetWorldToScreen({position.x, 2.35f, position.z}, GameCamera());
+    const char* name = figure.name.c_str();
     const ImVec2 size = font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, name);
     const ImVec2 corner{at.x - size.x / 2, at.y - size.y};
     draw->AddText(font, font_size, {corner.x + 1, corner.y + 1},

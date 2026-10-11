@@ -1,11 +1,13 @@
 #ifndef NANOMMO_CLIENT_NAMEPLATES_H_
 #define NANOMMO_CLIENT_NAMEPLATES_H_
 
-#include "protocol/nanommo.pb.h"
+#include <vector>
+
+#include "client/animator.h"
 
 namespace nanommo {
 
-void DrawNameplates(const protocol::World& world);
+void DrawNameplates(const std::vector<Figure>& figures);
 
 }
 

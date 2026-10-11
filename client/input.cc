@@ -23,4 +23,8 @@ Vector3 Movement() {
   return direction;
 }
 
+bool Running() {
+  return IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+}
+
 }  // namespace nanommo

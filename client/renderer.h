@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 
+#include "client/animator.h"
+#include "client/characters.h"
 #include "client/cube.h"
 
 namespace nanommo {
@@ -32,12 +34,20 @@ class Renderer {
 
   void set_cubes(std::vector<Cube> cubes) { cubes_ = std::move(cubes); }
 
+  const std::vector<Figure>& figures() const { return figures_; }
+  void set_figures(std::vector<Figure> figures) {
+    figures_ = std::move(figures);
+  }
+
  private:
   std::array<float, 3> background_ = {0.07f, 0.08f, 0.12f};
   std::vector<Cube> cubes_;
+  std::vector<Figure> figures_;
 
-  Shader shader_;
+  Shader cube_shader_;
+  Shader character_shader_;
   Model cube_;
+  Characters characters_;
 };
 
 }  // namespace nanommo
