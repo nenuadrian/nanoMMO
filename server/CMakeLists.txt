@@ -1,10 +1,12 @@
 add_library(nanommo_server_core
   tick.cc listen.cc world.cc session.cc server.cc metrics.cc
+  password.cc
 )
 target_include_directories(nanommo_server_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_server_core PUBLIC
   nanommo_protocol asio prometheus-cpp::core
-  absl::memory absl::status absl::statusor absl::strings
+  PkgConfig::sodium
+  absl::memory absl::status absl::statusor absl::strings absl::absl_check
 )
 
 add_executable(nanommo_server main.cc)
@@ -12,6 +14,7 @@ target_link_libraries(nanommo_server PRIVATE nanommo_server_core absl::time prom
 
 add_executable(nanommo_server_tests
   tick_test.cc world_test.cc metrics_test.cc
+  password_test.cc
 )
 target_link_libraries(nanommo_server_tests PRIVATE nanommo_server_core GTest::gtest_main)
 

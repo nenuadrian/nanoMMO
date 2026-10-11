@@ -67,6 +67,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(prometheus-cpp)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(sodium REQUIRED IMPORTED_TARGET libsodium)
+
 add_library(imgui
   ${imgui_SOURCE_DIR}/imgui.cpp
   ${imgui_SOURCE_DIR}/imgui_demo.cpp

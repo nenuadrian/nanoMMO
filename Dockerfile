@@ -1,8 +1,9 @@
 FROM ubuntu:24.04 AS toolchain
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      build-essential cmake ninja-build ca-certificates doxygen \
+      build-essential cmake ninja-build ca-certificates doxygen pkg-config \
       xorg-dev libgl1-mesa-dev xvfb xauth libgl1-mesa-dri \
+      libsodium-dev \
  && rm -rf /var/lib/apt/lists/*
 
 FROM toolchain AS build
@@ -15,7 +16,12 @@ FROM build AS test
 # xvfb-run gives the client's tests a virtual display to open their window on.
 RUN xvfb-run --auto-servernum ctest --test-dir build --output-on-failure
 
-FROM ubuntu:24.04 AS server
+FROM ubuntu:24.04 AS runtime
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libsodium23 \
+ && rm -rf /var/lib/apt/lists/*
+
+FROM runtime AS server
 COPY --from=test /src/build/bin/nanommo_server /usr/local/bin/
 USER ubuntu
 EXPOSE 7777 9464
