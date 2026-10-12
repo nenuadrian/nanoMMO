@@ -1,3 +1,4 @@
+#include <imgui.h>
 #include <raylib.h>
 
 #include <algorithm>
@@ -14,6 +15,7 @@
 #include "asio/ssl/context.hpp"
 #include "client/animator.h"
 #include "client/camera.h"
+#include "client/character_screen.h"
 #include "client/connection.h"
 #include "client/gui.h"
 #include "client/input.h"
@@ -81,6 +83,7 @@ int main(int argc, char* argv[]) {
   const std::unique_ptr<nanommo::Window> window = *std::move(window_or);
   nanommo::Gui gui;
   nanommo::Menu menu;
+  nanommo::CharacterScreen character_screen;
   nanommo::LoginScreen login_screen;
   nanommo::Renderer renderer;
   nanommo::Animator animator;
@@ -136,6 +139,11 @@ int main(int argc, char* argv[]) {
         renderer.set_camera(camera.camera());
       }
       renderer.set_figures(std::move(figures));
+      // C is ours, unless a text field has the typing.
+      if (IsKeyPressed(KEY_C) && !ImGui::GetIO().WantTextInput) {
+        character_screen.Toggle();
+      }
+      character_screen.Render(renderer);
     }
 
     BeginDrawing();
@@ -148,7 +156,9 @@ int main(int argc, char* argv[]) {
     if (connection) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera());
       nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
-      if (menu.Build(*window, *renderer.mutable_background())) {
+      character_screen.Build(renderer.figures(), connection->world());
+      if (menu.Build(*window, *renderer.mutable_background(),
+                     character_screen.mutable_visible())) {
         connection.reset();
       }
     } else if (const auto request = login_screen.Build()) {

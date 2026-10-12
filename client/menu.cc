@@ -25,7 +25,8 @@ constexpr std::array<Preset, 5> kPresets = {{
 
 }  // namespace
 
-bool Menu::Build(Window& window, std::array<float, 3>& background) {
+bool Menu::Build(Window& window, std::array<float, 3>& background,
+                 bool* show_character) {
   bool log_out = false;
   if (ImGui::BeginMainMenuBar()) {
     if (ImGui::BeginMenu("Game")) {
@@ -36,6 +37,7 @@ bool Menu::Build(Window& window, std::array<float, 3>& background) {
       ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("View")) {
+      ImGui::MenuItem(ICON_FA_CIRCLE_USER " Character", "C", show_character);
       ImGui::MenuItem(ICON_FA_GEAR " Settings", nullptr, &show_settings_);
       ImGui::MenuItem(ICON_FA_SHAPES " ImGui demo", nullptr, &show_demo_);
       ImGui::EndMenu();
