@@ -54,8 +54,11 @@ keys, move yours, which has a white marker over it, Shift makes it run, and Spac
 The camera follows you: Q and E, or dragging with the right mouse button, turn it around you, and
 the mouse wheel zooms in and out. W always walks away from the camera. The frame in the top left
 corner shows your health, and your experience towards the next level.
-View, Settings changes the sky, which is the colour of the fog too, and Game, Log out takes you
-back to the login screen. Next time you log in, you're where you left off.
+Press C, or choose View, Character, to open your character screen. It shows your name, level,
+health, experience and position, next to an idle preview of your character facing the camera. The
+client renders that preview into a texture with a camera of its own, then ImGui draws the texture in
+the window. View, Settings changes the sky, which is the colour of the fog too, and Game, Log out
+takes you back to the login screen. Next time you log in, you're where you left off.
 
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
 it, and all sides use the C++ it generates.
