@@ -28,6 +28,7 @@ jobs:
         run: |
           docker build --target server .
           docker build --target login .
+          docker build --target saver .
           docker build --target profile .
           docker build --target netem .
           docker build web

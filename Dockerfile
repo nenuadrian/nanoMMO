@@ -33,6 +33,11 @@ USER ubuntu
 EXPOSE 7778
 ENTRYPOINT ["nanommo_login"]
 
+FROM runtime AS saver
+COPY --from=test /src/build/bin/nanommo_saver /usr/local/bin/
+USER ubuntu
+ENTRYPOINT ["nanommo_saver"]
+
 FROM ubuntu:24.04 AS bot
 COPY --from=test /src/build/bin/nanommo_bot /usr/local/bin/
 USER ubuntu

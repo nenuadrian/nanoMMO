@@ -17,6 +17,9 @@ target_link_libraries(nanommo_server PRIVATE nanommo_server_core absl::time prom
 add_executable(nanommo_login login_main.cc)
 target_link_libraries(nanommo_login PRIVATE nanommo_server_core)
 
+add_executable(nanommo_saver saver_main.cc)
+target_link_libraries(nanommo_saver PRIVATE nanommo_server_core absl::time)
+
 add_executable(nanommo_server_tests
   tick_test.cc world_test.cc monsters_test.cc
   levels_test.cc metrics_test.cc password_test.cc

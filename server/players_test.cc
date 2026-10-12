@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "gtest/gtest.h"
@@ -32,8 +33,9 @@ class PlayersTest : public ::testing::Test {
               .ok());
     }
     if (redis_) {
-      EXPECT_TRUE(
-          redis_->Command({"DEL", "player:" + std::to_string(id_)}).ok());
+      const std::string id = std::to_string(id_);
+      EXPECT_TRUE(redis_->Command({"DEL", "player:" + id, "player:0"}).ok());
+      EXPECT_TRUE(redis_->Command({"SREM", "players:unsaved", id, "0"}).ok());
     }
   }
 
@@ -66,4 +68,23 @@ TEST_F(PlayersTest, LoadsWhereThePlayerWasSaved) {
   EXPECT_EQ(player->x, 3.5f);
   EXPECT_EQ(player->z, -1.0f);
   EXPECT_EQ(player->experience, 40u);
+}
+
+TEST_F(PlayersTest, FlushesThePlayersToMySQL) {
+  nanommo::Players players(*database_, *redis_);
+  ASSERT_TRUE(
+      players.Save({{id_, {.x = 1.5f, .z = 2.0f, .experience = 70}}}).ok());
+  // No account has the id zero, so MySQL refuses this one, and it holds back
+  // nobody.
+  ASSERT_TRUE(players.Save({{0, {.x = 1.0f}}}).ok());
+
+  const absl::StatusOr<int> saved = players.Flush();
+  ASSERT_TRUE(saved.ok());
+  EXPECT_GE(*saved, 1);
+  const absl::StatusOr<nanommo::Result> row = database_->Run(
+      "SELECT x, z, experience FROM players WHERE account_id = ?",
+      {std::to_string(id_)});
+  ASSERT_TRUE(row.ok());
+  ASSERT_EQ(row->rows.size(), 1u);
+  EXPECT_EQ(row->rows[0], (std::vector<std::string>{"1.5", "2", "70"}));
 }
