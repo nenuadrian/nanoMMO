@@ -7,14 +7,22 @@
 
 namespace {
 
-// FNV-1a, over the bits of every corner's height.
+// FNV-1a, over the bits of every corner's height, and of where every tree
+// stands.
 uint32_t Fingerprint(const nanommo::Terrain& terrain) {
   uint32_t hash = 2166136261u;
+  const auto add = [&hash](float value) {
+    hash ^= std::bit_cast<uint32_t>(value);
+    hash *= 16777619u;
+  };
   for (int j = 0; j <= terrain.cells(); ++j) {
     for (int i = 0; i <= terrain.cells(); ++i) {
-      hash ^= std::bit_cast<uint32_t>(terrain.Corner(i, j));
-      hash *= 16777619u;
+      add(terrain.Corner(i, j));
     }
+  }
+  for (const nanommo::Tree& tree : terrain.trees()) {
+    add(tree.x);
+    add(tree.z);
   }
   return hash;
 }
@@ -24,7 +32,7 @@ uint32_t Fingerprint(const nanommo::Terrain& terrain) {
 TEST(Terrain, IsTheSameIslandOnEveryMachine) {
   const nanommo::Terrain island(1);
 
-  EXPECT_EQ(Fingerprint(island), 1043257573u);
+  EXPECT_EQ(Fingerprint(island), 2157307642u);
   EXPECT_NE(Fingerprint(nanommo::Terrain(2)), Fingerprint(island));
 }
 
@@ -38,6 +46,9 @@ TEST(Terrain, HasLandInTheMiddleAndSeaAtTheEdge) {
   EXPECT_TRUE(island.Walkable(0.0f, 0.0f));
   EXPECT_FALSE(island.Walkable(island.edge(), 0.0f));
   EXPECT_FALSE(island.Walkable(edge + 1.0f, 0.0f));
+  ASSERT_FALSE(island.trees().empty());
+  const nanommo::Tree& tree = island.trees().front();
+  EXPECT_FALSE(island.Walkable(tree.x, tree.z));
 }
 
 TEST(Terrain, StandsOnTheTrianglesBetweenTheCorners) {

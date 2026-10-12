@@ -1,9 +1,13 @@
 #include "client/renderer.h"
 
+#include <raymath.h>
+
 #include <array>
+#include <vector>
 
 #include "client/ground.h"
 #include "client/scene.h"
+#include "client/triangles.h"
 
 namespace nanommo {
 
@@ -97,11 +101,22 @@ Renderer::Renderer()
   cube_.materials[0].shader = cube_shader_;
   // The sword has no bones, so it's drawn with the cube's shader.
   characters_.Hold(WeaponsFolder() + "/sword.glb", 1.0f, cube_shader_);
+
+  const std::vector<Face> faces = LoadFaces(TreesFolder() + "/tree.glb");
+  if (!faces.empty()) {
+    Triangles triangles;
+    AddFaces(triangles, faces, MatrixIdentity());
+    tree_ = LoadModelFromMesh(triangles.Upload());
+    tree_->materials[0].shader = cube_shader_;
+  }
 }
 
 // UnloadModel leaves the model's shader alone, as models can share one.
 Renderer::~Renderer() {
   UnloadTerrain();
+  if (tree_) {
+    UnloadModel(*tree_);
+  }
   UnloadModel(cube_);
   UnloadShader(character_shader_);
   UnloadShader(cube_shader_);
@@ -114,6 +129,10 @@ void Renderer::set_terrain(const Terrain& terrain) {
   // The ground and the sea have no bones either.
   ground_->materials[0].shader = cube_shader_;
   sea_->materials[0].shader = cube_shader_;
+  trees_.clear();
+  for (const Tree& tree : terrain.trees()) {
+    trees_.push_back(TreeTransform(tree));
+  }
 }
 
 void Renderer::UnloadTerrain() {
@@ -132,6 +151,11 @@ void Renderer::Draw() const {
   BeginMode3D(camera_);
   if (ground_) {
     DrawModel(*ground_, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
+  }
+  if (tree_) {
+    for (const Matrix& tree : trees_) {
+      DrawMesh(tree_->meshes[0], tree_->materials[0], tree);
+    }
   }
   for (const Cube& cube : cubes_) {
     DrawModelEx(cube_, cube.position, {0.0f, 1.0f, 0.0f}, 0.0f, cube.size,

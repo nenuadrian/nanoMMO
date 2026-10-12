@@ -2,7 +2,7 @@ add_library(nanommo_client_core
   window.cc gui.cc menu.cc renderer.cc offscreen.cc
   camera.cc scene.cc input.cc connection.cc
   login_screen.cc nameplates.cc player_frame.cc
-  animator.cc characters.cc triangles.cc ground.cc
+  animator.cc characters.cc triangles.cc ground.cc trees.cc
 )
 target_include_directories(nanommo_client_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_client_core PUBLIC
@@ -20,6 +20,9 @@ add_custom_target(nanommo_client_assets ALL
   COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
     ${PROJECT_SOURCE_DIR}/assets/weapons
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/weapons
+  COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+    ${PROJECT_SOURCE_DIR}/assets/trees
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/trees
 )
 
 add_executable(nanommo_client main.cc)

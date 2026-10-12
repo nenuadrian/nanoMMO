@@ -12,6 +12,7 @@
 #include "client/camera.h"
 #include "client/characters.h"
 #include "client/cube.h"
+#include "client/trees.h"
 #include "terrain/terrain.h"
 
 namespace nanommo {
@@ -66,6 +67,8 @@ class Renderer {
   Model cube_;
   std::optional<Model> ground_;
   std::optional<Model> sea_;
+  std::optional<Model> tree_;
+  std::vector<Matrix> trees_;
   Characters characters_;
   Characters monsters_;
 };

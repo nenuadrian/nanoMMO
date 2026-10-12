@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 
 #include "terrain/noise.h"
 
@@ -12,6 +13,18 @@ namespace {
 
 constexpr int kBoardCells = 6;
 constexpr int kIslandCells = 256;
+
+// The players start in a clearing.
+constexpr float kClearing = 16.0f;
+
+// Above the beach, and below the rock.
+constexpr float kLowestTree = 1.0f;
+constexpr float kHighestTree = 11.0f;
+
+// From the top 24 bits of a hash, from 0 to 1.
+float Unit(uint32_t hash) {
+  return static_cast<float>(hash >> 8) / 16777215.0f;
+}
 
 float Smooth(float t) {
   const float clamped = std::clamp(t, 0.0f, 1.0f);
@@ -49,6 +62,38 @@ Terrain::Terrain(uint32_t seed)
       corners_[j * (cells_ + 1) + i] = IslandHeight(seed, x, z, half_size());
     }
   }
+  Plant();
+}
+
+void Terrain::Plant() {
+  tree_squares_ = static_cast<int>(2.0f * half_size() / kTreeSpacing);
+  tree_in_.assign(tree_squares_ * tree_squares_, -1);
+  for (int j = 0; j < tree_squares_; ++j) {
+    for (int i = 0; i < tree_squares_; ++i) {
+      // Each square rolls its own dice: where in the square its tree
+      // stands, whether it grows, which way it faces, and how big it is.
+      const auto roll = [this, i, j](uint32_t die) {
+        return Unit(Hash(seed_ + 1000 + die, i, j));
+      };
+      const float x = i * kTreeSpacing - half_size() +
+                      kTreeSpacing * (0.2f + 0.6f * roll(0));
+      const float z = j * kTreeSpacing - half_size() +
+                      kTreeSpacing * (0.2f + 0.6f * roll(1));
+      // Woods where the noise is high, and a few lone trees elsewhere.
+      const float woods = Fractal(seed_ + 2000, x / 60.0f, z / 60.0f, 3);
+      const float chance = std::clamp(0.5f + 3.0f * woods, 0.05f, 0.95f);
+      const float height = Height(x, z);
+      if (roll(2) >= chance || height < kLowestTree || height > kHighestTree ||
+          std::sqrt(x * x + z * z) < kClearing) {
+        continue;
+      }
+      tree_in_[j * tree_squares_ + i] = static_cast<int>(trees_.size());
+      trees_.push_back({.x = x,
+                        .z = z,
+                        .yaw = 2.0f * std::numbers::pi_v<float> * roll(3),
+                        .scale = 0.8f + 0.6f * roll(4)});
+    }
+  }
 }
 
 float Terrain::Height(float x, float z) const {
@@ -74,7 +119,25 @@ float Terrain::Height(float x, float z) const {
 
 bool Terrain::Walkable(float x, float z) const {
   return std::abs(x) <= edge() && std::abs(z) <= edge() &&
-         Height(x, z) >= kSeaLevel - kWading;
+         Height(x, z) >= kSeaLevel - kWading && !InATree(x, z);
+}
+
+bool Terrain::InATree(float x, float z) const {
+  const int i = static_cast<int>(std::floor((x + half_size()) / kTreeSpacing));
+  const int j = static_cast<int>(std::floor((z + half_size()) / kTreeSpacing));
+  // A trunk near the side of its square is closer to us than its square is.
+  for (int down = std::max(j - 1, 0);
+       down <= std::min(j + 1, tree_squares_ - 1); ++down) {
+    for (int across = std::max(i - 1, 0);
+         across <= std::min(i + 1, tree_squares_ - 1); ++across) {
+      const int tree = tree_in_[down * tree_squares_ + across];
+      if (tree >= 0 &&
+          std::hypot(trees_[tree].x - x, trees_[tree].z - z) < kTrunk) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 }  // namespace nanommo
