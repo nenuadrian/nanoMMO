@@ -9,3 +9,5 @@ db/
 monitoring/
 assets/tools/node_modules/
 web/
+tls/*
+!tls/certificates.sh

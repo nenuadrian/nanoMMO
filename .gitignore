@@ -6,3 +6,5 @@ site/
 assets/mixamo/*.fbx
 assets/characters/*.glb
 assets/tools/node_modules/
+tls/*
+!tls/certificates.sh
