@@ -47,7 +47,7 @@ The client opens on a login screen: type a name and a password, then Create acco
 and Log in after that. It connects to `localhost`, or to the host you give it
 (`./build/bin/nanommo_client 192.168.1.20`). It gets the world over UDP, unless you put `tcp` after the
 host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP](#packet-loss-tcp-and-udp).
-Each player is an animated character with a sword, on an island of hills and beaches, with
+Each player is an animated character with a sword, on an island of hills, woods and beaches, with
 its level, name and health over it, or a cube until you've made the characters (see below).
 Skeletons wander around the middle, and in camps around the island. W, A, S and D, or the arrow
 keys, move yours, which has a white marker over it, Shift makes it run, and Space swings the sword.
@@ -108,23 +108,65 @@ server sends it to each client with the client's own id, and both make the same 
   the mountains. Towards the edge, the land sinks into the sea, and in the middle, where the players
   start, it's gentle and above the sea.
 - A player stands on the triangles, as the client draws them, not on the noise between the corners.
+- The trees grow on a grid of four-metre squares, at most one in each, between the beach and the
+  rock, and not within sixteen metres of the middle: in woods where the noise is high, and a few on
+  their own elsewhere.
+  Each square's hash says where in the square its tree stands, which way it faces and how big it is.
 - The server lets players and monsters walk anywhere on the island, and into the sea up to their
-  knees, 40 centimetres. Running into the sea, they slide along whichever way they still can. A
-  player saved somewhere that's sea now starts in the middle.
+  knees, 40 centimetres, but not through a trunk. Running into the sea or a tree, they slide along
+  whichever way they still can. A player saved somewhere that's sea now starts in the middle.
 
-The server and the clients have to make the same heights to the last bit: the server decides where
-the sea stops a player, and the client draws the ground they stand on. Compilers for Arm, and for x86
+The server and the clients have to make the same heights and trees to the last bit: the server
+decides where the trees are in the way, and the client draws them. Compilers for Arm, and for x86
 with `-march` options that have FMA, fuse a multiply and an add into one instruction, which rounds
 once instead of twice, so the same code would make a slightly different island on a Mac than on an
 x86 server. `terrain/CMakeLists.txt` turns that off with `-ffp-contract=off`, and the noise uses
 no `std::sin` or `std::pow`, whose results differ between standard libraries. The terrain test pins a
-fingerprint of the whole island's heights, so a machine that makes another island fails it.
+fingerprint of the whole island, its heights and its trees, so a machine that makes another island
+fails it.
 
 The client colours each face by its height and slope: sand on the beaches, grass, rock on steep
 slopes and the high ground, and snow on the peaks, each face a little lighter or darker than its
 neighbours. The triangles share no corners, so each has the normal of its face, and the light shades
 each face flat. The sea is one square, at sea level, the island's colour showing through it near
 the shore. Fog fades things into the sky from 50 metres, and hides them at 140.
+
+The tree is Poly by Google's, from [Poly Pizza](https://poly.pizza/m/6pwiq7hSrHr), under
+[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), in the repo, as it was downloaded, in
+`assets/trees` (see [assets/trees/README.md](assets/trees/README.md)). Its texture is a palette of
+four colours, so the client reads the model as triangles, and gives each face the colour under its
+middle.
+
+### Drawing the island fast
+
+The client cuts the island into chunks, squares of 32 metres, and puts each chunk's ground and trees
+into one mesh, with the trees moved into place. Each frame, it draws the chunks that are closer than
+the fog's 140 metres and inside the camera's view, and no others. A chunk is out of view when all
+eight corners of its box are past the same side of the screen, or nearer than the near plane, or
+past the far one.
+
+`nanommo_client_bench` measures it. It walks once around the middle of the island, 80 metres out,
+with the camera turning to look over the player at the middle, drawing the same frames each time,
+as fast as it can, and then prints the frames per second, the median and 99th percentile frame time,
+and the draws and triangles each frame. It takes the number of frames, 1200 by default, the seed,
+and a file to write the numbers to as JSON too:
+
+```bash
+./build/bin/nanommo_client_bench
+./build/bin/nanommo_client_bench 1200 1 bench/results/frames.json
+```
+
+Build it as Release (`-DCMAKE_BUILD_TYPE=Release`) to measure. With a draw for each tree and the
+ground as one mesh, it took 1518 draws and 369,086 triangles a frame, and 1.7 ms a frame at the
+median on an M4 Pro. With the chunks, it's 20 draws and about 62,000 triangles, and 0.25 ms. In
+Docker, with Mesa's llvmpipe drawing on the CPU, it went from 14.8 ms to 13.0 ms: on the CPU, most
+of the time goes on the pixels, not the triangles.
+
+```bash
+docker build --target build -t nanommo-build .
+docker run --rm nanommo-build xvfb-run --auto-servernum -s "-screen 0 1280x720x24" \
+  ./build/bin/nanommo_client_bench 300
+```
 
 ## Monsters, health and levels
 
@@ -140,8 +182,8 @@ The server spawns three skeletons around the middle of the island, and up to thr
 eight camps, which the world's seed places between the beach and the rock, at least thirty metres
 from the middle. It runs their AI each tick: a monster rests for two to six seconds, walks to a
 random place within three metres of where it spawned, at 1.8 metres a second, and rests again. If
-the sea stops it, it rests, and picks another place. The world's random generator takes a seed, so
-the tests pick theirs.
+the sea or a tree stops it, it rests, and picks another place. The world's random generator takes a
+seed, so the tests pick theirs.
 
 ## Fighting
 
