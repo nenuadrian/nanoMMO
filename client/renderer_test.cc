@@ -64,4 +64,7 @@ TEST(Renderer, DrawsTheTerrainBelowTheSky) {
   const nanommo::Pixel background{30, 144, 255, 255};
   EXPECT_EQ(target.ReadPixel(32, 2), background);
   EXPECT_NE(target.ReadPixel(32, 48), background);
+  // The sea, and of the island's 256 squares, the few ahead of us.
+  EXPECT_GT(renderer.work().draws, 1);
+  EXPECT_LT(renderer.work().draws, 32);
 }

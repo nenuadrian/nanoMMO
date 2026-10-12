@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "client/triangles.h"
 #include "terrain/noise.h"
 
 namespace nanommo {
@@ -54,15 +53,15 @@ void AddFace(Triangles& triangles, Vector3 a, Vector3 b, Vector3 c,
 
 }  // namespace
 
-Mesh GroundMesh(const Terrain& terrain) {
+void AddGround(Triangles& triangles, const Terrain& terrain, int left, int top,
+               int cells) {
   const float half_size = terrain.half_size();
   const auto corner = [&](int i, int j) {
     return Vector3{i * Terrain::kCell - half_size, terrain.Corner(i, j),
                    j * Terrain::kCell - half_size};
   };
-  Triangles triangles;
-  for (int j = 0; j < terrain.cells(); ++j) {
-    for (int i = 0; i < terrain.cells(); ++i) {
+  for (int j = top; j < std::min(top + cells, terrain.cells()); ++j) {
+    for (int i = left; i < std::min(left + cells, terrain.cells()); ++i) {
       const Vector3 top_left = corner(i, j);
       const Vector3 top_right = corner(i + 1, j);
       const Vector3 bottom_left = corner(i, j + 1);
@@ -73,7 +72,6 @@ Mesh GroundMesh(const Terrain& terrain) {
               Hash(terrain.seed(), 2 * i + 1, j));
     }
   }
-  return triangles.Upload();
 }
 
 Mesh SeaMesh(const Terrain& terrain) {

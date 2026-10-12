@@ -11,6 +11,7 @@
 #include "client/animator.h"
 #include "client/camera.h"
 #include "client/characters.h"
+#include "client/chunks.h"
 #include "client/cube.h"
 #include "client/trees.h"
 #include "terrain/terrain.h"
@@ -77,10 +78,9 @@ class Renderer {
   Shader cube_shader_;
   Shader character_shader_;
   Model cube_;
-  std::optional<Model> ground_;
+  std::vector<Face> tree_;
+  std::vector<Chunk> chunks_;
   std::optional<Model> sea_;
-  std::optional<Model> tree_;
-  std::vector<Matrix> trees_;
   Characters characters_;
   Characters monsters_;
 };

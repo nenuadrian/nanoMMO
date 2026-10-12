@@ -1,13 +1,13 @@
 #include "client/renderer.h"
 
 #include <raymath.h>
+#include <rlgl.h>
 
 #include <array>
 #include <vector>
 
 #include "client/ground.h"
 #include "client/scene.h"
-#include "client/triangles.h"
 
 namespace nanommo {
 
@@ -102,21 +102,12 @@ Renderer::Renderer()
   // The sword has no bones, so it's drawn with the cube's shader.
   characters_.Hold(WeaponsFolder() + "/sword.glb", 1.0f, cube_shader_);
 
-  const std::vector<Face> faces = LoadFaces(TreesFolder() + "/tree.glb");
-  if (!faces.empty()) {
-    Triangles triangles;
-    AddFaces(triangles, faces, MatrixIdentity());
-    tree_ = LoadModelFromMesh(triangles.Upload());
-    tree_->materials[0].shader = cube_shader_;
-  }
+  tree_ = LoadFaces(TreesFolder() + "/tree.glb");
 }
 
 // UnloadModel leaves the model's shader alone, as models can share one.
 Renderer::~Renderer() {
   UnloadTerrain();
-  if (tree_) {
-    UnloadModel(*tree_);
-  }
   UnloadModel(cube_);
   UnloadShader(character_shader_);
   UnloadShader(cube_shader_);
@@ -124,23 +115,17 @@ Renderer::~Renderer() {
 
 void Renderer::set_terrain(const Terrain& terrain) {
   UnloadTerrain();
-  ground_ = LoadModelFromMesh(GroundMesh(terrain));
+  // The ground, the trees and the sea have no bones either.
+  chunks_ = LoadChunks(terrain, tree_, cube_shader_);
   sea_ = LoadModelFromMesh(SeaMesh(terrain));
-  // The ground and the sea have no bones either.
-  ground_->materials[0].shader = cube_shader_;
   sea_->materials[0].shader = cube_shader_;
   sea_->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = kSea;
-  trees_.clear();
-  for (const Tree& tree : terrain.trees()) {
-    trees_.push_back(TreeTransform(tree, terrain));
-  }
 }
 
 void Renderer::UnloadTerrain() {
-  if (ground_) {
-    UnloadModel(*ground_);
+  UnloadChunks(chunks_);
+  if (sea_) {
     UnloadModel(*sea_);
-    ground_.reset();
     sea_.reset();
   }
 }
@@ -158,12 +143,13 @@ void Renderer::Draw() const {
   SetFog(cube_shader_, background_);
   SetFog(character_shader_, background_);
   BeginMode3D(camera_);
-  if (ground_) {
-    DrawCounted(ground_->meshes[0], ground_->materials[0], MatrixIdentity());
-  }
-  if (tree_) {
-    for (const Matrix& tree : trees_) {
-      DrawCounted(tree_->meshes[0], tree_->materials[0], tree);
+  // As BeginMode3D set them up, so we cull with what the GPU will use.
+  const Matrix view_projection =
+      MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
+  for (const Chunk& chunk : chunks_) {
+    if (InSight(chunk.box, camera_.position, view_projection, kFogFar)) {
+      DrawCounted(chunk.model.meshes[0], chunk.model.materials[0],
+                  MatrixIdentity());
     }
   }
   for (const Cube& cube : cubes_) {
