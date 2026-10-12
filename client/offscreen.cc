@@ -18,6 +18,13 @@ void Offscreen::Render(const Renderer& renderer) {
   EndTextureMode();
 }
 
+void Offscreen::RenderPreview(const Renderer& renderer, const Figure& figure,
+                              const Camera3D& camera) {
+  BeginTextureMode(target_);
+  renderer.DrawPreview(figure, camera);
+  EndTextureMode();
+}
+
 Pixel Offscreen::ReadPixel(int x, int y) const {
   Image image = LoadImageFromTexture(target_.texture);
   // OpenGL stores a texture's rows from the bottom up, so we flip the image.

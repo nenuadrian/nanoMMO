@@ -78,6 +78,8 @@ void main() {
 }
 )";
 
+constexpr std::array<float, 3> kPreviewBackground = {0.12f, 0.14f, 0.19f};
+
 // Into the background's colour, so that far away things fade into the sky.
 void SetFog(Shader shader, const std::array<float, 3>& color) {
   SetShaderValue(shader, GetShaderLocation(shader, "fogColor"), color.data(),
@@ -157,15 +159,7 @@ void Renderer::Draw() const {
                 cube.color);
   }
   for (const Figure& figure : figures_) {
-    const Characters& looks = figure.monster ? monsters_ : characters_;
-    const Color color = figure.monster ? WHITE : PlayerColor(figure.id);
-    if (looks.size() > 0) {
-      looks.Draw(figure, color);
-    } else {
-      const Vector3& at = figure.position;
-      DrawModelEx(cube_, {at.x, at.y + 0.5f, at.z}, {0.0f, 1.0f, 0.0f}, 0.0f,
-                  {1.0f, 1.0f, 1.0f}, color);
-    }
+    DrawFigure(figure);
     if (figure.you) {
       const Vector3& at = figure.position;
       DrawModelEx(cube_, {at.x, at.y + kMarkerHeight, at.z}, {0.0f, 1.0f, 0.0f},
@@ -178,6 +172,29 @@ void Renderer::Draw() const {
                 MatrixTranslate(0.0f, Terrain::kSeaLevel, 0.0f));
   }
   EndMode3D();
+}
+
+void Renderer::DrawPreview(const Figure& figure, const Camera3D& camera) const {
+  ClearBackground(
+      ColorFromNormalized({kPreviewBackground[0], kPreviewBackground[1],
+                           kPreviewBackground[2], 1.0f}));
+  SetFog(cube_shader_, kPreviewBackground);
+  SetFog(character_shader_, kPreviewBackground);
+  BeginMode3D(camera);
+  DrawFigure(figure);
+  EndMode3D();
+}
+
+void Renderer::DrawFigure(const Figure& figure) const {
+  const Characters& looks = figure.monster ? monsters_ : characters_;
+  const Color color = figure.monster ? WHITE : PlayerColor(figure.id);
+  if (looks.size() > 0) {
+    looks.Draw(figure, color);
+    return;
+  }
+  const Vector3& at = figure.position;
+  DrawModelEx(cube_, {at.x, at.y + 0.5f, at.z}, {0.0f, 1.0f, 0.0f}, 0.0f,
+              {1.0f, 1.0f, 1.0f}, color);
 }
 
 void Renderer::Clear() const {

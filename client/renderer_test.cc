@@ -68,3 +68,23 @@ TEST(Renderer, DrawsTheTerrainBelowTheSky) {
   EXPECT_GT(renderer.work().draws, 1);
   EXPECT_LT(renderer.work().draws, 32);
 }
+
+TEST(Renderer, RendersAPreviewIntoATexture) {
+  const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
+      nanommo::Window::Create("test", 64, 64,
+                              nanommo::Window::Visibility::kHidden);
+  ASSERT_TRUE(window.ok());
+  nanommo::Offscreen target(64, 64);
+  nanommo::Renderer renderer;
+  const Camera3D camera{
+      .position = {0.0f, 0.9f, 4.0f},
+      .target = {0.0f, 0.9f, 0.0f},
+      .up = {0.0f, 1.0f, 0.0f},
+      .fovy = 35.0f,
+      .projection = CAMERA_PERSPECTIVE,
+  };
+
+  target.RenderPreview(renderer, {}, camera);
+
+  EXPECT_NE(target.ReadPixel(32, 32), target.ReadPixel(0, 0));
+}

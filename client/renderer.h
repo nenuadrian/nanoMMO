@@ -33,6 +33,9 @@ class Renderer {
 
   void Draw() const;
 
+  /// Draws one figure on a plain background, for previews in the UI.
+  void DrawPreview(const Figure& figure, const Camera3D& camera) const;
+
   void Clear() const;
 
   const std::array<float, 3>& background() const { return background_; }
@@ -67,6 +70,7 @@ class Renderer {
   void UnloadTerrain();
   void DrawCounted(const Mesh& mesh, const Material& material,
                    const Matrix& transform) const;
+  void DrawFigure(const Figure& figure) const;
 
   std::array<float, 3> background_ = {0.62f, 0.78f, 0.9f};
   Camera3D camera_ = GameCamera();

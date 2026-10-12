@@ -5,6 +5,7 @@
 
 #include <ostream>
 
+#include "client/animator.h"
 #include "client/renderer.h"
 
 namespace nanommo {
@@ -29,6 +30,11 @@ class Offscreen {
   Offscreen& operator=(const Offscreen&) = delete;
 
   void Render(const Renderer& renderer);
+
+  void RenderPreview(const Renderer& renderer, const Figure& figure,
+                     const Camera3D& camera);
+
+  Texture2D texture() const { return target_.texture; }
 
   Pixel ReadPixel(int x, int y) const;
 
