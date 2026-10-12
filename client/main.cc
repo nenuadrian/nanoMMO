@@ -3,8 +3,10 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -18,11 +20,11 @@
 #include "client/nameplates.h"
 #include "client/player_frame.h"
 #include "client/renderer.h"
-#include "client/scene.h"
 #include "client/window.h"
 #include "protocol/login_client.h"
 #include "protocol/settings.h"
 #include "protocol/tls.h"
+#include "terrain/terrain.h"
 
 namespace {
 
@@ -79,8 +81,8 @@ int main(int argc, char* argv[]) {
   nanommo::Menu menu;
   nanommo::LoginScreen login_screen;
   nanommo::Renderer renderer;
-  renderer.set_cubes(nanommo::Ground());
   nanommo::Animator animator;
+  std::optional<nanommo::Terrain> terrain;
 
   std::unique_ptr<nanommo::Connection> connection;
   nanommo::protocol::Input sent;
@@ -114,7 +116,17 @@ int main(int argc, char* argv[]) {
         std::cout << "nanommo client: we're player " << world.you() << ", "
                   << online << " online" << '\n';
       }
-      renderer.set_figures(animator.Update(world, GetFrameTime()));
+      if (!terrain || terrain->seed() != world.seed()) {
+        terrain.emplace(world.seed());
+        renderer.set_terrain(*terrain);
+      }
+      std::vector<nanommo::Figure> figures =
+          animator.Update(world, GetFrameTime());
+      for (nanommo::Figure& figure : figures) {
+        figure.position.y =
+            terrain->Height(figure.position.x, figure.position.z);
+      }
+      renderer.set_figures(std::move(figures));
     }
 
     BeginDrawing();
@@ -125,7 +137,7 @@ int main(int argc, char* argv[]) {
     }
     gui.Begin();
     if (connection) {
-      nanommo::DrawNameplates(renderer.figures());
+      nanommo::DrawNameplates(renderer.figures(), renderer.camera());
       nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
       if (menu.Build(*window, *renderer.mutable_background())) {
         connection.reset();

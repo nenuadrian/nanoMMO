@@ -1,6 +1,6 @@
 #include "client/renderer.h"
 
-#include "client/camera.h"
+#include "client/ground.h"
 #include "client/scene.h"
 
 namespace nanommo {
@@ -10,14 +10,17 @@ namespace {
 constexpr const char* kVertexShader = R"(#version 330
 in vec3 vertexPosition;
 in vec3 vertexNormal;
+in vec4 vertexColor;
 uniform mat4 mvp;
 uniform mat4 matNormal;
 out float light;
+out vec4 color;
 
 void main() {
   vec3 normal = normalize(mat3(matNormal) * vertexNormal);
   vec3 sun = normalize(vec3(0.3, 1.0, 0.5));
   light = 0.55 + 0.45 * max(dot(normal, sun), 0.0);
+  color = vertexColor;
   gl_Position = mvp * vec4(vertexPosition, 1.0);
 }
 )";
@@ -27,10 +30,12 @@ in vec3 vertexPosition;
 in vec3 vertexNormal;
 in vec4 vertexBoneIndices;
 in vec4 vertexBoneWeights;
+in vec4 vertexColor;
 uniform mat4 mvp;
 uniform mat4 matNormal;
 uniform mat4 boneMatrices[128];
 out float light;
+out vec4 color;
 
 void main() {
   mat4 skin = boneMatrices[int(vertexBoneIndices.x)] * vertexBoneWeights.x
@@ -40,17 +45,19 @@ void main() {
   vec3 normal = normalize(mat3(matNormal) * mat3(skin) * vertexNormal);
   vec3 sun = normalize(vec3(0.3, 1.0, 0.5));
   light = 0.55 + 0.45 * max(dot(normal, sun), 0.0);
+  color = vertexColor;
   gl_Position = mvp * skin * vec4(vertexPosition, 1.0);
 }
 )";
 
 constexpr const char* kFragmentShader = R"(#version 330
 in float light;
+in vec4 color;
 uniform vec4 colDiffuse;
 out vec4 pixel;
 
 void main() {
-  pixel = vec4(colDiffuse.rgb * light, colDiffuse.a);
+  pixel = vec4(colDiffuse.rgb * color.rgb * light, colDiffuse.a * color.a);
 }
 )";
 
@@ -71,14 +78,36 @@ Renderer::Renderer()
 
 // UnloadModel leaves the model's shader alone, as models can share one.
 Renderer::~Renderer() {
+  UnloadTerrain();
   UnloadModel(cube_);
   UnloadShader(character_shader_);
   UnloadShader(cube_shader_);
 }
 
+void Renderer::set_terrain(const Terrain& terrain) {
+  UnloadTerrain();
+  ground_ = LoadModelFromMesh(GroundMesh(terrain));
+  sea_ = LoadModelFromMesh(SeaMesh(terrain));
+  // The ground and the sea have no bones either.
+  ground_->materials[0].shader = cube_shader_;
+  sea_->materials[0].shader = cube_shader_;
+}
+
+void Renderer::UnloadTerrain() {
+  if (ground_) {
+    UnloadModel(*ground_);
+    UnloadModel(*sea_);
+    ground_.reset();
+    sea_.reset();
+  }
+}
+
 void Renderer::Draw() const {
   Clear();
-  BeginMode3D(GameCamera());
+  BeginMode3D(camera_);
+  if (ground_) {
+    DrawModel(*ground_, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
+  }
   for (const Cube& cube : cubes_) {
     DrawModelEx(cube_, cube.position, {0.0f, 1.0f, 0.0f}, 0.0f, cube.size,
                 cube.color);
@@ -90,14 +119,18 @@ void Renderer::Draw() const {
       looks.Draw(figure, color);
     } else {
       const Vector3& at = figure.position;
-      DrawModelEx(cube_, {at.x, 0.5f, at.z}, {0.0f, 1.0f, 0.0f}, 0.0f,
+      DrawModelEx(cube_, {at.x, at.y + 0.5f, at.z}, {0.0f, 1.0f, 0.0f}, 0.0f,
                   {1.0f, 1.0f, 1.0f}, color);
     }
     if (figure.you) {
       const Vector3& at = figure.position;
-      DrawModelEx(cube_, {at.x, kMarkerHeight, at.z}, {0.0f, 1.0f, 0.0f}, 0.0f,
-                  {0.25f, 0.25f, 0.25f}, WHITE);
+      DrawModelEx(cube_, {at.x, at.y + kMarkerHeight, at.z}, {0.0f, 1.0f, 0.0f},
+                  0.0f, {0.25f, 0.25f, 0.25f}, WHITE);
     }
+  }
+  // Last, as we see the ground under it through the water.
+  if (sea_) {
+    DrawModel(*sea_, {0.0f, Terrain::kSeaLevel, 0.0f}, 1.0f, kSea);
   }
   EndMode3D();
 }

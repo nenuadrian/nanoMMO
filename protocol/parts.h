@@ -28,6 +28,7 @@ class Parts {
   uint32_t you_ = 0;
   uint32_t experience_ = 0;
   uint32_t next_level_ = 0;
+  uint32_t seed_ = 0;
   int64_t sent_ = 0;
   std::map<uint32_t, protocol::Player> players_;
   std::map<uint32_t, protocol::Monster> monsters_;

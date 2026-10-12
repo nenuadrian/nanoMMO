@@ -4,9 +4,9 @@
 
 #include "absl/status/statusor.h"
 #include "client/offscreen.h"
-#include "client/scene.h"
 #include "client/window.h"
 #include "gtest/gtest.h"
+#include "terrain/terrain.h"
 
 TEST(Renderer, ClearsToTheBackgroundColor) {
   const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
@@ -43,7 +43,7 @@ TEST(Renderer, DrawsACubeInTheMiddle) {
   EXPECT_EQ(target.ReadPixel(0, 0), (nanommo::Pixel{30, 144, 255, 255}));
 }
 
-TEST(Renderer, DrawsTheGroundBelowTheBackground) {
+TEST(Renderer, DrawsTheTerrainBelowTheSky) {
   const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
       nanommo::Window::Create("test", 64, 64,
                               nanommo::Window::Visibility::kHidden);
@@ -51,7 +51,13 @@ TEST(Renderer, DrawsTheGroundBelowTheBackground) {
   nanommo::Offscreen target(64, 64);
   nanommo::Renderer renderer;
   renderer.set_background({30 / 255.0f, 144 / 255.0f, 255 / 255.0f});
-  renderer.set_cubes(nanommo::Ground());
+  renderer.set_terrain(nanommo::Terrain(1));
+  // Looking out to sea, level with the horizon.
+  renderer.set_camera({.position = {0.0f, 10.0f, 0.0f},
+                       .target = {0.0f, 10.0f, 100.0f},
+                       .up = {0.0f, 1.0f, 0.0f},
+                       .fovy = 50.0f,
+                       .projection = CAMERA_PERSPECTIVE});
 
   target.Render(renderer);
 

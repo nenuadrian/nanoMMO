@@ -32,6 +32,7 @@ TEST(Parts, SplitsAWorldIntoDatagrams) {
   you.set_you(4'000'000'000);
   you.set_experience(4'000'000'000);
   you.set_next_level(4'000'000'000);
+  you.set_seed(4'000'000'000);
   int players = 0;
   for (std::size_t i = 0; i < parts.size(); ++i) {
     const std::string bytes =

@@ -40,6 +40,15 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  uint32_t seed = 1;
+  const std::string seed_setting = nanommo::Setting("NANOMMO_WORLD_SEED", "1");
+  if (!absl::SimpleAtoi(seed_setting, &seed)) {
+    std::cerr << "nanommo server: NANOMMO_WORLD_SEED should be a whole number "
+                 "from 0 to 4294967295, not "
+              << seed_setting << "\n";
+    return 1;
+  }
+
   absl::StatusOr<asio::ssl::context> tls = nanommo::ServerTls(
       nanommo::Setting("NANOMMO_TLS_CERTIFICATE", "tls/server.crt"),
       nanommo::Setting("NANOMMO_TLS_KEY", "tls/server.key"));
@@ -76,7 +85,7 @@ int main(int argc, char* argv[]) {
   asio::io_context io;
   absl::StatusOr<std::unique_ptr<nanommo::Server>> server_or =
       nanommo::Server::Create(io, static_cast<uint16_t>(port), *tls, *interval,
-                              metrics, tokens, players);
+                              seed, metrics, tokens, players);
   if (!server_or.ok()) {
     std::cerr << "nanommo server: " << server_or.status() << "\n";
     return 1;
@@ -85,7 +94,7 @@ int main(int argc, char* argv[]) {
   std::cout << "nanommo server: listening on port " << port << ", "
             << kTicksPerSecond << " ticks/s, "
             << absl::FormatDuration(absl::FromChrono(*interval)) << " per tick"
-            << std::endl;
+            << ", world seed " << seed << std::endl;
   std::cout << "nanommo server: metrics on port " << kMetricsPort
             << ", at /metrics" << std::endl;
 

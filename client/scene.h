@@ -4,13 +4,8 @@
 #include <raylib.h>
 
 #include <cstdint>
-#include <vector>
-
-#include "client/cube.h"
 
 namespace nanommo {
-
-std::vector<Cube> Ground();
 
 constexpr float kMarkerHeight = 2.05f;
 

@@ -1,14 +1,11 @@
 #include "client/nameplates.h"
 
 #include <imgui.h>
-#include <raylib.h>
 
 #include <algorithm>
 #include <cfloat>
 #include <string>
 #include <vector>
-
-#include "client/camera.h"
 
 namespace nanommo {
 
@@ -31,7 +28,8 @@ void DrawShadowedText(ImDrawList* draw, float size, ImVec2 at, ImU32 color,
 
 }  // namespace
 
-void DrawNameplates(const std::vector<Figure>& figures) {
+void DrawNameplates(const std::vector<Figure>& figures,
+                    const Camera3D& camera) {
   ImDrawList* draw = ImGui::GetBackgroundDrawList();
   ImFont* font = ImGui::GetFont();
   const float font_size = ImGui::GetFontSize() * 1.4f;
@@ -39,7 +37,7 @@ void DrawNameplates(const std::vector<Figure>& figures) {
     const Vector3& position = figure.position;
     const float above = figure.monster ? 1.9f : 2.35f;
     const Vector2 at =
-        GetWorldToScreen({position.x, above, position.z}, GameCamera());
+        GetWorldToScreen({position.x, position.y + above, position.z}, camera);
 
     const ImVec2 bar_min{at.x - kBar.x / 2, at.y - kBar.y};
     const ImVec2 bar_max{at.x + kBar.x / 2, at.y};

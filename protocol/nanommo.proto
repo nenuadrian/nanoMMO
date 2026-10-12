@@ -50,6 +50,7 @@ message World {
   repeated Monster monsters = 6;
   uint32 experience = 7;
   uint32 next_level = 8;
+  uint32 seed = 9;
 }
 
 message LoginRequest {

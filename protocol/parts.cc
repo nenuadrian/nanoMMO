@@ -8,8 +8,8 @@ namespace nanommo {
 namespace {
 
 // Room for the fields besides the players and the monsters: sent, part,
-// parts, and the client's own you, experience and next level.
-constexpr std::size_t kRoom = 42;
+// parts, and the client's own you, experience, next level and seed.
+constexpr std::size_t kRoom = 48;
 
 }  // namespace
 
@@ -55,6 +55,7 @@ void Parts::Add(const protocol::World& part) {
   you_ = part.you();
   experience_ = part.experience();
   next_level_ = part.next_level();
+  seed_ = part.seed();
   arrived_.insert(part.part());
   for (const protocol::Player& player : part.players()) {
     players_[player.id()] = player;
@@ -79,6 +80,7 @@ protocol::World Parts::world() const {
   world.set_you(you_);
   world.set_experience(experience_);
   world.set_next_level(next_level_);
+  world.set_seed(seed_);
   world.set_sent(sent_);
   for (const auto& [id, player] : players_) {
     *world.add_players() = player;

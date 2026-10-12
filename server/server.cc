@@ -55,10 +55,10 @@ Progress ProgressOf(const Player& player) {
 
 absl::StatusOr<std::unique_ptr<Server>> Server::Create(
     asio::io_context& io, uint16_t port, asio::ssl::context& tls,
-    std::chrono::nanoseconds interval, Metrics& metrics, Tokens& tokens,
-    Players& players) {
-  std::unique_ptr<Server> server =
-      absl::WrapUnique(new Server(io, tls, interval, metrics, tokens, players));
+    std::chrono::nanoseconds interval, uint32_t seed, Metrics& metrics,
+    Tokens& tokens, Players& players) {
+  std::unique_ptr<Server> server = absl::WrapUnique(
+      new Server(io, tls, interval, seed, metrics, tokens, players));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -67,13 +67,14 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
 }
 
 Server::Server(asio::io_context& io, asio::ssl::context& tls,
-               std::chrono::nanoseconds interval, Metrics& metrics,
-               Tokens& tokens, Players& players)
+               std::chrono::nanoseconds interval, uint32_t seed,
+               Metrics& metrics, Tokens& tokens, Players& players)
     : acceptor_(io),
       tls_(tls),
       udp_(io),
       timer_(io),
       interval_(interval),
+      seed_(seed),
       world_(std::random_device()()),
       metrics_(metrics),
       tokens_(tokens),
@@ -276,6 +277,7 @@ void Server::Broadcast() {
     you.set_you(id);
     you.set_experience(level.experience);
     you.set_next_level(level.next);
+    you.set_seed(seed_);
     std::string own = you.SerializeAsString();
     const auto udp = udp_clients_.find(id);
     if (udp != udp_clients_.end()) {

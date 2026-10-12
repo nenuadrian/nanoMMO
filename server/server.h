@@ -26,16 +26,17 @@ namespace nanommo {
 class Server {
  public:
   /// Starts the server, or returns why it couldn't, such as the port
-  /// being taken. Clients connect over TLS, with the context.
+  /// being taken. Clients connect over TLS, with the context. The seed makes
+  /// the terrain.
   static absl::StatusOr<std::unique_ptr<Server>> Create(
       asio::io_context& io, uint16_t port, asio::ssl::context& tls,
-      std::chrono::nanoseconds interval, Metrics& metrics, Tokens& tokens,
-      Players& players);
+      std::chrono::nanoseconds interval, uint32_t seed, Metrics& metrics,
+      Tokens& tokens, Players& players);
 
  private:
   Server(asio::io_context& io, asio::ssl::context& tls,
-         std::chrono::nanoseconds interval, Metrics& metrics, Tokens& tokens,
-         Players& players);
+         std::chrono::nanoseconds interval, uint32_t seed, Metrics& metrics,
+         Tokens& tokens, Players& players);
 
   absl::Status Start(uint16_t port);
   void Accept();
@@ -55,6 +56,7 @@ class Server {
   asio::ip::udp::endpoint sender_;
   asio::steady_timer timer_;
   std::chrono::nanoseconds interval_;
+  uint32_t seed_;
   World world_;
   Metrics& metrics_;
   Tokens& tokens_;
