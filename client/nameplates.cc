@@ -1,6 +1,7 @@
 #include "client/nameplates.h"
 
 #include <imgui.h>
+#include <raymath.h>
 
 #include <algorithm>
 #include <cfloat>
@@ -19,6 +20,10 @@ constexpr ImU32 kMonsterHealth = IM_COL32(220, 70, 60, 255);
 
 constexpr ImVec2 kBar{64.0f, 6.0f};
 
+// Further than this, in metres, figures fade into the fog, and their
+// nameplates would float over the hills in front of them.
+constexpr float kFarthest = 50.0f;
+
 void DrawShadowedText(ImDrawList* draw, float size, ImVec2 at, ImU32 color,
                       const std::string& text) {
   ImFont* font = ImGui::GetFont();
@@ -33,8 +38,16 @@ void DrawNameplates(const std::vector<Figure>& figures,
   ImDrawList* draw = ImGui::GetBackgroundDrawList();
   ImFont* font = ImGui::GetFont();
   const float font_size = ImGui::GetFontSize() * 1.4f;
+  const Vector3 forward =
+      Vector3Normalize(Vector3Subtract(camera.target, camera.position));
   for (const Figure& figure : figures) {
     const Vector3& position = figure.position;
+    const Vector3 away = Vector3Subtract(position, camera.position);
+    // Behind the camera, GetWorldToScreen would put it on the screen.
+    if (Vector3Length(away) > kFarthest ||
+        Vector3DotProduct(away, forward) <= 0.0f) {
+      continue;
+    }
     const float above = figure.monster ? 1.9f : 2.35f;
     const Vector2 at =
         GetWorldToScreen({position.x, position.y + above, position.z}, camera);

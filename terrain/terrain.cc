@@ -72,4 +72,9 @@ float Terrain::Height(float x, float z) const {
          (bottom_left - top_left) * v;
 }
 
+bool Terrain::Walkable(float x, float z) const {
+  return std::abs(x) <= edge() && std::abs(z) <= edge() &&
+         Height(x, z) >= kSeaLevel - kWading;
+}
+
 }  // namespace nanommo

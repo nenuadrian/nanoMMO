@@ -7,6 +7,7 @@
 
 #include "gtest/gtest.h"
 #include "server/monsters.h"
+#include "terrain/terrain.h"
 
 namespace {
 
@@ -88,8 +89,24 @@ TEST(World, KeepsPlayersOnTheGround) {
     RunOneSecond(world);
   }
 
-  EXPECT_EQ(world.players().at(id).z, -nanommo::World::kEdge);
+  EXPECT_EQ(world.players().at(id).z, -nanommo::Terrain().edge());
   EXPECT_EQ(world.players().at(id).motion, nanommo::Motion::kIdle);
+}
+
+TEST(World, WalksTheIslandButNotIntoTheSea) {
+  const nanommo::Terrain island(1);
+  nanommo::World world(7, island);
+  world.Join(1, {.x = 1000.0f});
+  EXPECT_EQ(world.players().at(1).x, 0.0f);
+
+  world.SetInput(1, 1.0f, 0.0f, true);
+  for (int second = 0; second < 120; ++second) {
+    RunOneSecond(world);
+    const nanommo::Player& player = world.players().at(1);
+    ASSERT_TRUE(island.Walkable(player.x, player.z));
+  }
+  EXPECT_GT(world.players().at(1).x, 50.0f);
+  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kIdle);
 }
 
 TEST(World, IgnoresInputThatIsNotANumber) {

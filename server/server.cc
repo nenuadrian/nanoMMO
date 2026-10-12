@@ -19,6 +19,7 @@
 #include "server/levels.h"
 #include "server/listen.h"
 #include "server/monsters.h"
+#include "terrain/terrain.h"
 #include "tracy/Tracy.hpp"
 
 namespace nanommo {
@@ -29,6 +30,15 @@ constexpr std::array<std::pair<float, float>, 3> kSkeletons = {{
     {-3.5f, -3.0f},
     {3.5f, -2.5f},
     {3.0f, 3.5f},
+}};
+
+constexpr int kCamps = 8;
+
+// Where each camp's three skeletons stand, from the middle of the camp.
+constexpr std::array<std::pair<float, float>, 3> kCampSkeletons = {{
+    {-1.5f, 0.0f},
+    {1.5f, 0.5f},
+    {0.0f, -1.5f},
 }};
 
 protocol::Motion ToProtocol(Motion motion) {
@@ -75,7 +85,7 @@ Server::Server(asio::io_context& io, asio::ssl::context& tls,
       timer_(io),
       interval_(interval),
       seed_(seed),
-      world_(std::random_device()()),
+      world_(std::random_device()(), Terrain(seed)),
       metrics_(metrics),
       tokens_(tokens),
       players_(players) {}
@@ -96,6 +106,14 @@ absl::Status Server::Start(uint16_t port) {
                   ignored);
   for (const auto& [x, z] : kSkeletons) {
     world_.Spawn(Skeleton(x, z));
+  }
+  const Terrain& terrain = world_.terrain();
+  for (const auto& [camp_x, camp_z] : Camps(terrain, kCamps)) {
+    for (const auto& [x, z] : kCampSkeletons) {
+      if (terrain.Walkable(camp_x + x, camp_z + z)) {
+        world_.Spawn(Skeleton(camp_x + x, camp_z + z));
+      }
+    }
   }
   Accept();
   Receive();

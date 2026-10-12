@@ -5,8 +5,11 @@
 #include <cstdint>
 #include <map>
 #include <random>
+#include <utility>
+#include <vector>
 
 #include "server/world.h"
+#include "terrain/terrain.h"
 
 namespace nanommo {
 
@@ -25,16 +28,21 @@ constexpr float kMonsterReach = 1.2f;
 
 Monster Skeleton(float x, float z);
 
+/// Places for camps of monsters, which the terrain's seed picks: between the
+/// beach and the rock, and well away from the middle, where the players start.
+std::vector<std::pair<float, float>> Camps(const Terrain& terrain, int count);
+
 std::chrono::nanoseconds RandomRest(std::mt19937& random);
 
-void Wander(Monster& monster, std::chrono::nanoseconds time,
-            std::mt19937& random);
+void Wander(Monster& monster, const Terrain& terrain,
+            std::chrono::nanoseconds time, std::mt19937& random);
 
 uint32_t Spot(const Monster& monster,
               const std::map<uint32_t, Player>& players);
 
 void Hunt(Monster& monster, const std::map<uint32_t, Player>& players,
-          std::chrono::nanoseconds time, std::mt19937& random);
+          const Terrain& terrain, std::chrono::nanoseconds time,
+          std::mt19937& random);
 
 void Revive(Monster& monster, std::chrono::nanoseconds time,
             std::mt19937& random);

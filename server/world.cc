@@ -18,9 +18,26 @@ float Distance(const Player& player, const Monster& monster) {
 
 }  // namespace
 
-World::World(uint32_t seed) : random_(seed) {}
+void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z) {
+  if (terrain.Walkable(to_x, to_z)) {
+    x = to_x;
+    z = to_z;
+  } else if (terrain.Walkable(to_x, z)) {
+    x = to_x;
+  } else if (terrain.Walkable(x, to_z)) {
+    z = to_z;
+  }
+}
+
+World::World(uint32_t seed, Terrain terrain)
+    : terrain_(std::move(terrain)), random_(seed) {}
 
 void World::Join(uint32_t id, Player player) {
+  // Saved somewhere that's sea now, such as on a terrain from another seed.
+  if (!terrain_.Walkable(player.x, player.z)) {
+    player.x = 0.0f;
+    player.z = 0.0f;
+  }
   player.health = MaxHealth(LevelFor(player.experience).number);
   players_[id] = std::move(player);
 }
@@ -98,12 +115,14 @@ void World::Act(Player& player, std::chrono::nanoseconds time) {
 void World::Move(Player& player, std::chrono::nanoseconds time) {
   const float seconds = std::chrono::duration<float>(time).count();
   const float speed = player.input_run ? kRunSpeed : kWalkSpeed;
-  const float x =
-      std::clamp(player.x + player.input_x * speed * seconds, -kEdge, kEdge);
-  const float z =
-      std::clamp(player.z + player.input_z * speed * seconds, -kEdge, kEdge);
+  const float edge = terrain_.edge();
+  float x = player.x;
+  float z = player.z;
+  Walk(terrain_, x, z,
+       std::clamp(player.x + player.input_x * speed * seconds, -edge, edge),
+       std::clamp(player.z + player.input_z * speed * seconds, -edge, edge));
   // Motion comes from how far it actually went, so that a player pushing
-  // against the edge stands still, instead of walking on the spot.
+  // against the edge or the sea stands still, instead of walking on the spot.
   const float dx = x - player.x;
   const float dz = z - player.z;
   if (dx == 0.0f && dz == 0.0f) {
@@ -173,7 +192,7 @@ void World::Act(Monster& monster, std::chrono::nanoseconds time) {
     }
     monster.motion = Motion::kIdle;
   }
-  Hunt(monster, players_, time, random_);
+  Hunt(monster, players_, terrain_, time, random_);
 }
 
 void World::Hit(Monster& monster) {

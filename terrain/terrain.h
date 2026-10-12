@@ -15,6 +15,9 @@ class Terrain {
 
   static constexpr float kSeaLevel = 0.0f;
 
+  /// Players wade into the sea up to their knees.
+  static constexpr float kWading = 0.4f;
+
   /// The board we had: flat, twelve metres across, for the tests.
   Terrain();
 
@@ -23,6 +26,9 @@ class Terrain {
 
   /// On the triangles between the grid's corners, as the client draws them.
   float Height(float x, float z) const;
+
+  /// Whether a player can stand there.
+  bool Walkable(float x, float z) const;
 
   /// The height at a corner of the grid, from 0 to cells() along each side.
   float Corner(int i, int j) const { return corners_[j * (cells_ + 1) + i]; }
@@ -34,6 +40,9 @@ class Terrain {
 
   /// From the middle to each side of the grid.
   float half_size() const { return cells_ * kCell / 2.0f; }
+
+  /// Half a metre short of each side, so that players stay on the grid.
+  float edge() const { return half_size() - 0.5f; }
 
  private:
   uint32_t seed_ = 0;

@@ -35,6 +35,9 @@ TEST(Terrain, HasLandInTheMiddleAndSeaAtTheEdge) {
   EXPECT_GT(island.Height(0.0f, 0.0f), nanommo::Terrain::kSeaLevel);
   EXPECT_LT(island.Height(edge, 0.0f), nanommo::Terrain::kSeaLevel);
   EXPECT_LT(island.Height(-edge, -edge), nanommo::Terrain::kSeaLevel);
+  EXPECT_TRUE(island.Walkable(0.0f, 0.0f));
+  EXPECT_FALSE(island.Walkable(island.edge(), 0.0f));
+  EXPECT_FALSE(island.Walkable(edge + 1.0f, 0.0f));
 }
 
 TEST(Terrain, StandsOnTheTrianglesBetweenTheCorners) {

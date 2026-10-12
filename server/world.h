@@ -7,6 +7,8 @@
 #include <random>
 #include <string>
 
+#include "terrain/terrain.h"
+
 namespace nanommo {
 
 enum class Motion { kIdle, kWalk, kRun, kAttack, kDead };
@@ -52,15 +54,16 @@ struct Monster {
   std::chrono::nanoseconds respawn{0};
 };
 
+/// Moves to the place, or if the terrain's in the way there, as far as it can
+/// along x or along z alone, so that it slides along a coast.
+void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z);
+
 class World {
  public:
   /// In tiles a second. A tile is a metre, and that's the walk clip's speed.
   static constexpr float kWalkSpeed = 1.8f;
 
   static constexpr float kRunSpeed = 3.1f;
-
-  /// Six tiles to the ground's edge, less half a tile, so players stay on it.
-  static constexpr float kEdge = 5.5f;
 
   static constexpr float kReach = 1.6f;
 
@@ -71,7 +74,8 @@ class World {
 
   static constexpr std::chrono::seconds kRespawnTime{10};
 
-  explicit World(uint32_t seed = std::mt19937::default_seed);
+  explicit World(uint32_t seed = std::mt19937::default_seed,
+                 Terrain terrain = Terrain());
 
   void Join(uint32_t id, Player player);
 
@@ -85,6 +89,7 @@ class World {
 
   const std::map<uint32_t, Player>& players() const { return players_; }
   const std::map<uint32_t, Monster>& monsters() const { return monsters_; }
+  const Terrain& terrain() const { return terrain_; }
 
  private:
   void Act(Player& player, std::chrono::nanoseconds time);
@@ -94,6 +99,7 @@ class World {
   void Act(Monster& monster, std::chrono::nanoseconds time);
   void Hit(Monster& monster);
 
+  Terrain terrain_;
   std::map<uint32_t, Player> players_;
   std::map<uint32_t, Monster> monsters_;
   uint32_t next_monster_ = 1;
