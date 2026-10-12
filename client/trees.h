@@ -28,8 +28,8 @@ struct Face {
 /// isn't there.
 std::vector<Face> LoadFaces(const std::string& path);
 
-/// Sizes the model, turns it, and moves it to the tree's place.
-Matrix TreeTransform(const Tree& tree);
+/// Sizes the model, turns it, and stands it on the ground.
+Matrix TreeTransform(const Tree& tree, const Terrain& terrain);
 
 /// Adds the faces, moved by the transform.
 void AddFaces(Triangles& triangles, const std::vector<Face>& faces,

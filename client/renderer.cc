@@ -131,7 +131,7 @@ void Renderer::set_terrain(const Terrain& terrain) {
   sea_->materials[0].shader = cube_shader_;
   trees_.clear();
   for (const Tree& tree : terrain.trees()) {
-    trees_.push_back(TreeTransform(tree));
+    trees_.push_back(TreeTransform(tree, terrain));
   }
 }
 

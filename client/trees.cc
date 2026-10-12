@@ -10,6 +10,9 @@ namespace nanommo {
 
 namespace {
 
+// So that the trunk doesn't float over a slope.
+constexpr float kSunk = 0.15f;
+
 Color ColorAt(const Image& texture, float u, float v) {
   const int x =
       std::clamp(static_cast<int>(u * texture.width), 0, texture.width - 1);
@@ -65,11 +68,11 @@ std::vector<Face> LoadFaces(const std::string& path) {
   return faces;
 }
 
-Matrix TreeTransform(const Tree& tree) {
+Matrix TreeTransform(const Tree& tree, const Terrain& terrain) {
   const float size = kTreeHeight * tree.scale;
   return MatrixMultiply(
       MatrixMultiply(MatrixScale(size, size, size), MatrixRotateY(tree.yaw)),
-      MatrixTranslate(tree.x, 0.0f, tree.z));
+      MatrixTranslate(tree.x, terrain.Height(tree.x, tree.z) - kSunk, tree.z));
 }
 
 void AddFaces(Triangles& triangles, const std::vector<Face>& faces,
