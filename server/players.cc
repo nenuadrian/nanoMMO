@@ -31,13 +31,13 @@ absl::StatusOr<Player> Players::Load(uint32_t account_id) {
   return player;
 }
 
-absl::Status Players::Save(uint32_t account_id, const Player& player) {
+absl::Status Players::Save(uint32_t account_id, const Progress& progress) {
   const absl::StatusOr<Result> result = database_.Run(
       "INSERT INTO players (account_id, x, z, experience) "
       "VALUES (?, ?, ?, ?) AS saved ON DUPLICATE KEY UPDATE "
       "x = saved.x, z = saved.z, experience = saved.experience",
-      {std::to_string(account_id), std::to_string(player.x),
-       std::to_string(player.z), std::to_string(player.experience)});
+      {std::to_string(account_id), std::to_string(progress.x),
+       std::to_string(progress.z), std::to_string(progress.experience)});
   return result.status();
 }
 

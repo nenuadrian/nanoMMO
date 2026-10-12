@@ -83,7 +83,6 @@ int main(int argc, char* argv[]) {
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });
   io.run();
-  server->SaveAll();
-  std::cout << "nanommo server: saved everyone, and stopped" << std::endl;
+  std::cout << "nanommo server: stopped" << std::endl;
   return 0;
 }

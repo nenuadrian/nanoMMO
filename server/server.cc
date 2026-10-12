@@ -46,6 +46,10 @@ protocol::Motion ToProtocol(Motion motion) {
   return protocol::MOTION_IDLE;
 }
 
+Progress ProgressOf(const Player& player) {
+  return {.x = player.x, .z = player.z, .experience = player.experience};
+}
+
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<Server>> Server::Create(
@@ -93,15 +97,6 @@ absl::Status Server::Start(uint16_t port) {
   timer_.expires_after(interval_);
   timer_.async_wait([this](std::error_code) { Tick(); });
   return absl::OkStatus();
-}
-
-void Server::SaveAll() {
-  for (const auto& [id, player] : world_.players()) {
-    const absl::Status saved = players_.Save(id, player);
-    if (!saved.ok()) {
-      std::cerr << "couldn't save " << player.name << ": " << saved << "\n";
-    }
-  }
 }
 
 void Server::Accept() {
@@ -155,6 +150,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
     return 0;
   }
   world_.Join(*id, *player);
+  saved_[*id] = ProgressOf(*player);
   sessions_[*id] = session.shared_from_this();
   udp_tokens_[hello.token()] = *id;
   metrics_.SetPlayers(world_.players().size());
@@ -166,11 +162,8 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
 void Server::Leave(uint32_t id) {
   const Player& player = world_.players().at(id);
   std::cout << player.name << " left" << std::endl;
-  const absl::Status saved = players_.Save(id, player);
-  if (!saved.ok()) {
-    std::cerr << "couldn't save " << player.name << ": " << saved << "\n";
-  }
   world_.Leave(id);
+  saved_.erase(id);
   sessions_.erase(id);
   std::erase_if(udp_tokens_,
                 [id](const auto& token) { return token.second == id; });
@@ -198,6 +191,7 @@ void Server::Tick() {
   ZoneScoped;
   const auto start = std::chrono::steady_clock::now();
   world_.Step(interval_);
+  SaveChanged();
   Broadcast();
   metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
   TracyPlot("players", static_cast<int64_t>(world_.players().size()));
@@ -205,6 +199,25 @@ void Server::Tick() {
   // From the last expiry, not from now, so that the ticks don't drift.
   timer_.expires_at(timer_.expiry() + interval_);
   timer_.async_wait([this](std::error_code) { Tick(); });
+}
+
+void Server::SaveChanged() {
+  ZoneScoped;
+  const auto start = std::chrono::steady_clock::now();
+  for (const auto& [id, player] : world_.players()) {
+    const Progress progress = ProgressOf(player);
+    Progress& saved = saved_[id];
+    if (progress == saved) {
+      continue;
+    }
+    const absl::Status status = players_.Save(id, progress);
+    if (!status.ok()) {
+      std::cerr << "couldn't save " << player.name << ": " << status << "\n";
+      continue;
+    }
+    saved = progress;
+  }
+  metrics_.ObserveSave(std::chrono::steady_clock::now() - start);
 }
 
 void Server::Broadcast() {

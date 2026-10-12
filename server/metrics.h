@@ -20,6 +20,8 @@ class Metrics {
 
   void ObserveTick(std::chrono::nanoseconds time);
 
+  void ObserveSave(std::chrono::nanoseconds time);
+
   void AddBytesSent(std::size_t bytes);
 
   void AddMessageReceived();
@@ -32,6 +34,7 @@ class Metrics {
   std::shared_ptr<prometheus::Registry> registry_;
   prometheus::Gauge& players_;
   prometheus::Histogram& tick_seconds_;
+  prometheus::Histogram& save_seconds_;
   prometheus::Counter& bytes_sent_;
   prometheus::Counter& messages_received_;
 };

@@ -30,8 +30,6 @@ class Server {
       asio::io_context& io, uint16_t port, std::chrono::nanoseconds interval,
       Metrics& metrics, Tokens& tokens, Players& players);
 
-  void SaveAll();
-
  private:
   Server(asio::io_context& io, std::chrono::nanoseconds interval,
          Metrics& metrics, Tokens& tokens, Players& players);
@@ -42,6 +40,7 @@ class Server {
   void Leave(uint32_t id);
   void Receive();
   void Tick();
+  void SaveChanged();
   void Broadcast();
   void SendTo(const asio::ip::udp::endpoint& client,
               std::shared_ptr<const std::string> part, std::string own);
@@ -59,6 +58,7 @@ class Server {
   std::map<uint32_t, std::shared_ptr<Session>> sessions_;
   std::map<std::string, uint32_t> udp_tokens_;
   std::map<uint32_t, asio::ip::udp::endpoint> udp_clients_;
+  std::map<uint32_t, Progress> saved_;
 };
 
 }  // namespace nanommo

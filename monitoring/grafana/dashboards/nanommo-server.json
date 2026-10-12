@@ -258,7 +258,7 @@
       "gridPos": {
         "x": 0,
         "y": 18,
-        "w": 24,
+        "w": 12,
         "h": 9
       },
       "fieldConfig": {
@@ -291,6 +291,68 @@
           "refId": "B",
           "expr": "histogram_quantile(0.99, sum by (le, transport) (rate(nanommo_bot_world_age_seconds_bucket[15s])))",
           "legendFormat": "p99 {{transport}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Saving players",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(nanommo_save_duration_seconds_bucket[15s])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(nanommo_save_duration_seconds_bucket[15s])))",
+          "legendFormat": "p99"
         }
       ]
     }
