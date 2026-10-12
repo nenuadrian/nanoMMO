@@ -24,6 +24,36 @@ absl::Status ReconnectIfLost(redisContext* context) {
   return absl::OkStatus();
 }
 
+using Reply = std::unique_ptr<redisReply, decltype(&freeReplyObject)>;
+
+void Append(redisContext* context, const std::vector<std::string>& words) {
+  // Each word goes with its length, so it can hold any bytes, spaces and all.
+  std::vector<const char*> argv;
+  std::vector<std::size_t> lengths;
+  for (const std::string& word : words) {
+    argv.push_back(word.data());
+    lengths.push_back(word.size());
+  }
+  redisAppendCommandArgv(context, static_cast<int>(argv.size()), argv.data(),
+                         lengths.data());
+}
+
+absl::StatusOr<Reply> NextReply(redisContext* context) {
+  void* reply = nullptr;
+  if (redisGetReply(context, &reply) != REDIS_OK) {
+    return absl::UnavailableError(
+        absl::StrCat("lost the connection to Redis: ", context->errstr));
+  }
+  return Reply(static_cast<redisReply*>(reply), freeReplyObject);
+}
+
+std::string Text(const redisReply& reply) {
+  if (reply.type == REDIS_REPLY_INTEGER) {
+    return absl::StrCat(reply.integer);
+  }
+  return reply.str != nullptr ? std::string(reply.str, reply.len) : "";
+}
+
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<Redis>> Redis::Create(const std::string& host,
@@ -49,22 +79,12 @@ absl::StatusOr<std::string> Redis::Command(
   if (!connected.ok()) {
     return connected;
   }
-  // Each word goes with its length, so it can hold any bytes, spaces and all.
-  std::vector<const char*> argv;
-  std::vector<std::size_t> lengths;
-  for (const std::string& word : words) {
-    argv.push_back(word.data());
-    lengths.push_back(word.size());
+  Append(context_, words);
+  const absl::StatusOr<Reply> reply_or = NextReply(context_);
+  if (!reply_or.ok()) {
+    return reply_or.status();
   }
-  const std::unique_ptr<redisReply, decltype(&freeReplyObject)> reply(
-      static_cast<redisReply*>(redisCommandArgv(context_,
-                                                static_cast<int>(argv.size()),
-                                                argv.data(), lengths.data())),
-      freeReplyObject);
-  if (!reply) {
-    return absl::UnavailableError(
-        absl::StrCat("lost the connection to Redis: ", context_->errstr));
-  }
+  const Reply& reply = *reply_or;
 
   switch (reply->type) {
     case REDIS_REPLY_NIL:
@@ -81,6 +101,43 @@ absl::StatusOr<std::string> Redis::Command(
       return absl::UnimplementedError(
           "Redis replied with a type we don't read");
   }
+}
+
+absl::StatusOr<std::vector<std::vector<std::string>>> Redis::Pipeline(
+    const std::vector<std::vector<std::string>>& commands) {
+  const absl::Status connected = ReconnectIfLost(context_);
+  if (!connected.ok()) {
+    return connected;
+  }
+  for (const std::vector<std::string>& words : commands) {
+    Append(context_, words);
+  }
+  std::vector<std::vector<std::string>> replies;
+  absl::Status error;
+  for (std::size_t i = 0; i < commands.size(); ++i) {
+    const absl::StatusOr<Reply> reply = NextReply(context_);
+    if (!reply.ok()) {
+      return reply.status();
+    }
+    if ((*reply)->type == REDIS_REPLY_ERROR) {
+      error.Update(absl::InternalError(absl::StrCat("Redis: ", Text(**reply))));
+      // We read on after an error, or the replies left over would come back
+      // as the replies to the next commands.
+      continue;
+    }
+    std::vector<std::string>& values = replies.emplace_back();
+    if ((*reply)->type == REDIS_REPLY_ARRAY) {
+      for (std::size_t j = 0; j < (*reply)->elements; ++j) {
+        values.push_back(Text(*(*reply)->element[j]));
+      }
+    } else if ((*reply)->type != REDIS_REPLY_NIL) {
+      values.push_back(Text(**reply));
+    }
+  }
+  if (!error.ok()) {
+    return error;
+  }
+  return replies;
 }
 
 }  // namespace nanommo

@@ -1,5 +1,6 @@
 #include "server/players.h"
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -7,6 +8,14 @@
 #include "absl/strings/str_cat.h"
 
 namespace nanommo {
+
+namespace {
+
+std::string Key(uint32_t account_id) {
+  return absl::StrCat("player:", account_id);
+}
+
+}  // namespace
 
 absl::StatusOr<Player> Players::Load(uint32_t account_id) {
   const absl::StatusOr<Result> result = database_.Run(
@@ -23,22 +32,32 @@ absl::StatusOr<Player> Players::Load(uint32_t account_id) {
   }
   const std::vector<std::string>& row = result->rows.front();
   Player player{.name = row[0]};
-  if (!absl::SimpleAtof(row[1], &player.x) ||
-      !absl::SimpleAtof(row[2], &player.z) ||
-      !absl::SimpleAtoi(row[3], &player.experience)) {
+  std::vector<std::string> saved(row.begin() + 1, row.end());
+
+  const absl::StatusOr<std::vector<std::vector<std::string>>> newer =
+      redis_.Pipeline({{"HMGET", Key(account_id), "x", "z", "experience"}});
+  if (!newer.ok()) {
+    return newer.status();
+  }
+  if (!newer->front()[0].empty()) {
+    saved = newer->front();
+  }
+  if (!absl::SimpleAtof(saved[0], &player.x) ||
+      !absl::SimpleAtof(saved[1], &player.z) ||
+      !absl::SimpleAtoi(saved[2], &player.experience)) {
     return absl::InternalError("a saved player that isn't numbers");
   }
   return player;
 }
 
-absl::Status Players::Save(uint32_t account_id, const Progress& progress) {
-  const absl::StatusOr<Result> result = database_.Run(
-      "INSERT INTO players (account_id, x, z, experience) "
-      "VALUES (?, ?, ?, ?) AS saved ON DUPLICATE KEY UPDATE "
-      "x = saved.x, z = saved.z, experience = saved.experience",
-      {std::to_string(account_id), std::to_string(progress.x),
-       std::to_string(progress.z), std::to_string(progress.experience)});
-  return result.status();
+absl::Status Players::Save(const std::map<uint32_t, Progress>& changed) {
+  std::vector<std::vector<std::string>> commands;
+  for (const auto& [id, progress] : changed) {
+    commands.push_back({"HSET", Key(id), "x", absl::StrCat(progress.x), "z",
+                        absl::StrCat(progress.z), "experience",
+                        absl::StrCat(progress.experience)});
+  }
+  return redis_.Pipeline(commands).status();
 }
 
 }  // namespace nanommo

@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
   }
   const std::unique_ptr<nanommo::Redis> redis = *std::move(redis_or);
   nanommo::Tokens tokens(*redis);
-  nanommo::Players players(*database);
+  nanommo::Players players(*database, *redis);
 
   asio::io_context io;
   absl::StatusOr<std::unique_ptr<nanommo::Server>> server_or =

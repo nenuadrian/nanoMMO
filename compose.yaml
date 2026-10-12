@@ -20,6 +20,9 @@ services:
 
   redis:
     image: redis:8.8.3
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis:/data
     ports:
       - "6379:6379"
     healthcheck:
@@ -138,3 +141,4 @@ services:
 
 volumes:
   mysql:
+  redis:

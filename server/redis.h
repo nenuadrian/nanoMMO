@@ -25,6 +25,11 @@ class Redis {
   /// command that loses the connection fails, and the next one reconnects.
   absl::StatusOr<std::string> Command(const std::vector<std::string>& words);
 
+  /// Sends all the commands before reading any reply, so they share a single
+  /// round trip. Each reply comes back as a list of values, empty for nil.
+  absl::StatusOr<std::vector<std::vector<std::string>>> Pipeline(
+      const std::vector<std::vector<std::string>>& commands);
+
  private:
   explicit Redis(redisContext* context) : context_(context) {}
 

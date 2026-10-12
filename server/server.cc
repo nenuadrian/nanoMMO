@@ -2,6 +2,7 @@
 
 #include <array>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <random>
 #include <string>
@@ -204,18 +205,21 @@ void Server::Tick() {
 void Server::SaveChanged() {
   ZoneScoped;
   const auto start = std::chrono::steady_clock::now();
+  std::map<uint32_t, Progress> changed;
   for (const auto& [id, player] : world_.players()) {
     const Progress progress = ProgressOf(player);
-    Progress& saved = saved_[id];
-    if (progress == saved) {
-      continue;
+    if (progress != saved_[id]) {
+      changed[id] = progress;
     }
-    const absl::Status status = players_.Save(id, progress);
-    if (!status.ok()) {
-      std::cerr << "couldn't save " << player.name << ": " << status << "\n";
-      continue;
+  }
+  const absl::Status status = players_.Save(changed);
+  if (status.ok()) {
+    for (const auto& [id, progress] : changed) {
+      saved_[id] = progress;
     }
-    saved = progress;
+  } else {
+    std::cerr << "couldn't save " << changed.size() << " players: " << status
+              << "\n";
   }
   metrics_.ObserveSave(std::chrono::steady_clock::now() - start);
 }
