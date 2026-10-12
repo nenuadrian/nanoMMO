@@ -3,7 +3,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       build-essential cmake ninja-build ca-certificates doxygen pkg-config \
       xorg-dev libgl1-mesa-dev xvfb xauth libgl1-mesa-dri \
-      libmysqlclient-dev libsodium-dev \
+      libmysqlclient-dev libsodium-dev libssl-dev openssl \
  && rm -rf /var/lib/apt/lists/*
 
 FROM toolchain AS build

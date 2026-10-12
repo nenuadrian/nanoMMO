@@ -91,18 +91,22 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(hiredis)
 
 find_package(PkgConfig REQUIRED)
-# Homebrew keeps mysql-client out of the places pkg-config looks in.
+# Homebrew keeps mysql-client and OpenSSL out of the places pkg-config and
+# CMake look in.
 if(APPLE)
-  execute_process(
-    COMMAND brew --prefix mysql-client
-    OUTPUT_VARIABLE mysql_client_prefix
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-  )
-  list(APPEND CMAKE_PREFIX_PATH ${mysql_client_prefix})
+  foreach(package mysql-client openssl@3)
+    execute_process(
+      COMMAND brew --prefix ${package}
+      OUTPUT_VARIABLE prefix
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_QUIET
+    )
+    list(APPEND CMAKE_PREFIX_PATH ${prefix})
+  endforeach()
 endif()
 pkg_check_modules(mysqlclient REQUIRED IMPORTED_TARGET mysqlclient)
 pkg_check_modules(sodium REQUIRED IMPORTED_TARGET libsodium)
+find_package(OpenSSL 3 REQUIRED)
 
 add_library(imgui
   ${imgui_SOURCE_DIR}/imgui.cpp
