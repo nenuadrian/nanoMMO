@@ -13,7 +13,7 @@ if [ -f server.crt ]; then
   exit 0
 fi
 
-names="DNS:localhost, IP:127.0.0.1"
+names="DNS:localhost, IP:127.0.0.1, DNS:login, DNS:server"
 for name in "$@"; do
   names="$names, DNS:$name"
 done
