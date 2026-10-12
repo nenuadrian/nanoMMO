@@ -123,6 +123,7 @@ target_compile_options(imgui PRIVATE -w)
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 add_subdirectory(protocol)
+add_subdirectory(terrain)
 add_subdirectory(server)
 add_subdirectory(bot)
 add_subdirectory(client)
@@ -149,5 +150,5 @@ if(DOXYGEN_FOUND)
     ${doxygen_awesome_SOURCE_DIR}/doxygen-awesome.css
     ${doxygen_awesome_SOURCE_DIR}/doxygen-awesome-sidebar-only.css
   )
-  doxygen_add_docs(docs README.md protocol server bot client)
+  doxygen_add_docs(docs README.md protocol terrain server bot client)
 endif()
