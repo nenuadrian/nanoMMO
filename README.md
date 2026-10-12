@@ -47,13 +47,15 @@ The client opens on a login screen: type a name and a password, then Create acco
 and Log in after that. It connects to `localhost`, or to the host you give it
 (`./build/bin/nanommo_client 192.168.1.20`). It gets the world over UDP, unless you put `tcp` after the
 host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP](#packet-loss-tcp-and-udp).
-Each player is an animated character with a sword, on a board of tiles, with its level, name and
-health over it, or a cube until you've made the characters (see below). Three skeletons wander
-around the board. W, A, S and D, or the arrow keys, move yours, which has a white marker over it,
-Shift makes it run, and Space swings the sword. The frame in the top left corner shows your health,
-and your experience towards the next level.
-View, Settings changes the background, and Game, Log out takes you back to the login screen. Next
-time you log in, you're where you left off.
+Each player is an animated character with a sword, on an island of hills and beaches, with
+its level, name and health over it, or a cube until you've made the characters (see below).
+Skeletons wander around the middle, and in camps around the island. W, A, S and D, or the arrow
+keys, move yours, which has a white marker over it, Shift makes it run, and Space swings the sword.
+The camera follows you: Q and E, or dragging with the right mouse button, turn it around you, and
+the mouse wheel zooms in and out. W always walks away from the camera. The frame in the top left
+corner shows your health, and your experience towards the next level.
+View, Settings changes the sky, which is the colour of the fog too, and Game, Log out takes you
+back to the login screen. Next time you log in, you're where you left off.
 
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
 it, and all sides use the C++ it generates.
@@ -93,6 +95,37 @@ at 1.8 and 3.1 metres a second, the speeds of the walk and the run, so that the 
 The client blends from one clip into the next over a quarter of a second, and smooths each player's
 position between the server's ticks.
 
+## The world
+
+The island comes from a seed, a number: the game server's `NANOMMO_WORLD_SEED`, 1 by default. The
+server sends it to each client with the client's own id, and both make the same island from it, in
+`terrain/`, so the island itself never goes over the network.
+
+- The ground is a grid of cells two metres across, 256 of them along each side, so 512 metres, with
+  two triangles in each cell. Each corner's height is value noise: a random number at each whole
+  number, from a hash of the seed and the point, and smooth between them. Five octaves of it, each
+  twice as fine and half as strong as the one before, make the hills, and four more, larger, make
+  the mountains. Towards the edge, the land sinks into the sea, and in the middle, where the players
+  start, it's gentle and above the sea.
+- A player stands on the triangles, as the client draws them, not on the noise between the corners.
+- The server lets players and monsters walk anywhere on the island, and into the sea up to their
+  knees, 40 centimetres. Running into the sea, they slide along whichever way they still can. A
+  player saved somewhere that's sea now starts in the middle.
+
+The server and the clients have to make the same heights to the last bit: the server decides where
+the sea stops a player, and the client draws the ground they stand on. Compilers for Arm, and for x86
+with `-march` options that have FMA, fuse a multiply and an add into one instruction, which rounds
+once instead of twice, so the same code would make a slightly different island on a Mac than on an
+x86 server. `terrain/CMakeLists.txt` turns that off with `-ffp-contract=off`, and the noise uses
+no `std::sin` or `std::pow`, whose results differ between standard libraries. The terrain test pins a
+fingerprint of the whole island's heights, so a machine that makes another island fails it.
+
+The client colours each face by its height and slope: sand on the beaches, grass, rock on steep
+slopes and the high ground, and snow on the peaks, each face a little lighter or darker than its
+neighbours. The triangles share no corners, so each has the normal of its face, and the light shades
+each face flat. The sea is one square, at sea level, the island's colour showing through it near
+the shore. Fog fades things into the sky from 50 metres, and hides them at 140.
+
 ## Monsters, health and levels
 
 The monsters are Quaternius's skeleton, from [Poly Pizza](https://poly.pizza/m/wODZYCgX5Z). It's
@@ -103,9 +136,12 @@ run, played at 0.4 of its speed, which puts the feet at the walking speed. It re
 from the file's inverse bind matrices, as raylib binds the mesh to where the bones rest, and the
 skeleton's arms rest about 70 degrees from where its mesh was bound.
 
-The server spawns three skeletons, and runs their AI each tick: a monster rests for two to six
-seconds, walks to a random place within three metres of where it spawned, at 1.8 metres a second,
-and rests again. The world's random generator takes a seed, so the tests pick theirs.
+The server spawns three skeletons around the middle of the island, and up to three more at each of
+eight camps, which the world's seed places between the beach and the rock, at least thirty metres
+from the middle. It runs their AI each tick: a monster rests for two to six seconds, walks to a
+random place within three metres of where it spawned, at 1.8 metres a second, and rests again. If
+the sea stops it, it rests, and picks another place. The world's random generator takes a seed, so
+the tests pick theirs.
 
 ## Fighting
 
@@ -117,14 +153,14 @@ and again. All of it happens on the server: the client only says that Space is d
 
 A monster goes for the nearest living player within three metres of it, if that player is within
 four metres of the monster's home. Each skeleton's home is further than that from the middle of the
-board, so the middle, where players start and come back, is safe. A monster runs at them at the
+island, so the middle, where players start and come back, is safe. A monster runs at them at the
 players' running speed, and swings once it's within 1.2 metres. The skeleton's swing takes 0.9 seconds, its attack animation, and hits for five,
 0.65 seconds in. Run, or die, and it gives up and wanders back.
 
 A monster with no health left dies, and whoever killed it gets its experience, fifty for a skeleton.
 Going up a level fills your health, to the new level's most. A player with no health left dies. The
 dead play their death animation, lie there for ten seconds, and come back: a monster where it
-spawned, and a player in the middle of the board, both at full health.
+spawned, and a player in the middle of the island, both at full health.
 
 Players and monsters have a level and health, which everyone sees. A player's experience is its own:
 the server works out its level, and sends its experience into the level, and what the next level
