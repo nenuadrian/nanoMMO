@@ -29,6 +29,10 @@ add_executable(nanommo_client main.cc)
 target_link_libraries(nanommo_client PRIVATE nanommo_client_core)
 add_dependencies(nanommo_client nanommo_client_assets)
 
+add_executable(nanommo_client_bench bench_main.cc)
+target_link_libraries(nanommo_client_bench PRIVATE nanommo_client_core)
+add_dependencies(nanommo_client_bench nanommo_client_assets)
+
 add_executable(nanommo_client_tests
   renderer_test.cc animator_test.cc characters_test.cc
 )

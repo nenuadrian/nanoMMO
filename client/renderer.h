@@ -49,6 +49,14 @@ class Renderer {
 
   void set_cubes(std::vector<Cube> cubes) { cubes_ = std::move(cubes); }
 
+  /// What the last Draw asked the GPU for: the terrain, the trees and the
+  /// sea.
+  struct Work {
+    int draws = 0;
+    int triangles = 0;
+  };
+  const Work& work() const { return work_; }
+
   const std::vector<Figure>& figures() const { return figures_; }
   void set_figures(std::vector<Figure> figures) {
     figures_ = std::move(figures);
@@ -56,11 +64,15 @@ class Renderer {
 
  private:
   void UnloadTerrain();
+  void DrawCounted(const Mesh& mesh, const Material& material,
+                   const Matrix& transform) const;
 
   std::array<float, 3> background_ = {0.62f, 0.78f, 0.9f};
   Camera3D camera_ = GameCamera();
   std::vector<Cube> cubes_;
   std::vector<Figure> figures_;
+  // Draw is const, as drawing doesn't change what we draw, but it counts.
+  mutable Work work_;
 
   Shader cube_shader_;
   Shader character_shader_;

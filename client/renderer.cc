@@ -129,6 +129,7 @@ void Renderer::set_terrain(const Terrain& terrain) {
   // The ground and the sea have no bones either.
   ground_->materials[0].shader = cube_shader_;
   sea_->materials[0].shader = cube_shader_;
+  sea_->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = kSea;
   trees_.clear();
   for (const Tree& tree : terrain.trees()) {
     trees_.push_back(TreeTransform(tree, terrain));
@@ -144,17 +145,25 @@ void Renderer::UnloadTerrain() {
   }
 }
 
+void Renderer::DrawCounted(const Mesh& mesh, const Material& material,
+                           const Matrix& transform) const {
+  DrawMesh(mesh, material, transform);
+  ++work_.draws;
+  work_.triangles += mesh.triangleCount;
+}
+
 void Renderer::Draw() const {
+  work_ = {};
   Clear();
   SetFog(cube_shader_, background_);
   SetFog(character_shader_, background_);
   BeginMode3D(camera_);
   if (ground_) {
-    DrawModel(*ground_, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
+    DrawCounted(ground_->meshes[0], ground_->materials[0], MatrixIdentity());
   }
   if (tree_) {
     for (const Matrix& tree : trees_) {
-      DrawMesh(tree_->meshes[0], tree_->materials[0], tree);
+      DrawCounted(tree_->meshes[0], tree_->materials[0], tree);
     }
   }
   for (const Cube& cube : cubes_) {
@@ -179,7 +188,8 @@ void Renderer::Draw() const {
   }
   // Last, as we see the ground under it through the water.
   if (sea_) {
-    DrawModel(*sea_, {0.0f, Terrain::kSeaLevel, 0.0f}, 1.0f, kSea);
+    DrawCounted(sea_->meshes[0], sea_->materials[0],
+                MatrixTranslate(0.0f, Terrain::kSeaLevel, 0.0f));
   }
   EndMode3D();
 }
