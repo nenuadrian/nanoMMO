@@ -18,6 +18,11 @@ namespace nanommo {
 
 class Renderer {
  public:
+  /// In metres from the camera: the fog starts at the first, and hides
+  /// everything past the second.
+  static constexpr float kFogNear = 50.0f;
+  static constexpr float kFogFar = 140.0f;
+
   Renderer();
   ~Renderer();
 
@@ -51,7 +56,7 @@ class Renderer {
  private:
   void UnloadTerrain();
 
-  std::array<float, 3> background_ = {0.07f, 0.08f, 0.12f};
+  std::array<float, 3> background_ = {0.62f, 0.78f, 0.9f};
   Camera3D camera_ = GameCamera();
   std::vector<Cube> cubes_;
   std::vector<Figure> figures_;

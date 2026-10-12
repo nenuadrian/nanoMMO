@@ -1,6 +1,22 @@
 #include "client/input.h"
 
+#include <imgui.h>
+
+#include <numbers>
+
 namespace nanommo {
+
+namespace {
+
+// Half a turn a second.
+constexpr float kTurnSpeed = std::numbers::pi_v<float>;
+
+// For each pixel the mouse moves.
+constexpr float kDragTurn = 0.005f;
+
+constexpr float kZoomStep = 0.1f;
+
+}  // namespace
 
 Vector3 Movement() {
   const auto down = [](int key, int arrow) {
@@ -28,5 +44,28 @@ bool Running() {
 }
 
 bool Attacking() { return IsKeyDown(KEY_SPACE); }
+
+float CameraTurn(float seconds) {
+  float turn = 0.0f;
+  if (IsKeyDown(KEY_Q)) {
+    turn += kTurnSpeed * seconds;
+  }
+  if (IsKeyDown(KEY_E)) {
+    turn -= kTurnSpeed * seconds;
+  }
+  // The mouse is the GUI's while it's over one of its windows.
+  if (!ImGui::GetIO().WantCaptureMouse &&
+      IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+    turn -= GetMouseDelta().x * kDragTurn;
+  }
+  return turn;
+}
+
+float CameraZoom() {
+  if (ImGui::GetIO().WantCaptureMouse) {
+    return 0.0f;
+  }
+  return GetMouseWheelMove() * kZoomStep;
+}
 
 }  // namespace nanommo

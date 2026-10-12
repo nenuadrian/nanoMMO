@@ -15,7 +15,8 @@ struct Preset {
   std::array<float, 3> color;
 };
 
-constexpr std::array<Preset, 4> kPresets = {{
+constexpr std::array<Preset, 5> kPresets = {{
+    {"Day", {0.62f, 0.78f, 0.9f}},
     {"Night", {0.07f, 0.08f, 0.12f}},
     {"Dusk", {0.25f, 0.13f, 0.31f}},
     {"Forest", {0.07f, 0.21f, 0.13f}},

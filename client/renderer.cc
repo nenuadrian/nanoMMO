@@ -1,5 +1,7 @@
 #include "client/renderer.h"
 
+#include <array>
+
 #include "client/ground.h"
 #include "client/scene.h"
 
@@ -13,8 +15,11 @@ in vec3 vertexNormal;
 in vec4 vertexColor;
 uniform mat4 mvp;
 uniform mat4 matNormal;
+uniform float fogNear;
+uniform float fogFar;
 out float light;
 out vec4 color;
+out float fog;
 
 void main() {
   vec3 normal = normalize(mat3(matNormal) * vertexNormal);
@@ -22,6 +27,7 @@ void main() {
   light = 0.55 + 0.45 * max(dot(normal, sun), 0.0);
   color = vertexColor;
   gl_Position = mvp * vec4(vertexPosition, 1.0);
+  fog = clamp((gl_Position.w - fogNear) / (fogFar - fogNear), 0.0, 1.0);
 }
 )";
 
@@ -34,8 +40,11 @@ in vec4 vertexColor;
 uniform mat4 mvp;
 uniform mat4 matNormal;
 uniform mat4 boneMatrices[128];
+uniform float fogNear;
+uniform float fogFar;
 out float light;
 out vec4 color;
+out float fog;
 
 void main() {
   mat4 skin = boneMatrices[int(vertexBoneIndices.x)] * vertexBoneWeights.x
@@ -47,19 +56,33 @@ void main() {
   light = 0.55 + 0.45 * max(dot(normal, sun), 0.0);
   color = vertexColor;
   gl_Position = mvp * skin * vec4(vertexPosition, 1.0);
+  fog = clamp((gl_Position.w - fogNear) / (fogFar - fogNear), 0.0, 1.0);
 }
 )";
 
 constexpr const char* kFragmentShader = R"(#version 330
 in float light;
 in vec4 color;
+in float fog;
 uniform vec4 colDiffuse;
+uniform vec3 fogColor;
 out vec4 pixel;
 
 void main() {
-  pixel = vec4(colDiffuse.rgb * color.rgb * light, colDiffuse.a * color.a);
+  vec3 lit = colDiffuse.rgb * color.rgb * light;
+  pixel = vec4(mix(lit, fogColor, fog), colDiffuse.a * color.a);
 }
 )";
+
+// Into the background's colour, so that far away things fade into the sky.
+void SetFog(Shader shader, const std::array<float, 3>& color) {
+  SetShaderValue(shader, GetShaderLocation(shader, "fogColor"), color.data(),
+                 SHADER_UNIFORM_VEC3);
+  SetShaderValue(shader, GetShaderLocation(shader, "fogNear"),
+                 &Renderer::kFogNear, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(shader, GetShaderLocation(shader, "fogFar"),
+                 &Renderer::kFogFar, SHADER_UNIFORM_FLOAT);
+}
 
 }  // namespace
 
@@ -104,6 +127,8 @@ void Renderer::UnloadTerrain() {
 
 void Renderer::Draw() const {
   Clear();
+  SetFog(cube_shader_, background_);
+  SetFog(character_shader_, background_);
   BeginMode3D(camera_);
   if (ground_) {
     DrawModel(*ground_, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);

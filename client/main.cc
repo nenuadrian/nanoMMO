@@ -1,5 +1,6 @@
 #include <raylib.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -12,6 +13,7 @@
 #include "absl/strings/str_cat.h"
 #include "asio/ssl/context.hpp"
 #include "client/animator.h"
+#include "client/camera.h"
 #include "client/connection.h"
 #include "client/gui.h"
 #include "client/input.h"
@@ -83,6 +85,7 @@ int main(int argc, char* argv[]) {
   nanommo::Renderer renderer;
   nanommo::Animator animator;
   std::optional<nanommo::Terrain> terrain;
+  nanommo::FollowCamera camera;
 
   std::unique_ptr<nanommo::Connection> connection;
   nanommo::protocol::Input sent;
@@ -98,7 +101,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (connection) {
-      const Vector3 direction = nanommo::Movement();
+      const Vector3 direction = camera.Relative(nanommo::Movement());
       const bool run = nanommo::Running();
       const bool attack = nanommo::Attacking();
       if (direction.x != sent.x() || direction.z != sent.z() ||
@@ -125,6 +128,12 @@ int main(int argc, char* argv[]) {
       for (nanommo::Figure& figure : figures) {
         figure.position.y =
             terrain->Height(figure.position.x, figure.position.z);
+      }
+      const auto you = std::ranges::find_if(figures, &nanommo::Figure::you);
+      if (you != figures.end()) {
+        camera.Update(you->position, nanommo::CameraTurn(GetFrameTime()),
+                      nanommo::CameraZoom(), *terrain);
+        renderer.set_camera(camera.camera());
       }
       renderer.set_figures(std::move(figures));
     }
