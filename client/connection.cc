@@ -8,15 +8,17 @@
 #include "absl/strings/str_cat.h"
 #include "asio/buffer.hpp"
 #include "asio/connect.hpp"
+#include "asio/ssl/host_name_verification.hpp"
+#include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
 
 namespace nanommo {
 
 absl::StatusOr<std::unique_ptr<Connection>> Connection::Create(
-    const std::string& host, uint16_t port, const std::string& token,
-    bool udp) {
+    const std::string& host, uint16_t port, asio::ssl::context& tls,
+    const std::string& token, bool udp) {
   std::unique_ptr<Connection> connection =
-      absl::WrapUnique(new Connection(token));
+      absl::WrapUnique(new Connection(tls, token));
   const absl::Status started = connection->Start(host, port, token, udp);
   if (!started.ok()) {
     return started;
@@ -24,8 +26,8 @@ absl::StatusOr<std::unique_ptr<Connection>> Connection::Create(
   return connection;
 }
 
-Connection::Connection(const std::string& token)
-    : socket_(io_), udp_socket_(io_), hello_timer_(io_), token_(token) {}
+Connection::Connection(asio::ssl::context& tls, const std::string& token)
+    : stream_(io_, tls), udp_socket_(io_), hello_timer_(io_), token_(token) {}
 
 absl::Status Connection::Start(const std::string& host, uint16_t port,
                                const std::string& token, bool udp) {
@@ -34,24 +36,31 @@ absl::Status Connection::Start(const std::string& host, uint16_t port,
   const asio::ip::tcp::resolver::results_type endpoints =
       resolver.resolve(host, std::to_string(port), error);
   if (!error) {
-    asio::connect(socket_, endpoints, error);
+    asio::connect(stream_.lowest_layer(), endpoints, error);
   }
   if (error) {
     return absl::UnavailableError(absl::StrCat(
         "couldn't connect to ", host, ":", port, ": ", error.message()));
   }
   std::error_code ignored;
-  socket_.set_option(asio::ip::tcp::no_delay(true), ignored);
+  stream_.lowest_layer().set_option(asio::ip::tcp::no_delay(true), ignored);
+  stream_.set_verify_callback(asio::ssl::host_name_verification(host));
+  stream_.handshake(asio::ssl::stream_base::client, error);
+  if (error) {
+    return absl::UnavailableError(absl::StrCat(
+        "couldn't shake hands with the server: ", error.message()));
+  }
   protocol::Hello hello;
   hello.set_token(token);
-  asio::write(socket_, asio::buffer(Frame(hello)), error);
+  asio::write(stream_, asio::buffer(Frame(hello)), error);
   if (error) {
     return absl::UnavailableError(
         absl::StrCat("couldn't say hello to the server: ", error.message()));
   }
   Read();
   if (udp) {
-    const asio::ip::tcp::endpoint server = socket_.remote_endpoint(error);
+    const asio::ip::tcp::endpoint server =
+        stream_.lowest_layer().remote_endpoint(error);
     if (!error) {
       udp_socket_.connect({server.address(), server.port()}, error);
     }
@@ -72,14 +81,14 @@ void Connection::Send(const protocol::Input& input) {
     return;
   }
   std::error_code error;
-  asio::write(socket_, asio::buffer(Frame(input)), error);
+  asio::write(stream_, asio::buffer(Frame(input)), error);
   if (error) {
     connected_ = false;
   }
 }
 
 void Connection::Read() {
-  socket_.async_read_some(asio::buffer(buffer_),
+  stream_.async_read_some(asio::buffer(buffer_),
                           [this](std::error_code error, std::size_t size) {
                             if (error) {
                               connected_ = false;

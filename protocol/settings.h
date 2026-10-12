@@ -1,5 +1,5 @@
-#ifndef NANOMMO_SERVER_SETTINGS_H_
-#define NANOMMO_SERVER_SETTINGS_H_
+#ifndef NANOMMO_PROTOCOL_SETTINGS_H_
+#define NANOMMO_PROTOCOL_SETTINGS_H_
 
 #include <cstdlib>
 #include <string>
@@ -13,4 +13,4 @@ inline std::string Setting(const char* name, const std::string& fallback) {
 
 }  // namespace nanommo
 
-#endif  // NANOMMO_SERVER_SETTINGS_H_
+#endif  // NANOMMO_PROTOCOL_SETTINGS_H_

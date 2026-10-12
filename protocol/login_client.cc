@@ -10,25 +10,32 @@
 #include "asio/connect.hpp"
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
+#include "asio/ssl/host_name_verification.hpp"
+#include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
 #include "protocol/framing.h"
+#include "protocol/tls.h"
 
 namespace nanommo {
 
 absl::StatusOr<protocol::LoginReply> LogIn(
-    const std::string& host, uint16_t port,
+    const std::string& host, uint16_t port, asio::ssl::context& tls,
     const protocol::LoginRequest& request) {
   asio::io_context io;
-  asio::ip::tcp::socket socket(io);
+  TlsStream stream(io, tls);
   asio::ip::tcp::resolver resolver(io);
   std::error_code error;
   const asio::ip::tcp::resolver::results_type endpoints =
       resolver.resolve(host, std::to_string(port), error);
   if (!error) {
-    asio::connect(socket, endpoints, error);
+    asio::connect(stream.lowest_layer(), endpoints, error);
   }
   if (!error) {
-    asio::write(socket, asio::buffer(Frame(request)), error);
+    stream.set_verify_callback(asio::ssl::host_name_verification(host));
+    stream.handshake(asio::ssl::stream_base::client, error);
+  }
+  if (!error) {
+    asio::write(stream, asio::buffer(Frame(request)), error);
   }
 
   FrameReader reader;
@@ -44,7 +51,7 @@ absl::StatusOr<protocol::LoginReply> LogIn(
     if (!reader.status().ok()) {
       return reader.status();
     }
-    const std::size_t size = socket.read_some(asio::buffer(buffer), error);
+    const std::size_t size = stream.read_some(asio::buffer(buffer), error);
     reader.Append({buffer.data(), size});
   }
   return absl::UnavailableError(

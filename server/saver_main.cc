@@ -10,10 +10,10 @@
 #include "asio/io_context.hpp"
 #include "asio/signal_set.hpp"
 #include "asio/steady_timer.hpp"
+#include "protocol/settings.h"
 #include "server/database.h"
 #include "server/players.h"
 #include "server/redis.h"
-#include "server/settings.h"
 
 namespace {
 

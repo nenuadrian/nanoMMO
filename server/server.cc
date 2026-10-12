@@ -54,10 +54,11 @@ Progress ProgressOf(const Player& player) {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<Server>> Server::Create(
-    asio::io_context& io, uint16_t port, std::chrono::nanoseconds interval,
-    Metrics& metrics, Tokens& tokens, Players& players) {
+    asio::io_context& io, uint16_t port, asio::ssl::context& tls,
+    std::chrono::nanoseconds interval, Metrics& metrics, Tokens& tokens,
+    Players& players) {
   std::unique_ptr<Server> server =
-      absl::WrapUnique(new Server(io, interval, metrics, tokens, players));
+      absl::WrapUnique(new Server(io, tls, interval, metrics, tokens, players));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -65,9 +66,11 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
   return server;
 }
 
-Server::Server(asio::io_context& io, std::chrono::nanoseconds interval,
-               Metrics& metrics, Tokens& tokens, Players& players)
+Server::Server(asio::io_context& io, asio::ssl::context& tls,
+               std::chrono::nanoseconds interval, Metrics& metrics,
+               Tokens& tokens, Players& players)
     : acceptor_(io),
+      tls_(tls),
       udp_(io),
       timer_(io),
       interval_(interval),
@@ -124,9 +127,8 @@ void Server::Accept() {
           Leave(*id);
         }
       };
-      auto session =
-          std::make_shared<Session>(std::move(socket), on_message, on_close);
-      session->Start();
+      std::make_shared<Session>(std::move(socket), tls_, on_message, on_close)
+          ->Start();
     }
     Accept();
   });

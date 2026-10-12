@@ -18,7 +18,7 @@ RUN xvfb-run --auto-servernum ctest --test-dir build --output-on-failure
 
 FROM ubuntu:24.04 AS runtime
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libmysqlclient21 libsodium23 \
+ && apt-get install -y --no-install-recommends libmysqlclient21 libsodium23 libssl3t64 \
  && rm -rf /var/lib/apt/lists/*
 
 FROM runtime AS server
@@ -39,9 +39,19 @@ USER ubuntu
 ENTRYPOINT ["nanommo_saver"]
 
 FROM ubuntu:24.04 AS bot
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libssl3t64 \
+ && rm -rf /var/lib/apt/lists/*
 COPY --from=test /src/build/bin/nanommo_bot /usr/local/bin/
 USER ubuntu
 ENTRYPOINT ["nanommo_bot"]
+
+FROM ubuntu:24.04 AS certificates
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl \
+ && rm -rf /var/lib/apt/lists/*
+COPY tls/certificates.sh /usr/local/bin/
+ENTRYPOINT ["certificates.sh"]
 
 FROM ubuntu:24.04 AS netem
 RUN apt-get update \

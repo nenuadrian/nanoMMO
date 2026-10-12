@@ -11,14 +11,16 @@
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
 #include "asio/ip/udp.hpp"
+#include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
 #include "protocol/framing.h"
+#include "protocol/tls.h"
 
 namespace nanommo {
 
 class Bot {
  public:
-  Bot(asio::io_context& io, uint32_t seed, bool udp);
+  Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp);
 
   Bot(const Bot&) = delete;
   Bot& operator=(const Bot&) = delete;
@@ -31,6 +33,7 @@ class Bot {
   const std::vector<int64_t>& newest() const { return newest_; }
 
  private:
+  void Greet(const std::string& token, std::error_code error);
   void Read();
   void HelloOverUdp();
   void ReceiveOverUdp();
@@ -38,7 +41,7 @@ class Bot {
   void Wander();
   void Stop();
 
-  asio::ip::tcp::socket socket_;
+  TlsStream stream_;
   asio::ip::udp::socket udp_socket_;
   asio::steady_timer timer_;
   asio::steady_timer hello_timer_;

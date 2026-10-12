@@ -8,6 +8,7 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "asio/ssl/context.hpp"
 #include "client/animator.h"
 #include "client/connection.h"
 #include "client/gui.h"
@@ -20,6 +21,8 @@
 #include "client/scene.h"
 #include "client/window.h"
 #include "protocol/login_client.h"
+#include "protocol/settings.h"
+#include "protocol/tls.h"
 
 namespace {
 
@@ -27,11 +30,11 @@ constexpr uint16_t kGamePort = 7777;
 constexpr uint16_t kLoginPort = 7778;
 
 std::unique_ptr<nanommo::Connection> Enter(
-    const std::string& host, bool udp,
+    const std::string& host, bool udp, asio::ssl::context& tls,
     const nanommo::protocol::LoginRequest& request,
     nanommo::LoginScreen& screen) {
   absl::StatusOr<nanommo::protocol::LoginReply> reply_or =
-      nanommo::LogIn(host, kLoginPort, request);
+      nanommo::LogIn(host, kLoginPort, tls, request);
   if (!reply_or.ok()) {
     screen.ShowError(absl::StrCat("Couldn't reach the server: ",
                                   reply_or.status().message()));
@@ -44,7 +47,7 @@ std::unique_ptr<nanommo::Connection> Enter(
   }
   std::cout << "nanommo client: logged in as " << request.username() << '\n';
   absl::StatusOr<std::unique_ptr<nanommo::Connection>> connection_or =
-      nanommo::Connection::Create(host, kGamePort, reply.token(), udp);
+      nanommo::Connection::Create(host, kGamePort, tls, reply.token(), udp);
   if (!connection_or.ok()) {
     screen.ShowError(absl::StrCat("Couldn't reach the server: ",
                                   connection_or.status().message()));
@@ -58,6 +61,12 @@ std::unique_ptr<nanommo::Connection> Enter(
 int main(int argc, char* argv[]) {
   const std::string host = argc > 1 ? argv[1] : "localhost";
   const std::string transport = argc > 2 ? argv[2] : "udp";
+  absl::StatusOr<asio::ssl::context> tls =
+      nanommo::ClientTls(nanommo::Setting("NANOMMO_TLS_CA", "tls/ca.crt"));
+  if (!tls.ok()) {
+    std::cerr << "nanommo client: " << tls.status() << "\n";
+    return 1;
+  }
 
   absl::StatusOr<std::unique_ptr<nanommo::Window>> window_or =
       nanommo::Window::Create("nanoMMO", 1280, 720);
@@ -122,7 +131,8 @@ int main(int argc, char* argv[]) {
         connection.reset();
       }
     } else if (const auto request = login_screen.Build()) {
-      connection = Enter(host, transport == "udp", *request, login_screen);
+      connection =
+          Enter(host, transport == "udp", *tls, *request, login_screen);
       sent.Clear();
       online = 0;
     }

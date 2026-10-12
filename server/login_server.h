@@ -8,6 +8,7 @@
 #include "absl/status/statusor.h"
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
+#include "asio/ssl/context.hpp"
 #include "protocol/nanommo.pb.h"
 #include "server/accounts.h"
 #include "server/tokens.h"
@@ -22,17 +23,21 @@ absl::StatusOr<protocol::LoginReply> HandleLogin(
 
 class LoginServer {
  public:
-  /// Starts listening on the port, or returns why it couldn't.
+  /// Starts listening on the port, or returns why it couldn't. Each client
+  /// talks to it over TLS, with the context.
   static absl::StatusOr<std::unique_ptr<LoginServer>> Create(
-      asio::io_context& io, uint16_t port, Accounts& accounts, Tokens& tokens);
+      asio::io_context& io, uint16_t port, asio::ssl::context& tls,
+      Accounts& accounts, Tokens& tokens);
 
  private:
-  LoginServer(asio::io_context& io, Accounts& accounts, Tokens& tokens);
+  LoginServer(asio::io_context& io, asio::ssl::context& tls, Accounts& accounts,
+              Tokens& tokens);
 
   absl::Status Start(uint16_t port);
   void Accept();
 
   asio::ip::tcp::acceptor acceptor_;
+  asio::ssl::context& tls_;
   Accounts& accounts_;
   Tokens& tokens_;
 };

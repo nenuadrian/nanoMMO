@@ -8,7 +8,9 @@
 #include <string>
 
 #include "asio/ip/tcp.hpp"
+#include "asio/ssl/context.hpp"
 #include "protocol/framing.h"
+#include "protocol/tls.h"
 
 namespace nanommo {
 
@@ -17,8 +19,10 @@ class Session : public std::enable_shared_from_this<Session> {
   using OnMessage = std::function<void(Session&, const std::string&)>;
   using OnClose = std::function<void()>;
 
-  Session(asio::ip::tcp::socket socket, OnMessage on_message, OnClose on_close);
+  Session(asio::ip::tcp::socket socket, asio::ssl::context& tls,
+          OnMessage on_message, OnClose on_close);
 
+  /// Shakes hands over TLS, then reads the client's messages.
   void Start();
 
   void Send(std::string bytes);
@@ -38,7 +42,7 @@ class Session : public std::enable_shared_from_this<Session> {
   void Send(Outgoing outgoing);
   void Write();
 
-  asio::ip::tcp::socket socket_;
+  TlsStream stream_;
   OnMessage on_message_;
   OnClose on_close_;
   std::array<char, 4096> buffer_;

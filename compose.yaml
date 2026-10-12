@@ -30,6 +30,14 @@ services:
       interval: 2s
       retries: 30
 
+  certificates:
+    build:
+      context: .
+      target: certificates
+    command: ["/tls"]
+    volumes:
+      - ./tls:/tls
+
   login:
     build:
       context: .
@@ -37,9 +45,15 @@ services:
     environment:
       NANOMMO_MYSQL_HOST: mysql
       NANOMMO_REDIS_HOST: redis
+      NANOMMO_TLS_CERTIFICATE: /tls/server.crt
+      NANOMMO_TLS_KEY: /tls/server.key
+    volumes:
+      - ./tls:/tls:ro
     ports:
       - "7778:7778"
     depends_on:
+      certificates:
+        condition: service_completed_successfully
       mysql:
         condition: service_healthy
       redis:
@@ -52,11 +66,17 @@ services:
     environment:
       NANOMMO_MYSQL_HOST: mysql
       NANOMMO_REDIS_HOST: redis
+      NANOMMO_TLS_CERTIFICATE: /tls/server.crt
+      NANOMMO_TLS_KEY: /tls/server.key
+    volumes:
+      - ./tls:/tls:ro
     ports:
       - "7777:7777"
       - "7777:7777/udp"
       - "9464:9464"
     depends_on:
+      certificates:
+        condition: service_completed_successfully
       mysql:
         condition: service_healthy
       redis:
@@ -120,6 +140,10 @@ services:
       context: .
       target: bot
     command: ["login", "server", "${BOTS:-300}", "${RAMP:-120}"]
+    environment:
+      NANOMMO_TLS_CA: /tls/ca.crt
+    volumes:
+      - ./tls:/tls:ro
     depends_on:
       - login
       - server

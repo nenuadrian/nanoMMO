@@ -11,13 +11,15 @@
 #include "absl/time/time.h"
 #include "asio/io_context.hpp"
 #include "asio/signal_set.hpp"
+#include "asio/ssl/context.hpp"
 #include "prometheus/exposer.h"
+#include "protocol/settings.h"
+#include "protocol/tls.h"
 #include "server/database.h"
 #include "server/metrics.h"
 #include "server/players.h"
 #include "server/redis.h"
 #include "server/server.h"
-#include "server/settings.h"
 #include "server/tick.h"
 #include "server/tokens.h"
 
@@ -35,6 +37,14 @@ int main(int argc, char* argv[]) {
     std::cerr
         << "nanommo server: the port should be a number from 1 to 65535, not "
         << argv[1] << "\n";
+    return 1;
+  }
+
+  absl::StatusOr<asio::ssl::context> tls = nanommo::ServerTls(
+      nanommo::Setting("NANOMMO_TLS_CERTIFICATE", "tls/server.crt"),
+      nanommo::Setting("NANOMMO_TLS_KEY", "tls/server.key"));
+  if (!tls.ok()) {
+    std::cerr << "nanommo server: " << tls.status() << "\n";
     return 1;
   }
 
@@ -65,7 +75,7 @@ int main(int argc, char* argv[]) {
 
   asio::io_context io;
   absl::StatusOr<std::unique_ptr<nanommo::Server>> server_or =
-      nanommo::Server::Create(io, static_cast<uint16_t>(port), *interval,
+      nanommo::Server::Create(io, static_cast<uint16_t>(port), *tls, *interval,
                               metrics, tokens, players);
   if (!server_or.ok()) {
     std::cerr << "nanommo server: " << server_or.status() << "\n";

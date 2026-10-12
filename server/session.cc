@@ -5,26 +5,36 @@
 #include <utility>
 
 #include "asio/buffer.hpp"
+#include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
 #include "tracy/Tracy.hpp"
 
 namespace nanommo {
 
-Session::Session(asio::ip::tcp::socket socket, OnMessage on_message,
-                 OnClose on_close)
-    : socket_(std::move(socket)),
+Session::Session(asio::ip::tcp::socket socket, asio::ssl::context& tls,
+                 OnMessage on_message, OnClose on_close)
+    : stream_(std::move(socket), tls),
       on_message_(std::move(on_message)),
       on_close_(std::move(on_close)) {
   // Turn off Nagle's algorithm, so small messages go out straight away.
   std::error_code ignored;
-  socket_.set_option(asio::ip::tcp::no_delay(true), ignored);
+  stream_.lowest_layer().set_option(asio::ip::tcp::no_delay(true), ignored);
 }
 
-void Session::Start() { Read(); }
+void Session::Start() {
+  stream_.async_handshake(asio::ssl::stream_base::server,
+                          [self = shared_from_this()](std::error_code error) {
+                            if (error) {
+                              self->Close();
+                              return;
+                            }
+                            self->Read();
+                          });
+}
 
 void Session::Read() {
   // Capturing self, not this, keeps the session alive until the read finishes.
-  socket_.async_read_some(
+  stream_.async_read_some(
       asio::buffer(buffer_),
       [self = shared_from_this()](std::error_code error, std::size_t size) {
         if (error) {
@@ -74,7 +84,7 @@ void Session::Write() {
       next.shared ? asio::buffer(*next.shared) : asio::const_buffer(),
       asio::buffer(next.tail)};
   asio::async_write(
-      socket_, buffers,
+      stream_, buffers,
       [self = shared_from_this()](std::error_code error, std::size_t) {
         if (error) {
           self->Close();
@@ -93,7 +103,7 @@ void Session::Close() {
   }
   closed_ = true;
   std::error_code ignored;
-  socket_.close(ignored);
+  stream_.lowest_layer().close(ignored);
   on_close_();
 }
 

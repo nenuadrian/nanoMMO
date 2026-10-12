@@ -7,15 +7,25 @@
 #include "absl/status/statusor.h"
 #include "asio/io_context.hpp"
 #include "asio/signal_set.hpp"
+#include "asio/ssl/context.hpp"
+#include "protocol/settings.h"
+#include "protocol/tls.h"
 #include "server/accounts.h"
 #include "server/database.h"
 #include "server/login_server.h"
 #include "server/redis.h"
-#include "server/settings.h"
 #include "server/tokens.h"
 
 int main() {
   constexpr uint16_t kPort = 7778;
+  absl::StatusOr<asio::ssl::context> tls = nanommo::ServerTls(
+      nanommo::Setting("NANOMMO_TLS_CERTIFICATE", "tls/server.crt"),
+      nanommo::Setting("NANOMMO_TLS_KEY", "tls/server.key"));
+  if (!tls.ok()) {
+    std::cerr << "nanommo login: " << tls.status() << "\n";
+    return 1;
+  }
+
   // To MySQL's client, localhost means a socket file, so we go over TCP.
   absl::StatusOr<std::unique_ptr<nanommo::Database>> database_or =
       nanommo::Database::Create(
@@ -39,7 +49,7 @@ int main() {
 
   asio::io_context io;
   absl::StatusOr<std::unique_ptr<nanommo::LoginServer>> server_or =
-      nanommo::LoginServer::Create(io, kPort, accounts, tokens);
+      nanommo::LoginServer::Create(io, kPort, *tls, accounts, tokens);
   if (!server_or.ok()) {
     std::cerr << "nanommo login: " << server_or.status() << "\n";
     return 1;

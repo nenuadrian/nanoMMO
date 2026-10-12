@@ -62,9 +62,10 @@ absl::StatusOr<protocol::LoginReply> HandleLogin(
 }
 
 absl::StatusOr<std::unique_ptr<LoginServer>> LoginServer::Create(
-    asio::io_context& io, uint16_t port, Accounts& accounts, Tokens& tokens) {
+    asio::io_context& io, uint16_t port, asio::ssl::context& tls,
+    Accounts& accounts, Tokens& tokens) {
   std::unique_ptr<LoginServer> server =
-      absl::WrapUnique(new LoginServer(io, accounts, tokens));
+      absl::WrapUnique(new LoginServer(io, tls, accounts, tokens));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -72,9 +73,9 @@ absl::StatusOr<std::unique_ptr<LoginServer>> LoginServer::Create(
   return server;
 }
 
-LoginServer::LoginServer(asio::io_context& io, Accounts& accounts,
-                         Tokens& tokens)
-    : acceptor_(io), accounts_(accounts), tokens_(tokens) {}
+LoginServer::LoginServer(asio::io_context& io, asio::ssl::context& tls,
+                         Accounts& accounts, Tokens& tokens)
+    : acceptor_(io), tls_(tls), accounts_(accounts), tokens_(tokens) {}
 
 absl::Status LoginServer::Start(uint16_t port) {
   const absl::Status listening = Listen(acceptor_, port);
@@ -116,7 +117,9 @@ void LoginServer::Accept() {
         }
         session.Send(Frame(reply));
       };
-      std::make_shared<Session>(std::move(socket), on_message, [] {})->Start();
+      const auto on_close = [] {};
+      std::make_shared<Session>(std::move(socket), tls_, on_message, on_close)
+          ->Start();
     }
     Accept();
   });

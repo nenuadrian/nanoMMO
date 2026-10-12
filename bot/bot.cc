@@ -8,14 +8,16 @@
 #include "asio/buffer.hpp"
 #include "asio/connect.hpp"
 #include "asio/error.hpp"
+#include "asio/ssl/host_name_verification.hpp"
+#include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
 #include "bot/wander.h"
 #include "protocol/nanommo.pb.h"
 
 namespace nanommo {
 
-Bot::Bot(asio::io_context& io, uint32_t seed, bool udp)
-    : socket_(io),
+Bot::Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp)
+    : stream_(io, tls),
       udp_socket_(io),
       timer_(io),
       hello_timer_(io),
@@ -24,42 +26,59 @@ Bot::Bot(asio::io_context& io, uint32_t seed, bool udp)
 
 void Bot::Start(const asio::ip::tcp::resolver::results_type& server,
                 const std::string& token) {
+  // The resolver keeps the name we looked up, which the certificate must have.
+  stream_.set_verify_callback(
+      asio::ssl::host_name_verification(server.begin()->host_name()));
   asio::async_connect(
-      socket_, server, [this, token](std::error_code error, const auto&) {
+      stream_.lowest_layer(), server,
+      [this, token](std::error_code error, const auto&) {
         if (error) {
           std::cerr << "nanommo bot: couldn't connect: " << error.message()
                     << '\n';
           return;
         }
         std::error_code ignored;
-        socket_.set_option(asio::ip::tcp::no_delay(true), ignored);
-        // Blocking is fine: a hello this small fits in the socket's buffer.
-        protocol::Hello hello;
-        hello.set_token(token);
-        asio::write(socket_, asio::buffer(Frame(hello)), error);
-        if (error) {
-          return;
-        }
-        connected_ = true;
-        Read();
-        Wander();
-        if (udp_) {
-          const asio::ip::tcp::endpoint server = socket_.remote_endpoint(error);
-          if (!error) {
-            udp_socket_.connect({server.address(), server.port()}, error);
-          }
-          if (!error) {
-            token_ = token;
-            HelloOverUdp();
-            ReceiveOverUdp();
-          }
-        }
+        stream_.lowest_layer().set_option(asio::ip::tcp::no_delay(true),
+                                          ignored);
+        stream_.async_handshake(
+            asio::ssl::stream_base::client,
+            [this, token](std::error_code error) { Greet(token, error); });
       });
+}
+
+void Bot::Greet(const std::string& token, std::error_code error) {
+  if (error) {
+    std::cerr << "nanommo bot: couldn't shake hands: " << error.message()
+              << '\n';
+    return;
+  }
+  // Blocking is fine: a hello this small fits in the socket's buffer.
+  protocol::Hello hello;
+  hello.set_token(token);
+  asio::write(stream_, asio::buffer(Frame(hello)), error);
+  if (error) {
+    return;
+  }
+  connected_ = true;
+  Read();
+  Wander();
+  if (udp_) {
+    const asio::ip::tcp::endpoint server =
+        stream_.lowest_layer().remote_endpoint(error);
+    if (!error) {
+      udp_socket_.connect({server.address(), server.port()}, error);
+    }
+    if (!error) {
+      token_ = token;
+      HelloOverUdp();
+      ReceiveOverUdp();
+    }
+  }
 }
 
 // Reading every world keeps the server's writes to us from backing up.
 void Bot::Read() {
-  socket_.async_read_some(asio::buffer(buffer_),
+  stream_.async_read_some(asio::buffer(buffer_),
                           [this](std::error_code error, std::size_t size) {
                             if (error) {
                               Stop();
@@ -121,7 +140,7 @@ void Bot::Receive(std::string_view bytes) {
 
 void Bot::Wander() {
   outgoing_ = Frame(RandomDirection(random_));
-  asio::async_write(socket_, asio::buffer(outgoing_),
+  asio::async_write(stream_, asio::buffer(outgoing_),
                     [this](std::error_code error, std::size_t) {
                       if (error) {
                         connected_ = false;

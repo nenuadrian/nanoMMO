@@ -13,6 +13,7 @@
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
 #include "asio/ip/udp.hpp"
+#include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
 #include "server/metrics.h"
 #include "server/players.h"
@@ -25,14 +26,16 @@ namespace nanommo {
 class Server {
  public:
   /// Starts the server, or returns why it couldn't, such as the port
-  /// being taken.
+  /// being taken. Clients connect over TLS, with the context.
   static absl::StatusOr<std::unique_ptr<Server>> Create(
-      asio::io_context& io, uint16_t port, std::chrono::nanoseconds interval,
-      Metrics& metrics, Tokens& tokens, Players& players);
+      asio::io_context& io, uint16_t port, asio::ssl::context& tls,
+      std::chrono::nanoseconds interval, Metrics& metrics, Tokens& tokens,
+      Players& players);
 
  private:
-  Server(asio::io_context& io, std::chrono::nanoseconds interval,
-         Metrics& metrics, Tokens& tokens, Players& players);
+  Server(asio::io_context& io, asio::ssl::context& tls,
+         std::chrono::nanoseconds interval, Metrics& metrics, Tokens& tokens,
+         Players& players);
 
   absl::Status Start(uint16_t port);
   void Accept();
@@ -46,6 +49,7 @@ class Server {
               std::shared_ptr<const std::string> part, std::string own);
 
   asio::ip::tcp::acceptor acceptor_;
+  asio::ssl::context& tls_;
   asio::ip::udp::socket udp_;
   std::array<char, 1024> datagram_;
   asio::ip::udp::endpoint sender_;

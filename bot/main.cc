@@ -13,12 +13,15 @@
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
 #include "asio/signal_set.hpp"
+#include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
 #include "bot/bot.h"
 #include "bot/bot_metrics.h"
 #include "prometheus/exposer.h"
 #include "protocol/clock.h"
 #include "protocol/login_client.h"
+#include "protocol/settings.h"
+#include "protocol/tls.h"
 
 namespace {
 
@@ -30,15 +33,16 @@ constexpr uint16_t kMetricsPort = 9465;
 // fifty, so the frames land all over the tick, like a client's would.
 constexpr std::chrono::milliseconds kFrame(16);
 
-absl::StatusOr<std::string> LogIn(const std::string& host, int number) {
+absl::StatusOr<std::string> LogIn(const std::string& host,
+                                  asio::ssl::context& tls, int number) {
   nanommo::protocol::LoginRequest request;
   request.set_username("bot" + std::to_string(number));
   request.set_password("bot-password");
   absl::StatusOr<nanommo::protocol::LoginReply> reply_or =
-      nanommo::LogIn(host, kLoginPort, request);
+      nanommo::LogIn(host, kLoginPort, tls, request);
   if (reply_or.ok() && !reply_or->ok()) {
     request.set_new_account(true);
-    reply_or = nanommo::LogIn(host, kLoginPort, request);
+    reply_or = nanommo::LogIn(host, kLoginPort, tls, request);
   }
   if (!reply_or.ok()) {
     return reply_or.status();
@@ -51,11 +55,12 @@ absl::StatusOr<std::string> LogIn(const std::string& host, int number) {
 
 class Swarm {
  public:
-  Swarm(asio::io_context& io, std::string login,
+  Swarm(asio::io_context& io, asio::ssl::context& tls, std::string login,
         asio::ip::tcp::resolver::results_type server, int count,
         std::chrono::milliseconds ramp, int first, bool udp,
         nanommo::BotMetrics& metrics)
       : io_(io),
+        tls_(tls),
         login_(std::move(login)),
         server_(std::move(server)),
         count_(count),
@@ -79,8 +84,8 @@ class Swarm {
     }
     const int number = first_ + static_cast<int>(bots_.size());
     auto bot = std::make_unique<nanommo::Bot>(
-        io_, static_cast<uint32_t>(number), udp_);
-    const absl::StatusOr<std::string> token = LogIn(login_, number);
+        io_, tls_, static_cast<uint32_t>(number), udp_);
+    const absl::StatusOr<std::string> token = LogIn(login_, tls_, number);
     if (token.ok()) {
       bot->Start(server_, *token);
     } else {
@@ -135,6 +140,7 @@ class Swarm {
   }
 
   asio::io_context& io_;
+  asio::ssl::context& tls_;
   std::string login_;
   asio::ip::tcp::resolver::results_type server_;
   int count_;
@@ -167,6 +173,13 @@ int main(int argc, char* argv[]) {
   const auto ramp = std::chrono::seconds(ramp_seconds);
   const std::string transport = argc > 6 ? argv[6] : "udp";
 
+  absl::StatusOr<asio::ssl::context> tls =
+      nanommo::ClientTls(nanommo::Setting("NANOMMO_TLS_CA", "tls/ca.crt"));
+  if (!tls.ok()) {
+    std::cerr << "nanommo bot: " << tls.status() << "\n";
+    return 1;
+  }
+
   nanommo::BotMetrics metrics(transport);
   prometheus::Exposer exposer("0.0.0.0:" + std::to_string(kMetricsPort));
   exposer.RegisterCollectable(metrics.registry());
@@ -185,7 +198,7 @@ int main(int argc, char* argv[]) {
             << ", logging in on " << login << ", over " << ramp.count()
             << " s, from bot" << first << ", worlds over " << transport
             << std::endl;
-  Swarm swarm(io, login, server, count, ramp, first, transport == "udp",
+  Swarm swarm(io, *tls, login, server, count, ramp, first, transport == "udp",
               metrics);
 
   asio::signal_set signals(io, SIGINT, SIGTERM);
