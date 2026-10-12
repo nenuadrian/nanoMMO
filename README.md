@@ -6,13 +6,13 @@ C++ client, and everything around them. Each episode's code is a git tag (`ep001
 
 ## Build, test and run
 
-You need CMake, Ninja and a C++20 compiler, and two libraries from your system's package manager:
-MySQL's client library, and libsodium for hashing passwords. The client draws with raylib, on top of
-the system's OpenGL.
+You need CMake, Ninja and a C++20 compiler, and three libraries from your system's package manager:
+MySQL's client library, libsodium for hashing passwords, and OpenSSL for TLS. The client draws with
+raylib, on top of the system's OpenGL.
 
-- macOS: `brew install mysql-client libsodium pkgconf`.
-- Ubuntu: `sudo apt install pkg-config libmysqlclient-dev libsodium-dev xorg-dev libgl1-mesa-dev`,
-  where the last two are the X11 and OpenGL headers.
+- macOS: `brew install mysql-client libsodium openssl@3 pkgconf`.
+- Ubuntu: `sudo apt install pkg-config libmysqlclient-dev libsodium-dev libssl-dev xorg-dev
+  libgl1-mesa-dev`, where the last two are the X11 and OpenGL headers.
 
 CMake fetches and builds the other libraries: GoogleTest, raylib, Dear ImGui, rlImGui, abseil,
 protobuf, Asio, prometheus-cpp and hiredis. The first build compiles protobuf, so it takes a few
@@ -26,10 +26,13 @@ ctest --test-dir build
 
 The servers keep accounts in MySQL, and hand logins over through Redis. The game server saves the
 players into Redis, and a saver takes them on to MySQL (see [Saving players](#saving-players)).
-Docker Compose runs MySQL, Redis and the saver, with the tables from `db/schema.sql`:
+Docker Compose runs MySQL, Redis and the saver, with the tables from `db/schema.sql`. The clients
+talk to the servers over TLS, with certificates from an authority of our own, which
+`tls/certificates.sh` makes the first time (see [TLS](#tls)):
 
 ```bash
 docker compose up -d --build mysql redis saver
+tls/certificates.sh
 ./build/bin/nanommo_login
 ```
 
@@ -145,8 +148,8 @@ the accounts.
   the token out of Redis, and loads your player: your name from the `accounts` table, and where you
   are and your experience from Redis, or from the `players` table if Redis doesn't have you.
 
-The password goes over the network as it is typed. That's fine on your own machine. Before anyone
-plays over the internet, the login server needs TLS.
+The password and the token go over TLS, so nobody between the client and the servers can read
+them (see [TLS](#tls)).
 
 The servers find MySQL and Redis on `127.0.0.1`, or wherever `NANOMMO_MYSQL_HOST` and `NANOMMO_REDIS_HOST`
 point. The tests that need them skip themselves unless those are set:
@@ -180,6 +183,46 @@ docker build --target docs --output site .
 
 In Docker, the client's tests open their window on a virtual display from Xvfb, and render with
 llvmpipe, Mesa's OpenGL driver that runs on the CPU. So they don't need a screen or a GPU.
+
+## TLS
+
+Everything the clients and the servers send over TCP goes through TLS 1.3, with OpenSSL, through
+Asio's `ssl::stream`: logins on port 7778, and the game's connection on port 7777, with the token,
+the input and, over TCP, the world. Both ends are ours, so they speak TLS 1.3 and nothing older.
+
+The certificates come from a certificate authority of our own. `tls/certificates.sh` makes its key,
+`tls/ca.key`, and its certificate, `tls/ca.crt`. Then a key for the servers, `tls/server.key`, and a
+certificate the authority signs for it, `tls/server.crt`, for `localhost`, `127.0.0.1`, and `login` and
+`server`, their names in Docker Compose. The keys are ECDSA, on the P-256 curve. Names after the folder
+go on the certificate too, such as a server's domain:
+
+```bash
+tls/certificates.sh tls play.example.com
+```
+
+It leaves certificates that are there already alone, so delete `tls/*.crt` and `tls/*.key` to make new
+ones. Git ignores them, so each copy of the repo has an authority of its own.
+
+- The servers load their certificate and key from `NANOMMO_TLS_CERTIFICATE` and `NANOMMO_TLS_KEY`
+  (default: `tls/server.crt` and `tls/server.key`).
+- The client and the bots trust the certificates the authority in `NANOMMO_TLS_CA` signed (default:
+  `tls/ca.crt`), and no others, and check that the server's name is on the certificate.
+- In Docker Compose, the `certificates` service makes them, the first time, before the servers start,
+  and the servers and the bots get `tls/` read-only.
+
+Only the authority's key can sign certificates the clients trust, so on a real server, keep it
+somewhere else: the servers need `server.crt` and `server.key`, and the players' clients `ca.crt`.
+
+The world over UDP isn't encrypted: it holds what each player sees in the game anyway. Its first
+datagram, the hello, carries the login token, which the game server took out of Redis by then, so it
+can't log anyone in. Someone who can see your traffic could use it to send your world updates
+elsewhere, which someone in that position could stop anyway, by dropping them.
+
+To see the handshake and the certificate, with the login server running:
+
+```bash
+openssl s_client -connect localhost:7778 -CAfile tls/ca.crt < /dev/null
+```
 
 ## Saving players
 
