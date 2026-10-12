@@ -1,7 +1,7 @@
 add_library(nanommo_client_core
   window.cc gui.cc menu.cc renderer.cc offscreen.cc
   camera.cc scene.cc input.cc connection.cc
-  login_screen.cc nameplates.cc player_frame.cc
+  login_screen.cc nameplates.cc player_frame.cc character_screen.cc
   animator.cc characters.cc triangles.cc ground.cc trees.cc chunks.cc
 )
 target_include_directories(nanommo_client_core PUBLIC ${PROJECT_SOURCE_DIR})
