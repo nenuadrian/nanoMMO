@@ -24,11 +24,12 @@ cmake --build build
 ctest --test-dir build
 ```
 
-The servers keep accounts and players in MySQL, and hand logins over through Redis. Docker Compose
-runs both, with the tables from `db/schema.sql`:
+The servers keep accounts in MySQL, and hand logins over through Redis. The game server saves the
+players into Redis, and a saver takes them on to MySQL (see [Saving players](#saving-players)).
+Docker Compose runs MySQL, Redis and the saver, with the tables from `db/schema.sql`:
 
 ```bash
-docker compose up -d mysql redis
+docker compose up -d --build mysql redis saver
 ./build/bin/nanommo_login
 ```
 
@@ -128,8 +129,8 @@ takes, to its client alone, in the message with its id that goes after the world
 over UDP. Each level takes a hundred more experience than the one before, and a player has a hundred
 health at level one, and twenty more for each level after it.
 
-Experience is saved in the `players` table, with where you are. Health isn't saved yet: you join at
-full health. A MySQL volume from before experience was added doesn't have the column, as
+Experience is saved with where you are (see [Saving players](#saving-players)). Health isn't saved
+yet: you join at full health. A MySQL volume from before experience was added doesn't have the column, as
 `db/schema.sql` only runs on an empty volume. `docker compose down -v` starts it again, without
 the accounts.
 
@@ -141,8 +142,8 @@ the accounts.
 - Once you're logged in, it puts a token in Redis, which works once, within 30 seconds, and sends
   it to the client.
 - The client takes the token to the game server, `nanommo_server`, on port 7777. The game server takes
-  the token out of Redis, and loads your player from the `players` table. It saves where you are
-  when you leave, and saves everyone when it stops.
+  the token out of Redis, and loads your player: your name from the `accounts` table, and where you
+  are and your experience from Redis, or from the `players` table if Redis doesn't have you.
 
 The password goes over the network as it is typed. That's fine on your own machine. Before anyone
 plays over the internet, the login server needs TLS.
@@ -156,9 +157,9 @@ NANOMMO_MYSQL_HOST=127.0.0.1 NANOMMO_REDIS_HOST=127.0.0.1 ./build/bin/nanommo_se
 docker compose run --rm tests
 ```
 
-MySQL keeps its data in the `mysql` volume, so it survives `docker compose down`. MySQL runs
-`db/schema.sql` the first time it starts, on an empty volume. `docker compose down -v` deletes the
-volume, and with it all the accounts.
+MySQL keeps its data in the `mysql` volume, and Redis in the `redis` volume, so they survive `docker
+compose down`. MySQL runs `db/schema.sql` the first time it starts, on an empty volume. `docker
+compose down -v` deletes the volumes, and with them all the accounts and players.
 
 Or with only Docker installed:
 
@@ -171,12 +172,41 @@ docker build --target lint .
 docker build --target server -t nanommo-server .
 # The login server's image.
 docker build --target login -t nanommo-login .
+# The saver's image.
+docker build --target saver -t nanommo-saver .
 # API docs in site/.
 docker build --target docs --output site .
 ```
 
 In Docker, the client's tests open their window on a virtual display from Xvfb, and render with
 llvmpipe, Mesa's OpenGL driver that runs on the CPU. So they don't need a screen or a GPU.
+
+## Saving players
+
+After each tick, the game server saves the players whose position or experience changed, into Redis:
+a hash for each player, `player:<account id>`, with `x`, `z` and `experience`, and their ids in a set,
+`players:unsaved`. It sends all of it in one round trip, as a pipeline, so saving takes a few
+milliseconds a tick with hundreds of players, and the server keeps up with as many players as it did
+without saving. Writing each change to MySQL instead, one statement at a time, takes the tick past
+its 50 ms at around 50 players: each save is two round trips, to prepare the statement and to run
+it, and a commit that waits for the disk.
+
+`nanommo_saver` takes the unsaved players out of the set every five seconds, and writes them to the
+`players` table, 500 to an `INSERT`. If MySQL fails, they go back into the set, for the next try. A
+player whose account was deleted, or whose hash is gone, is skipped, so that one player can't hold
+back the others. It saves what's left when it stops. So the `players` table, and the website's
+rankings, are at most about five seconds behind the game.
+
+Redis appends each change to a file, its append-only file, and writes that to disk once a second, so
+a crash loses at most about a second. If the game server crashes, Redis still has its players as of
+the last tick. When a player joins, the game server reads them from Redis first, as it's newer than
+MySQL, and from the `players` table if Redis doesn't have them.
+
+```bash
+docker compose exec redis redis-cli HGETALL player:1
+docker compose exec redis redis-cli SCARD players:unsaved
+docker compose logs saver
+```
 
 ## The website
 
@@ -196,7 +226,7 @@ Then open http://localhost:8080. [Pico CSS](https://picocss.com), from a CDN, st
 so there's no CSS of our own, and nothing to build with npm.
 
 - The rankings are the hundred players with the most experience. An account that has never played
-  isn't on them, as the game server saves a player when it leaves.
+  isn't on them. The saver brings them up to date every five seconds.
 - Each address gets ten tries a minute at creating an account or logging in, since each try hashes
   a password, which takes 64 MiB and tens of milliseconds.
 - The tables are still the ones from `db/schema.sql`. The website has no migrations of its own.
@@ -213,7 +243,8 @@ docker build --target test web
 ## Monitoring and load
 
 The server serves its metrics for Prometheus at http://localhost:9464/metrics: the players online,
-how long each tick takes, the bytes it sends and the messages it receives. The bots serve theirs on
+how long each tick takes, how long saving the players takes in each tick, the bytes it sends and the
+messages it receives. The bots serve theirs on
 port 9465: how old the world on a player's screen would be, by transport.
 
 `compose.yaml` starts the servers, MySQL and Redis together with Prometheus, which scrapes the game
@@ -258,7 +289,7 @@ A few hundred bots need more open files than macOS allows a shell by default, so
 `bench/load.sh` measures how the server copes as players arrive. With the stack from `compose.yaml`
 running, it adds bots in steps, 250 at a time by default, and after each step it asks Prometheus about
 the last 25 seconds: the players online, the ticks the server managed each second, the tick's p50 and
-p99, and the megabytes it sent each second. It needs `curl` and `jq`.
+p99, the megabytes it sent each second, and the p99 of saving the players. It needs `curl` and `jq`.
 
 ```bash
 docker compose up -d --build
