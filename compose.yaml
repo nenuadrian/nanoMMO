@@ -10,13 +10,27 @@ services:
       MYSQL_RANDOM_ROOT_PASSWORD: "yes"
     volumes:
       - mysql:/var/lib/mysql
-      - ./db:/docker-entrypoint-initdb.d:ro
     ports:
       - "3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
       interval: 2s
       retries: 30
+
+  flyway:
+    image: flyway/flyway:13.10.0
+    command: ["migrate"]
+    environment:
+      FLYWAY_URL: jdbc:mysql://mysql:3306/nanommo?useSsl=true&trustServerCertificate=true
+      FLYWAY_USER: nanommo
+      FLYWAY_PASSWORD: nanommo
+      FLYWAY_LOCATIONS: filesystem:/flyway/migrations
+      FLYWAY_VALIDATE_MIGRATION_NAMING: "true"
+    volumes:
+      - ./db:/flyway/migrations:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
 
   redis:
     image: redis:8.8.3
@@ -54,8 +68,8 @@ services:
     depends_on:
       certificates:
         condition: service_completed_successfully
-      mysql:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 
@@ -77,8 +91,8 @@ services:
     depends_on:
       certificates:
         condition: service_completed_successfully
-      mysql:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 
@@ -90,8 +104,8 @@ services:
       NANOMMO_MYSQL_HOST: mysql
       NANOMMO_REDIS_HOST: redis
     depends_on:
-      mysql:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 
@@ -111,8 +125,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      mysql:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 
@@ -169,8 +183,8 @@ services:
       NANOMMO_MYSQL_HOST: mysql
       NANOMMO_REDIS_HOST: redis
     depends_on:
-      mysql:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     profiles:
