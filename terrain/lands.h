@@ -43,7 +43,14 @@ constexpr std::array<Land, 2> kLands = {{
 /// In metres from the middle of a gate.
 constexpr float kGateRadius = 1.0f;
 
+/// Past the edge of a gate, so that players don't arrive inside it.
+constexpr float kArrival = 3.0f;
+
 bool InGate(const Land& land, float x, float z);
+
+/// Where a player who goes through a gate comes out at the land's gate: past
+/// its middle, the way they were facing, so that they walk on out of it.
+Place Arrival(const Land& land, float yaw);
 
 }  // namespace nanommo
 

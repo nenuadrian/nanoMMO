@@ -308,8 +308,9 @@ void Server::Travel() {
       Player player = lands_[from].players().at(id);
       lands_[from].Leave(id);
       const Land& there = kLands[here.to];
-      player.x = there.gate.x;
-      player.z = there.gate.z;
+      const Place arrival = Arrival(there, player.yaw);
+      player.x = arrival.x;
+      player.z = arrival.z;
       std::cout << player.name << " went to the " << there.name << std::endl;
       lands_[here.to].Join(id, std::move(player));
     }

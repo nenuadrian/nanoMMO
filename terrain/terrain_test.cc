@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "gtest/gtest.h"
+#include "terrain/lands.h"
 
 namespace {
 
@@ -60,4 +61,20 @@ TEST(Terrain, StandsOnTheTrianglesBetweenTheCorners) {
   EXPECT_FLOAT_EQ(island.Height(x, z), island.Corner(3, 5));
   EXPECT_FLOAT_EQ(island.Height(x + cell / 2, z + cell / 2),
                   (island.Corner(3, 5) + island.Corner(4, 6)) / 2);
+}
+
+TEST(Terrain, HasRoomAtEachGate) {
+  for (const uint32_t seed : {1, 2, 3}) {
+    for (const nanommo::Land& land : nanommo::kLands) {
+      const nanommo::Terrain island(seed + land.seed, land.wading);
+      EXPECT_TRUE(island.Walkable(land.gate.x, land.gate.z));
+      // Whichever way a player comes through, they land on the island, out of
+      // the gate.
+      for (float yaw = 0.0f; yaw < 6.3f; yaw += 0.5f) {
+        const nanommo::Place arrival = nanommo::Arrival(land, yaw);
+        EXPECT_TRUE(island.Walkable(arrival.x, arrival.z));
+        EXPECT_FALSE(nanommo::InGate(land, arrival.x, arrival.z));
+      }
+    }
+  }
 }
