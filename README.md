@@ -26,7 +26,8 @@ ctest --test-dir build
 
 The servers keep accounts in MySQL, and hand logins over through Redis. The game server saves the
 players into Redis, and a saver takes them on to MySQL (see [Saving players](#saving-players)).
-Docker Compose runs MySQL, Redis and the saver, with the tables from `db/schema.sql`. The clients
+Docker Compose runs MySQL, Redis and the saver, and before them Flyway, which makes the tables
+from the migrations in `db/` (see [Migrations](#migrations)). The clients
 talk to the servers over TLS, with certificates from an authority of our own, which
 `tls/certificates.sh` makes the first time (see [TLS](#tls)):
 
@@ -213,10 +214,9 @@ takes, to its client alone, in the message with its id that goes after the world
 over UDP. Each level takes a hundred more experience than the one before, and a player has a hundred
 health at level one, and twenty more for each level after it.
 
-Experience is saved with where you are (see [Saving players](#saving-players)). Health isn't saved
-yet: you join at full health. A MySQL volume from before experience was added doesn't have the column, as
-`db/schema.sql` only runs on an empty volume. `docker compose down -v` starts it again, without
-the accounts.
+Experience and health are saved with where you are (see [Saving players](#saving-players)), so you
+come back with the health you left with. If you leave dead, you come back as the respawn would bring
+you back, in the middle at full health. A player saved before health was kept joins at full health.
 
 ## Accounts and logins
 
@@ -242,8 +242,9 @@ docker compose run --rm tests
 ```
 
 MySQL keeps its data in the `mysql` volume, and Redis in the `redis` volume, so they survive `docker
-compose down`. MySQL runs `db/schema.sql` the first time it starts, on an empty volume. `docker
-compose down -v` deletes the volumes, and with them all the accounts and players.
+compose down`. Flyway makes the tables, and changes them, before anything else uses MySQL (see
+[Migrations](#migrations)). `docker compose down -v` deletes the volumes, and with them all the
+accounts and players.
 
 Or with only Docker installed:
 
@@ -307,8 +308,9 @@ openssl s_client -connect localhost:7778 -CAfile tls/ca.crt < /dev/null
 
 ## Saving players
 
-After each tick, the game server saves the players whose position or experience changed, into Redis:
-a hash for each player, `player:<account id>`, with `x`, `z` and `experience`, and their ids in a set,
+After each tick, the game server saves the players whose position, experience or health changed, into
+Redis: a hash for each player, `player:<account id>`, with `x`, `z`, `experience` and `health`, and their
+ids in a set,
 `players:unsaved`. It sends all of it in one round trip, as a pipeline, so saving takes a few
 milliseconds a tick with hundreds of players, and the server keeps up with as many players as it did
 without saving. Writing each change to MySQL instead, one statement at a time, takes the tick past
@@ -332,6 +334,42 @@ docker compose exec redis redis-cli SCARD players:unsaved
 docker compose logs saver
 ```
 
+## Migrations
+
+The tables are made and changed by migrations, SQL files in `db/` that [Flyway](https://github.com/flyway/flyway)
+runs from its official Docker image. Docker Compose runs it as the `flyway` service, and the login
+server, the game server, the saver, the website and the tests wait until it has finished. If it
+fails, they don't start.
+
+- Each file is named `V<version>__<description>.sql`, with two underscores, such as
+  `V2__players_health.sql`. Flyway runs the versions a database hasn't run yet, in order, and records
+  each one in the `flyway_schema_history` table, with a checksum of its file. A file whose name it
+  can't read stops it, instead of being skipped.
+- Don't change a migration once it has run anywhere. Flyway compares the checksums and refuses to go
+  on, as a database that ran the old file wouldn't get the change. A change goes in a new file, with
+  the next version.
+- Write each change so that the servers from before it still work, as they keep running until the
+  new ones replace them: add a column that can be `NULL` or has a default, and drop or rename
+  things in a later version, once no code uses them. `ALGORITHM=INSTANT` makes MySQL refuse a change
+  it can't make by changing the table's definition alone, instead of quietly rebuilding the table,
+  which takes a long time on a big one.
+- On a server with real players, back the database up before running new migrations.
+
+```bash
+docker compose run --rm flyway info      # which versions have run
+docker compose run --rm flyway migrate   # run the new ones
+```
+
+A MySQL volume from before the migrations has the tables but no history, and Flyway won't touch it.
+`docker compose down -v` starts again from an empty one, without the accounts in it. On a database
+you want to keep, Flyway's `baseline` records version 1 without running it.
+
+Flyway 13.10 warns that it has been verified with MySQL up to 9.4, and we run 9.7. Our migrations are
+plain SQL, and CI runs them on a fresh database on each push. Its URL turns TLS on, as MySQL's default
+authentication, `caching_sha2_password`, takes a password over an encrypted connection, or with
+MySQL's RSA key, and it trusts the certificate MySQL makes for itself, which is fine on Compose's own
+network.
+
 ## The website
 
 `web/` is the game's website, a [Laravel](https://laravel.com) app. It ranks the players by
@@ -353,7 +391,8 @@ so there's no CSS of our own, and nothing to build with npm.
   isn't on them. The saver brings them up to date every five seconds.
 - Each address gets ten tries a minute at creating an account or logging in, since each try hashes
   a password, which takes 64 MiB and tens of milliseconds.
-- The tables are still the ones from `db/schema.sql`. The website has no migrations of its own.
+- The tables come from the migrations in `db/`, which Flyway runs (see [Migrations](#migrations)).
+  The website has no migrations of its own, so the tables are described in one place.
 - `APP_KEY` in `compose.yaml` encrypts the website's cookies. Like the MySQL password next to it,
   it's for your own machine. Before the website goes anywhere public, make a new one with
   `docker compose run --rm --no-deps web php artisan key:generate --show`, and keep it out of git.
