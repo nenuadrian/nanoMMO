@@ -14,6 +14,23 @@ namespace {
 // parts, and the client's own you, experience, next level and seed.
 constexpr std::size_t kRoom = 48;
 
+// Names and levels come once a second, and protobuf leaves out a field that's
+// empty or zero, which no name or level is, so we keep the last ones we had.
+template <typename Unit>
+void Update(Unit& known, const Unit& now) {
+  Unit merged = now;
+  if (merged.name().empty()) {
+    merged.set_name(known.name());
+  }
+  if (merged.level() == 0) {
+    merged.set_level(known.level());
+  }
+  if (merged.max_health() == 0) {
+    merged.set_max_health(known.max_health());
+  }
+  known = std::move(merged);
+}
+
 }  // namespace
 
 std::string Piece(const protocol::Player& player) {
@@ -71,11 +88,11 @@ void Parts::Add(const protocol::World& part) {
   seed_ = part.seed();
   arrived_.insert(part.part());
   for (const protocol::Player& player : part.players()) {
-    players_[player.id()] = player;
+    Update(players_[player.id()], player);
     seen_.insert(player.id());
   }
   for (const protocol::Monster& monster : part.monsters()) {
-    monsters_[monster.id()] = monster;
+    Update(monsters_[monster.id()], monster);
     seen_monsters_.insert(monster.id());
   }
   if (arrived_.size() == std::max(part.parts(), 1u)) {

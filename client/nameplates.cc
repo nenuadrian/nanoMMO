@@ -41,6 +41,10 @@ void DrawNameplates(const std::vector<Figure>& figures,
   const Vector3 forward =
       Vector3Normalize(Vector3Subtract(camera.target, camera.position));
   for (const Figure& figure : figures) {
+    // Names come once a second, so one we've just met waits for its nameplate.
+    if (figure.name.empty()) {
+      continue;
+    }
     const Vector3& position = figure.position;
     const Vector3 away = Vector3Subtract(position, camera.position);
     // Behind the camera, GetWorldToScreen would put it on the screen.

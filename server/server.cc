@@ -36,6 +36,9 @@ constexpr std::array<std::pair<float, float>, 3> kSkeletons = {{
 
 constexpr int kCamps = 8;
 
+// A second's worth of ticks.
+constexpr int kFullEvery = 20;
+
 // Where each camp's three skeletons stand, from the middle of the camp.
 constexpr std::array<std::pair<float, float>, 3> kCampSkeletons = {{
     {-1.5f, 0.0f},
@@ -286,6 +289,10 @@ void Server::SaveChanged() {
 
 void Server::Broadcast() {
   ZoneScoped;
+  // Names, levels and the most health a unit can have change now and then,
+  // so they go out once a second, and the clients keep them in between.
+  const bool full = broadcasts_ == 0;
+  broadcasts_ = (broadcasts_ + 1) % kFullEvery;
   // Each player and monster is serialized once a tick, and what each cell
   // gets is put together from those pieces.
   std::map<uint32_t, std::string> players;
@@ -293,10 +300,22 @@ void Server::Broadcast() {
   {
     ZoneScopedN("serialize");
     for (const auto& [id, player] : world_.players()) {
-      players[id] = Piece(ToProtocol(id, player));
+      protocol::Player entry = ToProtocol(id, player);
+      if (!full) {
+        entry.clear_name();
+        entry.clear_level();
+        entry.clear_max_health();
+      }
+      players[id] = Piece(entry);
     }
     for (const auto& [id, monster] : world_.monsters()) {
-      monsters[id] = Piece(ToProtocol(id, monster));
+      protocol::Monster entry = ToProtocol(id, monster);
+      if (!full) {
+        entry.clear_name();
+        entry.clear_level();
+        entry.clear_max_health();
+      }
+      monsters[id] = Piece(entry);
     }
   }
   const int64_t sent = NowMicros();

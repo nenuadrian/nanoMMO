@@ -65,6 +65,7 @@ class Server {
   std::map<std::string, uint32_t> udp_tokens_;
   std::map<uint32_t, asio::ip::udp::endpoint> udp_clients_;
   std::map<uint32_t, Progress> saved_;
+  int broadcasts_ = 0;
 };
 
 }  // namespace nanommo

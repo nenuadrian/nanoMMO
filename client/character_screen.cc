@@ -46,7 +46,7 @@ void CharacterScreen::Build(const std::vector<Figure>& figures,
     return;
   }
   const auto you = std::ranges::find_if(figures, &Figure::you);
-  if (you == figures.end()) {
+  if (you == figures.end() || you->level == 0) {
     return;
   }
   ImGui::SetNextWindowSize({600.0f, 400.0f}, ImGuiCond_FirstUseEver);

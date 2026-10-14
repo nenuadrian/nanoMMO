@@ -94,3 +94,21 @@ TEST(Parts, DropsPlayersWhoLeftAndPartsThatArriveLate) {
 
   EXPECT_EQ(assembled.world().players_size(), 2);
 }
+
+TEST(Parts, KeepsNamesAndLevelsBetweenTheTicksThatSendThem) {
+  nanommo::protocol::World full = MakeWorld(3, 1);
+  full.mutable_players(0)->set_level(4);
+  nanommo::protocol::World compact = MakeWorld(3, 2, 0.5f);
+  for (nanommo::protocol::Player& player : *compact.mutable_players()) {
+    player.clear_name();
+  }
+  nanommo::Parts assembled;
+  assembled.Add(full);
+  assembled.Add(compact);
+
+  const nanommo::protocol::World result = assembled.world();
+  ASSERT_EQ(result.players_size(), 3);
+  EXPECT_EQ(result.players(0).name(), "bot1");
+  EXPECT_EQ(result.players(0).level(), 4u);
+  EXPECT_EQ(result.players(0).x(), 1.5f);
+}

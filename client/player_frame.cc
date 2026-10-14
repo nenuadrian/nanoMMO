@@ -31,7 +31,8 @@ void DrawBar(const char* name, int value, int most, ImVec4 color) {
 void DrawPlayerFrame(const std::vector<Figure>& figures,
                      const protocol::World& world) {
   const auto you = std::ranges::find_if(figures, &Figure::you);
-  if (you == figures.end()) {
+  // Our level comes with our name, once a second, so the frame waits for it.
+  if (you == figures.end() || you->level == 0) {
     return;
   }
   constexpr float kMargin = 10.0f;
