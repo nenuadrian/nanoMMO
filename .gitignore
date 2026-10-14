@@ -8,3 +8,4 @@ assets/characters/*.glb
 assets/tools/node_modules/
 tls/*
 !tls/certificates.sh
+.env

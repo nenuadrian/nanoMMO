@@ -5,9 +5,12 @@ bench/results/
 site/
 compose.yaml
 compose.profile.yaml
+compose.prod.yaml
+deploy.sh
 db/
 monitoring/
 assets/tools/node_modules/
 web/
 tls/*
 !tls/certificates.sh
+.env
