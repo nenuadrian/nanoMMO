@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <random>
 #include <string>
 #include <string_view>
@@ -13,6 +14,7 @@
 #include "asio/ip/udp.hpp"
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
+#include "bot/wander.h"
 #include "protocol/framing.h"
 #include "protocol/tls.h"
 
@@ -55,6 +57,10 @@ class Bot {
   bool udp_worlds_ = false;
   std::string outgoing_;
   bool connected_ = false;
+  float x_ = 0.0f;
+  float z_ = 0.0f;
+  std::optional<Trip> trip_;
+  int stay_ = 0;
 };
 
 }  // namespace nanommo

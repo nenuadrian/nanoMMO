@@ -1,6 +1,7 @@
 #include "bot/wander.h"
 
 #include <chrono>
+#include <optional>
 #include <random>
 #include <set>
 #include <utility>
@@ -40,4 +41,21 @@ TEST(Wander, HoldsForHalfASecondToThreeSeconds) {
     EXPECT_GE(hold, std::chrono::milliseconds(500));
     EXPECT_LE(hold, std::chrono::milliseconds(3000));
   }
+}
+
+TEST(Wander, TravelsUntilItArrivesOrStopsGettingCloser) {
+  nanommo::Trip trip{.to_x = 10.0f};
+  const std::optional<nanommo::protocol::Input> input =
+      nanommo::Travel(trip, 0.0f, 0.0f);
+  ASSERT_TRUE(input.has_value());
+  EXPECT_FLOAT_EQ(input->x(), 1.0f);
+  EXPECT_FLOAT_EQ(input->z(), 0.0f);
+  EXPECT_TRUE(input->run());
+  EXPECT_FALSE(nanommo::Travel(trip, 8.0f, 0.0f).has_value());
+
+  nanommo::Trip blocked{.to_x = 10.0f};
+  for (int i = 0; i < 3; ++i) {
+    EXPECT_TRUE(nanommo::Travel(blocked, 4.0f, 0.0f).has_value());
+  }
+  EXPECT_FALSE(nanommo::Travel(blocked, 4.0f, 0.0f).has_value());
 }

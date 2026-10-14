@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <optional>
+#include <random>
 #include <string>
 
 #include "asio/buffer.hpp"
@@ -11,7 +13,6 @@
 #include "asio/ssl/host_name_verification.hpp"
 #include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
-#include "bot/wander.h"
 #include "protocol/nanommo.pb.h"
 
 namespace nanommo {
@@ -136,17 +137,40 @@ void Bot::Receive(std::string_view bytes) {
   if (world.part() < parts) {
     newest_[world.part()] = std::max(newest_[world.part()], world.sent());
   }
+  for (const protocol::Player& player : world.players()) {
+    if (player.id() == world.you()) {
+      x_ = player.x();
+      z_ = player.z();
+    }
+  }
 }
 
 void Bot::Wander() {
-  outgoing_ = Frame(RandomDirection(random_));
+  // Like players, a bot goes somewhere on the island, and stays around there
+  // for a while.
+  if (!trip_ && stay_ == 0) {
+    trip_ = RandomTrip(random_);
+  }
+  std::optional<protocol::Input> input;
+  if (trip_) {
+    input = Travel(*trip_, x_, z_);
+    if (!input) {
+      trip_.reset();
+      stay_ = std::uniform_int_distribution<int>(5, 15)(random_);
+    }
+  }
+  if (!input) {
+    --stay_;
+    input = RandomDirection(random_);
+  }
+  outgoing_ = Frame(*input);
   asio::async_write(stream_, asio::buffer(outgoing_),
                     [this](std::error_code error, std::size_t) {
                       if (error) {
                         connected_ = false;
                       }
                     });
-  timer_.expires_after(RandomHold(random_));
+  timer_.expires_after(trip_ ? std::chrono::seconds(1) : RandomHold(random_));
   timer_.async_wait([this](std::error_code error) {
     if (!error && connected_) {
       Wander();
