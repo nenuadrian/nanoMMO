@@ -5,6 +5,7 @@
             <tr>
                 <th>#</th>
                 <th>Name</th>
+                <th>World</th>
                 <th>Level</th>
                 <th>Experience</th>
             </tr>
@@ -20,12 +21,13 @@
                             {{ $player->username }}
                         @endif
                     </td>
+                    <td>{{ $player->world }}</td>
                     <td>{{ $player->level }}</td>
                     <td>{{ $player->experience }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="4">No one has played yet.</td>
+                    <td colspan="5">No one has played yet.</td>
                 </tr>
             @endforelse
         </tbody>

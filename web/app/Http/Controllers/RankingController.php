@@ -14,7 +14,7 @@ class RankingController extends Controller
             ->orderByDesc('players.experience')
             ->orderBy('accounts.username')
             ->limit(100)
-            ->get(['players.account_id', 'accounts.username', 'players.experience']);
+            ->get(['players.account_id', 'accounts.username', 'players.world', 'players.experience']);
 
         foreach ($players as $player) {
             $player->level = Level::for($player->experience);

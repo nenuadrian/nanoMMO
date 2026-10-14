@@ -122,8 +122,8 @@ int main(int argc, char* argv[]) {
 
   asio::io_context io;
   absl::StatusOr<std::unique_ptr<nanommo::Server>> server_or =
-      nanommo::Server::Create(io, *port, *tls, *interval, seed, metrics, tokens,
-                              players);
+      nanommo::Server::Create(io, *port, *tls, *interval, name, seed, metrics,
+                              tokens, players);
   if (!server_or.ok()) {
     std::cerr << "nanommo server: " << server_or.status() << "\n";
     return 1;

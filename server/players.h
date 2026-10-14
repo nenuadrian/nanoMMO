@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <map>
+#include <string>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -29,14 +30,16 @@ class Players {
   Players(Database& database, Redis& redis)
       : database_(database), redis_(redis) {}
 
-  /// From MySQL, with what Redis has on top, as that's newer.
-  absl::StatusOr<Player> Load(uint32_t account_id);
+  /// The account's player in the world, from MySQL, with what Redis has on
+  /// top, as that's newer.
+  absl::StatusOr<Player> Load(const std::string& world, uint32_t account_id);
 
   /// Into Redis, all of them in a single round trip, and marked unsaved.
-  absl::Status Save(const std::map<uint32_t, Progress>& changed);
+  absl::Status Save(const std::string& world,
+                    const std::map<uint32_t, Progress>& changed);
 
-  /// Takes the unsaved players from Redis to MySQL, a batch at a time, and
-  /// returns how many it saved.
+  /// Takes the unsaved players of all the worlds from Redis to MySQL, a batch
+  /// at a time, and returns how many it saved.
   absl::StatusOr<int> Flush();
 
  private:

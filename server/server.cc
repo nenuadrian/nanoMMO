@@ -107,10 +107,10 @@ protocol::Monster ToProtocol(uint32_t id, const Monster& monster) {
 
 absl::StatusOr<std::unique_ptr<Server>> Server::Create(
     asio::io_context& io, uint16_t port, asio::ssl::context& tls,
-    std::chrono::nanoseconds interval, uint32_t seed, Metrics& metrics,
-    Tokens& tokens, Players& players) {
-  std::unique_ptr<Server> server = absl::WrapUnique(
-      new Server(io, tls, interval, seed, metrics, tokens, players));
+    std::chrono::nanoseconds interval, std::string name, uint32_t seed,
+    Metrics& metrics, Tokens& tokens, Players& players) {
+  std::unique_ptr<Server> server = absl::WrapUnique(new Server(
+      io, tls, interval, std::move(name), seed, metrics, tokens, players));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -119,13 +119,15 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
 }
 
 Server::Server(asio::io_context& io, asio::ssl::context& tls,
-               std::chrono::nanoseconds interval, uint32_t seed,
-               Metrics& metrics, Tokens& tokens, Players& players)
+               std::chrono::nanoseconds interval, std::string name,
+               uint32_t seed, Metrics& metrics, Tokens& tokens,
+               Players& players)
     : acceptor_(io),
       tls_(tls),
       udp_(io),
       timer_(io),
       interval_(interval),
+      name_(std::move(name)),
       seed_(seed),
       world_(std::random_device()(), Terrain(seed)),
       metrics_(metrics),
@@ -206,7 +208,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
     session.Close();
     return 0;
   }
-  const absl::StatusOr<Player> player = players_.Load(*id);
+  const absl::StatusOr<Player> player = players_.Load(name_, *id);
   if (!player.ok()) {
     std::cerr << "couldn't load player " << *id << ": " << player.status()
               << "\n";
@@ -275,7 +277,7 @@ void Server::SaveChanged() {
       changed[id] = progress;
     }
   }
-  const absl::Status status = players_.Save(changed);
+  const absl::Status status = players_.Save(name_, changed);
   if (status.ok()) {
     for (const auto& [id, progress] : changed) {
       saved_[id] = progress;
