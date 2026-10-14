@@ -104,9 +104,10 @@ position between the server's ticks.
 
 ## The world
 
-The island comes from a seed, a number: the game server's `NANOMMO_WORLD_SEED`, 1 by default. The
-server sends it to each client with the client's own id, and both make the same island from it, in
-`terrain/`, so the island itself never goes over the network.
+Each land's island comes from a seed, a number: the game server's `NANOMMO_WORLD_SEED`, 1 by
+default, plus the land's own (see [Lands](#lands)). The server sends it to each client with the
+client's own id, and both make the same island from it, in `terrain/`, so the island itself never
+goes over the network.
 
 - The ground is a grid of cells two metres across, 256 of them along each side, so 512 metres, with
   two triangles in each cell. Each corner's height is value noise: a random number at each whole
@@ -136,7 +137,16 @@ The client colours each face by its height and slope: sand on the beaches, grass
 slopes and the high ground, and snow on the peaks, each face a little lighter or darker than its
 neighbours. The triangles share no corners, so each has the normal of its face, and the light shades
 each face flat. The sea is one square, at sea level, the island's colour showing through it near
-the shore. Fog fades things into the sky from 50 metres, and hides them at 140.
+the shore.
+
+The colours are the land's look, in `client/atmosphere.h`: those of the ground, the sea and the
+trees, which go into the meshes, and an atmosphere, which the shaders read each frame. The
+atmosphere is the sky, which the fog fades into, where the fog starts and where it hides everything,
+which way the sun is, the light it adds to a face turned to it, and the light a face gets even when
+it's turned away. In the Meadows, a warm sun shines from the side and low, so the faces of the hills
+and trees stand apart, and the fog goes from 45 metres to 150. The shaders work out the fog for each
+pixel, from how far it is, so a face as big as the sea fades too. View, Settings changes the
+atmosphere as you play, with presets for dusk, night, mist and ash, and Reset puts the land's back.
 
 The tree is Poly by Google's, from [Poly Pizza](https://poly.pizza/m/6pwiq7hSrHr), under
 [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), in the repo, as it was downloaded, in
@@ -148,7 +158,7 @@ middle.
 
 The client cuts the island into chunks, squares of 32 metres, and puts each chunk's ground and trees
 into one mesh, with the trees moved into place. Each frame, it draws the chunks that are closer than
-the fog's 140 metres and inside the camera's view, and no others. A chunk is out of view when all
+where the fog hides everything, 150 metres in the Meadows, and inside the camera's view, and no others. A chunk is out of view when all
 eight corners of its box are past the same side of the screen, or nearer than the near plane, or
 past the far one.
 
@@ -316,7 +326,7 @@ openssl s_client -connect localhost:7778 -CAfile tls/ca.crt < /dev/null
 
 After each tick, the game server saves the players whose position, experience or health changed, into
 Redis: a hash for each player in each world, `player:<world>:<account id>`, with `world`, `account`,
-`x`, `z`, `experience` and `health`, and its key in a set, `players:unsaved` (see [Worlds](#worlds)). It sends all of it in one round trip, as a pipeline, so saving takes a few
+`x`, `z`, `experience`, `health` and `land`, and its key in a set, `players:unsaved` (see [Worlds](#worlds)). It sends all of it in one round trip, as a pipeline, so saving takes a few
 milliseconds a tick with hundreds of players, and the server keeps up with as many players as it did
 without saving. Writing each change to MySQL instead, one statement at a time, takes the tick past
 its 50 ms at around 50 players: each save is two round trips, to prepare the statement and to run
@@ -411,7 +421,7 @@ docker build --target test web
 
 ## Monitoring and load
 
-Each world serves its metrics for Prometheus at http://localhost:9464/metrics: the players online,
+Each world serves its metrics for Prometheus at http://localhost:9464/metrics: the players online in each land,
 how long each tick takes, how long saving the players takes in each tick, the bytes it sends and the
 messages it receives. The bots serve theirs on
 port 9465: how old the world on a player's screen would be, by transport.
@@ -429,7 +439,7 @@ docker compose up -d --build
 - Prometheus: http://localhost:9090.
 
 `nanommo_bot` connects a swarm of bots that play like players. Each one runs to a random place on the
-island, within 170 metres of the middle, and wanders around there like a player at the keys, running a
+island, within 170 metres of the middle, or on one trip in five into its land's gate, and wanders around there like a player at the keys, running a
 third of the time, for 5 to 15 directions of half a second to 3 seconds each, before it sets off
 again. A bot that stops
 getting closer, at the sea or a lake, gives up on its trip. Each one logs in as bot1, bot2 and so on,
@@ -582,7 +592,7 @@ about 700 players, where it fell behind past 400.
 
 ## Worlds
 
-A world is a game server, `nanommo_server`, with players, monsters and an island of its own. Each one
+A world is a game server, `nanommo_server`, with players, monsters and lands of its own. Each one
 registers with [Consul](https://developer.hashicorp.com/consul), HashiCorp's service registry, and
 the login server asks Consul for the worlds that are up, so a new world needs no change to the
 client, the login server or Prometheus. Compose runs two: Ember on port 7777, and Frost on 7787,
@@ -593,7 +603,7 @@ A world takes its port as its first argument (7777 by default), and the rest fro
 | Setting | Default | What it is |
 |---|---|---|
 | `NANOMMO_WORLD` | `Ember` | Its name, up to 16 letters and digits |
-| `NANOMMO_WORLD_SEED` | `1` | The seed its island grows from |
+| `NANOMMO_WORLD_SEED` | `1` | The seed its lands' islands grow from |
 | `NANOMMO_PUBLIC_HOST` | `localhost` | Where players reach it, on its port; Compose takes it from your shell |
 | `NANOMMO_METRICS_PORT` | `9464` | Where Prometheus reaches its metrics |
 | `NANOMMO_CONSUL_HOST` | `127.0.0.1` | Where Consul is, on port 8500 |
@@ -632,6 +642,39 @@ Ember: the migration gives the table's `world` column Ember as its default, whic
 servers from before saving while a deploy migrates, and the saver writes a player that was unsaved
 before worlds to Ember. The rankings on the website show each player's world. The bots connect to
 port 7777 of the host they're given, so they play in Ember (`server` in Compose).
+
+## Lands
+
+Each world has two lands, each an island of its own: the Meadows, where players start, and the
+Ashlands, where ash and charred trees stand around lava, under a red haze. The world server runs both
+in its one tick loop, each as a `World`, with its own players and monsters. `terrain/lands.h` lists
+them for the server, the client and the bots, in one order, as the server tells a client which land
+it's in by its place in the list:
+
+| Land | Seed | Gate |
+|---|---|---|
+| Meadows | the world's seed | 10 metres north of the middle, to the Ashlands |
+| Ashlands | the world's seed + 1000 | 10 metres north of the middle, to the Meadows |
+
+- Players wade into the Meadows' sea up to their knees, and not into the Ashlands' lava: each land
+  says how deep its sea can be waded, and its `Terrain` takes that.
+- A gate is a ring of standing stones around a slab in the colour of the other land's sky. A player
+  who walks within a metre of its middle goes to the other land, and comes out three metres past the
+  middle of that land's gate, the way they were facing, so that they walk on out of it.
+- The server sends each client its land and its land's seed, and the client builds that land in its
+  look, from `client/atmosphere.h`, whenever the seed changes. That takes a moment, as it makes the
+  island and its chunks again.
+- The `players` table and the players' hashes in Redis keep the land a player is in, by its name, so
+  they come back where they left. The migration gives the column the Meadows as its default, which is
+  where the players from before were, and keeps the servers from before saving while a deploy
+  migrates.
+- The players-online metric has a `land` label, and the dashboard shows each world's lands apart.
+- The bots go into their land's gate on one trip in five, so they spread over both lands.
+
+Running a world's lands in one process makes a trip through a gate a move from one `World` to
+another, within a tick. With a server for each land, each land could have a machine of its own, and
+a trip would hand the player over from one server to the other, with a save and a token, like a
+login.
 
 ## Deployment
 
