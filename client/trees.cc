@@ -76,11 +76,12 @@ Matrix TreeTransform(const Tree& tree, const Terrain& terrain) {
 }
 
 void AddFaces(Triangles& triangles, const std::vector<Face>& faces,
-              const Matrix& transform) {
+              const Matrix& transform, Color tint) {
   for (const Face& face : faces) {
     triangles.Add(Vector3Transform(face.a, transform),
                   Vector3Transform(face.b, transform),
-                  Vector3Transform(face.c, transform), face.color);
+                  Vector3Transform(face.c, transform),
+                  ColorTint(face.color, tint));
   }
 }
 

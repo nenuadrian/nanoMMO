@@ -2,6 +2,7 @@
 
 #include <imgui.h>
 
+#include <array>
 #include <cstddef>
 
 #include "extras/IconsFontAwesome6.h"
@@ -12,20 +13,43 @@ namespace {
 
 struct Preset {
   const char* name;
-  std::array<float, 3> color;
+  Atmosphere atmosphere;
 };
 
-constexpr std::array<Preset, 5> kPresets = {{
-    {"Day", {0.62f, 0.78f, 0.9f}},
-    {"Night", {0.07f, 0.08f, 0.12f}},
-    {"Dusk", {0.25f, 0.13f, 0.31f}},
-    {"Forest", {0.07f, 0.21f, 0.13f}},
-    {"Ember", {0.36f, 0.06f, 0.05f}},
+constexpr std::array<Preset, 4> kPresets = {{
+    {"Dusk",
+     {.sky = {0.78f, 0.5f, 0.42f},
+      .fog_near = 40.0f,
+      .fog_far = 140.0f,
+      .sun = {-0.8f, 0.3f, 0.2f},
+      .sunlight = {1.0f, 0.6f, 0.35f},
+      .ambient = {0.3f, 0.28f, 0.42f}}},
+    {"Night",
+     {.sky = {0.04f, 0.06f, 0.12f},
+      .fog_near = 20.0f,
+      .fog_far = 100.0f,
+      .sun = {0.4f, 0.8f, -0.3f},
+      .sunlight = {0.25f, 0.3f, 0.45f},
+      .ambient = {0.1f, 0.12f, 0.2f}}},
+    {"Mist",
+     {.sky = {0.72f, 0.75f, 0.76f},
+      .fog_near = 5.0f,
+      .fog_far = 60.0f,
+      .sun = {0.3f, 1.0f, 0.5f},
+      .sunlight = {0.25f, 0.25f, 0.25f},
+      .ambient = {0.68f, 0.7f, 0.72f}}},
+    {"Ash",
+     {.sky = {0.46f, 0.22f, 0.13f},
+      .fog_near = 35.0f,
+      .fog_far = 130.0f,
+      .sun = {0.6f, 0.45f, -0.4f},
+      .sunlight = {1.0f, 0.55f, 0.3f},
+      .ambient = {0.36f, 0.28f, 0.28f}}},
 }};
 
 }  // namespace
 
-bool Menu::Build(Window& window, std::array<float, 3>& background,
+bool Menu::Build(Window& window, Atmosphere& atmosphere, const Atmosphere& land,
                  bool* show_character) {
   bool log_out = false;
   if (ImGui::BeginMainMenuBar()) {
@@ -48,14 +72,23 @@ bool Menu::Build(Window& window, std::array<float, 3>& background,
   if (show_settings_) {
     ImGui::Begin("Settings", &show_settings_,
                  ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::ColorEdit3("Background", background.data());
+    ImGui::ColorEdit3("Sky", atmosphere.sky.data());
+    ImGui::DragFloatRange2("Fog", &atmosphere.fog_near, &atmosphere.fog_far,
+                           1.0f, 0.0f, 400.0f, "%.0f m");
+    ImGui::SliderFloat3("Sun", atmosphere.sun.data(), -1.0f, 1.0f);
+    ImGui::ColorEdit3("Sunlight", atmosphere.sunlight.data());
+    ImGui::ColorEdit3("Ambient", atmosphere.ambient.data());
     for (std::size_t i = 0; i < kPresets.size(); ++i) {
       if (i > 0) {
         ImGui::SameLine();
       }
       if (ImGui::Button(kPresets[i].name)) {
-        background = kPresets[i].color;
+        atmosphere = kPresets[i].atmosphere;
       }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button(ICON_FA_ROTATE_LEFT " Reset")) {
+      atmosphere = land;
     }
     ImGui::End();
   }

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "client/animator.h"
+#include "client/atmosphere.h"
 #include "client/camera.h"
 #include "client/characters.h"
 #include "client/chunks.h"
@@ -20,11 +21,6 @@ namespace nanommo {
 
 class Renderer {
  public:
-  /// In metres from the camera: the fog starts at the first, and hides
-  /// everything past the second.
-  static constexpr float kFogNear = 50.0f;
-  static constexpr float kFogFar = 140.0f;
-
   Renderer();
   ~Renderer();
 
@@ -38,18 +34,20 @@ class Renderer {
 
   void Clear() const;
 
-  const std::array<float, 3>& background() const { return background_; }
+  /// The sky's colour.
   void set_background(const std::array<float, 3>& background) {
-    background_ = background;
+    atmosphere_.sky = background;
   }
-  /// For the settings window, which edits the colour in place.
-  std::array<float, 3>* mutable_background() { return &background_; }
+
+  /// For the settings window, which edits the atmosphere in place.
+  Atmosphere* mutable_atmosphere() { return &atmosphere_; }
 
   const Camera3D& camera() const { return camera_; }
   void set_camera(const Camera3D& camera) { camera_ = camera; }
 
-  /// Builds the terrain's meshes, in place of any we had.
-  void set_terrain(const Terrain& terrain);
+  /// Builds the terrain's meshes in the look's colours, in place of any we
+  /// had, and takes on the look's atmosphere.
+  void set_terrain(const Terrain& terrain, const Look& look);
 
   void set_cubes(std::vector<Cube> cubes) { cubes_ = std::move(cubes); }
 
@@ -72,7 +70,7 @@ class Renderer {
                    const Matrix& transform) const;
   void DrawFigure(const Figure& figure) const;
 
-  std::array<float, 3> background_ = {0.62f, 0.78f, 0.9f};
+  Atmosphere atmosphere_ = kMeadows.atmosphere;
   Camera3D camera_ = GameCamera();
   std::vector<Cube> cubes_;
   std::vector<Figure> figures_;

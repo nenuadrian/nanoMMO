@@ -21,14 +21,16 @@ uniform mat4 mvp;
 uniform mat4 matNormal;
 uniform float fogNear;
 uniform float fogFar;
-out float light;
+uniform vec3 sun;
+uniform vec3 sunlight;
+uniform vec3 ambient;
+out vec3 light;
 out vec4 color;
 out float fog;
 
 void main() {
   vec3 normal = normalize(mat3(matNormal) * vertexNormal);
-  vec3 sun = normalize(vec3(0.3, 1.0, 0.5));
-  light = 0.55 + 0.45 * max(dot(normal, sun), 0.0);
+  light = ambient + sunlight * max(dot(normal, normalize(sun)), 0.0);
   color = vertexColor;
   gl_Position = mvp * vec4(vertexPosition, 1.0);
   fog = clamp((gl_Position.w - fogNear) / (fogFar - fogNear), 0.0, 1.0);
@@ -46,7 +48,10 @@ uniform mat4 matNormal;
 uniform mat4 boneMatrices[128];
 uniform float fogNear;
 uniform float fogFar;
-out float light;
+uniform vec3 sun;
+uniform vec3 sunlight;
+uniform vec3 ambient;
+out vec3 light;
 out vec4 color;
 out float fog;
 
@@ -56,8 +61,7 @@ void main() {
             + boneMatrices[int(vertexBoneIndices.z)] * vertexBoneWeights.z
             + boneMatrices[int(vertexBoneIndices.w)] * vertexBoneWeights.w;
   vec3 normal = normalize(mat3(matNormal) * mat3(skin) * vertexNormal);
-  vec3 sun = normalize(vec3(0.3, 1.0, 0.5));
-  light = 0.55 + 0.45 * max(dot(normal, sun), 0.0);
+  light = ambient + sunlight * max(dot(normal, normalize(sun)), 0.0);
   color = vertexColor;
   gl_Position = mvp * skin * vec4(vertexPosition, 1.0);
   fog = clamp((gl_Position.w - fogNear) / (fogFar - fogNear), 0.0, 1.0);
@@ -65,7 +69,7 @@ void main() {
 )";
 
 constexpr const char* kFragmentShader = R"(#version 330
-in float light;
+in vec3 light;
 in vec4 color;
 in float fog;
 uniform vec4 colDiffuse;
@@ -80,14 +84,20 @@ void main() {
 
 constexpr std::array<float, 3> kPreviewBackground = {0.12f, 0.14f, 0.19f};
 
-// Into the background's colour, so that far away things fade into the sky.
-void SetFog(Shader shader, const std::array<float, 3>& color) {
-  SetShaderValue(shader, GetShaderLocation(shader, "fogColor"), color.data(),
-                 SHADER_UNIFORM_VEC3);
+void SetAtmosphere(Shader shader, const Atmosphere& atmosphere) {
+  // Into the sky's colour, so that far away things fade into the sky.
+  SetShaderValue(shader, GetShaderLocation(shader, "fogColor"),
+                 atmosphere.sky.data(), SHADER_UNIFORM_VEC3);
   SetShaderValue(shader, GetShaderLocation(shader, "fogNear"),
-                 &Renderer::kFogNear, SHADER_UNIFORM_FLOAT);
+                 &atmosphere.fog_near, SHADER_UNIFORM_FLOAT);
   SetShaderValue(shader, GetShaderLocation(shader, "fogFar"),
-                 &Renderer::kFogFar, SHADER_UNIFORM_FLOAT);
+                 &atmosphere.fog_far, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(shader, GetShaderLocation(shader, "sun"),
+                 atmosphere.sun.data(), SHADER_UNIFORM_VEC3);
+  SetShaderValue(shader, GetShaderLocation(shader, "sunlight"),
+                 atmosphere.sunlight.data(), SHADER_UNIFORM_VEC3);
+  SetShaderValue(shader, GetShaderLocation(shader, "ambient"),
+                 atmosphere.ambient.data(), SHADER_UNIFORM_VEC3);
 }
 
 }  // namespace
@@ -115,13 +125,14 @@ Renderer::~Renderer() {
   UnloadShader(cube_shader_);
 }
 
-void Renderer::set_terrain(const Terrain& terrain) {
+void Renderer::set_terrain(const Terrain& terrain, const Look& look) {
   UnloadTerrain();
+  atmosphere_ = look.atmosphere;
   // The ground, the trees and the sea have no bones either.
-  chunks_ = LoadChunks(terrain, tree_, cube_shader_);
+  chunks_ = LoadChunks(terrain, look, tree_, cube_shader_);
   sea_ = LoadModelFromMesh(SeaMesh(terrain));
   sea_->materials[0].shader = cube_shader_;
-  sea_->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = kSea;
+  sea_->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = look.sea;
 }
 
 void Renderer::UnloadTerrain() {
@@ -142,14 +153,15 @@ void Renderer::DrawCounted(const Mesh& mesh, const Material& material,
 void Renderer::Draw() const {
   work_ = {};
   Clear();
-  SetFog(cube_shader_, background_);
-  SetFog(character_shader_, background_);
+  SetAtmosphere(cube_shader_, atmosphere_);
+  SetAtmosphere(character_shader_, atmosphere_);
   BeginMode3D(camera_);
   // As BeginMode3D set them up, so we cull with what the GPU will use.
   const Matrix view_projection =
       MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
   for (const Chunk& chunk : chunks_) {
-    if (InSight(chunk.box, camera_.position, view_projection, kFogFar)) {
+    if (InSight(chunk.box, camera_.position, view_projection,
+                atmosphere_.fog_far)) {
       DrawCounted(chunk.model.meshes[0], chunk.model.materials[0],
                   MatrixIdentity());
     }
@@ -178,8 +190,11 @@ void Renderer::DrawPreview(const Figure& figure, const Camera3D& camera) const {
   ClearBackground(
       ColorFromNormalized({kPreviewBackground[0], kPreviewBackground[1],
                            kPreviewBackground[2], 1.0f}));
-  SetFog(cube_shader_, kPreviewBackground);
-  SetFog(character_shader_, kPreviewBackground);
+  // Lit like the Meadows, wherever we are.
+  Atmosphere preview = kMeadows.atmosphere;
+  preview.sky = kPreviewBackground;
+  SetAtmosphere(cube_shader_, preview);
+  SetAtmosphere(character_shader_, preview);
   BeginMode3D(camera);
   DrawFigure(figure);
   EndMode3D();
@@ -198,8 +213,8 @@ void Renderer::DrawFigure(const Figure& figure) const {
 }
 
 void Renderer::Clear() const {
-  ClearBackground(ColorFromNormalized(
-      {background_[0], background_[1], background_[2], 1.0f}));
+  const std::array<float, 3>& sky = atmosphere_.sky;
+  ClearBackground(ColorFromNormalized({sky[0], sky[1], sky[2], 1.0f}));
 }
 
 }  // namespace nanommo

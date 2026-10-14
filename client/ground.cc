@@ -9,11 +9,6 @@ namespace nanommo {
 
 namespace {
 
-constexpr Color kSand{214, 196, 140, 255};
-constexpr Color kGrass{98, 160, 72, 255};
-constexpr Color kRock{128, 120, 112, 255};
-constexpr Color kSnow{238, 240, 245, 255};
-
 constexpr float kBeach = 0.6f;
 constexpr float kTreeLine = 12.0f;
 constexpr float kSnowLine = 19.0f;
@@ -21,17 +16,17 @@ constexpr float kSnowLine = 19.0f;
 // The y of a face's normal: below this, it's too steep for grass.
 constexpr float kSteep = 0.8f;
 
-Color GroundColor(float height, float up) {
+Color GroundColor(const Look& look, float height, float up) {
   if (height < kBeach) {
-    return kSand;
+    return look.sand;
   }
   if (height > kSnowLine) {
-    return kSnow;
+    return look.snow;
   }
   if (height > kTreeLine || up < kSteep) {
-    return kRock;
+    return look.rock;
   }
-  return kGrass;
+  return look.grass;
 }
 
 // Up to four percent lighter or darker, so that faces of one colour still
@@ -44,17 +39,17 @@ Color Vary(Color color, uint32_t hash) {
   return {scaled(color.r), scaled(color.g), scaled(color.b), color.a};
 }
 
-void AddFace(Triangles& triangles, Vector3 a, Vector3 b, Vector3 c,
-             uint32_t hash) {
+void AddFace(Triangles& triangles, const Look& look, Vector3 a, Vector3 b,
+             Vector3 c, uint32_t hash) {
   const float height = (a.y + b.y + c.y) / 3.0f;
-  const Color color = GroundColor(height, FaceNormal(a, b, c).y);
+  const Color color = GroundColor(look, height, FaceNormal(a, b, c).y);
   triangles.Add(a, b, c, Vary(color, hash));
 }
 
 }  // namespace
 
-void AddGround(Triangles& triangles, const Terrain& terrain, int left, int top,
-               int cells) {
+void AddGround(Triangles& triangles, const Terrain& terrain, const Look& look,
+               int left, int top, int cells) {
   const float half_size = terrain.half_size();
   const auto corner = [&](int i, int j) {
     return Vector3{i * Terrain::kCell - half_size, terrain.Corner(i, j),
@@ -66,9 +61,9 @@ void AddGround(Triangles& triangles, const Terrain& terrain, int left, int top,
       const Vector3 top_right = corner(i + 1, j);
       const Vector3 bottom_left = corner(i, j + 1);
       const Vector3 bottom_right = corner(i + 1, j + 1);
-      AddFace(triangles, top_left, bottom_right, top_right,
+      AddFace(triangles, look, top_left, bottom_right, top_right,
               Hash(terrain.seed(), 2 * i, j));
-      AddFace(triangles, top_left, bottom_left, bottom_right,
+      AddFace(triangles, look, top_left, bottom_left, bottom_right,
               Hash(terrain.seed(), 2 * i + 1, j));
     }
   }

@@ -31,9 +31,10 @@ std::vector<Face> LoadFaces(const std::string& path);
 /// Sizes the model, turns it, and stands it on the ground.
 Matrix TreeTransform(const Tree& tree, const Terrain& terrain);
 
-/// Adds the faces, moved by the transform.
+/// Adds the faces, moved by the transform, with their colours multiplied by
+/// the tint.
 void AddFaces(Triangles& triangles, const std::vector<Face>& faces,
-              const Matrix& transform);
+              const Matrix& transform, Color tint);
 
 }  // namespace nanommo
 

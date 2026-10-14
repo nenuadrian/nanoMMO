@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "absl/status/statusor.h"
+#include "client/atmosphere.h"
 #include "client/offscreen.h"
 #include "client/window.h"
 #include "gtest/gtest.h"
@@ -50,8 +51,8 @@ TEST(Renderer, DrawsTheTerrainBelowTheSky) {
   ASSERT_TRUE(window.ok());
   nanommo::Offscreen target(64, 64);
   nanommo::Renderer renderer;
+  renderer.set_terrain(nanommo::Terrain(1), nanommo::kMeadows);
   renderer.set_background({30 / 255.0f, 144 / 255.0f, 255 / 255.0f});
-  renderer.set_terrain(nanommo::Terrain(1));
   // Looking out to sea, level with the horizon.
   renderer.set_camera({.position = {0.0f, 10.0f, 0.0f},
                        .target = {0.0f, 10.0f, 100.0f},

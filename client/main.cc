@@ -14,6 +14,7 @@
 #include "absl/strings/str_cat.h"
 #include "asio/ssl/context.hpp"
 #include "client/animator.h"
+#include "client/atmosphere.h"
 #include "client/camera.h"
 #include "client/character_screen.h"
 #include "client/connection.h"
@@ -144,7 +145,7 @@ int main(int argc, char* argv[]) {
       }
       if (!terrain || terrain->seed() != world.seed()) {
         terrain.emplace(world.seed());
-        renderer.set_terrain(*terrain);
+        renderer.set_terrain(*terrain, nanommo::kMeadows);
       }
       std::vector<nanommo::Figure> figures =
           animator.Update(world, GetFrameTime());
@@ -177,7 +178,8 @@ int main(int argc, char* argv[]) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera());
       nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
       character_screen.Build(renderer.figures(), connection->world());
-      if (menu.Build(*window, *renderer.mutable_background(),
+      if (menu.Build(*window, *renderer.mutable_atmosphere(),
+                     nanommo::kMeadows.atmosphere,
                      character_screen.mutable_visible())) {
         connection.reset();
       }

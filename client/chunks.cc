@@ -11,13 +11,13 @@
 
 namespace nanommo {
 
-std::vector<Chunk> LoadChunks(const Terrain& terrain,
+std::vector<Chunk> LoadChunks(const Terrain& terrain, const Look& look,
                               const std::vector<Face>& tree, Shader shader) {
   const int across = (terrain.cells() + kChunkCells - 1) / kChunkCells;
   std::vector<Triangles> squares(across * across);
   for (int j = 0; j < across; ++j) {
     for (int i = 0; i < across; ++i) {
-      AddGround(squares[j * across + i], terrain, i * kChunkCells,
+      AddGround(squares[j * across + i], terrain, look, i * kChunkCells,
                 j * kChunkCells, kChunkCells);
     }
   }
@@ -30,7 +30,8 @@ std::vector<Chunk> LoadChunks(const Terrain& terrain,
     const int j =
         std::clamp(static_cast<int>((planted.z + terrain.half_size()) / size),
                    0, across - 1);
-    AddFaces(squares[j * across + i], tree, TreeTransform(planted, terrain));
+    AddFaces(squares[j * across + i], tree, TreeTransform(planted, terrain),
+             look.trees);
   }
 
   std::vector<Chunk> chunks;

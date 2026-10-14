@@ -3,21 +3,20 @@
 
 #include <raylib.h>
 
+#include "client/atmosphere.h"
 #include "client/triangles.h"
 #include "terrain/terrain.h"
 
 namespace nanommo {
 
 /// The two triangles in each cell of a square of cells, from the cell at
-/// left and top, coloured by height and slope.
-void AddGround(Triangles& triangles, const Terrain& terrain, int left, int top,
-               int cells);
+/// left and top, in the look's colours, by height and slope.
+void AddGround(Triangles& triangles, const Terrain& terrain, const Look& look,
+               int left, int top, int cells);
 
 /// A square at sea level, four times as wide as the terrain, so that the sea
 /// goes on past it.
 Mesh SeaMesh(const Terrain& terrain);
-
-constexpr Color kSea{48, 118, 178, 210};
 
 }  // namespace nanommo
 

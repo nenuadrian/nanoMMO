@@ -12,6 +12,7 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
+#include "client/atmosphere.h"
 #include "client/camera.h"
 #include "client/renderer.h"
 #include "client/window.h"
@@ -36,7 +37,7 @@ int main(int argc, char* argv[]) {
   SetTargetFPS(0);
   const nanommo::Terrain terrain(seed);
   nanommo::Renderer renderer;
-  renderer.set_terrain(terrain);
+  renderer.set_terrain(terrain, nanommo::kMeadows);
   nanommo::FollowCamera camera;
 
   constexpr float kRadius = 80.0f;

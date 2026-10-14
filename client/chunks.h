@@ -5,6 +5,7 @@
 
 #include <vector>
 
+#include "client/atmosphere.h"
 #include "client/trees.h"
 #include "terrain/terrain.h"
 
@@ -20,7 +21,7 @@ struct Chunk {
   BoundingBox box;
 };
 
-std::vector<Chunk> LoadChunks(const Terrain& terrain,
+std::vector<Chunk> LoadChunks(const Terrain& terrain, const Look& look,
                               const std::vector<Face>& tree, Shader shader);
 
 void UnloadChunks(std::vector<Chunk>& chunks);
