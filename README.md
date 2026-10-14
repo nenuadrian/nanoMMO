@@ -422,8 +422,12 @@ docker compose up -d --build
 - Grafana: http://localhost:3000, which opens on the nanoMMO server dashboard.
 - Prometheus: http://localhost:9090.
 
-`nanommo_bot` connects a swarm of bots that wander around like players at their keys, running a third of
-the time. Each one logs in as bot1, bot2 and so on, and creates its account the first time. It takes the login server's
+`nanommo_bot` connects a swarm of bots that play like players. Each one runs to a random place on the
+island, within 170 metres of the middle, and wanders around there like a player at the keys, running a
+third of the time, for 5 to 15 directions of half a second to 3 seconds each, before it sets off
+again. A bot that stops
+getting closer, at the sea or a lake, gives up on its trip. Each one logs in as bot1, bot2 and so on,
+and creates its account the first time. It takes the login server's
 host, the game server's host, how many bots, how many seconds to spread their arrival over, the
 number of its first bot, so that several swarms can play on one server, and the transport for the
 worlds, `udp` or `tcp`, UDP by default:
@@ -489,9 +493,9 @@ and records nothing until the profiler connects. The profiler has to be the rele
 built with, 0.14.1: on a Mac, `brew install tracy`, then connect to `localhost`, port 8086.
 
 The broadcast used to serialize the whole world once for each client, so its work grew with the square
-of the players. Now it serializes the players once a tick, and all the sessions write those bytes,
-followed by each client's own id. What's left grows with the square of the players too, as each
-client still gets all of them: that's the kernel sending the bytes.
+of the players. Now it serializes each player and monster once a tick, and the sessions write those
+bytes, followed by each client's own id. Most of the tick goes on the kernel sending the bytes, packet
+by packet, which is why each player gets what's near them, and no more (see below).
 
 ## Packet loss: TCP and UDP
 
@@ -538,6 +542,37 @@ How the world gets there over UDP:
   IP doesn't split it into fragments, which would all be lost with any one of them. A lost part leaves
   its players and monsters where they were for a tick. `protocol/parts.h` splits the world and
   puts it back together.
+
+## What each player gets
+
+Each tick, the server sends each player the players and monsters near them, which is called interest
+management. Sending everyone the whole world grows with the square of the players, and most of it
+would be hidden in the fog anyway.
+
+- `server/interest.h` sorts the players and monsters into cells of 32 by 32 metres. A player gets
+  their own cell and the two cells each way around it, so everyone within 64 metres, and some further
+  out. A player who comes into view does that past the nameplates, which show within 50 metres, and
+  partly in the fog. `kInterestCells` sets how far that is.
+- The players in a cell get the same world, so the server puts it together once a cell. Each player
+  and monster is serialized once a tick, into a piece, and a cell's world is its pieces, one after
+  another, which protobuf reads as one message (`protocol/parts.h`). Over UDP, the pieces are packed
+  into the parts.
+- Names, levels and the most health a unit can have go out once a second, with every twentieth world
+  (`kFullEvery`), and the client keeps the last ones it had in between. Protobuf leaves out a field
+  that's empty or zero, and no name or level is.
+
+With bots that spread over the island, `bench/load.sh 100 12` on an Apple M4 Pro, with the bots on the
+same machine as the server:
+
+| Each player gets | 20 ticks a second up to | At 1,200 players | Sent to each player, with 500 |
+|---|---|---|---|
+| The whole world | 800 players | 10.4 ticks a second | 377 KB/s |
+| Within 96 m | 1,000 players | 15.5 ticks a second | 228 KB/s |
+| Within 64 m | 1,200 players | 20, ticks of 36 ms (p50) | 135 KB/s |
+| Within 64 m, names and levels once a second | 1,200 players | 20, ticks of 26 ms (p50) | 94 KB/s |
+
+On a VPS with 2 vCPUs, with the bots on it too, the game server now keeps its 20 ticks a second up to
+about 700 players, where it fell behind past 400.
 
 ## Deployment
 
@@ -594,9 +629,8 @@ certificate along for them. It needs `jq` on the server (`sudo apt install jq`),
 Debian has:
 
 ```bash
-ssh debian@203.0.113.7 'cd nanommo && bench/load.sh 100 6' > bench/results/vps.json
+ssh debian@203.0.113.7 'cd nanommo && bench/load.sh 100 10' > bench/results/vps.json
 ```
 
 On a VPS with 2 vCPUs, which the bots share with the servers, the game server keeps its 20 ticks a
-second up to about 400 players, and falls behind past that, where an Apple M4 Pro gets to about
-500.
+second up to about 700 players (see What each player gets).
