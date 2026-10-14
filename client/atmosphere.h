@@ -36,14 +36,14 @@ struct Look {
 };
 
 constexpr Look kMeadows = {
-    .atmosphere = {.sky = {0.62f, 0.78f, 0.9f},
-                   .fog_near = 50.0f,
-                   .fog_far = 140.0f,
-                   .sun = {0.3f, 1.0f, 0.5f},
-                   .sunlight = {0.45f, 0.45f, 0.45f},
-                   .ambient = {0.55f, 0.55f, 0.55f}},
+    .atmosphere = {.sky = {0.6f, 0.77f, 0.92f},
+                   .fog_near = 45.0f,
+                   .fog_far = 150.0f,
+                   .sun = {0.55f, 0.75f, 0.35f},
+                   .sunlight = {0.75f, 0.68f, 0.55f},
+                   .ambient = {0.4f, 0.44f, 0.52f}},
     .sand = {214, 196, 140, 255},
-    .grass = {98, 160, 72, 255},
+    .grass = {106, 162, 70, 255},
     .rock = {128, 120, 112, 255},
     .snow = {238, 240, 245, 255},
     .sea = {48, 118, 178, 210},

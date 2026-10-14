@@ -19,21 +19,19 @@ in vec3 vertexNormal;
 in vec4 vertexColor;
 uniform mat4 mvp;
 uniform mat4 matNormal;
-uniform float fogNear;
-uniform float fogFar;
 uniform vec3 sun;
 uniform vec3 sunlight;
 uniform vec3 ambient;
 out vec3 light;
 out vec4 color;
-out float fog;
+out float depth;
 
 void main() {
   vec3 normal = normalize(mat3(matNormal) * vertexNormal);
   light = ambient + sunlight * max(dot(normal, normalize(sun)), 0.0);
   color = vertexColor;
   gl_Position = mvp * vec4(vertexPosition, 1.0);
-  fog = clamp((gl_Position.w - fogNear) / (fogFar - fogNear), 0.0, 1.0);
+  depth = gl_Position.w;
 }
 )";
 
@@ -46,14 +44,12 @@ in vec4 vertexColor;
 uniform mat4 mvp;
 uniform mat4 matNormal;
 uniform mat4 boneMatrices[128];
-uniform float fogNear;
-uniform float fogFar;
 uniform vec3 sun;
 uniform vec3 sunlight;
 uniform vec3 ambient;
 out vec3 light;
 out vec4 color;
-out float fog;
+out float depth;
 
 void main() {
   mat4 skin = boneMatrices[int(vertexBoneIndices.x)] * vertexBoneWeights.x
@@ -64,20 +60,23 @@ void main() {
   light = ambient + sunlight * max(dot(normal, normalize(sun)), 0.0);
   color = vertexColor;
   gl_Position = mvp * skin * vec4(vertexPosition, 1.0);
-  fog = clamp((gl_Position.w - fogNear) / (fogFar - fogNear), 0.0, 1.0);
+  depth = gl_Position.w;
 }
 )";
 
 constexpr const char* kFragmentShader = R"(#version 330
 in vec3 light;
 in vec4 color;
-in float fog;
+in float depth;
 uniform vec4 colDiffuse;
 uniform vec3 fogColor;
+uniform float fogNear;
+uniform float fogFar;
 out vec4 pixel;
 
 void main() {
   vec3 lit = colDiffuse.rgb * color.rgb * light;
+  float fog = clamp((depth - fogNear) / (fogFar - fogNear), 0.0, 1.0);
   pixel = vec4(mix(lit, fogColor, fog), colDiffuse.a * color.a);
 }
 )";
