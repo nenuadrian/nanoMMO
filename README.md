@@ -15,7 +15,7 @@ raylib, on top of the system's OpenGL.
   libgl1-mesa-dev`, where the last two are the X11 and OpenGL headers.
 
 CMake fetches and builds the other libraries: GoogleTest, raylib, Dear ImGui, rlImGui, abseil,
-protobuf, Asio, prometheus-cpp and hiredis. The first build compiles protobuf, so it takes a few
+protobuf, Asio, prometheus-cpp, hiredis, nlohmann/json and cpp-httplib. The first build compiles protobuf, so it takes a few
 minutes.
 
 ```bash
@@ -26,13 +26,14 @@ ctest --test-dir build
 
 The servers keep accounts in MySQL, and hand logins over through Redis. The game server saves the
 players into Redis, and a saver takes them on to MySQL (see [Saving players](#saving-players)).
-Docker Compose runs MySQL, Redis and the saver, and before them Flyway, which makes the tables
-from the migrations in `db/` (see [Migrations](#migrations)). The clients
-talk to the servers over TLS, with certificates from an authority of our own, which
-`tls/certificates.sh` makes the first time (see [TLS](#tls)):
+Each game server is a world, which registers with Consul, and the login server lists the worlds
+from there (see [Worlds](#worlds)). Docker Compose runs MySQL, Redis, Consul and the saver, and
+before them Flyway, which makes the tables from the migrations in `db/` (see
+[Migrations](#migrations)). The clients talk to the servers over TLS, with certificates from an
+authority of our own, which `tls/certificates.sh` makes the first time (see [TLS](#tls)):
 
 ```bash
-docker compose up -d --build mysql redis saver
+docker compose up -d --build mysql redis consul saver
 tls/certificates.sh
 ./build/bin/nanommo_login
 ```
@@ -44,9 +45,11 @@ Then, in another terminal, the game server, and in one or two more, the client:
 ./build/bin/nanommo_client
 ```
 
-The client opens on a login screen: type a name and a password, then Create account the first time,
-and Log in after that. It connects to `localhost`, or to the host you give it
-(`./build/bin/nanommo_client 192.168.1.20`). It gets the world over UDP, unless you put `tcp` after the
+The client opens on the worlds that are up, with how many players each has. Pick one with the arrow
+keys and Enter, or a click, and F5 or Refresh asks for the list again. Then type a name and a
+password, and Create account the first time, and Log in after that. The client asks the login
+server on `localhost`, or on the host you give it (`./build/bin/nanommo_client 192.168.1.20`), and
+connects to the world at the host and port that world registered. It gets the world over UDP, unless you put `tcp` after the
 host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP](#packet-loss-tcp-and-udp).
 Each player is an animated character with a sword, on an island of hills, woods and beaches, with
 its level, name and health over it, or a cube until you've made the characters (see below).
@@ -59,7 +62,7 @@ Press C, or choose View, Character, to open your character screen. It shows your
 health, experience and position, next to an idle preview of your character facing the camera. The
 client renders that preview into a texture with a camera of its own, then ImGui draws the texture in
 the window. View, Settings changes the sky, which is the colour of the fog too, and Game, Log out
-takes you back to the login screen. Next time you log in, you're where you left off.
+takes you back to the login screen. Next time you log in to that world, you're where you left off.
 
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
 it, and all sides use the C++ it generates.
@@ -225,18 +228,21 @@ you back, in the middle at full health. A player saved before health was kept jo
   database never holds a password itself.
 - Once you're logged in, it puts a token in Redis, which works once, within 30 seconds, and sends
   it to the client.
-- The client takes the token to the game server, `nanommo_server`, on port 7777. The game server takes
-  the token out of Redis, and loads your player: your name from the `accounts` table, and where you
-  are and your experience from Redis, or from the `players` table if Redis doesn't have you.
+- The client takes the token to the world you picked, a game server, `nanommo_server`. The game
+  server takes the token out of Redis, and loads your player in that world: your name from the
+  `accounts` table, and where you are and your experience from Redis, or from the `players` table if
+  Redis doesn't have you.
 
 The password and the token go over TLS, so nobody between the client and the servers can read
 them (see [TLS](#tls)).
 
-The servers find MySQL and Redis on `127.0.0.1`, or wherever `NANOMMO_MYSQL_HOST` and `NANOMMO_REDIS_HOST`
-point. The tests that need them skip themselves unless those are set:
+The servers find MySQL, Redis and Consul on `127.0.0.1`, or wherever `NANOMMO_MYSQL_HOST`,
+`NANOMMO_REDIS_HOST` and `NANOMMO_CONSUL_HOST` point. The tests that need them skip themselves
+unless those are set:
 
 ```bash
-NANOMMO_MYSQL_HOST=127.0.0.1 NANOMMO_REDIS_HOST=127.0.0.1 ./build/bin/nanommo_server_tests
+NANOMMO_MYSQL_HOST=127.0.0.1 NANOMMO_REDIS_HOST=127.0.0.1 NANOMMO_CONSUL_HOST=127.0.0.1 \
+  ./build/bin/nanommo_server_tests
 # Or all in Docker, next to MySQL and Redis.
 docker compose run --rm tests
 ```
@@ -309,9 +315,8 @@ openssl s_client -connect localhost:7778 -CAfile tls/ca.crt < /dev/null
 ## Saving players
 
 After each tick, the game server saves the players whose position, experience or health changed, into
-Redis: a hash for each player, `player:<account id>`, with `x`, `z`, `experience` and `health`, and their
-ids in a set,
-`players:unsaved`. It sends all of it in one round trip, as a pipeline, so saving takes a few
+Redis: a hash for each player in each world, `player:<world>:<account id>`, with `world`, `account`,
+`x`, `z`, `experience` and `health`, and its key in a set, `players:unsaved` (see [Worlds](#worlds)). It sends all of it in one round trip, as a pipeline, so saving takes a few
 milliseconds a tick with hundreds of players, and the server keeps up with as many players as it did
 without saving. Writing each change to MySQL instead, one statement at a time, takes the tick past
 its 50 ms at around 50 players: each save is two round trips, to prepare the statement and to run
@@ -329,7 +334,7 @@ the last tick. When a player joins, the game server reads them from Redis first,
 MySQL, and from the `players` table if Redis doesn't have them.
 
 ```bash
-docker compose exec redis redis-cli HGETALL player:1
+docker compose exec redis redis-cli HGETALL player:Ember:1
 docker compose exec redis redis-cli SCARD players:unsaved
 docker compose logs saver
 ```
@@ -406,13 +411,14 @@ docker build --target test web
 
 ## Monitoring and load
 
-The server serves its metrics for Prometheus at http://localhost:9464/metrics: the players online,
+Each world serves its metrics for Prometheus at http://localhost:9464/metrics: the players online,
 how long each tick takes, how long saving the players takes in each tick, the bytes it sends and the
 messages it receives. The bots serve theirs on
 port 9465: how old the world on a player's screen would be, by transport.
 
-`compose.yaml` starts the servers, MySQL and Redis together with Prometheus, which scrapes the game
-server every two seconds, and Grafana, with a dashboard of those metrics. The dashboard and Grafana's data source are files in
+`compose.yaml` starts the servers, MySQL and Redis together with Prometheus, which finds the worlds
+in Consul and scrapes each of them every two seconds, with its name as the `world` label, and
+Grafana, with a dashboard of those metrics, world by world. The dashboard and Grafana's data source are files in
 `monitoring/`, so they're set up the same way on any machine.
 
 ```bash
@@ -574,22 +580,77 @@ same machine as the server:
 On a VPS with 2 vCPUs, with the bots on it too, the game server now keeps its 20 ticks a second up to
 about 700 players, where it fell behind past 400.
 
+## Worlds
+
+A world is a game server, `nanommo_server`, with players, monsters and an island of its own. Each one
+registers with [Consul](https://developer.hashicorp.com/consul), HashiCorp's service registry, and
+the login server asks Consul for the worlds that are up, so a new world needs no change to the
+client, the login server or Prometheus. Compose runs two: Ember on port 7777, and Frost on 7787,
+on an island from another seed. Consul's UI is at http://localhost:8500.
+
+A world takes its port as its first argument (7777 by default), and the rest from settings:
+
+| Setting | Default | What it is |
+|---|---|---|
+| `NANOMMO_WORLD` | `Ember` | Its name, up to 16 letters and digits |
+| `NANOMMO_WORLD_SEED` | `1` | The seed its island grows from |
+| `NANOMMO_PUBLIC_HOST` | `localhost` | Where players reach it, on its port; Compose takes it from your shell |
+| `NANOMMO_METRICS_PORT` | `9464` | Where Prometheus reaches its metrics |
+| `NANOMMO_CONSUL_HOST` | `127.0.0.1` | Where Consul is, on port 8500 |
+
+- A world registers with its name, its address, the public host and port, the metrics port and how
+  many players it has, and a health check that turns critical ten seconds after its last pass.
+- Every two seconds, the tick loop sends a heartbeat, and a thread of its own takes it to Consul, so
+  a slow Consul can't hold up a tick, and a heartbeat that finds the last one still waiting skips.
+  Each heartbeat passes the world's check, so a world that stops ticking drops out of the list, and
+  comes back when it ticks again. A world registers again when its players change, as registering
+  again keeps the check's status, and after an error, as Consul forgets its worlds when it restarts.
+  Consul forgets a world that stays critical for a minute.
+- A world registers the address the kernel sends to Consul from, which is the address Consul and
+  Prometheus reach it at, inside Compose's network. Players reach it at its public host instead,
+  which in Docker is the machine the ports are published on.
+- When it stops, a world deregisters, and leaves the list at once.
+- A world's name is its ID, in Consul and in the `players` table, so two worlds with one name would
+  share their players, and the second to register would replace the first in the list.
+- To play from another machine, start the worlds with the address of this one:
+  `NANOMMO_PUBLIC_HOST=192.168.1.20 docker compose up -d`.
+- Consul runs in development mode: one server, which keeps everything in memory. Each world
+  registers again within two seconds, so a restart loses nothing for long. In production, Consul
+  would run as three or five servers, so that one can fail.
+
+A third world, with nothing changed in a file:
+
+```bash
+docker compose run -d --name gale -p 7797:7797 -p 7797:7797/udp \
+  -e NANOMMO_WORLD=Gale -e NANOMMO_WORLD_SEED=3 server 7797
+docker stop gale && docker rm gale
+```
+
+Each world keeps its own players: the `players` table has a row per account and world, and the
+players in Redis are `player:<world>:<account>`. The players from before there were worlds stay in
+Ember: the migration gives the table's `world` column Ember as its default, which also keeps the
+servers from before saving while a deploy migrates, and the saver writes a player that was unsaved
+before worlds to Ember. The rankings on the website show each player's world. The bots connect to
+port 7777 of the host they're given, so they play in Ember (`server` in Compose).
+
 ## Deployment
 
 The game runs on any Linux server with Docker and Docker Compose, such as a VPS, from
 `compose.prod.yaml` on top of `compose.yaml`. On the server, `.env` sets
 `COMPOSE_FILE=compose.yaml:compose.prod.yaml`, so each `docker compose` command there reads both.
 
-- The internet reaches the login server on TCP port 7778, the game server on port 7777, TCP and UDP,
-  and the website on port 8080, and nothing else. MySQL, Redis and the game server's metrics stay on
+- The internet reaches the login server on TCP port 7778, the worlds on ports 7777 and 7787, TCP and
+  UDP, and the website on port 8080, and nothing else. MySQL, Redis and the worlds' metrics stay on
   Compose's own network. Docker publishes a port past a firewall such as ufw, so leaving a port out of
   the file is what keeps it off the internet.
-- Prometheus and Grafana listen on the server's localhost. Reach them through SSH:
-  `ssh -L 3000:localhost:3000 -L 9090:localhost:9090 debian@203.0.113.7`, then open
-  http://localhost:3000.
+- Prometheus, Grafana and Consul listen on the server's localhost. Reach them through SSH:
+  `ssh -L 3000:localhost:3000 -L 9090:localhost:9090 -L 8500:localhost:8500 debian@203.0.113.7`,
+  then open http://localhost:3000.
 - MySQL's password and the website's `APP_KEY` come from `.env` on the server, which `deploy.sh` makes
   on the first deploy, with random ones, readable by the deploying user alone. Git and the Docker
   builds leave `.env` out.
+- The worlds' public host comes from `.env` too, as `NANOMMO_PUBLIC_HOST`: `deploy.sh` adds it, from
+  the address it deploys to, when `.env` doesn't have it yet.
 - The services start again after a crash or a reboot (`restart: unless-stopped`).
 
 The certificates come from an authority of your own, made on your machine, with the server's address
@@ -622,7 +683,7 @@ they stay through each deploy, and Flyway runs any new migrations before the ser
 back leaves the database as the newer release left it, as Flyway skips migrations it doesn't know,
 so a migration has to keep the release before it working. New
 certificates need the servers to start again: `ssh debian@203.0.113.7 'cd nanommo && docker compose
-restart login server'`.
+restart login server frost'`.
 
 The benchmark runs on the server too, with the bots there, as `deploy.sh` sends the authority's
 certificate along for them. It needs `jq` on the server (`sudo apt install jq`), and `curl`, which
