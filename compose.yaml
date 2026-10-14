@@ -46,7 +46,7 @@ services:
 
   consul:
     image: hashicorp/consul:2.0.4
-    command: ["agent", "-dev", "-log-level=warn"]
+    command: ["agent", "-dev", "-client=0.0.0.0", "-log-level=warn"]
     ports:
       - "8500:8500"
     healthcheck:
