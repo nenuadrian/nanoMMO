@@ -7,12 +7,14 @@ set -eu
 host=$1
 certificates=$2
 ref=${3:-HEAD}
+# Players reach the worlds at the server's address, from user@address.
+public_host=${host#*@}
 
 # A single SSH connection, so that a deploy right after other SSH commands
 # isn't refused: ufw's limit refuses a sixth connection within 30 seconds.
 git archive --format=tar --prefix=tls/ --add-file="$certificates/ca.crt" \
   --add-file="$certificates/server.crt" --add-file="$certificates/server.key" \
-  --prefix= "$ref" | ssh "$host" '
+  --prefix= "$ref" | ssh "$host" "public_host=$public_host" '
   set -eu
   rm -rf nanommo.next
   mkdir nanommo.next
@@ -25,6 +27,8 @@ git archive --format=tar --prefix=tls/ --add-file="$certificates/ca.crt" \
       "NANOMMO_MYSQL_PASSWORD=$(openssl rand -hex 16)" \
       "NANOMMO_APP_KEY=base64:$(openssl rand -base64 32)" > nanommo.next/.env)
   fi
+  grep -q "^NANOMMO_PUBLIC_HOST=" nanommo.next/.env ||
+    echo "NANOMMO_PUBLIC_HOST=$public_host" >> nanommo.next/.env
   # A build that fails, or a test, leaves the release that runs as it is.
   (cd nanommo.next && docker compose build)
   if [ -d nanommo ]; then

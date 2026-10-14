@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "protocol/nanommo.pb.h"
 
@@ -12,11 +13,23 @@ namespace nanommo {
 
 class LoginScreen {
  public:
+  /// Draws the worlds, or the login for the world picked, and returns what
+  /// to ask the login server, if there's anything: the worlds when they're
+  /// shown and refreshed, or a login.
   std::optional<protocol::LoginRequest> Build();
 
+  void ShowWorlds(std::vector<protocol::WorldListing> worlds);
   void ShowError(std::string error) { error_ = std::move(error); }
 
+  const std::optional<protocol::WorldListing>& world() const { return world_; }
+
  private:
+  std::optional<protocol::LoginRequest> BuildWorlds();
+  std::optional<protocol::LoginRequest> BuildLogin();
+
+  std::vector<protocol::WorldListing> worlds_;
+  int selected_ = 0;
+  std::optional<protocol::WorldListing> world_;
   std::array<char, 17> username_{};
   std::array<char, 129> password_{};
   std::string error_;

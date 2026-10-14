@@ -32,11 +32,28 @@
 
 namespace {
 
-constexpr uint16_t kGamePort = 7777;
 constexpr uint16_t kLoginPort = 7778;
 
+void ListWorlds(const std::string& host, asio::ssl::context& tls,
+                const nanommo::protocol::LoginRequest& request,
+                nanommo::LoginScreen& screen) {
+  absl::StatusOr<nanommo::protocol::LoginReply> reply =
+      nanommo::LogIn(host, kLoginPort, tls, request);
+  if (!reply.ok()) {
+    screen.ShowError(
+        absl::StrCat("Couldn't reach the server: ", reply.status().message()));
+    return;
+  }
+  if (!reply->ok()) {
+    screen.ShowError(reply->error());
+    return;
+  }
+  screen.ShowWorlds({reply->worlds().begin(), reply->worlds().end()});
+}
+
 std::unique_ptr<nanommo::Connection> Enter(
-    const std::string& host, bool udp, asio::ssl::context& tls,
+    const std::string& host, const nanommo::protocol::WorldListing& world,
+    bool udp, asio::ssl::context& tls,
     const nanommo::protocol::LoginRequest& request,
     nanommo::LoginScreen& screen) {
   absl::StatusOr<nanommo::protocol::LoginReply> reply_or =
@@ -51,9 +68,12 @@ std::unique_ptr<nanommo::Connection> Enter(
     screen.ShowError(reply.error());
     return nullptr;
   }
-  std::cout << "nanommo client: logged in as " << request.username() << '\n';
+  std::cout << "nanommo client: logged in as " << request.username()
+            << ", entering " << world.name() << '\n';
   absl::StatusOr<std::unique_ptr<nanommo::Connection>> connection_or =
-      nanommo::Connection::Create(host, kGamePort, tls, reply.token(), udp);
+      nanommo::Connection::Create(world.host(),
+                                  static_cast<uint16_t>(world.port()), tls,
+                                  reply.token(), udp);
   if (!connection_or.ok()) {
     screen.ShowError(absl::StrCat("Couldn't reach the server: ",
                                   connection_or.status().message()));
@@ -162,10 +182,14 @@ int main(int argc, char* argv[]) {
         connection.reset();
       }
     } else if (const auto request = login_screen.Build()) {
-      connection =
-          Enter(host, transport == "udp", *tls, *request, login_screen);
-      sent.Clear();
-      nearby = 0;
+      if (request->list_worlds()) {
+        ListWorlds(host, *tls, *request, login_screen);
+      } else {
+        connection = Enter(host, *login_screen.world(), transport == "udp",
+                           *tls, *request, login_screen);
+        sent.Clear();
+        nearby = 0;
+      }
     }
     gui.End();
     EndDrawing();
