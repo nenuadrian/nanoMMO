@@ -13,8 +13,8 @@ namespace nanommo {
 /// In metres, like the client's chunks.
 constexpr float kCellSize = 32.0f;
 
-/// Cells each way, so that a player gets everyone within 96 metres.
-constexpr int kInterestCells = 3;
+/// Cells each way, so that a player gets everyone within 64 metres.
+constexpr int kInterestCells = 2;
 
 struct Cell {
   int x = 0;
