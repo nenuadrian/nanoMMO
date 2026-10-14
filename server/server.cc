@@ -6,6 +6,7 @@
 #include <memory>
 #include <random>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -16,6 +17,7 @@
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
 #include "protocol/parts.h"
+#include "server/interest.h"
 #include "server/levels.h"
 #include "server/listen.h"
 #include "server/monsters.h"
@@ -67,6 +69,35 @@ Progress ProgressOf(const Player& player) {
           .z = player.z,
           .experience = player.experience,
           .health = player.health};
+}
+
+protocol::Player ToProtocol(uint32_t id, const Player& player) {
+  protocol::Player sent;
+  sent.set_id(id);
+  sent.set_x(player.x);
+  sent.set_z(player.z);
+  sent.set_name(player.name);
+  sent.set_yaw(player.yaw);
+  sent.set_motion(ToProtocol(player.motion));
+  const int level = LevelFor(player.experience).number;
+  sent.set_level(level);
+  sent.set_health(player.health);
+  sent.set_max_health(MaxHealth(level));
+  return sent;
+}
+
+protocol::Monster ToProtocol(uint32_t id, const Monster& monster) {
+  protocol::Monster sent;
+  sent.set_id(id);
+  sent.set_name(monster.name);
+  sent.set_x(monster.x);
+  sent.set_z(monster.z);
+  sent.set_yaw(monster.yaw);
+  sent.set_motion(ToProtocol(monster.motion));
+  sent.set_level(monster.level);
+  sent.set_health(monster.health);
+  sent.set_max_health(monster.max_health);
+  return sent;
 }
 
 }  // namespace
@@ -255,66 +286,69 @@ void Server::SaveChanged() {
 
 void Server::Broadcast() {
   ZoneScoped;
-  protocol::World message;
-  for (const auto& [id, player] : world_.players()) {
-    protocol::Player* sent = message.add_players();
-    sent->set_id(id);
-    sent->set_x(player.x);
-    sent->set_z(player.z);
-    sent->set_name(player.name);
-    sent->set_yaw(player.yaw);
-    sent->set_motion(ToProtocol(player.motion));
-    const int level = LevelFor(player.experience).number;
-    sent->set_level(level);
-    sent->set_health(player.health);
-    sent->set_max_health(MaxHealth(level));
-  }
-  for (const auto& [id, monster] : world_.monsters()) {
-    protocol::Monster* sent = message.add_monsters();
-    sent->set_id(id);
-    sent->set_name(monster.name);
-    sent->set_x(monster.x);
-    sent->set_z(monster.z);
-    sent->set_yaw(monster.yaw);
-    sent->set_motion(ToProtocol(monster.motion));
-    sent->set_level(monster.level);
-    sent->set_health(monster.health);
-    sent->set_max_health(monster.max_health);
-  }
-  message.set_sent(NowMicros());
-  // The players and the monsters are the same for everyone, so we serialize
-  // them once, and all the sessions share the bytes until each has written
-  // them.
-  std::shared_ptr<const std::string> players;
+  // Each player and monster is serialized once a tick, and what each cell
+  // gets is put together from those pieces.
+  std::map<uint32_t, std::string> players;
+  std::map<uint32_t, std::string> monsters;
   {
     ZoneScopedN("serialize");
-    players = std::make_shared<const std::string>(message.SerializeAsString());
-  }
-  std::vector<std::shared_ptr<const std::string>> parts;
-  if (!udp_clients_.empty()) {
-    for (const protocol::World& part : Split(message)) {
-      parts.push_back(
-          std::make_shared<const std::string>(part.SerializeAsString()));
+    for (const auto& [id, player] : world_.players()) {
+      players[id] = Piece(ToProtocol(id, player));
+    }
+    for (const auto& [id, monster] : world_.monsters()) {
+      monsters[id] = Piece(ToProtocol(id, monster));
     }
   }
-  for (const auto& [id, session] : sessions_) {
-    const Level level = LevelFor(world_.players().at(id).experience);
-    protocol::World you;
-    you.set_you(id);
-    you.set_experience(level.experience);
-    you.set_next_level(level.next);
-    you.set_seed(seed_);
-    std::string own = you.SerializeAsString();
-    const auto udp = udp_clients_.find(id);
-    if (udp != udp_clients_.end()) {
-      // A datagram arrives whole or not at all, so it needs no size in front.
-      for (const auto& part : parts) {
-        metrics_.AddBytesSent(part->size() + own.size());
-        SendTo(udp->second, part, own);
+  const int64_t sent = NowMicros();
+  for (const auto& [cell, view] : Views(world_.players(), world_.monsters())) {
+    std::vector<std::string_view> pieces;
+    for (const uint32_t id : view.players) {
+      pieces.push_back(players.at(id));
+    }
+    for (const uint32_t id : view.monsters) {
+      pieces.push_back(monsters.at(id));
+    }
+    // The players in a cell get the same world, so they share its bytes.
+    std::shared_ptr<const std::string> whole;
+    std::vector<std::shared_ptr<const std::string>> parts;
+    for (const uint32_t id : view.here) {
+      const auto session = sessions_.find(id);
+      if (session == sessions_.end()) {
+        continue;
       }
-    } else {
-      metrics_.AddBytesSent(kHeaderSize + players->size() + own.size());
-      session->Send(players, std::move(own));
+      const Level level = LevelFor(world_.players().at(id).experience);
+      protocol::World you;
+      you.set_you(id);
+      you.set_experience(level.experience);
+      you.set_next_level(level.next);
+      you.set_seed(seed_);
+      std::string own = you.SerializeAsString();
+      const auto udp = udp_clients_.find(id);
+      if (udp != udp_clients_.end()) {
+        if (parts.empty()) {
+          for (std::string& part : Split(pieces, sent)) {
+            parts.push_back(
+                std::make_shared<const std::string>(std::move(part)));
+          }
+        }
+        // A datagram arrives whole or not at all, so it needs no size in front.
+        for (const auto& part : parts) {
+          metrics_.AddBytesSent(part->size() + own.size());
+          SendTo(udp->second, part, own);
+        }
+      } else {
+        if (!whole) {
+          protocol::World stamp;
+          stamp.set_sent(sent);
+          std::string bytes = stamp.SerializeAsString();
+          for (const std::string_view piece : pieces) {
+            bytes.append(piece);
+          }
+          whole = std::make_shared<const std::string>(std::move(bytes));
+        }
+        metrics_.AddBytesSent(kHeaderSize + whole->size() + own.size());
+        session->second->Send(whole, std::move(own));
+      }
     }
   }
 }

@@ -92,7 +92,7 @@ int main(int argc, char* argv[]) {
 
   std::unique_ptr<nanommo::Connection> connection;
   nanommo::protocol::Input sent;
-  int online = 0;
+  int nearby = 0;
 
   while (!window->ShouldClose()) {
     if (connection) {
@@ -117,10 +117,10 @@ int main(int argc, char* argv[]) {
       }
 
       const nanommo::protocol::World& world = connection->world();
-      if (world.players_size() != online) {
-        online = world.players_size();
+      if (world.players_size() != nearby) {
+        nearby = world.players_size();
         std::cout << "nanommo client: we're player " << world.you() << ", "
-                  << online << " online" << '\n';
+                  << nearby << " nearby" << '\n';
       }
       if (!terrain || terrain->seed() != world.seed()) {
         terrain.emplace(world.seed());
@@ -165,7 +165,7 @@ int main(int argc, char* argv[]) {
       connection =
           Enter(host, transport == "udp", *tls, *request, login_screen);
       sent.Clear();
-      online = 0;
+      nearby = 0;
     }
     gui.End();
     EndDrawing();

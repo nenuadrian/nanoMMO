@@ -1,6 +1,9 @@
 #include "protocol/parts.h"
 
 #include <algorithm>
+#include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 namespace nanommo {
@@ -13,31 +16,41 @@ constexpr std::size_t kRoom = 48;
 
 }  // namespace
 
-std::vector<protocol::World> Split(const protocol::World& world,
-                                   std::size_t max_size) {
-  std::vector<protocol::World> parts(1);
+std::string Piece(const protocol::Player& player) {
+  protocol::World world;
+  *world.add_players() = player;
+  return world.SerializeAsString();
+}
+
+std::string Piece(const protocol::Monster& monster) {
+  protocol::World world;
+  *world.add_monsters() = monster;
+  return world.SerializeAsString();
+}
+
+std::vector<std::string> Split(const std::vector<std::string_view>& pieces,
+                               int64_t sent, std::size_t max_size) {
+  std::vector<std::vector<std::string_view>> groups(1);
   std::size_t size = 0;
-  const auto part_for = [&](std::size_t bytes) -> protocol::World& {
-    const bool empty =
-        parts.back().players_size() == 0 && parts.back().monsters_size() == 0;
-    if (!empty && size + bytes + kRoom > max_size) {
-      parts.emplace_back();
+  for (const std::string_view piece : pieces) {
+    if (!groups.back().empty() && size + piece.size() + kRoom > max_size) {
+      groups.emplace_back();
       size = 0;
     }
-    size += bytes;
-    return parts.back();
-  };
-  // The 3 is a byte for the field's number, and up to two for its size.
-  for (const protocol::Player& player : world.players()) {
-    *part_for(player.ByteSizeLong() + 3).add_players() = player;
+    groups.back().push_back(piece);
+    size += piece.size();
   }
-  for (const protocol::Monster& monster : world.monsters()) {
-    *part_for(monster.ByteSizeLong() + 3).add_monsters() = monster;
-  }
-  for (std::size_t i = 0; i < parts.size(); ++i) {
-    parts[i].set_sent(world.sent());
-    parts[i].set_part(static_cast<uint32_t>(i));
-    parts[i].set_parts(static_cast<uint32_t>(parts.size()));
+  std::vector<std::string> parts;
+  for (std::size_t i = 0; i < groups.size(); ++i) {
+    protocol::World header;
+    header.set_sent(sent);
+    header.set_part(static_cast<uint32_t>(i));
+    header.set_parts(static_cast<uint32_t>(groups.size()));
+    std::string part = header.SerializeAsString();
+    for (const std::string_view piece : groups[i]) {
+      part.append(piece);
+    }
+    parts.push_back(std::move(part));
   }
   return parts;
 }

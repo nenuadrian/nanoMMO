@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <map>
 #include <set>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "protocol/nanommo.pb.h"
@@ -15,8 +17,17 @@ namespace nanommo {
 /// take, so IP never has to split a datagram this size.
 constexpr std::size_t kMaxDatagramSize = 1200;
 
-std::vector<protocol::World> Split(const protocol::World& world,
-                                   std::size_t max_size = kMaxDatagramSize);
+/// A player or a monster in a world of its own, serialized. Protobuf reads
+/// worlds that follow each other as one, so pieces put one after another make
+/// a world.
+std::string Piece(const protocol::Player& player);
+std::string Piece(const protocol::Monster& monster);
+
+/// The parts of a world sent at a time, each a datagram of up to max_size
+/// bytes, packed from pieces.
+std::vector<std::string> Split(const std::vector<std::string_view>& pieces,
+                               int64_t sent,
+                               std::size_t max_size = kMaxDatagramSize);
 
 class Parts {
  public:

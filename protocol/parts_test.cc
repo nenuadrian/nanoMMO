@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
 
@@ -22,10 +23,29 @@ nanommo::protocol::World MakeWorld(int players, int64_t sent,
   return world;
 }
 
+// The world's players and monsters, each in a piece, split into parts.
+std::vector<std::string> Split(const nanommo::protocol::World& world) {
+  std::vector<std::string> pieces;
+  for (const nanommo::protocol::Player& player : world.players()) {
+    pieces.push_back(nanommo::Piece(player));
+  }
+  for (const nanommo::protocol::Monster& monster : world.monsters()) {
+    pieces.push_back(nanommo::Piece(monster));
+  }
+  return nanommo::Split({pieces.begin(), pieces.end()}, world.sent());
+}
+
+nanommo::protocol::World Parse(const std::string& bytes) {
+  nanommo::protocol::World world;
+  EXPECT_TRUE(world.ParseFromString(bytes));
+  return world;
+}
+
 }  // namespace
 
 TEST(Parts, SplitsAWorldIntoDatagrams) {
-  const auto parts = nanommo::Split(MakeWorld(200, 1'800'000'000'000'000));
+  const std::vector<std::string> parts =
+      Split(MakeWorld(200, 1'800'000'000'000'000));
 
   ASSERT_GT(parts.size(), 1u);
   nanommo::protocol::World you;
@@ -35,13 +55,12 @@ TEST(Parts, SplitsAWorldIntoDatagrams) {
   you.set_seed(4'000'000'000);
   int players = 0;
   for (std::size_t i = 0; i < parts.size(); ++i) {
-    const std::string bytes =
-        parts[i].SerializeAsString() + you.SerializeAsString();
-    EXPECT_LE(bytes.size(), nanommo::kMaxDatagramSize);
-    EXPECT_EQ(parts[i].part(), i);
-    EXPECT_EQ(parts[i].parts(), parts.size());
-    EXPECT_EQ(parts[i].sent(), 1'800'000'000'000'000);
-    players += parts[i].players_size();
+    EXPECT_LE(parts[i].size() + you.ByteSizeLong(), nanommo::kMaxDatagramSize);
+    const nanommo::protocol::World part = Parse(parts[i]);
+    EXPECT_EQ(part.part(), i);
+    EXPECT_EQ(part.parts(), parts.size());
+    EXPECT_EQ(part.sent(), 1'800'000'000'000'000);
+    players += part.players_size();
   }
   EXPECT_EQ(players, 200);
 }
@@ -52,12 +71,12 @@ TEST(Parts, LeavesThePlayersOfALostPartWhereTheyWere) {
     first.add_monsters()->set_id(id);
   }
   nanommo::Parts assembled;
-  for (const auto& part : nanommo::Split(first)) {
-    assembled.Add(part);
+  for (const std::string& part : Split(first)) {
+    assembled.Add(Parse(part));
   }
-  const auto next = nanommo::Split(MakeWorld(200, 2, 0.5f));
+  const std::vector<std::string> next = Split(MakeWorld(200, 2, 0.5f));
   for (std::size_t i = 1; i < next.size(); ++i) {
-    assembled.Add(next[i]);
+    assembled.Add(Parse(next[i]));
   }
 
   const nanommo::protocol::World result = assembled.world();

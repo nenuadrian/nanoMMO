@@ -1,5 +1,5 @@
 add_library(nanommo_server_core
-  tick.cc listen.cc world.cc monsters.cc levels.cc session.cc
+  tick.cc listen.cc world.cc monsters.cc levels.cc session.cc interest.cc
   server.cc metrics.cc password.cc database.cc
   accounts.cc players.cc redis.cc tokens.cc
   login_server.cc
@@ -21,7 +21,7 @@ add_executable(nanommo_saver saver_main.cc)
 target_link_libraries(nanommo_saver PRIVATE nanommo_server_core absl::time)
 
 add_executable(nanommo_server_tests
-  tick_test.cc world_test.cc monsters_test.cc
+  tick_test.cc world_test.cc monsters_test.cc interest_test.cc
   levels_test.cc metrics_test.cc password_test.cc
   accounts_test.cc players_test.cc tokens_test.cc
   login_server_test.cc
