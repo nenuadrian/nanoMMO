@@ -57,12 +57,21 @@ message LoginRequest {
   string username = 1;
   string password = 2;
   bool new_account = 3;
+  bool list_worlds = 4;
+}
+
+message WorldListing {
+  string name = 1;
+  string host = 2;
+  uint32 port = 3;
+  uint32 players = 4;
 }
 
 message LoginReply {
   bool ok = 1;
   string token = 2;
   string error = 3;
+  repeated WorldListing worlds = 4;
 }
 
 message Hello {

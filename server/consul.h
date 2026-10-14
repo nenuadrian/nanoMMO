@@ -4,9 +4,11 @@
 #include <cstdint>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "protocol/nanommo.pb.h"
 
 namespace nanommo {
 
@@ -35,9 +37,14 @@ class Consul {
 
   absl::Status Deregister(const std::string& name) const;
 
+  /// The worlds that pass their health checks, by name, with the host and
+  /// port players reach them at.
+  absl::StatusOr<std::vector<protocol::WorldListing>> Worlds() const;
+
  private:
   absl::StatusOr<std::string> OwnAddress() const;
   absl::Status Put(const std::string& path, const std::string& body) const;
+  absl::StatusOr<std::string> Get(const std::string& path) const;
 
   std::string host_;
 };

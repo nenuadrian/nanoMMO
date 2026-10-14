@@ -1,9 +1,11 @@
 #include "server/login_server.h"
 
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/memory/memory.h"
 #include "protocol/framing.h"
@@ -63,9 +65,9 @@ absl::StatusOr<protocol::LoginReply> HandleLogin(
 
 absl::StatusOr<std::unique_ptr<LoginServer>> LoginServer::Create(
     asio::io_context& io, uint16_t port, asio::ssl::context& tls,
-    Accounts& accounts, Tokens& tokens) {
+    Accounts& accounts, Tokens& tokens, Consul& consul) {
   std::unique_ptr<LoginServer> server =
-      absl::WrapUnique(new LoginServer(io, tls, accounts, tokens));
+      absl::WrapUnique(new LoginServer(io, tls, accounts, tokens, consul));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -74,8 +76,12 @@ absl::StatusOr<std::unique_ptr<LoginServer>> LoginServer::Create(
 }
 
 LoginServer::LoginServer(asio::io_context& io, asio::ssl::context& tls,
-                         Accounts& accounts, Tokens& tokens)
-    : acceptor_(io), tls_(tls), accounts_(accounts), tokens_(tokens) {}
+                         Accounts& accounts, Tokens& tokens, Consul& consul)
+    : acceptor_(io),
+      tls_(tls),
+      accounts_(accounts),
+      tokens_(tokens),
+      consul_(consul) {}
 
 absl::Status LoginServer::Start(uint16_t port) {
   const absl::Status listening = Listen(acceptor_, port);
@@ -95,6 +101,10 @@ void LoginServer::Accept() {
         protocol::LoginRequest request;
         if (!request.ParseFromString(bytes)) {
           session.Close();
+          return;
+        }
+        if (request.list_worlds()) {
+          session.Send(Frame(ListWorlds()));
           return;
         }
         absl::StatusOr<protocol::LoginReply> handled =
@@ -123,6 +133,28 @@ void LoginServer::Accept() {
     }
     Accept();
   });
+}
+
+protocol::LoginReply LoginServer::ListWorlds() {
+  // A list from the last second is new enough, and a crowd of clients costs
+  // Consul a request a second, while this thread waits for its answer.
+  const auto now = std::chrono::steady_clock::now();
+  if (worlds_.ok() && now - worlds_at_ < std::chrono::seconds(1)) {
+    return worlds_;
+  }
+  protocol::LoginReply reply;
+  const absl::StatusOr<std::vector<protocol::WorldListing>> worlds =
+      consul_.Worlds();
+  if (!worlds.ok()) {
+    std::cerr << "nanommo login: " << worlds.status() << "\n";
+    reply.set_error("The server couldn't list the worlds. Try again later.");
+    return reply;
+  }
+  reply.set_ok(true);
+  reply.mutable_worlds()->Assign(worlds->begin(), worlds->end());
+  worlds_ = reply;
+  worlds_at_ = now;
+  return reply;
 }
 
 }  // namespace nanommo

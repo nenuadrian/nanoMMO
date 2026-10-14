@@ -2,9 +2,13 @@
 
 #include <httplib.h>
 
+#include <algorithm>
+#include <cstdint>
 #include <string>
 #include <system_error>
+#include <vector>
 
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "asio/connect.hpp"
 #include "asio/io_context.hpp"
@@ -37,6 +41,15 @@ absl::StatusOr<std::string> Answer(const httplib::Result& result) {
         absl::StrCat("Consul answered ", result->status, ": ", result->body));
   }
   return result->body;
+}
+
+// nlohmann's json throws when a value isn't the type we ask for, so this
+// checks first, and returns nullptr when it isn't there or isn't a T.
+template <typename T>
+const T* Find(const nlohmann::json& json, const char* path) {
+  const nlohmann::json::json_pointer pointer(path);
+  return json.contains(pointer) ? json.at(pointer).get_ptr<const T*>()
+                                : nullptr;
 }
 
 }  // namespace
@@ -72,6 +85,41 @@ absl::Status Consul::Deregister(const std::string& name) const {
   return Put(absl::StrCat("/v1/agent/service/deregister/", name), "");
 }
 
+absl::StatusOr<std::vector<protocol::WorldListing>> Consul::Worlds() const {
+  const absl::StatusOr<std::string> body =
+      Get(absl::StrCat("/v1/health/service/", kService, "?passing"));
+  if (!body.ok()) {
+    return body.status();
+  }
+  const nlohmann::json entries = nlohmann::json::parse(*body, nullptr, false);
+  if (!entries.is_array()) {
+    return absl::DataLossError("Consul's list of worlds isn't a list");
+  }
+  std::vector<protocol::WorldListing> worlds;
+  for (const nlohmann::json& entry : entries) {
+    const auto* name = Find<std::string>(entry, "/Service/ID");
+    const auto* host =
+        Find<std::string>(entry, "/Service/TaggedAddresses/wan/Address");
+    const auto* port =
+        Find<uint64_t>(entry, "/Service/TaggedAddresses/wan/Port");
+    const auto* players = Find<std::string>(entry, "/Service/Meta/players");
+    uint32_t count = 0;
+    // Something under our name that isn't a world we could reach stays out,
+    // so that the other worlds still make the list.
+    if (!name || !host || !port || *port == 0 || *port > 65535 || !players ||
+        !absl::SimpleAtoi(*players, &count)) {
+      continue;
+    }
+    protocol::WorldListing& world = worlds.emplace_back();
+    world.set_name(*name);
+    world.set_host(*host);
+    world.set_port(static_cast<uint32_t>(*port));
+    world.set_players(count);
+  }
+  std::ranges::sort(worlds, {}, &protocol::WorldListing::name);
+  return worlds;
+}
+
 // The address Consul sees us at, which is the one the kernel picks to send to
 // it from. Connecting a UDP socket sends nothing.
 absl::StatusOr<std::string> Consul::OwnAddress() const {
@@ -98,6 +146,10 @@ absl::StatusOr<std::string> Consul::OwnAddress() const {
 absl::Status Consul::Put(const std::string& path,
                          const std::string& body) const {
   return Answer(Connect(host_).Put(path, body, "application/json")).status();
+}
+
+absl::StatusOr<std::string> Consul::Get(const std::string& path) const {
+  return Answer(Connect(host_).Get(path));
 }
 
 }  // namespace nanommo

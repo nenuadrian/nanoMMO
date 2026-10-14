@@ -25,7 +25,7 @@ add_executable(nanommo_server_tests
   tick_test.cc world_test.cc monsters_test.cc interest_test.cc
   levels_test.cc metrics_test.cc password_test.cc
   accounts_test.cc players_test.cc tokens_test.cc
-  login_server_test.cc
+  login_server_test.cc consul_test.cc
 )
 target_link_libraries(nanommo_server_tests PRIVATE nanommo_server_core GTest::gtest_main)
 

@@ -69,6 +69,7 @@ services:
     environment:
       NANOMMO_MYSQL_HOST: mysql
       NANOMMO_REDIS_HOST: redis
+      NANOMMO_CONSUL_HOST: consul
       NANOMMO_TLS_CERTIFICATE: /tls/server.crt
       NANOMMO_TLS_KEY: /tls/server.key
     volumes:
@@ -76,6 +77,8 @@ services:
     ports:
       - "7778:7778"
     depends_on:
+      consul:
+        condition: service_healthy
       certificates:
         condition: service_completed_successfully
       flyway:
@@ -195,7 +198,10 @@ services:
     environment:
       NANOMMO_MYSQL_HOST: mysql
       NANOMMO_REDIS_HOST: redis
+      NANOMMO_CONSUL_HOST: consul
     depends_on:
+      consul:
+        condition: service_healthy
       flyway:
         condition: service_completed_successfully
       redis:

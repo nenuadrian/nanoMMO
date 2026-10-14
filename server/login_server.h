@@ -1,6 +1,7 @@
 #ifndef NANOMMO_SERVER_LOGIN_SERVER_H_
 #define NANOMMO_SERVER_LOGIN_SERVER_H_
 
+#include <chrono>
 #include <cstdint>
 #include <memory>
 
@@ -11,6 +12,7 @@
 #include "asio/ssl/context.hpp"
 #include "protocol/nanommo.pb.h"
 #include "server/accounts.h"
+#include "server/consul.h"
 #include "server/tokens.h"
 
 namespace nanommo {
@@ -27,19 +29,23 @@ class LoginServer {
   /// talks to it over TLS, with the context.
   static absl::StatusOr<std::unique_ptr<LoginServer>> Create(
       asio::io_context& io, uint16_t port, asio::ssl::context& tls,
-      Accounts& accounts, Tokens& tokens);
+      Accounts& accounts, Tokens& tokens, Consul& consul);
 
  private:
   LoginServer(asio::io_context& io, asio::ssl::context& tls, Accounts& accounts,
-              Tokens& tokens);
+              Tokens& tokens, Consul& consul);
 
   absl::Status Start(uint16_t port);
   void Accept();
+  protocol::LoginReply ListWorlds();
 
   asio::ip::tcp::acceptor acceptor_;
   asio::ssl::context& tls_;
   Accounts& accounts_;
   Tokens& tokens_;
+  Consul& consul_;
+  protocol::LoginReply worlds_;
+  std::chrono::steady_clock::time_point worlds_at_;
 };
 
 }  // namespace nanommo
