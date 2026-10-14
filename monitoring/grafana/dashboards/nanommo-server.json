@@ -27,7 +27,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "nanommo_players_online"
+          "expr": "nanommo_players_online",
+          "legendFormat": "{{world}}"
         }
       ],
       "options": {
@@ -67,7 +68,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(nanommo_tick_duration_seconds_count[15s])"
+          "expr": "rate(nanommo_tick_duration_seconds_count[15s])",
+          "legendFormat": "{{world}}"
         }
       ],
       "options": {
@@ -155,13 +157,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(nanommo_tick_duration_seconds_bucket[15s])))",
-          "legendFormat": "p50"
+          "expr": "histogram_quantile(0.5, sum by (le, world) (rate(nanommo_tick_duration_seconds_bucket[15s])))",
+          "legendFormat": "p50 {{world}}"
         },
         {
           "refId": "B",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(nanommo_tick_duration_seconds_bucket[15s])))",
-          "legendFormat": "p99"
+          "expr": "histogram_quantile(0.99, sum by (le, world) (rate(nanommo_tick_duration_seconds_bucket[15s])))",
+          "legendFormat": "p99 {{world}}"
         }
       ]
     },
@@ -202,7 +204,7 @@
         {
           "refId": "A",
           "expr": "rate(nanommo_bytes_sent_total[15s])",
-          "legendFormat": "bytes/s"
+          "legendFormat": "{{world}}"
         }
       ]
     },
@@ -243,7 +245,7 @@
         {
           "refId": "A",
           "expr": "rate(nanommo_messages_received_total[15s])",
-          "legendFormat": "messages/s"
+          "legendFormat": "{{world}}"
         }
       ]
     },
@@ -346,13 +348,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(nanommo_save_duration_seconds_bucket[15s])))",
-          "legendFormat": "p50"
+          "expr": "histogram_quantile(0.5, sum by (le, world) (rate(nanommo_save_duration_seconds_bucket[15s])))",
+          "legendFormat": "p50 {{world}}"
         },
         {
           "refId": "B",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(nanommo_save_duration_seconds_bucket[15s])))",
-          "legendFormat": "p99"
+          "expr": "histogram_quantile(0.99, sum by (le, world) (rate(nanommo_save_duration_seconds_bucket[15s])))",
+          "legendFormat": "p99 {{world}}"
         }
       ]
     }

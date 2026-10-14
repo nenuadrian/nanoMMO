@@ -32,6 +32,12 @@ services:
       - "7777:7777/udp"
     restart: unless-stopped
 
+  frost:
+    environment:
+      NANOMMO_MYSQL_PASSWORD: ${NANOMMO_MYSQL_PASSWORD:?set it in .env}
+      NANOMMO_PUBLIC_HOST: ${NANOMMO_PUBLIC_HOST:?set it in .env}
+    restart: unless-stopped
+
   saver:
     environment:
       NANOMMO_MYSQL_PASSWORD: ${NANOMMO_MYSQL_PASSWORD:?set it in .env}

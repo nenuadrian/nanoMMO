@@ -19,8 +19,10 @@ trap stop EXIT
 docker compose --progress quiet build bots
 
 window="$((hold - 5))s"
-quantile="sum by (le) (rate(nanommo_tick_duration_seconds_bucket[$window]))"
-saves="sum by (le) (rate(nanommo_save_duration_seconds_bucket[$window]))"
+# The bots play in Ember, so that's the world we measure.
+ember='world="Ember"'
+quantile="sum by (le) (rate(nanommo_tick_duration_seconds_bucket{$ember}[$window]))"
+saves="sum by (le) (rate(nanommo_save_duration_seconds_bucket{$ember}[$window]))"
 
 for step in $(seq 1 "$steps"); do
   first=$(( (step - 1) * per_step + 1 ))
@@ -29,11 +31,11 @@ for step in $(seq 1 "$steps"); do
   sleep $(( ramp + hold ))
 
   result=$(jq -n \
-    --argjson players "$(query 'nanommo_players_online')" \
-    --argjson ticks "$(query "rate(nanommo_tick_duration_seconds_count[$window])")" \
+    --argjson players "$(query "nanommo_players_online{$ember}")" \
+    --argjson ticks "$(query "rate(nanommo_tick_duration_seconds_count{$ember}[$window])")" \
     --argjson p50 "$(query "histogram_quantile(0.5, $quantile) * 1000")" \
     --argjson p99 "$(query "histogram_quantile(0.99, $quantile) * 1000")" \
-    --argjson sent "$(query "rate(nanommo_bytes_sent_total[$window]) / 1e6")" \
+    --argjson sent "$(query "rate(nanommo_bytes_sent_total{$ember}[$window]) / 1e6")" \
     --argjson save "$(query "histogram_quantile(0.99, $saves) * 1000")" \
     '{players: $players, ticks_per_second: $ticks, p50_ms: $p50,
       p99_ms: $p99, sent_mb_per_second: $sent, save_p99_ms: $save}

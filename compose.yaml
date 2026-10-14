@@ -97,6 +97,8 @@ services:
       NANOMMO_PUBLIC_HOST: ${NANOMMO_PUBLIC_HOST:-localhost}
       NANOMMO_TLS_CERTIFICATE: /tls/server.crt
       NANOMMO_TLS_KEY: /tls/server.key
+      NANOMMO_WORLD: Ember
+      NANOMMO_WORLD_SEED: 1
     volumes:
       - ./tls:/tls:ro
     ports:
@@ -112,6 +114,17 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+
+  frost:
+    extends:
+      service: server
+    command: ["7787"]
+    environment:
+      NANOMMO_WORLD: Frost
+      NANOMMO_WORLD_SEED: 2
+    ports: !override
+      - "7787:7787"
+      - "7787:7787/udp"
 
   saver:
     build:
