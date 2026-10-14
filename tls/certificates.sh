@@ -15,7 +15,12 @@ fi
 
 names="DNS:localhost, IP:127.0.0.1, DNS:login, DNS:server"
 for name in "$@"; do
-  names="$names, DNS:$name"
+  # An address goes on as an IP, which clients check apart from domain names.
+  case $name in
+    *:*) names="$names, IP:$name" ;;
+    *[!0-9.]*) names="$names, DNS:$name" ;;
+    *) names="$names, IP:$name" ;;
+  esac
 done
 cat > openssl.cnf <<END
 [req]
