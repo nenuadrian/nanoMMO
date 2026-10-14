@@ -58,7 +58,15 @@ protocol::Motion ToProtocol(Motion motion) {
 }
 
 Progress ProgressOf(const Player& player) {
-  return {.x = player.x, .z = player.z, .experience = player.experience};
+  // The dead come back in the middle, at full health, so that's what we keep.
+  if (player.motion == Motion::kDead) {
+    return {.experience = player.experience,
+            .health = MaxHealth(LevelFor(player.experience).number)};
+  }
+  return {.x = player.x,
+          .z = player.z,
+          .experience = player.experience,
+          .health = player.health};
 }
 
 }  // namespace

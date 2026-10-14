@@ -17,6 +17,7 @@ struct Progress {
   float x = 0.0f;
   float z = 0.0f;
   uint32_t experience = 0;
+  int health = 0;
 
   bool operator==(const Progress&) const = default;
 };

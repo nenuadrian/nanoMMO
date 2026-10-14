@@ -23,7 +23,8 @@ std::string Key(const absl::AlphaNum& account_id) {
 absl::StatusOr<Player> Players::Load(uint32_t account_id) {
   const absl::StatusOr<Result> result = database_.Run(
       "SELECT accounts.username, COALESCE(players.x, 0), "
-      "COALESCE(players.z, 0), COALESCE(players.experience, 0) FROM accounts "
+      "COALESCE(players.z, 0), COALESCE(players.experience, 0), "
+      "players.health FROM accounts "
       "LEFT JOIN players ON players.account_id = accounts.id "
       "WHERE accounts.id = ?",
       {std::to_string(account_id)});
@@ -38,7 +39,8 @@ absl::StatusOr<Player> Players::Load(uint32_t account_id) {
   std::vector<std::string> saved(row.begin() + 1, row.end());
 
   const absl::StatusOr<std::vector<std::vector<std::string>>> newer =
-      redis_.Pipeline({{"HMGET", Key(account_id), "x", "z", "experience"}});
+      redis_.Pipeline(
+          {{"HMGET", Key(account_id), "x", "z", "experience", "health"}});
   if (!newer.ok()) {
     return newer.status();
   }
@@ -49,6 +51,9 @@ absl::StatusOr<Player> Players::Load(uint32_t account_id) {
       !absl::SimpleAtof(saved[1], &player.z) ||
       !absl::SimpleAtoi(saved[2], &player.experience)) {
     return absl::InternalError("a saved player that isn't numbers");
+  }
+  if (!saved[3].empty() && !absl::SimpleAtoi(saved[3], &player.health)) {
+    return absl::InternalError("a saved health that isn't a number");
   }
   return player;
 }
@@ -62,7 +67,8 @@ absl::Status Players::Save(const std::map<uint32_t, Progress>& changed) {
   for (const auto& [id, progress] : changed) {
     commands.push_back({"HSET", Key(id), "x", absl::StrCat(progress.x), "z",
                         absl::StrCat(progress.z), "experience",
-                        absl::StrCat(progress.experience)});
+                        absl::StrCat(progress.experience), "health",
+                        absl::StrCat(progress.health)});
     unsaved.push_back(absl::StrCat(id));
   }
   commands.push_back(unsaved);
@@ -94,7 +100,7 @@ absl::StatusOr<int> Players::Flush() {
 
     std::vector<std::vector<std::string>> reads;
     for (const std::string& id : ids) {
-      reads.push_back({"HMGET", Key(id), "x", "z", "experience"});
+      reads.push_back({"HMGET", Key(id), "x", "z", "experience", "health"});
     }
     const absl::StatusOr<std::vector<std::vector<std::string>>> hashes =
         redis_.Pipeline(reads);
@@ -105,7 +111,8 @@ absl::StatusOr<int> Players::Flush() {
     // IGNORE skips a player whose account is gone, with a warning, so that one
     // row MySQL refuses doesn't hold back the batch on each flush.
     std::string sql =
-        "INSERT IGNORE INTO players (account_id, x, z, experience) VALUES ";
+        "INSERT IGNORE INTO players (account_id, x, z, experience, health) "
+        "VALUES ";
     std::vector<std::string> values;
     int rows = 0;
     for (std::size_t i = 0; i < ids.size(); ++i) {
@@ -113,7 +120,9 @@ absl::StatusOr<int> Players::Flush() {
       if ((*hashes)[i][0].empty()) {
         continue;
       }
-      absl::StrAppend(&sql, rows == 0 ? "" : ", ", "(?, ?, ?, ?)");
+      // A hash saved before we kept health has none, which goes in as NULL.
+      absl::StrAppend(&sql, rows == 0 ? "" : ", ",
+                      "(?, ?, ?, ?, NULLIF(?, ''))");
       ++rows;
       values.push_back(ids[i]);
       values.insert(values.end(), (*hashes)[i].begin(), (*hashes)[i].end());
@@ -123,7 +132,8 @@ absl::StatusOr<int> Players::Flush() {
     }
     absl::StrAppend(&sql,
                     " AS saved ON DUPLICATE KEY UPDATE x = saved.x, "
-                    "z = saved.z, experience = saved.experience");
+                    "z = saved.z, experience = saved.experience, "
+                    "health = saved.health");
     const absl::StatusOr<Result> result = database_.Run(sql, values);
     if (!result.ok()) {
       // Back into the set, so that the next flush tries them again.

@@ -38,7 +38,10 @@ void World::Join(uint32_t id, Player player) {
     player.x = 0.0f;
     player.z = 0.0f;
   }
-  player.health = MaxHealth(LevelFor(player.experience).number);
+  // Zero when none was saved, as for a player from before we kept health.
+  if (player.health <= 0) {
+    player.health = MaxHealth(LevelFor(player.experience).number);
+  }
   players_[id] = std::move(player);
 }
 
