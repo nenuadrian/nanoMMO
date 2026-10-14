@@ -1,8 +1,19 @@
 #include "terrain/lands.h"
 
 #include <cmath>
+#include <cstddef>
+#include <string_view>
 
 namespace nanommo {
+
+int LandNamed(std::string_view name) {
+  for (std::size_t i = 0; i < kLands.size(); ++i) {
+    if (kLands[i].name == name) {
+      return static_cast<int>(i);
+    }
+  }
+  return 0;
+}
 
 bool InGate(const Land& land, float x, float z) {
   return std::hypot(x - land.gate.x, z - land.gate.z) < kGateRadius;

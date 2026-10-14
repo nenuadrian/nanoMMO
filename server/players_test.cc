@@ -69,7 +69,7 @@ TEST_F(PlayersTest, LoadsWhereThePlayerWasSavedInThatWorld) {
   nanommo::Players players(*database_, *redis_);
   ASSERT_TRUE(players.Save("Ember", {{id_, {.x = 2.5f, .z = -4.0f}}}).ok());
   const nanommo::Progress later = {
-      .x = 3.5f, .z = -1.0f, .experience = 40, .health = 35};
+      .x = 3.5f, .z = -1.0f, .experience = 40, .health = 35, .land = 1};
   ASSERT_TRUE(players.Save("Ember", {{id_, later}}).ok());
 
   const absl::StatusOr<nanommo::Player> player = players.Load("Ember", id_);
@@ -78,6 +78,7 @@ TEST_F(PlayersTest, LoadsWhereThePlayerWasSavedInThatWorld) {
   EXPECT_EQ(player->z, -1.0f);
   EXPECT_EQ(player->experience, 40u);
   EXPECT_EQ(player->health, 35);
+  EXPECT_EQ(player->land, 1);
 
   const absl::StatusOr<nanommo::Player> elsewhere = players.Load("Frost", id_);
   ASSERT_TRUE(elsewhere.ok());
@@ -88,7 +89,7 @@ TEST_F(PlayersTest, LoadsWhereThePlayerWasSavedInThatWorld) {
 TEST_F(PlayersTest, FlushesThePlayersToMySQL) {
   nanommo::Players players(*database_, *redis_);
   const nanommo::Progress progress = {
-      .x = 1.5f, .z = 2.0f, .experience = 70, .health = 60};
+      .x = 1.5f, .z = 2.0f, .experience = 70, .health = 60, .land = 1};
   ASSERT_TRUE(players.Save("Frost", {{id_, progress}}).ok());
   // No account has the id zero, so MySQL refuses this one, and it holds back
   // nobody.
@@ -105,11 +106,11 @@ TEST_F(PlayersTest, FlushesThePlayersToMySQL) {
   ASSERT_TRUE(saved.ok());
   EXPECT_GE(*saved, 2);
   const absl::StatusOr<nanommo::Result> rows = database_->Run(
-      "SELECT world, x, z, experience, health FROM players "
+      "SELECT world, x, z, experience, health, land FROM players "
       "WHERE account_id = ? ORDER BY world",
       {id});
   ASSERT_TRUE(rows.ok());
   EXPECT_EQ(rows->rows, (std::vector<std::vector<std::string>>{
-                            {"Ember", "3", "4", "5", "6"},
-                            {"Frost", "1.5", "2", "70", "60"}}));
+                            {"Ember", "3", "4", "5", "6", "Meadows"},
+                            {"Frost", "1.5", "2", "70", "60", "Ashlands"}}));
 }

@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string_view>
 
 #include "terrain/terrain.h"
 
@@ -45,6 +46,9 @@ constexpr float kGateRadius = 1.0f;
 
 /// Past the edge of a gate, so that players don't arrive inside it.
 constexpr float kArrival = 3.0f;
+
+/// Its place in the list, or the first land's for a name that isn't there.
+int LandNamed(std::string_view name);
 
 bool InGate(const Land& land, float x, float z);
 

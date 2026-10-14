@@ -22,6 +22,8 @@ struct Player {
   Motion motion = Motion::kIdle;
   uint32_t experience = 0;
   int health = 0;
+  /// Which of the world's lands, by its place in kLands.
+  int land = 0;
   uint32_t target = 0;
   std::chrono::nanoseconds swing{0};
   std::chrono::nanoseconds respawn{0};

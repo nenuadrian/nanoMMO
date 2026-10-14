@@ -67,12 +67,14 @@ Progress ProgressOf(const Player& player) {
   // The dead come back in the middle, at full health, so that's what we keep.
   if (player.motion == Motion::kDead) {
     return {.experience = player.experience,
-            .health = MaxHealth(LevelFor(player.experience).number)};
+            .health = MaxHealth(LevelFor(player.experience).number),
+            .land = player.land};
   }
   return {.x = player.x,
           .z = player.z,
           .experience = player.experience,
-          .health = player.health};
+          .health = player.health,
+          .land = player.land};
 }
 
 protocol::Player ToProtocol(uint32_t id, const Player& player) {
@@ -240,7 +242,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
     session.Close();
     return 0;
   }
-  lands_.front().Join(*id, *player);
+  lands_[player->land].Join(*id, *player);
   saved_[*id] = ProgressOf(*player);
   sessions_[*id] = session.shared_from_this();
   udp_tokens_[hello.token()] = *id;
@@ -311,6 +313,7 @@ void Server::Travel() {
       const Place arrival = Arrival(there, player.yaw);
       player.x = arrival.x;
       player.z = arrival.z;
+      player.land = here.to;
       std::cout << player.name << " went to the " << there.name << std::endl;
       lands_[here.to].Join(id, std::move(player));
     }
