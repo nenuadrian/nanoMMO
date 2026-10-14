@@ -33,6 +33,8 @@ class Server {
       std::chrono::nanoseconds interval, uint32_t seed, Metrics& metrics,
       Tokens& tokens, Players& players);
 
+  int players() const { return static_cast<int>(world_.players().size()); }
+
  private:
   Server(asio::io_context& io, asio::ssl::context& tls,
          std::chrono::nanoseconds interval, uint32_t seed, Metrics& metrics,

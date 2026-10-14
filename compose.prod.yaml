@@ -13,6 +13,11 @@ services:
     ports: !reset []
     restart: unless-stopped
 
+  consul:
+    ports: !override
+      - "127.0.0.1:8500:8500"
+    restart: unless-stopped
+
   login:
     environment:
       NANOMMO_MYSQL_PASSWORD: ${NANOMMO_MYSQL_PASSWORD:?set it in .env}

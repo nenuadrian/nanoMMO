@@ -90,6 +90,28 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(hiredis)
 
+FetchContent_Declare(
+  json
+  URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+  SYSTEM
+)
+FetchContent_MakeAvailable(json)
+
+# Consul speaks plain HTTP inside Docker's network, so httplib needs no TLS or
+# compression.
+set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF)
+set(HTTPLIB_USE_ZLIB_IF_AVAILABLE OFF)
+set(HTTPLIB_USE_BROTLI_IF_AVAILABLE OFF)
+set(HTTPLIB_USE_ZSTD_IF_AVAILABLE OFF)
+set(HTTPLIB_NO_EXCEPTIONS ON)
+set(HTTPLIB_INSTALL OFF)
+FetchContent_Declare(
+  httplib
+  URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.57.1.tar.gz
+  SYSTEM
+)
+FetchContent_MakeAvailable(httplib)
+
 find_package(PkgConfig REQUIRED)
 # Homebrew keeps mysql-client and OpenSSL out of the places pkg-config and
 # CMake look in.

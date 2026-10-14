@@ -2,12 +2,13 @@ add_library(nanommo_server_core
   tick.cc listen.cc world.cc monsters.cc levels.cc session.cc interest.cc
   server.cc metrics.cc password.cc database.cc
   accounts.cc players.cc redis.cc tokens.cc
-  login_server.cc
+  login_server.cc consul.cc
 )
 target_include_directories(nanommo_server_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_server_core PUBLIC
   nanommo_protocol nanommo_terrain asio prometheus-cpp::core Tracy::TracyClient
   PkgConfig::sodium PkgConfig::mysqlclient hiredis
+  httplib::httplib nlohmann_json::nlohmann_json
   absl::memory absl::status absl::statusor absl::strings absl::absl_check
 )
 

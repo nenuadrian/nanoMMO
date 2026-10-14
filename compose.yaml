@@ -44,6 +44,16 @@ services:
       interval: 2s
       retries: 30
 
+  consul:
+    image: hashicorp/consul:2.0.4
+    command: ["agent", "-dev", "-log-level=warn"]
+    ports:
+      - "8500:8500"
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 2s
+      retries: 30
+
   certificates:
     build:
       context: .
@@ -80,6 +90,7 @@ services:
     environment:
       NANOMMO_MYSQL_HOST: mysql
       NANOMMO_REDIS_HOST: redis
+      NANOMMO_CONSUL_HOST: consul
       NANOMMO_TLS_CERTIFICATE: /tls/server.crt
       NANOMMO_TLS_KEY: /tls/server.key
     volumes:
@@ -89,6 +100,8 @@ services:
       - "7777:7777/udp"
       - "9464:9464"
     depends_on:
+      consul:
+        condition: service_healthy
       certificates:
         condition: service_completed_successfully
       flyway:
