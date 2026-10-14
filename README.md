@@ -276,10 +276,10 @@ The certificates come from a certificate authority of our own. `tls/certificates
 `tls/ca.key`, and its certificate, `tls/ca.crt`. Then a key for the servers, `tls/server.key`, and a
 certificate the authority signs for it, `tls/server.crt`, for `localhost`, `127.0.0.1`, and `login` and
 `server`, their names in Docker Compose. The keys are ECDSA, on the P-256 curve. Names after the folder
-go on the certificate too, such as a server's domain:
+go on the certificate too, such as a server's domain, or its address, which goes on as an IP name:
 
 ```bash
-tls/certificates.sh tls play.example.com
+tls/certificates.sh tls play.example.com 203.0.113.7
 ```
 
 It leaves certificates that are there already alone, so delete `tls/*.crt` and `tls/*.key` to make new
@@ -394,8 +394,9 @@ so there's no CSS of our own, and nothing to build with npm.
 - The tables come from the migrations in `db/`, which Flyway runs (see [Migrations](#migrations)).
   The website has no migrations of its own, so the tables are described in one place.
 - `APP_KEY` in `compose.yaml` encrypts the website's cookies. Like the MySQL password next to it,
-  it's for your own machine. Before the website goes anywhere public, make a new one with
-  `docker compose run --rm --no-deps web php artisan key:generate --show`, and keep it out of git.
+  it's for your own machine. On a server, `deploy.sh` makes a new one (see [Deployment](#deployment)).
+  To make one yourself, run `docker compose run --rm --no-deps web php artisan key:generate --show`,
+  and keep it out of git.
 
 The website's tests, and Pint, Laravel's formatter, which fails on code it would change:
 
@@ -537,3 +538,65 @@ How the world gets there over UDP:
   IP doesn't split it into fragments, which would all be lost with any one of them. A lost part leaves
   its players and monsters where they were for a tick. `protocol/parts.h` splits the world and
   puts it back together.
+
+## Deployment
+
+The game runs on any Linux server with Docker and Docker Compose, such as a VPS, from
+`compose.prod.yaml` on top of `compose.yaml`. On the server, `.env` sets
+`COMPOSE_FILE=compose.yaml:compose.prod.yaml`, so each `docker compose` command there reads both.
+
+- The internet reaches the login server on TCP port 7778, the game server on port 7777, TCP and UDP,
+  and the website on port 8080, and nothing else. MySQL, Redis and the game server's metrics stay on
+  Compose's own network. Docker publishes a port past a firewall such as ufw, so leaving a port out of
+  the file is what keeps it off the internet.
+- Prometheus and Grafana listen on the server's localhost. Reach them through SSH:
+  `ssh -L 3000:localhost:3000 -L 9090:localhost:9090 debian@203.0.113.7`, then open
+  http://localhost:3000.
+- MySQL's password and the website's `APP_KEY` come from `.env` on the server, which `deploy.sh` makes
+  on the first deploy, with random ones, readable by the deploying user alone. Git and the Docker
+  builds leave `.env` out.
+- The services start again after a crash or a reboot (`restart: unless-stopped`).
+
+The certificates come from an authority of your own, made on your machine, with the server's address
+on them. `deploy.sh` sends the servers their certificate and key, and the authority's key stays with
+you. The clients and the bots trust the authority's certificate:
+
+```bash
+tls/certificates.sh tls/vps 203.0.113.7                 # once
+./deploy.sh debian@203.0.113.7 tls/vps                  # this commit, or name one: ... tls/vps ep019/end
+NANOMMO_TLS_CA=tls/vps/ca.crt ./build/bin/nanommo_client 203.0.113.7
+```
+
+`deploy.sh` sends the commit with `git archive`, so the server needs no git or access to the repo,
+with the certificates added under `tls/`, all in one SSH connection, so that a deploy right after
+other SSH commands isn't refused: ufw's `limit` on SSH refuses a sixth connection within 30 seconds.
+The server unpacks it into `nanommo.next`, keeps `.env`, and builds the images there first. The
+tests run as part of the build, so a release that fails them, or doesn't build, leaves the running
+release as it is. Then the release before moves into `nanommo.previous`, the new one into `nanommo`,
+and `docker compose up -d --wait --force-recreate` starts each container again from the new
+release's folder: one left running would keep the folder it started from. The images build on the
+server from the source, protobuf and all: about fifteen minutes on 2 vCPUs, the first time and
+each time after. To go back to the release before, which builds its images again:
+
+```bash
+ssh debian@203.0.113.7 'rm -rf nanommo && mv nanommo.previous nanommo && cd nanommo && docker compose up -d --build --wait --force-recreate'
+```
+
+The volumes, with the accounts and the players, belong to the Compose project, not to a release, so
+they stay through each deploy, and Flyway runs any new migrations before the servers start. Going
+back leaves the database as the newer release left it, as Flyway skips migrations it doesn't know,
+so a migration has to keep the release before it working. New
+certificates need the servers to start again: `ssh debian@203.0.113.7 'cd nanommo && docker compose
+restart login server'`.
+
+The benchmark runs on the server too, with the bots there, as `deploy.sh` sends the authority's
+certificate along for them. It needs `jq` on the server (`sudo apt install jq`), and `curl`, which
+Debian has:
+
+```bash
+ssh debian@203.0.113.7 'cd nanommo && bench/load.sh 100 6' > bench/results/vps.json
+```
+
+On a VPS with 2 vCPUs, which the bots share with the servers, the game server keeps its 20 ticks a
+second up to about 400 players, and falls behind past that, where an Apple M4 Pro gets to about
+500.
