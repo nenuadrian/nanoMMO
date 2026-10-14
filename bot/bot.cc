@@ -14,6 +14,7 @@
 #include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
 #include "protocol/nanommo.pb.h"
+#include "terrain/lands.h"
 
 namespace nanommo {
 
@@ -143,13 +144,18 @@ void Bot::Receive(std::string_view bytes) {
       z_ = player.z();
     }
   }
+  // Through a gate: the trip was for the land we left.
+  if (world.land() != land_ && world.land() < kLands.size()) {
+    land_ = world.land();
+    trip_.reset();
+  }
 }
 
 void Bot::Wander() {
   // Like players, a bot goes somewhere on the island, and stays around there
   // for a while.
   if (!trip_ && stay_ == 0) {
-    trip_ = RandomTrip(random_);
+    trip_ = RandomTrip(random_, kLands[land_].gate);
   }
   std::optional<protocol::Input> input;
   if (trip_) {

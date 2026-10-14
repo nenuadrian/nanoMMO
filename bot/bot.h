@@ -59,6 +59,7 @@ class Bot {
   bool connected_ = false;
   float x_ = 0.0f;
   float z_ = 0.0f;
+  uint32_t land_ = 0;
   std::optional<Trip> trip_;
   int stay_ = 0;
 };

@@ -15,9 +15,8 @@ Metrics::Metrics()
     : registry_(std::make_shared<prometheus::Registry>()),
       players_(prometheus::BuildGauge()
                    .Name("nanommo_players_online")
-                   .Help("Players connected to the server")
-                   .Register(*registry_)
-                   .Add({})),
+                   .Help("Players connected to the server, by land")
+                   .Register(*registry_)),
       tick_seconds_(prometheus::BuildHistogram()
                         .Name("nanommo_tick_duration_seconds")
                         .Help("Time spent in each tick")
@@ -39,8 +38,9 @@ Metrics::Metrics()
                              .Register(*registry_)
                              .Add({})) {}
 
-void Metrics::SetPlayers(std::size_t count) {
-  players_.Set(static_cast<double>(count));
+void Metrics::SetPlayers(const char* land, std::size_t count) {
+  // Add returns the land's gauge if it has one already.
+  players_.Add({{"land", land}}).Set(static_cast<double>(count));
 }
 
 void Metrics::ObserveTick(std::chrono::nanoseconds time) {

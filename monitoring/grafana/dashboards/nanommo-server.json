@@ -28,7 +28,7 @@
         {
           "refId": "A",
           "expr": "nanommo_players_online",
-          "legendFormat": "{{world}}"
+          "legendFormat": "{{world}}, {{land}}"
         }
       ],
       "options": {

@@ -31,7 +31,7 @@ for step in $(seq 1 "$steps"); do
   sleep $(( ramp + hold ))
 
   result=$(jq -n \
-    --argjson players "$(query "nanommo_players_online{$ember}")" \
+    --argjson players "$(query "sum(nanommo_players_online{$ember})")" \
     --argjson ticks "$(query "rate(nanommo_tick_duration_seconds_count{$ember}[$window])")" \
     --argjson p50 "$(query "histogram_quantile(0.5, $quantile) * 1000")" \
     --argjson p99 "$(query "histogram_quantile(0.99, $quantile) * 1000")" \

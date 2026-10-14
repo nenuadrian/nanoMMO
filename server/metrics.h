@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "prometheus/counter.h"
+#include "prometheus/family.h"
 #include "prometheus/gauge.h"
 #include "prometheus/histogram.h"
 #include "prometheus/registry.h"
@@ -16,7 +17,7 @@ class Metrics {
  public:
   Metrics();
 
-  void SetPlayers(std::size_t count);
+  void SetPlayers(const char* land, std::size_t count);
 
   void ObserveTick(std::chrono::nanoseconds time);
 
@@ -32,7 +33,7 @@ class Metrics {
 
  private:
   std::shared_ptr<prometheus::Registry> registry_;
-  prometheus::Gauge& players_;
+  prometheus::Family<prometheus::Gauge>& players_;
   prometheus::Histogram& tick_seconds_;
   prometheus::Histogram& save_seconds_;
   prometheus::Counter& bytes_sent_;

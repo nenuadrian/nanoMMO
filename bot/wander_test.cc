@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "gtest/gtest.h"
+#include "terrain/lands.h"
 
 TEST(Wander, HoldsDirectionsLikeTheKeysWould) {
   std::mt19937 random(1);
@@ -58,4 +59,20 @@ TEST(Wander, TravelsUntilItArrivesOrStopsGettingCloser) {
     EXPECT_TRUE(nanommo::Travel(blocked, 4.0f, 0.0f).has_value());
   }
   EXPECT_FALSE(nanommo::Travel(blocked, 4.0f, 0.0f).has_value());
+}
+
+TEST(Wander, GoesIntoTheGateOnATripInFive) {
+  std::mt19937 random(1);
+  const nanommo::Place gate{.x = 0.0f, .z = -10.0f};
+  int through = 0;
+  for (int i = 0; i < 1000; ++i) {
+    const nanommo::Trip trip = nanommo::RandomTrip(random, gate);
+    if (trip.to_x == gate.x && trip.to_z == gate.z) {
+      ++through;
+      EXPECT_LT(trip.there, nanommo::kGateRadius);
+    }
+  }
+
+  EXPECT_GT(through, 150);
+  EXPECT_LT(through, 250);
 }

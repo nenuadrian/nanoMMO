@@ -1,6 +1,8 @@
 add_library(nanommo_bot_core bot.cc bot_metrics.cc wander.cc)
 target_include_directories(nanommo_bot_core PUBLIC ${PROJECT_SOURCE_DIR})
-target_link_libraries(nanommo_bot_core PUBLIC nanommo_protocol asio prometheus-cpp::core)
+target_link_libraries(nanommo_bot_core PUBLIC
+  nanommo_protocol nanommo_terrain asio prometheus-cpp::core
+)
 
 add_executable(nanommo_bot main.cc)
 target_link_libraries(nanommo_bot PRIVATE nanommo_bot_core prometheus-cpp::pull)

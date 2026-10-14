@@ -9,8 +9,8 @@ namespace nanommo {
 namespace {
 
 constexpr float kReach = 170.0f;
-constexpr float kThere = 3.0f;
 constexpr int kStuck = 3;
+constexpr float kThroughTheGate = 0.2f;
 
 }  // namespace
 
@@ -29,8 +29,12 @@ std::chrono::milliseconds RandomHold(std::mt19937& random) {
   return std::chrono::milliseconds(ms(random));
 }
 
-Trip RandomTrip(std::mt19937& random) {
+Trip RandomTrip(std::mt19937& random, const Place& gate) {
   std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+  if (unit(random) < kThroughTheGate) {
+    // All the way to its middle: three metres short, it would stop outside.
+    return {.to_x = gate.x, .to_z = gate.z, .there = kGateRadius / 2};
+  }
   const float angle = 2.0f * std::numbers::pi_v<float> * unit(random);
   // The square root spreads the trips evenly over the circle's area.
   const float distance = kReach * std::sqrt(unit(random));
@@ -42,7 +46,7 @@ std::optional<protocol::Input> Travel(Trip& trip, float x, float z) {
   const float dx = trip.to_x - x;
   const float dz = trip.to_z - z;
   const float distance = std::hypot(dx, dz);
-  if (distance < kThere) {
+  if (distance < trip.there) {
     return std::nullopt;
   }
   if (distance < trip.closest - 0.5f) {

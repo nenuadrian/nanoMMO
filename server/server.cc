@@ -246,7 +246,6 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   saved_[*id] = ProgressOf(*player);
   sessions_[*id] = session.shared_from_this();
   udp_tokens_[hello.token()] = *id;
-  metrics_.SetPlayers(players());
   std::cout << player->name << " joined, as player " << *id << std::endl;
   return *id;
 }
@@ -260,7 +259,6 @@ void Server::Leave(uint32_t id) {
   std::erase_if(udp_tokens_,
                 [id](const auto& token) { return token.second == id; });
   udp_clients_.erase(id);
-  metrics_.SetPlayers(players());
 }
 
 void Server::Receive() {
@@ -286,6 +284,9 @@ void Server::Tick() {
     land.Step(interval_);
   }
   Travel();
+  for (std::size_t index = 0; index < lands_.size(); ++index) {
+    metrics_.SetPlayers(kLands[index].name, lands_[index].players().size());
+  }
   SaveChanged();
   Broadcast();
   metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
