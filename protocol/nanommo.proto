@@ -51,6 +51,7 @@ message World {
   uint32 experience = 7;
   uint32 next_level = 8;
   uint32 seed = 9;
+  uint32 land = 10;
 }
 
 message LoginRequest {

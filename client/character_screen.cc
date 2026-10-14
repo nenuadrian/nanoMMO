@@ -41,7 +41,7 @@ void CharacterScreen::Render(const Renderer& renderer) {
 }
 
 void CharacterScreen::Build(const std::vector<Figure>& figures,
-                            const protocol::World& world) {
+                            const protocol::World& world, const char* land) {
   if (!visible_) {
     return;
   }
@@ -62,7 +62,7 @@ void CharacterScreen::Build(const std::vector<Figure>& figures,
     ImGui::Text(ICON_FA_HEART " Health: %d / %d", you->health, you->max_health);
     ImGui::Text(ICON_FA_STAR " Experience: %u / %u", world.experience(),
                 world.next_level());
-    ImGui::Text(ICON_FA_LOCATION_CROSSHAIRS " Position: %.1f, %.1f",
+    ImGui::Text(ICON_FA_LOCATION_CROSSHAIRS " %s, at %.1f, %.1f", land,
                 you->position.x, you->position.z);
     ImGui::EndGroup();
   }

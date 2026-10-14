@@ -11,7 +11,7 @@ namespace nanommo {
 namespace {
 
 // Room for the fields besides the players and the monsters: sent, part,
-// parts, and the client's own you, experience, next level and seed.
+// parts, and the client's own you, experience, next level, seed and land.
 constexpr std::size_t kRoom = 48;
 
 // Names and levels come once a second, and protobuf leaves out a field that's
@@ -86,6 +86,7 @@ void Parts::Add(const protocol::World& part) {
   experience_ = part.experience();
   next_level_ = part.next_level();
   seed_ = part.seed();
+  land_ = part.land();
   arrived_.insert(part.part());
   for (const protocol::Player& player : part.players()) {
     Update(players_[player.id()], player);
@@ -111,6 +112,7 @@ protocol::World Parts::world() const {
   world.set_experience(experience_);
   world.set_next_level(next_level_);
   world.set_seed(seed_);
+  world.set_land(land_);
   world.set_sent(sent_);
   for (const auto& [id, player] : players_) {
     *world.add_players() = player;

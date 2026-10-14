@@ -5,6 +5,8 @@
 
 #include <array>
 
+#include "terrain/lands.h"
+
 namespace nanommo {
 
 /// The sky and the light, which the shaders read each frame.
@@ -49,6 +51,25 @@ constexpr Look kMeadows = {
     .sea = {48, 118, 178, 210},
     .trees = WHITE,
 };
+
+constexpr Look kAshlands = {
+    .atmosphere = {.sky = {0.46f, 0.22f, 0.13f},
+                   .fog_near = 35.0f,
+                   .fog_far = 130.0f,
+                   .sun = {0.6f, 0.45f, -0.4f},
+                   .sunlight = {1.0f, 0.55f, 0.3f},
+                   .ambient = {0.36f, 0.28f, 0.28f}},
+    .sand = {60, 54, 52, 255},
+    .grass = {124, 112, 104, 255},
+    .rock = {84, 74, 72, 255},
+    .snow = {196, 84, 40, 255},
+    .sea = {255, 190, 60, 255},
+    .trees = {58, 46, 42, 255},
+};
+
+/// In the order of the lands.
+constexpr std::array<Look, 2> kLooks = {kMeadows, kAshlands};
+static_assert(kLooks.size() == kLands.size(), "each land needs its look");
 
 }  // namespace nanommo
 

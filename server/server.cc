@@ -21,6 +21,7 @@
 #include "server/levels.h"
 #include "server/listen.h"
 #include "server/monsters.h"
+#include "terrain/lands.h"
 #include "terrain/terrain.h"
 #include "tracy/Tracy.hpp"
 
@@ -129,10 +130,22 @@ Server::Server(asio::io_context& io, asio::ssl::context& tls,
       interval_(interval),
       name_(std::move(name)),
       seed_(seed),
-      world_(std::random_device()(), Terrain(seed)),
       metrics_(metrics),
       tokens_(tokens),
-      players_(players) {}
+      players_(players) {
+  for (const Land& land : kLands) {
+    lands_.emplace_back(std::random_device()(),
+                        Terrain(seed + land.seed, land.wading));
+  }
+}
+
+int Server::players() const {
+  int count = 0;
+  for (const World& land : lands_) {
+    count += static_cast<int>(land.players().size());
+  }
+  return count;
+}
 
 absl::Status Server::Start(uint16_t port) {
   const absl::Status listening = Listen(acceptor_, port);
@@ -148,14 +161,16 @@ absl::Status Server::Start(uint16_t port) {
   std::error_code ignored;
   udp_.set_option(asio::socket_base::send_buffer_size(4 * 1024 * 1024),
                   ignored);
-  for (const auto& [x, z] : kSkeletons) {
-    world_.Spawn(Skeleton(x, z));
-  }
-  const Terrain& terrain = world_.terrain();
-  for (const auto& [camp_x, camp_z] : Camps(terrain, kCamps)) {
-    for (const auto& [x, z] : kCampSkeletons) {
-      if (terrain.Walkable(camp_x + x, camp_z + z)) {
-        world_.Spawn(Skeleton(camp_x + x, camp_z + z));
+  for (World& land : lands_) {
+    for (const auto& [x, z] : kSkeletons) {
+      land.Spawn(Skeleton(x, z));
+    }
+    const Terrain& terrain = land.terrain();
+    for (const auto& [camp_x, camp_z] : Camps(terrain, kCamps)) {
+      for (const auto& [x, z] : kCampSkeletons) {
+        if (terrain.Walkable(camp_x + x, camp_z + z)) {
+          land.Spawn(Skeleton(camp_x + x, camp_z + z));
+        }
       }
     }
   }
@@ -164,6 +179,15 @@ absl::Status Server::Start(uint16_t port) {
   timer_.expires_after(interval_);
   timer_.async_wait([this](std::error_code) { Tick(); });
   return absl::OkStatus();
+}
+
+World* Server::LandOf(uint32_t id) {
+  for (World& land : lands_) {
+    if (land.players().contains(id)) {
+      return &land;
+    }
+  }
+  return nullptr;
 }
 
 void Server::Accept() {
@@ -180,9 +204,10 @@ void Server::Accept() {
           return;
         }
         protocol::Input input;
-        if (input.ParseFromString(bytes)) {
-          world_.SetInput(*id, input.x(), input.z(), input.run(),
-                          input.attack());
+        World* land = LandOf(*id);
+        if (land != nullptr && input.ParseFromString(bytes)) {
+          land->SetInput(*id, input.x(), input.z(), input.run(),
+                         input.attack());
         }
       };
       const auto on_close = [this, id] {
@@ -202,7 +227,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   const absl::StatusOr<uint32_t> id =
       hello.ParseFromString(bytes) ? tokens_.Redeem(hello.token())
                                    : absl::InvalidArgumentError("not a hello");
-  if (!id.ok() || world_.players().contains(*id)) {
+  if (!id.ok() || LandOf(*id) != nullptr) {
     std::cout << "refused a client: unknown token, or already playing"
               << std::endl;
     session.Close();
@@ -215,26 +240,25 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
     session.Close();
     return 0;
   }
-  world_.Join(*id, *player);
+  lands_.front().Join(*id, *player);
   saved_[*id] = ProgressOf(*player);
   sessions_[*id] = session.shared_from_this();
   udp_tokens_[hello.token()] = *id;
-  metrics_.SetPlayers(world_.players().size());
-  std::cout << world_.players().at(*id).name << " joined, as player " << *id
-            << std::endl;
+  metrics_.SetPlayers(players());
+  std::cout << player->name << " joined, as player " << *id << std::endl;
   return *id;
 }
 
 void Server::Leave(uint32_t id) {
-  const Player& player = world_.players().at(id);
-  std::cout << player.name << " left" << std::endl;
-  world_.Leave(id);
+  World* land = LandOf(id);
+  std::cout << land->players().at(id).name << " left" << std::endl;
+  land->Leave(id);
   saved_.erase(id);
   sessions_.erase(id);
   std::erase_if(udp_tokens_,
                 [id](const auto& token) { return token.second == id; });
   udp_clients_.erase(id);
-  metrics_.SetPlayers(world_.players().size());
+  metrics_.SetPlayers(players());
 }
 
 void Server::Receive() {
@@ -256,25 +280,52 @@ void Server::Receive() {
 void Server::Tick() {
   ZoneScoped;
   const auto start = std::chrono::steady_clock::now();
-  world_.Step(interval_);
+  for (World& land : lands_) {
+    land.Step(interval_);
+  }
+  Travel();
   SaveChanged();
   Broadcast();
   metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
-  TracyPlot("players", static_cast<int64_t>(world_.players().size()));
+  TracyPlot("players", static_cast<int64_t>(players()));
   FrameMark;
   // From the last expiry, not from now, so that the ticks don't drift.
   timer_.expires_at(timer_.expiry() + interval_);
   timer_.async_wait([this](std::error_code) { Tick(); });
 }
 
+void Server::Travel() {
+  for (std::size_t from = 0; from < lands_.size(); ++from) {
+    const Land& here = kLands[from];
+    // Leaving changes the map we go through, so first we note who's going.
+    std::vector<uint32_t> travellers;
+    for (const auto& [id, player] : lands_[from].players()) {
+      if (InGate(here, player.x, player.z)) {
+        travellers.push_back(id);
+      }
+    }
+    for (const uint32_t id : travellers) {
+      Player player = lands_[from].players().at(id);
+      lands_[from].Leave(id);
+      const Land& there = kLands[here.to];
+      player.x = there.gate.x;
+      player.z = there.gate.z;
+      std::cout << player.name << " went to the " << there.name << std::endl;
+      lands_[here.to].Join(id, std::move(player));
+    }
+  }
+}
+
 void Server::SaveChanged() {
   ZoneScoped;
   const auto start = std::chrono::steady_clock::now();
   std::map<uint32_t, Progress> changed;
-  for (const auto& [id, player] : world_.players()) {
-    const Progress progress = ProgressOf(player);
-    if (progress != saved_[id]) {
-      changed[id] = progress;
+  for (const World& land : lands_) {
+    for (const auto& [id, player] : land.players()) {
+      const Progress progress = ProgressOf(player);
+      if (progress != saved_[id]) {
+        changed[id] = progress;
+      }
     }
   }
   const absl::Status status = players_.Save(name_, changed);
@@ -295,13 +346,20 @@ void Server::Broadcast() {
   // so they go out once a second, and the clients keep them in between.
   const bool full = broadcasts_ == 0;
   broadcasts_ = (broadcasts_ + 1) % kFullEvery;
+  for (std::size_t index = 0; index < lands_.size(); ++index) {
+    BroadcastLand(index, full);
+  }
+}
+
+void Server::BroadcastLand(std::size_t index, bool full) {
+  const World& land = lands_[index];
   // Each player and monster is serialized once a tick, and what each cell
   // gets is put together from those pieces.
   std::map<uint32_t, std::string> players;
   std::map<uint32_t, std::string> monsters;
   {
     ZoneScopedN("serialize");
-    for (const auto& [id, player] : world_.players()) {
+    for (const auto& [id, player] : land.players()) {
       protocol::Player entry = ToProtocol(id, player);
       if (!full) {
         entry.clear_name();
@@ -310,7 +368,7 @@ void Server::Broadcast() {
       }
       players[id] = Piece(entry);
     }
-    for (const auto& [id, monster] : world_.monsters()) {
+    for (const auto& [id, monster] : land.monsters()) {
       protocol::Monster entry = ToProtocol(id, monster);
       if (!full) {
         entry.clear_name();
@@ -321,7 +379,7 @@ void Server::Broadcast() {
     }
   }
   const int64_t sent = NowMicros();
-  for (const auto& [cell, view] : Views(world_.players(), world_.monsters())) {
+  for (const auto& [cell, view] : Views(land.players(), land.monsters())) {
     std::vector<std::string_view> pieces;
     for (const uint32_t id : view.players) {
       pieces.push_back(players.at(id));
@@ -337,12 +395,13 @@ void Server::Broadcast() {
       if (session == sessions_.end()) {
         continue;
       }
-      const Level level = LevelFor(world_.players().at(id).experience);
+      const Level level = LevelFor(land.players().at(id).experience);
       protocol::World you;
       you.set_you(id);
       you.set_experience(level.experience);
       you.set_next_level(level.next);
-      you.set_seed(seed_);
+      you.set_seed(seed_ + kLands[index].seed);
+      you.set_land(static_cast<uint32_t>(index));
       std::string own = you.SerializeAsString();
       const auto udp = udp_clients_.find(id);
       if (udp != udp_clients_.end()) {

@@ -36,8 +36,9 @@ class Terrain {
   /// The board we had: flat, twelve metres across, for the tests.
   Terrain();
 
-  /// An island, 512 metres across, with the sea all around it.
-  explicit Terrain(uint32_t seed);
+  /// An island, 512 metres across, with the sea all around it, which players
+  /// can wade into as deep as wading, in metres.
+  explicit Terrain(uint32_t seed, float wading = kWading);
 
   /// On the triangles between the grid's corners, as the client draws them.
   float Height(float x, float z) const;
@@ -67,6 +68,7 @@ class Terrain {
   bool InATree(float x, float z) const;
 
   uint32_t seed_ = 0;
+  float wading_ = kWading;
   int cells_ = 0;
   std::vector<float> corners_;
   std::vector<Tree> trees_;

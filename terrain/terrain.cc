@@ -51,8 +51,9 @@ float IslandHeight(uint32_t seed, float x, float z, float half_size) {
 Terrain::Terrain()
     : cells_(kBoardCells), corners_((kBoardCells + 1) * (kBoardCells + 1)) {}
 
-Terrain::Terrain(uint32_t seed)
+Terrain::Terrain(uint32_t seed, float wading)
     : seed_(seed),
+      wading_(wading),
       cells_(kIslandCells),
       corners_((kIslandCells + 1) * (kIslandCells + 1)) {
   for (int j = 0; j <= cells_; ++j) {
@@ -119,7 +120,7 @@ float Terrain::Height(float x, float z) const {
 
 bool Terrain::Walkable(float x, float z) const {
   return std::abs(x) <= edge() && std::abs(z) <= edge() &&
-         Height(x, z) >= kSeaLevel - kWading && !InATree(x, z);
+         Height(x, z) >= kSeaLevel - wading_ && !InATree(x, z);
 }
 
 bool Terrain::InATree(float x, float z) const {

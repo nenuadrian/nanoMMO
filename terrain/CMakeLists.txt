@@ -1,4 +1,4 @@
-add_library(nanommo_terrain noise.cc terrain.cc)
+add_library(nanommo_terrain noise.cc terrain.cc lands.cc)
 target_include_directories(nanommo_terrain PUBLIC ${PROJECT_SOURCE_DIR})
 # Compilers for Arm, and for x86 with -march, fuse a multiply and an add into
 # one instruction, which rounds once instead of twice. The heights would come

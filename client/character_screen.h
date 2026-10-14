@@ -22,7 +22,8 @@ class CharacterScreen {
 
   void Render(const Renderer& renderer);
 
-  void Build(const std::vector<Figure>& figures, const protocol::World& world);
+  void Build(const std::vector<Figure>& figures, const protocol::World& world,
+             const char* land);
 
  private:
   static constexpr int kPreviewPixels = 360;

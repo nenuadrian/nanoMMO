@@ -18,6 +18,7 @@
 #include "client/camera.h"
 #include "client/character_screen.h"
 #include "client/connection.h"
+#include "client/gate.h"
 #include "client/gui.h"
 #include "client/input.h"
 #include "client/login_screen.h"
@@ -29,6 +30,7 @@
 #include "protocol/login_client.h"
 #include "protocol/settings.h"
 #include "protocol/tls.h"
+#include "terrain/lands.h"
 #include "terrain/terrain.h"
 
 namespace {
@@ -109,6 +111,7 @@ int main(int argc, char* argv[]) {
   nanommo::Renderer renderer;
   nanommo::Animator animator;
   std::optional<nanommo::Terrain> terrain;
+  int land = 0;
   nanommo::FollowCamera camera;
 
   std::unique_ptr<nanommo::Connection> connection;
@@ -143,9 +146,18 @@ int main(int argc, char* argv[]) {
         std::cout << "nanommo client: we're player " << world.you() << ", "
                   << nearby << " nearby" << '\n';
       }
+      // Each land has a seed of its own, so a new seed is a new land.
       if (!terrain || terrain->seed() != world.seed()) {
+        // A land this client doesn't know, from a newer server, looks like
+        // the Meadows.
+        land = world.land() < nanommo::kLands.size()
+                   ? static_cast<int>(world.land())
+                   : 0;
         terrain.emplace(world.seed());
-        renderer.set_terrain(*terrain, nanommo::kMeadows);
+        renderer.set_terrain(*terrain, nanommo::kLooks[land]);
+        renderer.set_cubes(nanommo::GateCubes(*terrain, land));
+        std::cout << "nanommo client: in the " << nanommo::kLands[land].name
+                  << '\n';
       }
       std::vector<nanommo::Figure> figures =
           animator.Update(world, GetFrameTime());
@@ -177,9 +189,10 @@ int main(int argc, char* argv[]) {
     if (connection) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera());
       nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
-      character_screen.Build(renderer.figures(), connection->world());
+      character_screen.Build(renderer.figures(), connection->world(),
+                             nanommo::kLands[land].name);
       if (menu.Build(*window, *renderer.mutable_atmosphere(),
-                     nanommo::kMeadows.atmosphere,
+                     nanommo::kLooks[land].atmosphere,
                      character_screen.mutable_visible())) {
         connection.reset();
       }

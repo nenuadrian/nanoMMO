@@ -3,10 +3,12 @@
 
 #include <array>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -34,7 +36,8 @@ class Server {
       std::chrono::nanoseconds interval, std::string name, uint32_t seed,
       Metrics& metrics, Tokens& tokens, Players& players);
 
-  int players() const { return static_cast<int>(world_.players().size()); }
+  /// In all its lands.
+  int players() const;
 
  private:
   Server(asio::io_context& io, asio::ssl::context& tls,
@@ -42,13 +45,16 @@ class Server {
          Metrics& metrics, Tokens& tokens, Players& players);
 
   absl::Status Start(uint16_t port);
+  World* LandOf(uint32_t id);
   void Accept();
   uint32_t HandleHello(Session& session, const std::string& bytes);
   void Leave(uint32_t id);
   void Receive();
   void Tick();
+  void Travel();
   void SaveChanged();
   void Broadcast();
+  void BroadcastLand(std::size_t index, bool full);
   void SendTo(const asio::ip::udp::endpoint& client,
               std::shared_ptr<const std::string> part, std::string own);
 
@@ -61,7 +67,7 @@ class Server {
   std::chrono::nanoseconds interval_;
   std::string name_;
   uint32_t seed_;
-  World world_;
+  std::vector<World> lands_;
   Metrics& metrics_;
   Tokens& tokens_;
   Players& players_;
