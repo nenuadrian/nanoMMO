@@ -31,11 +31,13 @@ TEST(World, JoinsPlayersWhereTheyAre) {
   EXPECT_EQ(player.z, -1.0f);
 }
 
-TEST(World, JoinsPlayersAtFullHealth) {
+TEST(World, JoinsPlayersWithTheHealthTheyLeftWith) {
   nanommo::World world;
   world.Join(7, {.name = "alice", .experience = 100});
+  world.Join(8, {.name = "maria", .health = 40});
 
   EXPECT_EQ(world.players().at(7).health, 120);
+  EXPECT_EQ(world.players().at(8).health, 40);
 }
 
 TEST(World, WalksAtTheWalkSpeed) {
