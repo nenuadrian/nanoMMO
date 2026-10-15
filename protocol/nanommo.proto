@@ -42,6 +42,18 @@ message Monster {
   uint32 max_health = 9;
 }
 
+// Someone who stands in one place, and doesn't fight. Each comes once a
+// second, with its look: a ball of the colour, as 0xRRGGBBAA, and radius.
+message Npc {
+  uint32 id = 1;
+  string name = 2;
+  float x = 3;
+  float z = 4;
+  float yaw = 5;
+  uint32 color = 6;
+  float radius = 7;
+}
+
 message Chat {
   string name = 1;
   string text = 2;
@@ -59,6 +71,7 @@ message World {
   uint32 seed = 9;
   uint32 land = 10;
   repeated Chat chat = 11;
+  repeated Npc npcs = 12;
 }
 
 message LoginRequest {

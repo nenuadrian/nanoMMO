@@ -58,6 +58,12 @@ uint32_t World::Spawn(Monster monster) {
   return id;
 }
 
+uint32_t World::Spawn(Npc npc) {
+  const uint32_t id = next_npc_++;
+  npcs_[id] = std::move(npc);
+  return id;
+}
+
 void World::SetInput(uint32_t id, float x, float z, bool run, bool attack) {
   const auto found = players_.find(id);
   if (found == players_.end() || !std::isfinite(x) || !std::isfinite(z)) {

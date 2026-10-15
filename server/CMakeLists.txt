@@ -1,5 +1,5 @@
 add_library(nanommo_server_core
-  tick.cc listen.cc world.cc monsters.cc levels.cc session.cc interest.cc
+  tick.cc listen.cc world.cc monsters.cc npcs.cc levels.cc session.cc interest.cc
   server.cc metrics.cc password.cc database.cc
   accounts.cc players.cc redis.cc tokens.cc
   login_server.cc consul.cc token_bucket.cc

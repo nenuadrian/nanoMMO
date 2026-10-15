@@ -45,6 +45,12 @@ std::string Piece(const protocol::Monster& monster) {
   return world.SerializeAsString();
 }
 
+std::string Piece(const protocol::Npc& npc) {
+  protocol::World world;
+  *world.add_npcs() = npc;
+  return world.SerializeAsString();
+}
+
 std::vector<std::string> Split(const std::vector<std::string_view>& pieces,
                                int64_t sent, std::size_t max_size) {
   std::vector<std::vector<std::string_view>> groups(1);

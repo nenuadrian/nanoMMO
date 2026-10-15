@@ -18,6 +18,7 @@
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
 #include "protocol/nanommo.pb.h"
+#include "server/interest.h"
 #include "server/metrics.h"
 #include "server/players.h"
 #include "server/session.h"
@@ -72,6 +73,8 @@ class Server {
   std::string name_;
   uint32_t seed_;
   std::vector<World> lands_;
+  /// Each land's NPCs, in their cells.
+  std::vector<Cells> npc_cells_;
   Metrics& metrics_;
   Tokens& tokens_;
   Players& players_;

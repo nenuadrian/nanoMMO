@@ -25,15 +25,31 @@ struct Cell {
 
 Cell CellOf(float x, float z);
 
-/// What the players in a cell get: the players and the monsters near it.
+/// The ids of what's in each cell.
+using Cells = std::map<Cell, std::vector<uint32_t>>;
+
+template <typename Unit>
+Cells CellsOf(const std::map<uint32_t, Unit>& units) {
+  Cells cells;
+  for (const auto& [id, unit] : units) {
+    cells[CellOf(unit.x, unit.z)].push_back(id);
+  }
+  return cells;
+}
+
+/// What the players in a cell get: the players, monsters and NPCs near it.
 struct View {
   std::vector<uint32_t> here;
   std::vector<uint32_t> players;
   std::vector<uint32_t> monsters;
+  std::vector<uint32_t> npcs;
 };
 
+/// Players and monsters move, so they go into their cells each time. NPCs
+/// stand still, so the server puts them in theirs once, when they spawn.
 std::map<Cell, View> Views(const std::map<uint32_t, Player>& players,
-                           const std::map<uint32_t, Monster>& monsters);
+                           const std::map<uint32_t, Monster>& monsters,
+                           const Cells& npcs);
 
 }  // namespace nanommo
 

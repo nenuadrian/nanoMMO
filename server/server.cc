@@ -23,6 +23,7 @@
 #include "server/levels.h"
 #include "server/listen.h"
 #include "server/monsters.h"
+#include "server/npcs.h"
 #include "terrain/lands.h"
 #include "terrain/terrain.h"
 #include "tracy/Tracy.hpp"
@@ -97,6 +98,18 @@ protocol::Monster ToProtocol(uint32_t id, const Monster& monster) {
   return sent;
 }
 
+protocol::Npc ToProtocol(uint32_t id, const Npc& npc) {
+  protocol::Npc sent;
+  sent.set_id(id);
+  sent.set_name(npc.name);
+  sent.set_x(npc.x);
+  sent.set_z(npc.z);
+  sent.set_yaw(npc.yaw);
+  sent.set_color(npc.color);
+  sent.set_radius(npc.radius);
+  return sent;
+}
+
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<Server>> Server::Create(
@@ -155,7 +168,10 @@ absl::Status Server::Start(uint16_t port) {
   udp_.set_option(asio::socket_base::send_buffer_size(4 * 1024 * 1024),
                   ignored);
   for (std::size_t index = 0; index < lands_.size(); ++index) {
-    SpawnMonsters(lands_[index], static_cast<int>(index));
+    World& land = lands_[index];
+    SpawnMonsters(land, static_cast<int>(index));
+    SpawnNpcs(land, static_cast<int>(index));
+    npc_cells_.push_back(CellsOf(land.npcs()));
   }
   Accept();
   Receive();
@@ -356,7 +372,8 @@ void Server::SaveChanged() {
 void Server::Broadcast() {
   ZoneScoped;
   // Names, levels and the most health a unit can have change now and then,
-  // so they go out once a second, and the clients keep them in between.
+  // and NPCs never do, so they go out once a second, and the clients keep them
+  // in between.
   const bool full = broadcasts_ == 0;
   broadcasts_ = (broadcasts_ + 1) % kFullEvery;
   for (std::size_t index = 0; index < lands_.size(); ++index) {
@@ -370,6 +387,7 @@ void Server::BroadcastLand(std::size_t index, bool full) {
   // gets is put together from those pieces.
   std::map<uint32_t, std::string> players;
   std::map<uint32_t, std::string> monsters;
+  std::map<uint32_t, std::string> npcs;
   {
     ZoneScopedN("serialize");
     for (const auto& [id, player] : land.players()) {
@@ -390,15 +408,26 @@ void Server::BroadcastLand(std::size_t index, bool full) {
       }
       monsters[id] = Piece(entry);
     }
+    if (full) {
+      for (const auto& [id, npc] : land.npcs()) {
+        npcs[id] = Piece(ToProtocol(id, npc));
+      }
+    }
   }
   const int64_t sent = NowMicros();
-  for (const auto& [cell, view] : Views(land.players(), land.monsters())) {
+  for (const auto& [cell, view] :
+       Views(land.players(), land.monsters(), npc_cells_[index])) {
     std::vector<std::string_view> pieces;
     for (const uint32_t id : view.players) {
       pieces.push_back(players.at(id));
     }
     for (const uint32_t id : view.monsters) {
       pieces.push_back(monsters.at(id));
+    }
+    if (full) {
+      for (const uint32_t id : view.npcs) {
+        pieces.push_back(npcs.at(id));
+      }
     }
     // The players in a cell get the same world, so they share its bytes.
     std::shared_ptr<const std::string> whole;

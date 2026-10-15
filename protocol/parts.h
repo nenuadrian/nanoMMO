@@ -17,11 +17,12 @@ namespace nanommo {
 /// take, so IP never has to split a datagram this size.
 constexpr std::size_t kMaxDatagramSize = 1200;
 
-/// A player or a monster in a world of its own, serialized. Protobuf reads
-/// worlds that follow each other as one, so pieces put one after another make
-/// a world.
+/// A player, a monster or an NPC in a world of its own, serialized. Protobuf
+/// reads worlds that follow each other as one, so pieces put one after another
+/// make a world.
 std::string Piece(const protocol::Player& player);
 std::string Piece(const protocol::Monster& monster);
+std::string Piece(const protocol::Npc& npc);
 
 /// The parts of a world sent at a time, each a datagram of up to max_size
 /// bytes, packed from pieces.

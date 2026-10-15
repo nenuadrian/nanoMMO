@@ -56,6 +56,19 @@ struct Monster {
   std::chrono::nanoseconds respawn{0};
 };
 
+/// Someone who stands in one place, such as a guard. NPCs don't move or fight,
+/// so they have none of a monster's health or of what it thinks with.
+struct Npc {
+  std::string name;
+  float x = 0.0f;
+  float z = 0.0f;
+  float yaw = 0.0f;
+  /// As 0xRRGGBBAA.
+  uint32_t color = 0xFFFFFFFF;
+  /// In metres. Until NPCs have models, each is a ball this size.
+  float radius = 0.5f;
+};
+
 /// Moves to the place, or if the terrain's in the way there, as far as it can
 /// along x or along z alone, so that it slides along a coast.
 void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z);
@@ -87,10 +100,14 @@ class World {
 
   uint32_t Spawn(Monster monster);
 
+  /// NPCs have ids of their own, apart from the monsters'.
+  uint32_t Spawn(Npc npc);
+
   void Step(std::chrono::nanoseconds time);
 
   const std::map<uint32_t, Player>& players() const { return players_; }
   const std::map<uint32_t, Monster>& monsters() const { return monsters_; }
+  const std::map<uint32_t, Npc>& npcs() const { return npcs_; }
   const Terrain& terrain() const { return terrain_; }
 
  private:
@@ -105,6 +122,8 @@ class World {
   std::map<uint32_t, Player> players_;
   std::map<uint32_t, Monster> monsters_;
   uint32_t next_monster_ = 1;
+  std::map<uint32_t, Npc> npcs_;
+  uint32_t next_npc_ = 1;
   std::mt19937 random_;
 };
 
