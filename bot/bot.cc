@@ -130,7 +130,9 @@ void Bot::ReceiveOverUdp() {
 
 void Bot::Receive(std::string_view bytes) {
   protocol::World world;
-  if (!world.ParseFromArray(bytes.data(), static_cast<int>(bytes.size()))) {
+  // Chat has no land in it, which would read as the Meadows.
+  if (!world.ParseFromArray(bytes.data(), static_cast<int>(bytes.size())) ||
+      !world.chat().empty()) {
     return;
   }
   const uint32_t parts = std::max(world.parts(), 1u);

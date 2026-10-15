@@ -17,6 +17,7 @@
 #include "asio/ip/udp.hpp"
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
+#include "protocol/nanommo.pb.h"
 #include "server/metrics.h"
 #include "server/players.h"
 #include "server/session.h"
@@ -49,12 +50,14 @@ class Server {
   void Accept();
   uint32_t HandleHello(Session& session, const std::string& bytes);
   void Leave(uint32_t id);
+  void Say(uint32_t id, const std::string& text);
   void Receive();
   void Tick();
   void Travel();
   void SaveChanged();
   void Broadcast();
   void BroadcastLand(std::size_t index, bool full);
+  void SendChat();
   void SendTo(const asio::ip::udp::endpoint& client,
               std::shared_ptr<const std::string> part, std::string own);
 
@@ -76,6 +79,8 @@ class Server {
   std::map<uint32_t, asio::ip::udp::endpoint> udp_clients_;
   std::map<uint32_t, Progress> saved_;
   int broadcasts_ = 0;
+  /// What the players said since the last tick.
+  protocol::World chat_;
 };
 
 }  // namespace nanommo

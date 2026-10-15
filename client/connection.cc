@@ -1,6 +1,7 @@
 #include "client/connection.h"
 
 #include <chrono>
+#include <cstddef>
 #include <memory>
 #include <string>
 
@@ -13,6 +14,12 @@
 #include "asio/write.hpp"
 
 namespace nanommo {
+
+namespace {
+
+constexpr std::size_t kChatLines = 100;
+
+}  // namespace
 
 absl::StatusOr<std::unique_ptr<Connection>> Connection::Create(
     const std::string& host, uint16_t port, asio::ssl::context& tls,
@@ -101,7 +108,13 @@ void Connection::Read() {
                                 connected_ = false;
                                 return;
                               }
-                              Receive(world);
+                              // Chat comes on its own, with nothing of the
+                              // world in it.
+                              if (world.chat().empty()) {
+                                Receive(world);
+                              } else {
+                                Hear(world);
+                              }
                             }
                             if (!reader_.status().ok()) {
                               connected_ = false;
@@ -143,6 +156,13 @@ void Connection::ReceiveOverUdp() {
 void Connection::Receive(const protocol::World& world) {
   parts_.Add(world);
   world_ = parts_.world();
+}
+
+void Connection::Hear(const protocol::World& chat) {
+  chat_.insert(chat_.end(), chat.chat().begin(), chat.chat().end());
+  while (chat_.size() > kChatLines) {
+    chat_.pop_front();
+  }
 }
 
 }  // namespace nanommo

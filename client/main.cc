@@ -17,6 +17,7 @@
 #include "client/atmosphere.h"
 #include "client/camera.h"
 #include "client/character_screen.h"
+#include "client/chat_window.h"
 #include "client/connection.h"
 #include "client/gate.h"
 #include "client/gui.h"
@@ -107,6 +108,7 @@ int main(int argc, char* argv[]) {
   nanommo::Gui gui;
   nanommo::Menu menu;
   nanommo::CharacterScreen character_screen;
+  nanommo::ChatWindow chat_window;
   nanommo::LoginScreen login_screen;
   nanommo::Renderer renderer;
   nanommo::Animator animator;
@@ -189,6 +191,13 @@ int main(int argc, char* argv[]) {
     if (connection) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera());
       nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
+      if (const std::optional<std::string> line =
+              chat_window.Build(connection->chat())) {
+        // With what we sent last, so that we keep moving as we were.
+        nanommo::protocol::Input say = sent;
+        say.set_say(*line);
+        connection->Send(say);
+      }
       character_screen.Build(renderer.figures(), connection->world(),
                              nanommo::kLands[land].name);
       if (menu.Build(*window, *renderer.mutable_atmosphere(),

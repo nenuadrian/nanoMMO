@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <string>
 
@@ -38,6 +39,9 @@ class Connection {
 
   const protocol::World& world() const { return world_; }
 
+  /// The newest lines said in the world, oldest first.
+  const std::deque<protocol::Chat>& chat() const { return chat_; }
+
  private:
   Connection(asio::ssl::context& tls, const std::string& token);
 
@@ -47,6 +51,7 @@ class Connection {
   void HelloOverUdp();
   void ReceiveOverUdp();
   void Receive(const protocol::World& world);
+  void Hear(const protocol::World& chat);
 
   asio::io_context io_;
   TlsStream stream_;
@@ -58,6 +63,7 @@ class Connection {
   FrameReader reader_;
   Parts parts_;
   protocol::World world_;
+  std::deque<protocol::Chat> chat_;
   bool udp_worlds_ = false;
   bool connected_ = true;
 };

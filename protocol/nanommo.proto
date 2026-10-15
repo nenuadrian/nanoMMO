@@ -7,6 +7,7 @@ message Input {
   float z = 2;
   bool run = 3;
   bool attack = 4;
+  string say = 5;
 }
 
 enum Motion {
@@ -41,6 +42,11 @@ message Monster {
   uint32 max_health = 9;
 }
 
+message Chat {
+  string name = 1;
+  string text = 2;
+}
+
 message World {
   uint32 you = 1;
   repeated Player players = 2;
@@ -52,6 +58,7 @@ message World {
   uint32 next_level = 8;
   uint32 seed = 9;
   uint32 land = 10;
+  repeated Chat chat = 11;
 }
 
 message LoginRequest {

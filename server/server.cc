@@ -210,6 +210,9 @@ void Server::Accept() {
         if (land != nullptr && input.ParseFromString(bytes)) {
           land->SetInput(*id, input.x(), input.z(), input.run(),
                          input.attack());
+          if (!input.say().empty()) {
+            Say(*id, input.say());
+          }
         }
       };
       const auto on_close = [this, id] {
@@ -261,6 +264,13 @@ void Server::Leave(uint32_t id) {
   udp_clients_.erase(id);
 }
 
+void Server::Say(uint32_t id, const std::string& text) {
+  protocol::Chat* line = chat_.add_chat();
+  line->set_name(LandOf(id)->players().at(id).name);
+  line->set_text(text);
+  std::cout << line->name() << ": " << line->text() << std::endl;
+}
+
 void Server::Receive() {
   udp_.async_receive_from(
       asio::buffer(datagram_), sender_,
@@ -289,6 +299,7 @@ void Server::Tick() {
   }
   SaveChanged();
   Broadcast();
+  SendChat();
   metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
   TracyPlot("players", static_cast<int64_t>(players()));
   FrameMark;
@@ -436,6 +447,21 @@ void Server::BroadcastLand(std::size_t index, bool full) {
       }
     }
   }
+}
+
+void Server::SendChat() {
+  if (chat_.chat().empty()) {
+    return;
+  }
+  // Each line has to arrive, so it goes over TCP, even to a client that gets
+  // the world over UDP. Everyone in the world hears it, in both lands.
+  const auto bytes =
+      std::make_shared<const std::string>(chat_.SerializeAsString());
+  for (const auto& [id, session] : sessions_) {
+    metrics_.AddBytesSent(kHeaderSize + bytes->size());
+    session->Send(bytes, {});
+  }
+  chat_.Clear();
 }
 
 void Server::SendTo(const asio::ip::udp::endpoint& client,
