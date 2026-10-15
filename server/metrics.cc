@@ -36,7 +36,11 @@ Metrics::Metrics()
                              .Name("nanommo_messages_received_total")
                              .Help("Messages received from clients")
                              .Register(*registry_)
-                             .Add({})) {}
+                             .Add({})),
+      chat_lines_(prometheus::BuildCounter()
+                      .Name("nanommo_chat_lines_total")
+                      .Help("Lines of chat, said or refused")
+                      .Register(*registry_)) {}
 
 void Metrics::SetPlayers(const char* land, std::size_t count) {
   // Add returns the land's gauge if it has one already.
@@ -56,5 +60,9 @@ void Metrics::AddBytesSent(std::size_t bytes) {
 }
 
 void Metrics::AddMessageReceived() { messages_received_.Increment(); }
+
+void Metrics::AddChatLine(const char* result) {
+  chat_lines_.Add({{"result", result}}).Increment();
+}
 
 }  // namespace nanommo

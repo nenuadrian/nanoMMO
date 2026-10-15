@@ -27,6 +27,9 @@ class Metrics {
 
   void AddMessageReceived();
 
+  /// A line of chat, by what became of it: said, or refused.
+  void AddChatLine(const char* result);
+
   const std::shared_ptr<prometheus::Registry>& registry() const {
     return registry_;
   }
@@ -38,6 +41,7 @@ class Metrics {
   prometheus::Histogram& save_seconds_;
   prometheus::Counter& bytes_sent_;
   prometheus::Counter& messages_received_;
+  prometheus::Family<prometheus::Counter>& chat_lines_;
 };
 
 }  // namespace nanommo

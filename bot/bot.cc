@@ -1,7 +1,9 @@
 #include "bot/bot.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
+#include <cstddef>
 #include <iostream>
 #include <optional>
 #include <random>
@@ -17,6 +19,20 @@
 #include "terrain/lands.h"
 
 namespace nanommo {
+
+namespace {
+
+// What a bot says now and then, when it gets where it was going.
+constexpr std::array<const char*, 6> kLines = {
+    "hi all",
+    "anyone up for the Ashlands?",
+    "careful, skeletons over here",
+    "nice view from up here",
+    "where is everyone going?",
+    "brb",
+};
+
+}  // namespace
 
 Bot::Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp)
     : stream_(io, tls),
@@ -160,17 +176,23 @@ void Bot::Wander() {
     trip_ = RandomTrip(random_, kLands[land_].gate);
   }
   std::optional<protocol::Input> input;
+  std::string say;
   if (trip_) {
     input = Travel(*trip_, x_, z_);
     if (!input) {
       trip_.reset();
       stay_ = std::uniform_int_distribution<int>(5, 15)(random_);
+      if (std::bernoulli_distribution(0.25)(random_)) {
+        say = kLines[std::uniform_int_distribution<std::size_t>(
+            0, kLines.size() - 1)(random_)];
+      }
     }
   }
   if (!input) {
     --stay_;
     input = RandomDirection(random_);
   }
+  input->set_say(say);
   outgoing_ = Frame(*input);
   asio::async_write(stream_, asio::buffer(outgoing_),
                     [this](std::error_code error, std::size_t) {

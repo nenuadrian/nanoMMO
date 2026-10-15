@@ -274,6 +274,7 @@ void Server::Leave(uint32_t id) {
 
 void Server::Say(uint32_t id, const std::string& text) {
   if (!chat_limits_.at(id).Take(std::chrono::steady_clock::now())) {
+    metrics_.AddChatLine("refused");
     protocol::World notice;
     notice.add_chat()->set_text(
         "You're talking too fast, so nobody heard that.");
@@ -282,8 +283,10 @@ void Server::Say(uint32_t id, const std::string& text) {
   }
   const std::optional<std::string> clean = CleanChat(text);
   if (!clean) {
+    metrics_.AddChatLine("refused");
     return;
   }
+  metrics_.AddChatLine("said");
   protocol::Chat* line = chat_.add_chat();
   line->set_name(LandOf(id)->players().at(id).name);
   line->set_text(*clean);
