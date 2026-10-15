@@ -32,6 +32,7 @@ jobs:
           docker build --target certificates .
           docker build --target profile .
           docker build --target netem .
+          docker build storyteller
           docker build web
 
       - name: Generate the API docs

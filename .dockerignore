@@ -11,6 +11,7 @@ db/
 monitoring/
 assets/tools/node_modules/
 web/
+storyteller/
 tls/*
 !tls/certificates.sh
 .env

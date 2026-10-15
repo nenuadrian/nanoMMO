@@ -160,6 +160,18 @@ services:
       redis:
         condition: service_healthy
 
+  storyteller:
+    build: storyteller
+    volumes:
+      - huggingface:/root/.cache/huggingface
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 2s
+      retries: 30
+      start_period: 5m
+
   prometheus:
     image: prom/prometheus:v3.15.0
     volumes:
@@ -226,3 +238,4 @@ services:
 volumes:
   mysql:
   redis:
+  huggingface:
