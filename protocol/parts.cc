@@ -1,6 +1,7 @@
 #include "protocol/parts.h"
 
 #include <algorithm>
+#include <chrono>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -88,6 +89,10 @@ void Parts::Add(const protocol::World& part) {
     seen_.clear();
     seen_monsters_.clear();
   }
+  // Each land has NPCs of its own, which may have the last one's ids.
+  if (part.land() != land_) {
+    npcs_.clear();
+  }
   you_ = part.you();
   experience_ = part.experience();
   next_level_ = part.next_level();
@@ -102,6 +107,12 @@ void Parts::Add(const protocol::World& part) {
     Update(monsters_[monster.id()], monster);
     seen_monsters_.insert(monster.id());
   }
+  for (const protocol::Npc& npc : part.npcs()) {
+    npcs_[npc.id()] = {.npc = npc, .sent = part.sent()};
+  }
+  std::erase_if(npcs_, [this](const auto& npc) {
+    return std::chrono::microseconds(sent_ - npc.second.sent) > kNpcTimeout;
+  });
   if (arrived_.size() == std::max(part.parts(), 1u)) {
     std::erase_if(players_, [this](const auto& player) {
       return !seen_.contains(player.first);
@@ -125,6 +136,9 @@ protocol::World Parts::world() const {
   }
   for (const auto& [id, monster] : monsters_) {
     *world.add_monsters() = monster;
+  }
+  for (const auto& [id, heard] : npcs_) {
+    *world.add_npcs() = heard.npc;
   }
   return world;
 }
