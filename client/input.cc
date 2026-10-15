@@ -50,6 +50,11 @@ bool Running() {
 
 bool Attacking() { return !Typing() && IsKeyDown(KEY_SPACE); }
 
+bool ClickedWorld() {
+  return !ImGui::GetIO().WantCaptureMouse &&
+         IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+}
+
 float CameraTurn(float seconds) {
   float turn = 0.0f;
   if (!Typing() && IsKeyDown(KEY_Q)) {

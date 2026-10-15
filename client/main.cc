@@ -24,8 +24,10 @@
 #include "client/login_screen.h"
 #include "client/menu.h"
 #include "client/nameplates.h"
+#include "client/picking.h"
 #include "client/player_frame.h"
 #include "client/renderer.h"
+#include "client/talk_window.h"
 #include "client/window.h"
 #include "protocol/login_client.h"
 #include "protocol/settings.h"
@@ -108,6 +110,7 @@ int main(int argc, char* argv[]) {
   nanommo::Menu menu;
   nanommo::CharacterScreen character_screen;
   nanommo::ChatWindow chat_window;
+  nanommo::TalkWindow talk_window;
   nanommo::LoginScreen login_screen;
   nanommo::Renderer renderer;
   nanommo::Animator animator;
@@ -173,6 +176,14 @@ int main(int argc, char* argv[]) {
         renderer.set_camera(camera.camera());
       }
       renderer.set_figures(std::move(figures));
+      if (nanommo::ClickedWorld()) {
+        const Ray ray =
+            GetScreenToWorldRay(GetMousePosition(), camera.camera());
+        if (const nanommo::Figure* npc =
+                nanommo::PickNpc(renderer.figures(), ray)) {
+          talk_window.Open(npc->id, npc->name);
+        }
+      }
       if (IsKeyPressed(KEY_C) && !nanommo::Typing()) {
         character_screen.Toggle();
       }
@@ -195,6 +206,12 @@ int main(int argc, char* argv[]) {
         nanommo::protocol::Input say = sent;
         say.set_say(*line);
         connection->Send(say);
+      }
+      if (const std::optional<nanommo::protocol::Talk> talk =
+              talk_window.Build()) {
+        nanommo::protocol::Input ask = sent;
+        *ask.mutable_talk() = *talk;
+        connection->Send(ask);
       }
       character_screen.Build(renderer.figures(), connection->world(),
                              nanommo::kLands[land].name);

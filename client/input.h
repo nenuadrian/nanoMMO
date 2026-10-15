@@ -16,6 +16,10 @@ bool Running();
 
 bool Attacking();
 
+/// Whether the left button went down this frame on the world, and not on one
+/// of the GUI's windows.
+bool ClickedWorld();
+
 /// How far to turn the camera this frame, in radians: with Q and E, or the
 /// mouse, dragged with the right button down.
 float CameraTurn(float seconds);

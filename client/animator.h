@@ -23,6 +23,8 @@ struct Figure {
   /// in metres.
   Color color = WHITE;
   float radius = 0.0f;
+  /// Whether the player can talk to it, by clicking it.
+  bool talks = false;
   int level = 1;
   int health = 0;
   int max_health = 0;

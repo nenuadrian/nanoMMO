@@ -66,6 +66,7 @@ Figure Stand(const std::map<uint32_t, Figure>& figures,
   figure.npc = true;
   figure.color = GetColor(npc.color());
   figure.radius = npc.radius();
+  figure.talks = npc.talks();
   figure.position = {npc.x(), 0.0f, npc.z()};
   figure.yaw = npc.yaw();
   figure.to_time += seconds;

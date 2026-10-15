@@ -2,7 +2,7 @@ add_library(nanommo_client_core
   window.cc gui.cc menu.cc renderer.cc offscreen.cc
   camera.cc scene.cc input.cc connection.cc
   login_screen.cc nameplates.cc player_frame.cc character_screen.cc
-  chat_window.cc
+  chat_window.cc talk_window.cc picking.cc
   animator.cc characters.cc triangles.cc ground.cc trees.cc chunks.cc
   gate.cc
 )
@@ -36,7 +36,7 @@ target_link_libraries(nanommo_client_bench PRIVATE nanommo_client_core)
 add_dependencies(nanommo_client_bench nanommo_client_assets)
 
 add_executable(nanommo_client_tests
-  renderer_test.cc animator_test.cc characters_test.cc
+  renderer_test.cc animator_test.cc characters_test.cc picking_test.cc
 )
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)
 add_dependencies(nanommo_client_tests nanommo_client_assets)
