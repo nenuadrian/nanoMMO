@@ -21,7 +21,8 @@ void SpawnNpcs(World& land, int index) {
                    .z = spawn.z,
                    .yaw = spawn.yaw,
                    .color = kind.color,
-                   .radius = kind.radius});
+                   .radius = kind.radius,
+                   .talks = kind.talks});
   }
 }
 

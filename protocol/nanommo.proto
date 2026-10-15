@@ -2,12 +2,19 @@ syntax = "proto3";
 
 package nanommo.protocol;
 
+// What a player says to an NPC that talks, by the NPC's id.
+message Talk {
+  uint32 npc = 1;
+  string words = 2;
+}
+
 message Input {
   float x = 1;
   float z = 2;
   bool run = 3;
   bool attack = 4;
   string say = 5;
+  Talk talk = 6;
 }
 
 enum Motion {
@@ -52,6 +59,7 @@ message Npc {
   float yaw = 5;
   uint32 color = 6;
   float radius = 7;
+  bool talks = 8;
 }
 
 message Chat {

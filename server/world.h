@@ -67,6 +67,8 @@ struct Npc {
   uint32_t color = 0xFFFFFFFF;
   /// In metres. Until NPCs have models, each is a ball this size.
   float radius = 0.5f;
+  /// Whether players can talk to it.
+  bool talks = false;
 };
 
 /// Moves to the place, or if the terrain's in the way there, as far as it can

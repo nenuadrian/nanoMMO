@@ -53,6 +53,9 @@ class Server {
   uint32_t HandleHello(Session& session, const std::string& bytes);
   void Leave(uint32_t id);
   void Say(uint32_t id, const std::string& text);
+  void Talk(uint32_t id, const protocol::Talk& talk);
+  /// Sends the player a line from the server, which has no name.
+  void Notify(uint32_t id, const std::string& text);
   void Receive();
   void Tick();
   void Travel();
@@ -86,6 +89,7 @@ class Server {
   /// What the players said since the last tick.
   protocol::World chat_;
   std::map<uint32_t, TokenBucket> chat_limits_;
+  std::map<uint32_t, TokenBucket> story_limits_;
 };
 
 }  // namespace nanommo

@@ -1,6 +1,7 @@
 #include "server/server.h"
 
 #include <array>
+#include <cmath>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -12,6 +13,7 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
+#include "absl/strings/str_cat.h"
 #include "asio/buffer.hpp"
 #include "asio/socket_base.hpp"
 #include "protocol/chat.h"
@@ -24,6 +26,7 @@
 #include "server/listen.h"
 #include "server/monsters.h"
 #include "server/npcs.h"
+#include "server/stories.h"
 #include "terrain/lands.h"
 #include "terrain/terrain.h"
 #include "tracy/Tracy.hpp"
@@ -38,6 +41,14 @@ constexpr int kFullEvery = 20;
 // A player can say five lines at once, and then one every two seconds.
 constexpr int kChatBurst = 5;
 constexpr std::chrono::seconds kChatRefill{2};
+
+// In metres, from the middle of the NPC, as you'd talk to someone.
+constexpr float kTalkReach = 4.0f;
+
+// A story is a hundred tokens of the model's work, where a line of chat costs
+// nothing, so a player gets one story every ten seconds.
+constexpr int kStoryBurst = 1;
+constexpr std::chrono::seconds kStoryRefill{10};
 
 protocol::Motion ToProtocol(Motion motion) {
   switch (motion) {
@@ -107,6 +118,7 @@ protocol::Npc ToProtocol(uint32_t id, const Npc& npc) {
   sent.set_yaw(npc.yaw);
   sent.set_color(npc.color);
   sent.set_radius(npc.radius);
+  sent.set_talks(npc.talks);
   return sent;
 }
 
@@ -210,6 +222,9 @@ void Server::Accept() {
           if (!input.say().empty()) {
             Say(*id, input.say());
           }
+          if (input.has_talk()) {
+            Talk(*id, input.talk());
+          }
         }
       };
       const auto on_close = [this, id] {
@@ -246,6 +261,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   saved_[*id] = ProgressOf(*player);
   sessions_[*id] = session.shared_from_this();
   chat_limits_.emplace(*id, TokenBucket(kChatBurst, kChatRefill));
+  story_limits_.emplace(*id, TokenBucket(kStoryBurst, kStoryRefill));
   udp_tokens_[hello.token()] = *id;
   std::cout << player->name << " joined, as player " << *id << std::endl;
   return *id;
@@ -258,6 +274,7 @@ void Server::Leave(uint32_t id) {
   saved_.erase(id);
   sessions_.erase(id);
   chat_limits_.erase(id);
+  story_limits_.erase(id);
   std::erase_if(udp_tokens_,
                 [id](const auto& token) { return token.second == id; });
   udp_clients_.erase(id);
@@ -266,10 +283,7 @@ void Server::Leave(uint32_t id) {
 void Server::Say(uint32_t id, const std::string& text) {
   if (!chat_limits_.at(id).Take(std::chrono::steady_clock::now())) {
     metrics_.AddChatLine("refused");
-    protocol::World notice;
-    notice.add_chat()->set_text(
-        "You're talking too fast, so nobody heard that.");
-    sessions_.at(id)->Send(Frame(notice));
+    Notify(id, "You're talking too fast, so nobody heard that.");
     return;
   }
   const std::optional<std::string> clean = CleanChat(text);
@@ -282,6 +296,41 @@ void Server::Say(uint32_t id, const std::string& text) {
   line->set_name(LandOf(id)->players().at(id).name);
   line->set_text(*clean);
   std::cout << line->name() << ": " << line->text() << std::endl;
+}
+
+void Server::Talk(uint32_t id, const protocol::Talk& talk) {
+  const World& land = *LandOf(id);
+  const Player& player = land.players().at(id);
+  // Each land counts its NPCs from one, so we look in the player's land.
+  const auto found = land.npcs().find(talk.npc());
+  if (found == land.npcs().end() || !found->second.talks) {
+    return;
+  }
+  const Npc& npc = found->second;
+  if (std::hypot(npc.x - player.x, npc.z - player.z) > kTalkReach) {
+    Notify(id,
+           absl::StrCat("You're too far away to talk to the ", npc.name, "."));
+    return;
+  }
+  const std::optional<std::string> words = CleanChat(talk.words());
+  const std::optional<std::string> prompt =
+      words ? StoryPrompt(*words) : std::nullopt;
+  if (!prompt) {
+    return;
+  }
+  if (!story_limits_.at(id).Take(std::chrono::steady_clock::now())) {
+    Notify(id, absl::StrCat("The ", npc.name,
+                            " needs a moment before the next story."));
+    return;
+  }
+  std::cout << player.name << " asked the " << npc.name
+            << " for a story: " << *words << std::endl;
+}
+
+void Server::Notify(uint32_t id, const std::string& text) {
+  protocol::World notice;
+  notice.add_chat()->set_text(text);
+  sessions_.at(id)->Send(Frame(notice));
 }
 
 void Server::Receive() {

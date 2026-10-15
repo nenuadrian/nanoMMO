@@ -16,6 +16,8 @@ struct NpcKind {
   uint32_t color = 0xFFFFFFFF;
   /// In metres.
   float radius = 0.5f;
+  /// Whether players can talk to it. An NPC that talks tells stories.
+  bool talks = false;
 };
 
 constexpr NpcKind kGuard = {
@@ -42,6 +44,13 @@ constexpr NpcKind kWarden = {
     .radius = 0.7f,
 };
 
+constexpr NpcKind kStoryteller = {
+    .name = "Storyteller",
+    .color = 0x9B6BD8FF,
+    .radius = 0.5f,
+    .talks = true,
+};
+
 /// Where an NPC stands, in metres from the middle of its land, and which way
 /// it faces.
 struct NpcSpawn {
@@ -53,14 +62,16 @@ struct NpcSpawn {
   float yaw = 0.0f;
 };
 
-// Around the middle of each land, where the players start: a guard by the road
-// to the gate, facing the players, and a merchant and a healer facing each
-// other across it.
-constexpr std::array<NpcSpawn, 6> kNpcSpawns = {{
+// Around the middle of each land, where the players start: a guard and a
+// storyteller on either side of the road to the gate, facing the players, and
+// a merchant and a healer facing each other across it.
+constexpr std::array<NpcSpawn, 8> kNpcSpawns = {{
     {.kind = &kGuard, .land = 0, .x = -3.2f, .z = -7.5f, .yaw = 0.0f},
+    {.kind = &kStoryteller, .land = 0, .x = 3.2f, .z = -7.5f, .yaw = 0.0f},
     {.kind = &kMerchant, .land = 0, .x = -6.0f, .z = -4.0f, .yaw = 1.57f},
     {.kind = &kHealer, .land = 0, .x = 6.0f, .z = -4.5f, .yaw = -1.57f},
     {.kind = &kWarden, .land = 1, .x = 3.2f, .z = -7.5f, .yaw = 0.0f},
+    {.kind = &kStoryteller, .land = 1, .x = -3.2f, .z = -7.5f, .yaw = 0.0f},
     {.kind = &kMerchant, .land = 1, .x = -6.0f, .z = -4.0f, .yaw = 1.57f},
     {.kind = &kHealer, .land = 1, .x = 6.0f, .z = -4.5f, .yaw = -1.57f},
 }};
