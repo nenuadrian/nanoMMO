@@ -1,5 +1,5 @@
 add_library(nanommo_protocol
-  nanommo.proto framing.cc login_client.cc parts.cc tls.cc
+  nanommo.proto chat.cc framing.cc login_client.cc parts.cc tls.cc
 )
 protobuf_generate(TARGET nanommo_protocol
   IMPORT_DIRS ${PROJECT_SOURCE_DIR} PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}
@@ -14,7 +14,7 @@ target_link_libraries(nanommo_protocol PUBLIC
 )
 
 add_executable(nanommo_protocol_tests
-  protocol_test.cc framing_test.cc parts_test.cc tls_test.cc
+  protocol_test.cc framing_test.cc parts_test.cc tls_test.cc chat_test.cc
 )
 target_link_libraries(nanommo_protocol_tests PRIVATE nanommo_protocol GTest::gtest_main)
 

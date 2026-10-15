@@ -4,6 +4,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <optional>
 #include <random>
 #include <string>
 #include <string_view>
@@ -13,6 +14,7 @@
 #include "absl/memory/memory.h"
 #include "asio/buffer.hpp"
 #include "asio/socket_base.hpp"
+#include "protocol/chat.h"
 #include "protocol/clock.h"
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
@@ -265,9 +267,13 @@ void Server::Leave(uint32_t id) {
 }
 
 void Server::Say(uint32_t id, const std::string& text) {
+  const std::optional<std::string> clean = CleanChat(text);
+  if (!clean) {
+    return;
+  }
   protocol::Chat* line = chat_.add_chat();
   line->set_name(LandOf(id)->players().at(id).name);
-  line->set_text(text);
+  line->set_text(*clean);
   std::cout << line->name() << ": " << line->text() << std::endl;
 }
 
