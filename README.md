@@ -57,7 +57,9 @@ Skeletons wander around the middle, and in camps around the island. W, A, S and 
 keys, move yours, which has a white marker over it, Shift makes it run, and Space swings the sword.
 The camera follows you: Q and E, or dragging with the right mouse button, turn it around you, and
 the mouse wheel zooms in and out. W always walks away from the camera. The frame in the top left
-corner shows your health, and your experience towards the next level.
+corner shows your health, and your experience towards the next level. Enter opens the chat, in the
+bottom left corner, where Enter again says what you typed to everyone in your world (see
+[Chat](#chat)).
 Press C, or choose View, Character, to open your character screen. It shows your name, level,
 health, experience and position, next to an idle preview of your character facing the camera. The
 client renders that preview into a texture with a camera of its own, then ImGui draws the texture in
@@ -422,8 +424,8 @@ docker build --target test web
 ## Monitoring and load
 
 Each world serves its metrics for Prometheus at http://localhost:9464/metrics: the players online in each land,
-how long each tick takes, how long saving the players takes in each tick, the bytes it sends and the
-messages it receives. The bots serve theirs on
+how long each tick takes, how long saving the players takes in each tick, the bytes it sends, the
+messages it receives, and the lines of chat, said or refused. The bots serve theirs on
 port 9465: how old the world on a player's screen would be, by transport.
 
 `compose.yaml` starts the servers, MySQL and Redis together with Prometheus, which finds the worlds
@@ -441,7 +443,8 @@ docker compose up -d --build
 `nanommo_bot` connects a swarm of bots that play like players. Each one runs to a random place on the
 island, within 170 metres of the middle, or on one trip in five into its land's gate, and wanders around there like a player at the keys, running a
 third of the time, for 5 to 15 directions of half a second to 3 seconds each, before it sets off
-again. A bot that stops
+again. When a bot gets where it was going, it says something, one time in four, from a few
+lines. A bot that stops
 getting closer, at the sea or a lake, gives up on its trip. Each one logs in as bot1, bot2 and so on,
 and creates its account the first time. It takes the login server's
 host, the game server's host, how many bots, how many seconds to spread their arrival over, the
@@ -675,6 +678,32 @@ Running a world's lands in one process makes a trip through a gate a move from o
 another, within a tick. With a server for each land, each land could have a machine of its own, and
 a trip would hand the player over from one server to the other, with a save and a token, like a
 login.
+
+## Chat
+
+Enter opens a field at the bottom of the chat window, in the bottom left corner, and Enter again says
+what you typed to everyone in your world, in both lands, under your name. Escape leaves the field.
+While you type, the game's keys do nothing, so a line doesn't walk you, turn the camera or swing
+your sword.
+
+- A line goes to the server with your input, as `say`. The server sends the lines said in each
+  tick to each player when the tick ends, in one message, which has nothing but chat in it.
+- Chat goes over TCP, even to a client that gets the world over UDP, as each line has to arrive,
+  while a world that's lost is replaced by the next one.
+- The server cleans each line (`protocol/chat.h`). Control characters, such as a new line, become
+  spaces, so nobody can start a line that looks like someone else's, and the spaces at either end
+  go. An empty line, or one longer than 200 bytes, goes nowhere. Protobuf refuses a line that
+  isn't UTF-8.
+- Each player can say five lines at once, and then one every two seconds, from a token bucket that
+  fills up again over time (`server/token_bucket.h`). A line over that goes nowhere, and the server
+  tells the player that they're talking too fast, in a line with no name, which the chat window
+  shows in yellow.
+- The client keeps the last hundred lines. The server prints each line said, and counts the lines,
+  said and refused, in `nanommo_chat_lines_total`, which the dashboard shows a minute.
+
+Each line goes to everyone in the world, so with a thousand players in a world, the server sends
+each line a thousand times. Chat for the players nearby, or for a party or a guild, would send each
+line to far fewer.
 
 ## Deployment
 
