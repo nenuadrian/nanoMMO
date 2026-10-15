@@ -54,7 +54,8 @@ host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP
 Each player is an animated character with a sword, on an island of hills, woods and beaches, with
 its level, name and health over it, or a cube until you've made the characters (see below).
 Skeletons wander around the middle, and in camps around the island, and a few NPCs stand near the
-middle, each a coloured ball with its name over it (see [NPCs](#npcs)). W, A, S and D, or the arrow
+middle, each a coloured ball with its name over it (see [NPCs](#npcs)). Click the storyteller, the
+purple one, to ask it for a story (see [The storyteller](#the-storyteller)). W, A, S and D, or the arrow
 keys, move yours, which has a white marker over it, Shift makes it run, and Space swings the sword.
 The camera follows you: Q and E, or dragging with the right mouse button, turn it around you, and
 the mouse wheel zooms in and out. W always walks away from the camera. The frame in the top left
@@ -426,7 +427,8 @@ docker build --target test web
 
 Each world serves its metrics for Prometheus at http://localhost:9464/metrics: the players online in each land,
 how long each tick takes, how long saving the players takes in each tick, the bytes it sends, the
-messages it receives, and the lines of chat, said or refused. The bots serve theirs on
+messages it receives, the lines of chat, said or refused, and the stories asked for, told, refused
+or failed, with how long each one took. The bots serve theirs on
 port 9465: how old the world on a player's screen would be, by transport.
 
 `compose.yaml` starts the servers, MySQL and Redis together with Prometheus, which finds the worlds
@@ -445,7 +447,8 @@ docker compose up -d --build
 island, within 170 metres of the middle, or on one trip in five into its land's gate, and wanders around there like a player at the keys, running a
 third of the time, for 5 to 15 directions of half a second to 3 seconds each, before it sets off
 again. When a bot gets where it was going, it says something, one time in four, from a few
-lines. A bot that stops
+lines. Once it has seen its land's storyteller, one trip in eight goes there instead, where it asks
+for a story about three words from the game. A bot that stops
 getting closer, at the sea or a lake, gives up on its trip. Each one logs in as bot1, bot2 and so on,
 and creates its account the first time. It takes the login server's
 host, the game server's host, how many bots, how many seconds to spread their arrival over, the
@@ -709,10 +712,12 @@ line to far fewer.
 
 ## NPCs
 
-Each land has a few NPCs near its middle, where players start. In the Meadows, a guard stands by the
-road to the gate, and a merchant and a healer face each other across it. The Ashlands have an ash
-warden, a merchant and a healer. They don't do anything yet. Until they have models, each one is a
-ball of its own colour and size, with its name over it in green.
+Each land has a few NPCs near its middle, where players start. In the Meadows, a guard and a
+storyteller stand on either side of the road to the gate, and a merchant and a healer face each
+other across it. The Ashlands have an ash warden and a storyteller, a merchant and a healer. The
+storytellers tell stories (see [The storyteller](#the-storyteller)), and the others don't do anything
+yet. Until they have models, each one is a ball of its own colour and size, with its name over it in
+green.
 
 Monsters and NPCs are data, in tables like the lands':
 
@@ -720,8 +725,8 @@ Monsters and NPCs are data, in tables like the lands':
   swing, and where they spawn: the monsters that always have their home in the same place, by land,
   and how many camps of which kind each land gets, in places its seed picks. The skeleton is the
   only kind so far.
-- `server/npcs.h` has each kind of NPC, with its name and its look, a colour and a radius, and where
-  each one stands, in which land, and which way it faces. The server leaves out an NPC whose ground
+- `server/npcs.h` has each kind of NPC, with its name, its look, a colour and a radius, and whether
+  players can talk to it, and where each one stands, in which land, and which way it faces. The server leaves out an NPC whose ground
   isn't walkable, which another world's seed could do, and says so.
 
 A new kind of monster or NPC, or one more of them somewhere, is a line in a table.
@@ -743,13 +748,61 @@ server starts.
 - The client draws every NPC with one sphere mesh, scaled to its radius and tinted its colour,
   resting on the ground, so a model can take the ball's place later, as data.
 
-The Meadows' three NPCs are 110 bytes in each world they go in, so sent with every world, they
-would be 2.2 KB a second for each player near them, and once a second, they're 110 bytes. With 300
-bots, about 220 of them near the NPCs, the server sends 24 KB of NPCs a second, where it would send
-480 KB with every world.
+The Meadows' four NPCs are 150 bytes in each world they go in, so sent with every world, they would
+be 3 KB a second for each player near them, and once a second, they're 150 bytes. With 300 bots,
+about 220 of them near the NPCs, the server sends 33 KB of NPCs a second, where it would send 660 KB
+with every world.
 
 An NPC that walks a round, or whose look changes, would have to go out with every world, like a
 monster, or in a message of its own whenever it changes.
+
+## The storyteller
+
+The storyteller is an NPC that tells you a story about a few words you give it. Click it, the purple
+ball across the road from the guard, or from the ash warden, type a few words, such as
+`dragon castle gold`, and press Enter, or Tell me a story. The story comes back in the chat, under
+the storyteller's name, to you and nobody else.
+
+The stories come from [mvGPT](https://github.com/nenuadrian/mvGPT), a small language model built
+from scratch in a series of its own, which learned to write short children's stories from a few
+words, and is on the Hugging Face Hub at its `ep003-sft` tag. `storyteller/` is mvGPT's completions
+server, from its `ep014/end` tag: an OpenAI-style `POST /v1/completions` on port 8000, which writes
+the requests that wait at the same time together, up to 16 at once (see `storyteller/README.md`).
+Compose runs it as the `storyteller` service, and keeps the model it downloads the first time in a
+volume:
+
+```bash
+docker compose up -d --build storyteller
+curl localhost:8000/v1/completions -H 'Content-Type: application/json' \
+  -d '{"prompt": "Words: dragon, castle, gold\nStory:", "max_tokens": 100}'
+```
+
+- A click on the world makes a ray from the camera through the mouse (raylib's
+  `GetScreenToWorldRay`), and the client picks the nearest NPC that talks along it, as a ball
+  (`GetRayCollisionSphere`, in `client/picking.h`). Each NPC says whether it talks, from its kind.
+- The words go to the server with your input, as `talk`, with the NPC's id. The server checks that
+  the NPC is in your land and talks, and that you're within four metres of it, and cleans the words
+  like a line of chat (see [Chat](#chat)).
+- The prompt is the one mvGPT learned from, with the first three words, in lowercase:
+  `Words: dragon, castle, gold\nStory:` (`server/stories.h`). Its vocabulary is the 10,000 commonest
+  words in its stories, so it knows dragon, castle and sword, and a word it doesn't know, such as
+  warden or healer, reaches it as unknown.
+- Each player can ask for a story every ten seconds, from a token bucket of their own. The server
+  tells a player who's too far away, or asks too soon, in a line with no name.
+- The server asks the storyteller for a hundred tokens at most, from 16 threads of its own
+  (`server/storyteller.h`), so that a tick never waits for the model, and the storyteller can write
+  16 stories at once. A story takes a second or two. One that takes longer than ten seconds fails,
+  and so does one when the storyteller is down, and the NPC says it can't think of a story.
+- A story that ran out of tokens stops in the middle of a sentence, so the server ends it at its last
+  full stop, and breaks it into lines of chat of at most 200 bytes, after the last sentence that
+  fits. Each line is cleaned like a player's, and they go to you over TCP, like chat.
+- The server counts the stories in `nanommo_stories_total`, told, refused or failed, and how long
+  each took, from asking to telling, in `nanommo_story_duration_seconds`. The dashboard shows the
+  stories a minute, and the median and 99th percentile wait.
+
+The world server finds the storyteller at `NANOMMO_STORYTELLER_HOST` (`127.0.0.1` by default), which
+Compose sets to `storyteller`. Any server with OpenAI's completions API can take its place, such as
+vLLM, as long as its model writes stories from words like these.
 
 ## Deployment
 
@@ -758,8 +811,8 @@ The game runs on any Linux server with Docker and Docker Compose, such as a VPS,
 `COMPOSE_FILE=compose.yaml:compose.prod.yaml`, so each `docker compose` command there reads both.
 
 - The internet reaches the login server on TCP port 7778, the worlds on ports 7777 and 7787, TCP and
-  UDP, and the website on port 8080, and nothing else. MySQL, Redis and the worlds' metrics stay on
-  Compose's own network. Docker publishes a port past a firewall such as ufw, so leaving a port out of
+  UDP, and the website on port 8080, and nothing else. MySQL, Redis, the storyteller and the worlds'
+  metrics stay on Compose's own network. Docker publishes a port past a firewall such as ufw, so leaving a port out of
   the file is what keeps it off the internet.
 - Prometheus, Grafana and Consul listen on the server's localhost. Reach them through SSH:
   `ssh -L 3000:localhost:3000 -L 9090:localhost:9090 -L 8500:localhost:8500 debian@203.0.113.7`,
