@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace nanommo {
 
@@ -15,6 +16,13 @@ constexpr std::size_t kStoryWords = 3;
 /// "Words: dragon, castle, gold\nStory:". It takes the first kStoryWords
 /// words, split at spaces and commas, in lowercase. Nothing if there are none.
 std::optional<std::string> StoryPrompt(std::string_view words);
+
+/// The story as lines of chat, each of at most kMaxChatLength bytes, broken
+/// after the last sentence that fits, or between words in a sentence that
+/// doesn't. A story that ran out of tokens stops in the middle of a sentence,
+/// so the story ends at its last full stop, or question or exclamation mark,
+/// when it has one.
+std::vector<std::string> StoryLines(std::string_view story);
 
 }  // namespace nanommo
 

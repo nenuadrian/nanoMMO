@@ -335,21 +335,24 @@ void Server::Talk(uint32_t id, const protocol::Talk& talk) {
     if (session == sessions_.end()) {
       return;
     }
-    std::optional<std::string> text = "I can't think of a story right now.";
+    std::vector<std::string> lines = {"I can't think of a story right now."};
     if (story.ok()) {
-      text = CleanChat(*story);
+      lines = StoryLines(*story);
     } else {
       std::cerr << "no story for player " << id << ": " << story.status()
                 << "\n";
     }
-    if (!text) {
-      return;
-    }
     protocol::World told;
-    protocol::Chat* line = told.add_chat();
-    line->set_name(name);
-    line->set_text(*text);
-    session->second->Send(Frame(told));
+    for (const std::string& line : lines) {
+      if (const std::optional<std::string> clean = CleanChat(line)) {
+        protocol::Chat* said = told.add_chat();
+        said->set_name(name);
+        said->set_text(*clean);
+      }
+    }
+    if (!told.chat().empty()) {
+      session->second->Send(Frame(told));
+    }
   });
 }
 
