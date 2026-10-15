@@ -18,12 +18,17 @@ constexpr float kZoomStep = 0.1f;
 
 }  // namespace
 
+bool Typing() { return ImGui::GetIO().WantTextInput; }
+
 Vector3 Movement() {
   const auto down = [](int key, int arrow) {
     return IsKeyDown(key) || IsKeyDown(arrow);
   };
 
   Vector3 direction{0.0f, 0.0f, 0.0f};
+  if (Typing()) {
+    return direction;
+  }
   if (down(KEY_W, KEY_UP)) {
     direction.z -= 1.0f;
   }
@@ -40,17 +45,17 @@ Vector3 Movement() {
 }
 
 bool Running() {
-  return IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+  return !Typing() && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT));
 }
 
-bool Attacking() { return IsKeyDown(KEY_SPACE); }
+bool Attacking() { return !Typing() && IsKeyDown(KEY_SPACE); }
 
 float CameraTurn(float seconds) {
   float turn = 0.0f;
-  if (IsKeyDown(KEY_Q)) {
+  if (!Typing() && IsKeyDown(KEY_Q)) {
     turn += kTurnSpeed * seconds;
   }
-  if (IsKeyDown(KEY_E)) {
+  if (!Typing() && IsKeyDown(KEY_E)) {
     turn -= kTurnSpeed * seconds;
   }
   // The mouse is the GUI's while it's over one of its windows.

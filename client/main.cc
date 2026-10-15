@@ -1,4 +1,3 @@
-#include <imgui.h>
 #include <raylib.h>
 
 #include <algorithm>
@@ -174,8 +173,7 @@ int main(int argc, char* argv[]) {
         renderer.set_camera(camera.camera());
       }
       renderer.set_figures(std::move(figures));
-      // C is ours, unless a text field has the typing.
-      if (IsKeyPressed(KEY_C) && !ImGui::GetIO().WantTextInput) {
+      if (IsKeyPressed(KEY_C) && !nanommo::Typing()) {
         character_screen.Toggle();
       }
       character_screen.Render(renderer);

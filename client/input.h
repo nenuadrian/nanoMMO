@@ -5,6 +5,10 @@
 
 namespace nanommo {
 
+/// Whether the player is typing into a text field, such as the chat's, which
+/// takes the keys from the game.
+bool Typing();
+
 /// x is to the right and z is towards the camera, each -1, 0 or 1.
 Vector3 Movement();
 
