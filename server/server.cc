@@ -307,10 +307,12 @@ void Server::Talk(uint32_t id, const protocol::Talk& talk) {
   // Each land counts its NPCs from one, so we look in the player's land.
   const auto found = land.npcs().find(talk.npc());
   if (found == land.npcs().end() || !found->second.talks) {
+    metrics_.AddStory("refused");
     return;
   }
   const Npc& npc = found->second;
   if (std::hypot(npc.x - player.x, npc.z - player.z) > kTalkReach) {
+    metrics_.AddStory("refused");
     Notify(id,
            absl::StrCat("You're too far away to talk to the ", npc.name, "."));
     return;
@@ -319,28 +321,34 @@ void Server::Talk(uint32_t id, const protocol::Talk& talk) {
   const std::optional<std::string> prompt =
       words ? StoryPrompt(*words) : std::nullopt;
   if (!prompt) {
+    metrics_.AddStory("refused");
     return;
   }
-  if (!story_limits_.at(id).Take(std::chrono::steady_clock::now())) {
+  const auto asked = std::chrono::steady_clock::now();
+  if (!story_limits_.at(id).Take(asked)) {
+    metrics_.AddStory("refused");
     Notify(id, absl::StrCat("The ", npc.name,
                             " needs a moment before the next story."));
     return;
   }
   std::cout << player.name << " asked the " << npc.name
             << " for a story: " << *words << std::endl;
-  storyteller_.Tell(*prompt, [this, id, name = npc.name](
+  storyteller_.Tell(*prompt, [this, id, asked, name = npc.name](
                                  const absl::StatusOr<std::string>& story) {
+    std::vector<std::string> lines = {"I can't think of a story right now."};
+    if (story.ok()) {
+      metrics_.AddStory("told");
+      metrics_.ObserveStory(std::chrono::steady_clock::now() - asked);
+      lines = StoryLines(*story);
+    } else {
+      metrics_.AddStory("failed");
+      std::cerr << "no story for player " << id << ": " << story.status()
+                << "\n";
+    }
     // The player may have left while the model wrote.
     const auto session = sessions_.find(id);
     if (session == sessions_.end()) {
       return;
-    }
-    std::vector<std::string> lines = {"I can't think of a story right now."};
-    if (story.ok()) {
-      lines = StoryLines(*story);
-    } else {
-      std::cerr << "no story for player " << id << ": " << story.status()
-                << "\n";
     }
     protocol::World told;
     for (const std::string& line : lines) {

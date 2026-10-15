@@ -5,10 +5,13 @@
 #include <chrono>
 #include <cstddef>
 #include <iostream>
+#include <iterator>
 #include <optional>
 #include <random>
 #include <string>
+#include <vector>
 
+#include "absl/strings/str_join.h"
 #include "asio/buffer.hpp"
 #include "asio/connect.hpp"
 #include "asio/error.hpp"
@@ -31,6 +34,21 @@ constexpr std::array<const char*, 6> kLines = {
     "where is everyone going?",
     "brb",
 };
+
+// What a bot asks the storyteller for a story about: three words from the
+// game, which the model knows.
+constexpr std::array<const char*, 12> kWords = {
+    "sword",  "gate",   "skeleton", "meadow", "ash",    "knight",
+    "dragon", "castle", "forest",   "river",  "island", "gold",
+};
+
+constexpr double kAskForAStory = 0.125;
+
+std::string RandomWords(std::mt19937& random) {
+  std::vector<const char*> words;
+  std::ranges::sample(kWords, std::back_inserter(words), 3, random);
+  return absl::StrJoin(words, " ");
+}
 
 }  // namespace
 
@@ -166,23 +184,40 @@ void Bot::Receive(std::string_view bytes) {
   if (world.land() != land_ && world.land() < kLands.size()) {
     land_ = world.land();
     trip_.reset();
+    storyteller_.reset();
+    asking_ = false;
+  }
+  for (const protocol::Npc& npc : world.npcs()) {
+    if (npc.talks()) {
+      storyteller_ = npc;
+    }
   }
 }
 
 void Bot::Wander() {
   // Like players, a bot goes somewhere on the island, and stays around there
-  // for a while.
+  // for a while. One trip in eight goes to the storyteller, once the bot has
+  // seen it, for a story.
   if (!trip_ && stay_ == 0) {
-    trip_ = RandomTrip(random_, kLands[land_].gate);
+    asking_ =
+        storyteller_ && std::bernoulli_distribution(kAskForAStory)(random_);
+    trip_ = asking_ ? Trip{.to_x = storyteller_->x(), .to_z = storyteller_->z()}
+                    : RandomTrip(random_, kLands[land_].gate);
   }
   std::optional<protocol::Input> input;
   std::string say;
+  std::optional<protocol::Talk> talk;
   if (trip_) {
     input = Travel(*trip_, x_, z_);
     if (!input) {
       trip_.reset();
       stay_ = std::uniform_int_distribution<int>(5, 15)(random_);
-      if (std::bernoulli_distribution(0.25)(random_)) {
+      if (asking_) {
+        asking_ = false;
+        talk.emplace();
+        talk->set_npc(storyteller_->id());
+        talk->set_words(RandomWords(random_));
+      } else if (std::bernoulli_distribution(0.25)(random_)) {
         say = kLines[std::uniform_int_distribution<std::size_t>(
             0, kLines.size() - 1)(random_)];
       }
@@ -193,6 +228,9 @@ void Bot::Wander() {
     input = RandomDirection(random_);
   }
   input->set_say(say);
+  if (talk) {
+    *input->mutable_talk() = *talk;
+  }
   outgoing_ = Frame(*input);
   asio::async_write(stream_, asio::buffer(outgoing_),
                     [this](std::error_code error, std::size_t) {

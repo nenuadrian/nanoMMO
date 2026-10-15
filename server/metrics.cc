@@ -9,6 +9,11 @@ prometheus::Histogram::BucketBoundaries TimeBuckets() {
           0.03,   0.04,    0.05,   0.075, 0.1,    0.25,  0.5,  1};
 }
 
+// A story takes seconds, where a tick takes milliseconds.
+prometheus::Histogram::BucketBoundaries StoryBuckets() {
+  return {0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 7.5, 10};
+}
+
 }  // namespace
 
 Metrics::Metrics()
@@ -40,7 +45,16 @@ Metrics::Metrics()
       chat_lines_(prometheus::BuildCounter()
                       .Name("nanommo_chat_lines_total")
                       .Help("Lines of chat, said or refused")
-                      .Register(*registry_)) {}
+                      .Register(*registry_)),
+      stories_(prometheus::BuildCounter()
+                   .Name("nanommo_stories_total")
+                   .Help("Stories asked for, told, refused or failed")
+                   .Register(*registry_)),
+      story_seconds_(prometheus::BuildHistogram()
+                         .Name("nanommo_story_duration_seconds")
+                         .Help("Time from asking for a story to its telling")
+                         .Register(*registry_)
+                         .Add({}, StoryBuckets())) {}
 
 void Metrics::SetPlayers(const char* land, std::size_t count) {
   // Add returns the land's gauge if it has one already.
@@ -63,6 +77,14 @@ void Metrics::AddMessageReceived() { messages_received_.Increment(); }
 
 void Metrics::AddChatLine(const char* result) {
   chat_lines_.Add({{"result", result}}).Increment();
+}
+
+void Metrics::AddStory(const char* result) {
+  stories_.Add({{"result", result}}).Increment();
+}
+
+void Metrics::ObserveStory(std::chrono::nanoseconds time) {
+  story_seconds_.Observe(std::chrono::duration<double>(time).count());
 }
 
 }  // namespace nanommo

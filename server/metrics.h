@@ -30,6 +30,13 @@ class Metrics {
   /// A line of chat, by what became of it: said, or refused.
   void AddChatLine(const char* result);
 
+  /// A story a player asked for, by what became of it: told, refused, or
+  /// failed, when the storyteller couldn't tell it.
+  void AddStory(const char* result);
+
+  /// From when the player asked to when the story was told.
+  void ObserveStory(std::chrono::nanoseconds time);
+
   const std::shared_ptr<prometheus::Registry>& registry() const {
     return registry_;
   }
@@ -42,6 +49,8 @@ class Metrics {
   prometheus::Counter& bytes_sent_;
   prometheus::Counter& messages_received_;
   prometheus::Family<prometheus::Counter>& chat_lines_;
+  prometheus::Family<prometheus::Counter>& stories_;
+  prometheus::Histogram& story_seconds_;
 };
 
 }  // namespace nanommo

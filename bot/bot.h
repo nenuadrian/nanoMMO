@@ -16,6 +16,7 @@
 #include "asio/steady_timer.hpp"
 #include "bot/wander.h"
 #include "protocol/framing.h"
+#include "protocol/nanommo.pb.h"
 #include "protocol/tls.h"
 
 namespace nanommo {
@@ -62,6 +63,10 @@ class Bot {
   uint32_t land_ = 0;
   std::optional<Trip> trip_;
   int stay_ = 0;
+  /// The storyteller in the bot's land, once the bot has seen it.
+  std::optional<protocol::Npc> storyteller_;
+  /// Whether the trip goes to the storyteller, for a story.
+  bool asking_ = false;
 };
 
 }  // namespace nanommo
