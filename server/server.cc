@@ -31,27 +31,12 @@ namespace nanommo {
 
 namespace {
 
-constexpr std::array<std::pair<float, float>, 3> kSkeletons = {{
-    {-3.5f, -3.0f},
-    {3.5f, -2.5f},
-    {3.0f, 3.5f},
-}};
-
-constexpr int kCamps = 8;
-
 // A second's worth of ticks.
 constexpr int kFullEvery = 20;
 
 // A player can say five lines at once, and then one every two seconds.
 constexpr int kChatBurst = 5;
 constexpr std::chrono::seconds kChatRefill{2};
-
-// Where each camp's three skeletons stand, from the middle of the camp.
-constexpr std::array<std::pair<float, float>, 3> kCampSkeletons = {{
-    {-1.5f, 0.0f},
-    {1.5f, 0.5f},
-    {0.0f, -1.5f},
-}};
 
 protocol::Motion ToProtocol(Motion motion) {
   switch (motion) {
@@ -169,18 +154,8 @@ absl::Status Server::Start(uint16_t port) {
   std::error_code ignored;
   udp_.set_option(asio::socket_base::send_buffer_size(4 * 1024 * 1024),
                   ignored);
-  for (World& land : lands_) {
-    for (const auto& [x, z] : kSkeletons) {
-      land.Spawn(Skeleton(x, z));
-    }
-    const Terrain& terrain = land.terrain();
-    for (const auto& [camp_x, camp_z] : Camps(terrain, kCamps)) {
-      for (const auto& [x, z] : kCampSkeletons) {
-        if (terrain.Walkable(camp_x + x, camp_z + z)) {
-          land.Spawn(Skeleton(camp_x + x, camp_z + z));
-        }
-      }
-    }
+  for (std::size_t index = 0; index < lands_.size(); ++index) {
+    SpawnMonsters(lands_[index], static_cast<int>(index));
   }
   Accept();
   Receive();

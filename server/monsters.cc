@@ -1,6 +1,7 @@
 #include "server/monsters.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <map>
 #include <numbers>
@@ -17,6 +18,13 @@ constexpr float kCampsFromTheMiddle = 30.0f;
 constexpr float kLowestCamp = 1.0f;
 constexpr float kHighestCamp = 10.0f;
 
+// Where each camp's three monsters stand, from the middle of the camp.
+constexpr std::array<std::pair<float, float>, 3> kCampLayout = {{
+    {-1.5f, 0.0f},
+    {1.5f, 0.5f},
+    {0.0f, -1.5f},
+}};
+
 // The square root spreads the places evenly, not bunched up around home.
 void PickTarget(Monster& monster, const Terrain& terrain,
                 std::mt19937& random) {
@@ -31,16 +39,37 @@ void PickTarget(Monster& monster, const Terrain& terrain,
 
 }  // namespace
 
-Monster Skeleton(float x, float z) {
-  return {.name = "Skeleton",
+Monster MonsterOf(const MonsterKind& kind, float x, float z) {
+  return {.name = kind.name,
           .x = x,
           .z = z,
-          .level = 1,
-          .max_health = 50,
-          .experience = 50,
-          .damage = 5,
-          .swing_time = std::chrono::milliseconds(900),
-          .hit_time = std::chrono::milliseconds(650)};
+          .level = kind.level,
+          .max_health = kind.max_health,
+          .experience = kind.experience,
+          .damage = kind.damage,
+          .swing_time = kind.swing_time,
+          .hit_time = kind.hit_time};
+}
+
+void SpawnMonsters(World& land, int index) {
+  for (const MonsterSpawn& spawn : kMonsterSpawns) {
+    if (spawn.land == index) {
+      land.Spawn(MonsterOf(*spawn.kind, spawn.x, spawn.z));
+    }
+  }
+  const Terrain& terrain = land.terrain();
+  for (const MonsterCamps& camps : kMonsterCamps) {
+    if (camps.land != index) {
+      continue;
+    }
+    for (const auto& [camp_x, camp_z] : Camps(terrain, camps.count)) {
+      for (const auto& [x, z] : kCampLayout) {
+        if (terrain.Walkable(camp_x + x, camp_z + z)) {
+          land.Spawn(MonsterOf(*camps.kind, camp_x + x, camp_z + z));
+        }
+      }
+    }
+  }
 }
 
 std::vector<std::pair<float, float>> Camps(const Terrain& terrain, int count) {
