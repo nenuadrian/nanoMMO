@@ -21,6 +21,7 @@
 #include "server/metrics.h"
 #include "server/players.h"
 #include "server/session.h"
+#include "server/token_bucket.h"
 #include "server/tokens.h"
 #include "server/world.h"
 
@@ -81,6 +82,7 @@ class Server {
   int broadcasts_ = 0;
   /// What the players said since the last tick.
   protocol::World chat_;
+  std::map<uint32_t, TokenBucket> chat_limits_;
 };
 
 }  // namespace nanommo

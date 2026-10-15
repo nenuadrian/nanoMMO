@@ -42,6 +42,10 @@ constexpr int kCamps = 8;
 // A second's worth of ticks.
 constexpr int kFullEvery = 20;
 
+// A player can say five lines at once, and then one every two seconds.
+constexpr int kChatBurst = 5;
+constexpr std::chrono::seconds kChatRefill{2};
+
 // Where each camp's three skeletons stand, from the middle of the camp.
 constexpr std::array<std::pair<float, float>, 3> kCampSkeletons = {{
     {-1.5f, 0.0f},
@@ -250,6 +254,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   lands_[player->land].Join(*id, *player);
   saved_[*id] = ProgressOf(*player);
   sessions_[*id] = session.shared_from_this();
+  chat_limits_.emplace(*id, TokenBucket(kChatBurst, kChatRefill));
   udp_tokens_[hello.token()] = *id;
   std::cout << player->name << " joined, as player " << *id << std::endl;
   return *id;
@@ -261,12 +266,20 @@ void Server::Leave(uint32_t id) {
   land->Leave(id);
   saved_.erase(id);
   sessions_.erase(id);
+  chat_limits_.erase(id);
   std::erase_if(udp_tokens_,
                 [id](const auto& token) { return token.second == id; });
   udp_clients_.erase(id);
 }
 
 void Server::Say(uint32_t id, const std::string& text) {
+  if (!chat_limits_.at(id).Take(std::chrono::steady_clock::now())) {
+    protocol::World notice;
+    notice.add_chat()->set_text(
+        "You're talking too fast, so nobody heard that.");
+    sessions_.at(id)->Send(Frame(notice));
+    return;
+  }
   const std::optional<std::string> clean = CleanChat(text);
   if (!clean) {
     return;

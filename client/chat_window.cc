@@ -12,6 +12,7 @@ namespace nanommo {
 namespace {
 
 constexpr ImVec4 kName{0.45f, 0.75f, 1.0f, 1.0f};
+constexpr ImVec4 kServer{1.0f, 0.8f, 0.4f, 1.0f};
 
 }  // namespace
 
@@ -31,6 +32,13 @@ std::optional<std::string> ChatWindow::Build(
 
   ImGui::BeginChild("Lines", {0.0f, -ImGui::GetFrameHeightWithSpacing()});
   for (const protocol::Chat& line : lines) {
+    // A line with no name is from the server.
+    if (line.name().empty()) {
+      ImGui::PushStyleColor(ImGuiCol_Text, kServer);
+      ImGui::TextWrapped("%s", line.text().c_str());
+      ImGui::PopStyleColor();
+      continue;
+    }
     ImGui::TextColored(kName, "%s:", line.name().c_str());
     ImGui::SameLine();
     ImGui::TextWrapped("%s", line.text().c_str());
