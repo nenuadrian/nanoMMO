@@ -127,9 +127,11 @@ protocol::Npc ToProtocol(uint32_t id, const Npc& npc) {
 absl::StatusOr<std::unique_ptr<Server>> Server::Create(
     asio::io_context& io, uint16_t port, asio::ssl::context& tls,
     std::chrono::nanoseconds interval, std::string name, uint32_t seed,
-    Metrics& metrics, Tokens& tokens, Players& players) {
-  std::unique_ptr<Server> server = absl::WrapUnique(new Server(
-      io, tls, interval, std::move(name), seed, metrics, tokens, players));
+    Metrics& metrics, Tokens& tokens, Players& players,
+    Storyteller& storyteller) {
+  std::unique_ptr<Server> server =
+      absl::WrapUnique(new Server(io, tls, interval, std::move(name), seed,
+                                  metrics, tokens, players, storyteller));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -140,7 +142,7 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
 Server::Server(asio::io_context& io, asio::ssl::context& tls,
                std::chrono::nanoseconds interval, std::string name,
                uint32_t seed, Metrics& metrics, Tokens& tokens,
-               Players& players)
+               Players& players, Storyteller& storyteller)
     : acceptor_(io),
       tls_(tls),
       udp_(io),
@@ -150,7 +152,8 @@ Server::Server(asio::io_context& io, asio::ssl::context& tls,
       seed_(seed),
       metrics_(metrics),
       tokens_(tokens),
-      players_(players) {
+      players_(players),
+      storyteller_(storyteller) {
   for (const Land& land : kLands) {
     lands_.emplace_back(std::random_device()(),
                         Terrain(seed + land.seed, land.wading));
@@ -325,6 +328,29 @@ void Server::Talk(uint32_t id, const protocol::Talk& talk) {
   }
   std::cout << player.name << " asked the " << npc.name
             << " for a story: " << *words << std::endl;
+  storyteller_.Tell(*prompt, [this, id, name = npc.name](
+                                 const absl::StatusOr<std::string>& story) {
+    // The player may have left while the model wrote.
+    const auto session = sessions_.find(id);
+    if (session == sessions_.end()) {
+      return;
+    }
+    std::optional<std::string> text = "I can't think of a story right now.";
+    if (story.ok()) {
+      text = CleanChat(*story);
+    } else {
+      std::cerr << "no story for player " << id << ": " << story.status()
+                << "\n";
+    }
+    if (!text) {
+      return;
+    }
+    protocol::World told;
+    protocol::Chat* line = told.add_chat();
+    line->set_name(name);
+    line->set_text(*text);
+    session->second->Send(Frame(told));
+  });
 }
 
 void Server::Notify(uint32_t id, const std::string& text) {

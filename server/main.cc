@@ -30,6 +30,7 @@
 #include "server/players.h"
 #include "server/redis.h"
 #include "server/server.h"
+#include "server/storyteller.h"
 #include "server/tick.h"
 #include "server/tokens.h"
 
@@ -121,9 +122,11 @@ int main(int argc, char* argv[]) {
   nanommo::Players players(*database, *redis);
 
   asio::io_context io;
+  nanommo::Storyteller storyteller(
+      io, nanommo::Setting("NANOMMO_STORYTELLER_HOST", "127.0.0.1"));
   absl::StatusOr<std::unique_ptr<nanommo::Server>> server_or =
       nanommo::Server::Create(io, *port, *tls, *interval, name, seed, metrics,
-                              tokens, players);
+                              tokens, players, storyteller);
   if (!server_or.ok()) {
     std::cerr << "nanommo server: " << server_or.status() << "\n";
     return 1;

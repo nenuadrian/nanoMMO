@@ -2,7 +2,7 @@ add_library(nanommo_server_core
   tick.cc listen.cc world.cc monsters.cc npcs.cc levels.cc session.cc interest.cc
   server.cc metrics.cc password.cc database.cc
   accounts.cc players.cc redis.cc tokens.cc
-  login_server.cc consul.cc token_bucket.cc stories.cc
+  login_server.cc consul.cc token_bucket.cc stories.cc storyteller.cc
 )
 target_include_directories(nanommo_server_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_server_core PUBLIC

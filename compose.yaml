@@ -94,6 +94,7 @@ services:
       NANOMMO_MYSQL_HOST: mysql
       NANOMMO_REDIS_HOST: redis
       NANOMMO_CONSUL_HOST: consul
+      NANOMMO_STORYTELLER_HOST: storyteller
       NANOMMO_PUBLIC_HOST: ${NANOMMO_PUBLIC_HOST:-localhost}
       NANOMMO_TLS_CERTIFICATE: /tls/server.crt
       NANOMMO_TLS_KEY: /tls/server.key

@@ -22,6 +22,7 @@
 #include "server/metrics.h"
 #include "server/players.h"
 #include "server/session.h"
+#include "server/storyteller.h"
 #include "server/token_bucket.h"
 #include "server/tokens.h"
 #include "server/world.h"
@@ -37,7 +38,8 @@ class Server {
   static absl::StatusOr<std::unique_ptr<Server>> Create(
       asio::io_context& io, uint16_t port, asio::ssl::context& tls,
       std::chrono::nanoseconds interval, std::string name, uint32_t seed,
-      Metrics& metrics, Tokens& tokens, Players& players);
+      Metrics& metrics, Tokens& tokens, Players& players,
+      Storyteller& storyteller);
 
   /// In all its lands.
   int players() const;
@@ -45,7 +47,8 @@ class Server {
  private:
   Server(asio::io_context& io, asio::ssl::context& tls,
          std::chrono::nanoseconds interval, std::string name, uint32_t seed,
-         Metrics& metrics, Tokens& tokens, Players& players);
+         Metrics& metrics, Tokens& tokens, Players& players,
+         Storyteller& storyteller);
 
   absl::Status Start(uint16_t port);
   World* LandOf(uint32_t id);
@@ -81,6 +84,7 @@ class Server {
   Metrics& metrics_;
   Tokens& tokens_;
   Players& players_;
+  Storyteller& storyteller_;
   std::map<uint32_t, std::shared_ptr<Session>> sessions_;
   std::map<std::string, uint32_t> udp_tokens_;
   std::map<uint32_t, asio::ip::udp::endpoint> udp_clients_;
