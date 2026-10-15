@@ -53,7 +53,8 @@ connects to the world at the host and port that world registered. It gets the wo
 host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP](#packet-loss-tcp-and-udp).
 Each player is an animated character with a sword, on an island of hills, woods and beaches, with
 its level, name and health over it, or a cube until you've made the characters (see below).
-Skeletons wander around the middle, and in camps around the island. W, A, S and D, or the arrow
+Skeletons wander around the middle, and in camps around the island, and a few NPCs stand near the
+middle, each a coloured ball with its name over it (see [NPCs](#npcs)). W, A, S and D, or the arrow
 keys, move yours, which has a white marker over it, Shift makes it run, and Space swings the sword.
 The camera follows you: Q and E, or dragging with the right mouse button, turn it around you, and
 the mouse wheel zooms in and out. W always walks away from the camera. The frame in the top left
@@ -197,12 +198,12 @@ run, played at 0.4 of its speed, which puts the feet at the walking speed. It re
 from the file's inverse bind matrices, as raylib binds the mesh to where the bones rest, and the
 skeleton's arms rest about 70 degrees from where its mesh was bound.
 
-The server spawns three skeletons around the middle of the island, and up to three more at each of
-eight camps, which the world's seed places between the beach and the rock, at least thirty metres
-from the middle. It runs their AI each tick: a monster rests for two to six seconds, walks to a
-random place within three metres of where it spawned, at 1.8 metres a second, and rests again. If
-the sea or a tree stops it, it rests, and picks another place. The world's random generator takes a
-seed, so the tests pick theirs.
+The server spawns the monsters that `server/monsters.h` lists (see [NPCs](#npcs)): three skeletons
+around the middle of each land, and up to three more at each of eight camps, which the land's seed
+places between the beach and the rock, at least thirty metres from the middle. It runs their AI each
+tick: a monster rests for two to six seconds, walks to a random place within three metres of where
+it spawned, at 1.8 metres a second, and rests again. If the sea or a tree stops it, it rests, and
+picks another place. The world's random generator takes a seed, so the tests pick theirs.
 
 ## Fighting
 
@@ -568,10 +569,11 @@ Each tick, the server sends each player the players and monsters near them, whic
 management. Sending everyone the whole world grows with the square of the players, and most of it
 would be hidden in the fog anyway.
 
-- `server/interest.h` sorts the players and monsters into cells of 32 by 32 metres. A player gets
-  their own cell and the two cells each way around it, so everyone within 64 metres, and some further
-  out. A player who comes into view does that past the nameplates, which show within 50 metres, and
-  partly in the fog. `kInterestCells` sets how far that is.
+- `server/interest.h` sorts the players and monsters into cells of 32 by 32 metres each tick, and
+  the NPCs once, as they stand still. A player gets their own cell and the two cells each way around
+  it, so everyone within 64 metres, and some further out. A player who comes into view does that
+  past the nameplates, which show within 50 metres, and partly in the fog. `kInterestCells` sets how
+  far that is.
 - The players in a cell get the same world, so the server puts it together once a cell. Each player
   and monster is serialized once a tick, into a piece, and a cell's world is its pieces, one after
   another, which protobuf reads as one message (`protocol/parts.h`). Over UDP, the pieces are packed
@@ -704,6 +706,50 @@ your sword.
 Each line goes to everyone in the world, so with a thousand players in a world, the server sends
 each line a thousand times. Chat for the players nearby, or for a party or a guild, would send each
 line to far fewer.
+
+## NPCs
+
+Each land has a few NPCs near its middle, where players start. In the Meadows, a guard stands by the
+road to the gate, and a merchant and a healer face each other across it. The Ashlands have an ash
+warden, a merchant and a healer. They don't do anything yet. Until they have models, each one is a
+ball of its own colour and size, with its name over it in green.
+
+Monsters and NPCs are data, in tables like the lands':
+
+- `server/monsters.h` has each kind of monster, with its name, level, health, experience, damage and
+  swing, and where they spawn: the monsters that always have their home in the same place, by land,
+  and how many camps of which kind each land gets, in places its seed picks. The skeleton is the
+  only kind so far.
+- `server/npcs.h` has each kind of NPC, with its name and its look, a colour and a radius, and where
+  each one stands, in which land, and which way it faces. The server leaves out an NPC whose ground
+  isn't walkable, which another world's seed could do, and says so.
+
+A new kind of monster or NPC, or one more of them somewhere, is a line in a table.
+
+An NPC isn't a monster that stands still. It has no health, level or experience, and nothing to
+think with, so it's a small `Npc` of its own in each land's `World`, with ids of its own, apart
+from the monsters'. NPCs are never saved, as the tables put them back where they were whenever a
+server starts.
+
+- NPCs never move, so the server puts them into their interest cells once, when it spawns them, and
+  each player gets the NPCs near them, like the players and monsters (see
+  [What each player gets](#what-each-player-gets)).
+- They never change either, so they go out once a second, with the names and levels, in every
+  twentieth world, and each one comes with its look, so the client needs no table of its own.
+- The client keeps each NPC for three seconds after the world it last came in was sent
+  (`kNpcTimeout`, in `protocol/parts.h`), so one lost datagram, or two, doesn't make them blink out
+  over UDP. It drops one that's been gone for longer, such as when you walk away from it, and a new
+  land starts with none.
+- The client draws every NPC with one sphere mesh, scaled to its radius and tinted its colour,
+  resting on the ground, so a model can take the ball's place later, as data.
+
+The Meadows' three NPCs are 110 bytes in each world they go in, so sent with every world, they
+would be 2.2 KB a second for each player near them, and once a second, they're 110 bytes. With 300
+bots, about 220 of them near the NPCs, the server sends 24 KB of NPCs a second, where it would send
+480 KB with every world.
+
+An NPC that walks a round, or whose look changes, would have to go out with every world, like a
+monster, or in a message of its own whenever it changes.
 
 ## Deployment
 
