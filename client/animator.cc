@@ -55,12 +55,30 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
   return figure;
 }
 
+// NPCs stand still, so each is where the server says, and only its clip's time
+// goes on.
+Figure Stand(const std::map<uint32_t, Figure>& figures,
+             const protocol::Npc& npc, float seconds) {
+  const auto found = figures.find(npc.id());
+  Figure figure = found != figures.end() ? found->second : Figure{};
+  figure.id = npc.id();
+  figure.name = npc.name();
+  figure.npc = true;
+  figure.color = GetColor(npc.color());
+  figure.radius = npc.radius();
+  figure.position = {npc.x(), 0.0f, npc.z()};
+  figure.yaw = npc.yaw();
+  figure.to_time += seconds;
+  return figure;
+}
+
 }  // namespace
 
 std::vector<Figure> Animator::Update(const protocol::World& world,
                                      float seconds) {
   std::map<uint32_t, Figure> players;
   std::map<uint32_t, Figure> monsters;
+  std::map<uint32_t, Figure> npcs;
   std::vector<Figure> figures;
   for (const protocol::Player& player : world.players()) {
     Figure figure = Follow(players_, player, seconds);
@@ -74,9 +92,15 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
     monsters[monster.id()] = figure;
     figures.push_back(std::move(figure));
   }
-  // Players who left, and monsters that went, drop out here.
+  for (const protocol::Npc& npc : world.npcs()) {
+    Figure figure = Stand(npcs_, npc, seconds);
+    npcs[npc.id()] = figure;
+    figures.push_back(std::move(figure));
+  }
+  // Players who left, and monsters and NPCs that went, drop out here.
   players_ = std::move(players);
   monsters_ = std::move(monsters);
+  npcs_ = std::move(npcs);
   return figures;
 }
 

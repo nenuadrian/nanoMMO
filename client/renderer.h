@@ -80,6 +80,8 @@ class Renderer {
   Shader cube_shader_;
   Shader character_shader_;
   Model cube_;
+  /// Every NPC is this ball, scaled to its radius and tinted its colour.
+  Model sphere_;
   std::vector<Face> tree_;
   std::vector<Chunk> chunks_;
   std::optional<Model> sea_;

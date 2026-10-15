@@ -18,6 +18,11 @@ struct Figure {
   std::string name;
   bool you = false;
   bool monster = false;
+  bool npc = false;
+  /// An NPC's look, until NPCs have models: a ball of this colour and radius,
+  /// in metres.
+  Color color = WHITE;
+  float radius = 0.0f;
   int level = 1;
   int health = 0;
   int max_health = 0;
@@ -42,9 +47,11 @@ class Animator {
   std::vector<Figure> Update(const protocol::World& world, float seconds);
 
  private:
-  // Players and monsters each have ids of their own, so they're kept apart.
+  // Players, monsters and NPCs each have ids of their own, so they're kept
+  // apart.
   std::map<uint32_t, Figure> players_;
   std::map<uint32_t, Figure> monsters_;
+  std::map<uint32_t, Figure> npcs_;
 };
 
 }  // namespace nanommo

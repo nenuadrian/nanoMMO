@@ -106,10 +106,12 @@ Renderer::Renderer()
       character_shader_(
           LoadShaderFromMemory(kSkinnedVertexShader, kFragmentShader)),
       cube_(LoadModelFromMesh(GenMeshCube(1.0f, 1.0f, 1.0f))),
+      sphere_(LoadModelFromMesh(GenMeshSphere(1.0f, 16, 16))),
       characters_(CharactersFolder(), {"x_bot.glb", "y_bot.glb"}, 1.8f,
                   character_shader_),
       monsters_(MonstersFolder(), {"skeleton.glb"}, 1.6f, character_shader_) {
   cube_.materials[0].shader = cube_shader_;
+  sphere_.materials[0].shader = cube_shader_;
   // The sword has no bones, so it's drawn with the cube's shader.
   characters_.Hold(WeaponsFolder() + "/sword.glb", 1.0f, cube_shader_);
 
@@ -120,6 +122,7 @@ Renderer::Renderer()
 Renderer::~Renderer() {
   UnloadTerrain();
   UnloadModel(cube_);
+  UnloadModel(sphere_);
   UnloadShader(character_shader_);
   UnloadShader(cube_shader_);
 }
@@ -200,6 +203,14 @@ void Renderer::DrawPreview(const Figure& figure, const Camera3D& camera) const {
 }
 
 void Renderer::DrawFigure(const Figure& figure) const {
+  if (figure.npc) {
+    // The ball's middle is its origin, so it's raised to rest on the ground.
+    const Vector3& at = figure.position;
+    const float radius = figure.radius;
+    DrawModelEx(sphere_, {at.x, at.y + radius, at.z}, {0.0f, 1.0f, 0.0f}, 0.0f,
+                {radius, radius, radius}, figure.color);
+    return;
+  }
   const Characters& looks = figure.monster ? monsters_ : characters_;
   const Color color = figure.monster ? WHITE : PlayerColor(figure.id);
   if (looks.size() > 0) {
