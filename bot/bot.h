@@ -15,6 +15,7 @@
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
 #include "bot/wander.h"
+#include "content/npcs.h"
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
 #include "protocol/tls.h"
@@ -23,7 +24,9 @@ namespace nanommo {
 
 class Bot {
  public:
-  Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp);
+  /// Finds the NPCs that talk through their kinds in the table.
+  Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp,
+      const NpcTable& npcs);
 
   Bot(const Bot&) = delete;
   Bot& operator=(const Bot&) = delete;
@@ -50,6 +53,7 @@ class Bot {
   asio::steady_timer hello_timer_;
   std::mt19937 random_;
   bool udp_;
+  const NpcTable& npcs_;
   std::string token_;
   std::array<char, 65536> buffer_;
   std::array<char, 2048> datagram_;

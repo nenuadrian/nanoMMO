@@ -52,9 +52,16 @@ TEST(Characters, DrawsTheSkeletonWithItsArmsDown) {
                               nanommo::Window::Visibility::kHidden);
   ASSERT_TRUE(window.ok());
   nanommo::Offscreen target(256, 256);
-  nanommo::Renderer renderer;
+  nanommo::Content content;
+  content.monsters = *nanommo::ParseMonsters(R"pb(
+    kinds {
+      id: 1
+      look { model: "skeleton.glb" height: 1.6 }
+    }
+  )pb");
+  nanommo::Renderer renderer(content);
   renderer.set_background({30 / 255.0f, 144 / 255.0f, 255 / 255.0f});
-  renderer.set_figures({{.id = 1, .monster = true}});
+  renderer.set_figures({{.id = 1, .monster = true, .kind = 1}});
 
   target.Render(renderer);
 

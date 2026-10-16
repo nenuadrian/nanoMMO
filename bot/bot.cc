@@ -52,13 +52,15 @@ std::string RandomWords(std::mt19937& random) {
 
 }  // namespace
 
-Bot::Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp)
+Bot::Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp,
+         const NpcTable& npcs)
     : stream_(io, tls),
       udp_socket_(io),
       timer_(io),
       hello_timer_(io),
       random_(seed),
-      udp_(udp) {}
+      udp_(udp),
+      npcs_(npcs) {}
 
 void Bot::Start(const asio::ip::tcp::resolver::results_type& server,
                 const std::string& token) {
@@ -188,7 +190,8 @@ void Bot::Receive(std::string_view bytes) {
     asking_ = false;
   }
   for (const protocol::Npc& npc : world.npcs()) {
-    if (npc.talks()) {
+    const auto kind = npcs_.kinds.find(npc.kind());
+    if (kind != npcs_.kinds.end() && kind->second.talks()) {
       storyteller_ = npc;
     }
   }

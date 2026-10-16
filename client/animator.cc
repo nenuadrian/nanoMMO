@@ -33,7 +33,6 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
                                .from = unit.motion(),
                                .to = unit.motion()};
   figure.id = unit.id();
-  figure.name = unit.name();
   figure.level = static_cast<int>(unit.level());
   figure.health = static_cast<int>(unit.health());
   figure.max_health = static_cast<int>(unit.max_health());
@@ -58,15 +57,20 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
 // NPCs stand still, so each is where the server says, and only its clip's time
 // goes on.
 Figure Stand(const std::map<uint32_t, Figure>& figures,
-             const protocol::Npc& npc, float seconds) {
+             const protocol::Npc& npc, const NpcTable& table, float seconds) {
   const auto found = figures.find(npc.id());
   Figure figure = found != figures.end() ? found->second : Figure{};
   figure.id = npc.id();
-  figure.name = npc.name();
   figure.npc = true;
-  figure.color = GetColor(npc.color());
-  figure.radius = npc.radius();
-  figure.talks = npc.talks();
+  figure.kind = npc.kind();
+  // A kind from a newer server stays nameless, and too small to see.
+  const auto kind = table.kinds.find(npc.kind());
+  if (kind != table.kinds.end()) {
+    figure.name = kind->second.name();
+    figure.color = GetColor(kind->second.look().color());
+    figure.radius = kind->second.look().radius();
+    figure.talks = kind->second.talks();
+  }
   figure.position = {npc.x(), 0.0f, npc.z()};
   figure.yaw = npc.yaw();
   figure.to_time += seconds;
@@ -83,6 +87,7 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
   std::vector<Figure> figures;
   for (const protocol::Player& player : world.players()) {
     Figure figure = Follow(players_, player, seconds);
+    figure.name = player.name();
     figure.you = player.id() == world.you();
     figure.weapon = player.weapon();
     players[player.id()] = figure;
@@ -91,11 +96,18 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
   for (const protocol::Monster& monster : world.monsters()) {
     Figure figure = Follow(monsters_, monster, seconds);
     figure.monster = true;
+    figure.kind = monster.kind();
+    const auto kind = content_.monsters.kinds.find(monster.kind());
+    if (kind != content_.monsters.kinds.end()) {
+      figure.name = kind->second.name();
+      const monsters::Look& look = kind->second.look();
+      figure.color = look.has_tint() ? GetColor(look.tint()) : WHITE;
+    }
     monsters[monster.id()] = figure;
     figures.push_back(std::move(figure));
   }
   for (const protocol::Npc& npc : world.npcs()) {
-    Figure figure = Stand(npcs_, npc, seconds);
+    Figure figure = Stand(npcs_, npc, content_.npcs, seconds);
     npcs[npc.id()] = figure;
     figures.push_back(std::move(figure));
   }

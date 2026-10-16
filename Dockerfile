@@ -45,6 +45,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends libssl3t64 \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=test /src/build/bin/nanommo_bot /usr/local/bin/
+COPY content/*.txtpb /usr/local/share/nanommo/content/
+ENV NANOMMO_CONTENT=/usr/local/share/nanommo/content
 USER ubuntu
 ENTRYPOINT ["nanommo_bot"]
 

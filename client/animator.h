@@ -7,8 +7,10 @@
 #include <map>
 #include <numbers>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "content/content.h"
 #include "protocol/nanommo.pb.h"
 
 namespace nanommo {
@@ -19,8 +21,10 @@ struct Figure {
   bool you = false;
   bool monster = false;
   bool npc = false;
+  /// A monster's or an NPC's kind, by its id in the content folder.
+  uint32_t kind = 0;
   /// An NPC's look, until NPCs have models: a ball of this colour and radius,
-  /// in metres.
+  /// in metres. A monster is tinted this colour.
   Color color = WHITE;
   float radius = 0.0f;
   /// Whether the player can talk to it, by clicking it.
@@ -41,6 +45,11 @@ struct Figure {
 
 class Animator {
  public:
+  /// Monsters and NPCs come by kind, so the animator looks up their names and
+  /// looks in the content.
+  explicit Animator(Content content = Content())
+      : content_(std::move(content)) {}
+
   static constexpr float kBlendTime = 0.25f;
 
   /// The share of the gap still left after a second is e to the minus this.
@@ -51,6 +60,7 @@ class Animator {
   std::vector<Figure> Update(const protocol::World& world, float seconds);
 
  private:
+  Content content_;
   // Players, monsters and NPCs each have ids of their own, so they're kept
   // apart.
   std::map<uint32_t, Figure> players_;

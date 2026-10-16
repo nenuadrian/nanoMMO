@@ -4,6 +4,9 @@
 #include <raylib.h>
 
 #include <array>
+#include <cstdint>
+#include <map>
+#include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -87,7 +90,8 @@ class Renderer {
   std::vector<Chunk> chunks_;
   std::optional<Model> sea_;
   Characters characters_;
-  Characters monsters_;
+  /// Each kind of monster, by id, as its model at its height.
+  std::map<uint32_t, std::unique_ptr<Characters>> monsters_;
 };
 
 }  // namespace nanommo

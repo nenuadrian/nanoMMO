@@ -4,6 +4,8 @@
 #include <rlgl.h>
 
 #include <array>
+#include <memory>
+#include <string>
 #include <vector>
 
 #include "client/ground.h"
@@ -108,13 +110,18 @@ Renderer::Renderer(const Content& content)
       cube_(LoadModelFromMesh(GenMeshCube(1.0f, 1.0f, 1.0f))),
       sphere_(LoadModelFromMesh(GenMeshSphere(1.0f, 16, 16))),
       characters_(CharactersFolder(), {"x_bot.glb", "y_bot.glb"}, 1.8f,
-                  character_shader_),
-      monsters_(MonstersFolder(), {"skeleton.glb"}, 1.6f, character_shader_) {
+                  character_shader_) {
   cube_.materials[0].shader = cube_shader_;
   sphere_.materials[0].shader = cube_shader_;
   // Weapons have no bones, so they're drawn with the cube's shader.
   for (const auto& [id, item] : content.items.by_id) {
     characters_.Hold(id, item.look(), cube_shader_);
+  }
+  // Two kinds with one model load it twice, which is fine for a few kinds.
+  for (const auto& [id, kind] : content.monsters.kinds) {
+    monsters_[id] = std::make_unique<Characters>(
+        MonstersFolder(), std::vector<std::string>{kind.look().model()},
+        kind.look().height(), character_shader_);
   }
 
   tree_ = LoadFaces(TreesFolder() + "/tree.glb");
@@ -213,10 +220,14 @@ void Renderer::DrawFigure(const Figure& figure) const {
                 {radius, radius, radius}, figure.color);
     return;
   }
-  const Characters& looks = figure.monster ? monsters_ : characters_;
-  const Color color = figure.monster ? WHITE : PlayerColor(figure.id);
-  if (looks.size() > 0) {
-    looks.Draw(figure, color);
+  const Characters* looks = &characters_;
+  if (figure.monster) {
+    const auto kind = monsters_.find(figure.kind);
+    looks = kind != monsters_.end() ? kind->second.get() : nullptr;
+  }
+  const Color color = figure.monster ? figure.color : PlayerColor(figure.id);
+  if (looks != nullptr && looks->size() > 0) {
+    looks->Draw(figure, color);
     return;
   }
   const Vector3& at = figure.position;

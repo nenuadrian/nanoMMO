@@ -69,9 +69,12 @@ TEST(Animator, KeepsPlayersAndMonstersApart) {
       WorldWith(0, 0, 0, nanommo::protocol::MOTION_IDLE);
   nanommo::protocol::Monster* monster = world.add_monsters();
   monster->set_id(1);
-  monster->set_name("Skeleton");
+  monster->set_kind(1);
+  nanommo::Content content;
+  content.monsters =
+      *nanommo::ParseMonsters(R"pb(kinds { id: 1 name: "Skeleton" })pb");
 
-  const auto figures = nanommo::Animator().Update(world, 0.1f);
+  const auto figures = nanommo::Animator(content).Update(world, 0.1f);
   ASSERT_EQ(figures.size(), 2u);
   EXPECT_FALSE(figures[0].monster);
   EXPECT_TRUE(figures[1].monster);

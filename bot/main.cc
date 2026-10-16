@@ -17,6 +17,7 @@
 #include "asio/steady_timer.hpp"
 #include "bot/bot.h"
 #include "bot/bot_metrics.h"
+#include "content/content.h"
 #include "prometheus/exposer.h"
 #include "protocol/clock.h"
 #include "protocol/login_client.h"
@@ -58,7 +59,7 @@ class Swarm {
   Swarm(asio::io_context& io, asio::ssl::context& tls, std::string login,
         asio::ip::tcp::resolver::results_type server, int count,
         std::chrono::milliseconds ramp, int first, bool udp,
-        nanommo::BotMetrics& metrics)
+        nanommo::BotMetrics& metrics, const nanommo::NpcTable& npcs)
       : io_(io),
         tls_(tls),
         login_(std::move(login)),
@@ -68,6 +69,7 @@ class Swarm {
         udp_(udp),
         gap_(count > 0 ? ramp / count : ramp),
         metrics_(metrics),
+        npcs_(npcs),
         timer_(io),
         report_(io),
         frame_(io) {
@@ -84,7 +86,7 @@ class Swarm {
     }
     const int number = first_ + static_cast<int>(bots_.size());
     auto bot = std::make_unique<nanommo::Bot>(
-        io_, tls_, static_cast<uint32_t>(number), udp_);
+        io_, tls_, static_cast<uint32_t>(number), udp_, npcs_);
     const absl::StatusOr<std::string> token = LogIn(login_, tls_, number);
     if (token.ok()) {
       bot->Start(server_, *token);
@@ -148,6 +150,7 @@ class Swarm {
   bool udp_;
   std::chrono::milliseconds gap_;
   nanommo::BotMetrics& metrics_;
+  const nanommo::NpcTable& npcs_;
   asio::steady_timer timer_;
   asio::steady_timer report_;
   asio::steady_timer frame_;
@@ -180,6 +183,13 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  const absl::StatusOr<nanommo::Content> content =
+      nanommo::ReadContent(nanommo::Setting("NANOMMO_CONTENT", "content"));
+  if (!content.ok()) {
+    std::cerr << "nanommo bot: " << content.status() << "\n";
+    return 1;
+  }
+
   nanommo::BotMetrics metrics(transport);
   prometheus::Exposer exposer("0.0.0.0:" + std::to_string(kMetricsPort));
   exposer.RegisterCollectable(metrics.registry());
@@ -199,7 +209,7 @@ int main(int argc, char* argv[]) {
             << " s, from bot" << first << ", worlds over " << transport
             << std::endl;
   Swarm swarm(io, *tls, login, server, count, ramp, first, transport == "udp",
-              metrics);
+              metrics, content->npcs);
 
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });

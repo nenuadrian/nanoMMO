@@ -121,7 +121,7 @@ int main(int argc, char* argv[]) {
   nanommo::TalkWindow talk_window;
   nanommo::LoginScreen login_screen;
   nanommo::Renderer renderer(*content);
-  nanommo::Animator animator;
+  nanommo::Animator animator(*content);
   std::optional<nanommo::Terrain> terrain;
   int land = 0;
   nanommo::FollowCamera camera;
