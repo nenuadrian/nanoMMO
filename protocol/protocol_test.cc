@@ -12,7 +12,7 @@ TEST(Protocol, WorldSurvivesTheRoundTrip) {
   player->set_z(-3.0f);
   player->set_yaw(1.25f);
   player->set_motion(nanommo::protocol::MOTION_RUN);
-  world.add_monsters()->set_name("Skeleton");
+  world.add_monsters()->set_kind(1);
 
   const std::string bytes = world.SerializeAsString();
 
@@ -26,7 +26,7 @@ TEST(Protocol, WorldSurvivesTheRoundTrip) {
   EXPECT_EQ(received.players(0).yaw(), 1.25f);
   EXPECT_EQ(received.players(0).motion(), nanommo::protocol::MOTION_RUN);
   ASSERT_EQ(received.monsters_size(), 1);
-  EXPECT_EQ(received.monsters(0).name(), "Skeleton");
+  EXPECT_EQ(received.monsters(0).kind(), 1u);
 }
 
 TEST(Protocol, ReadsMessagesBackToBackAsOne) {

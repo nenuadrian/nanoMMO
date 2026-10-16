@@ -16,15 +16,12 @@ namespace {
 // parts, and the client's own you, experience, next level, seed and land.
 constexpr std::size_t kRoom = 48;
 
-// Names, levels and weapons come once a second, and protobuf leaves out a
-// field that's empty or zero, which no name, level or item id is, so we keep
+// Names, kinds, levels and weapons come once a second, and protobuf leaves
+// out a field that's empty or zero, which no name, level or id is, so we keep
 // the last ones we had.
 template <typename Unit>
 void Update(Unit& known, const Unit& now) {
   Unit merged = now;
-  if (merged.name().empty()) {
-    merged.set_name(known.name());
-  }
   if (merged.level() == 0) {
     merged.set_level(known.level());
   }
@@ -32,8 +29,15 @@ void Update(Unit& known, const Unit& now) {
     merged.set_max_health(known.max_health());
   }
   if constexpr (std::is_same_v<Unit, protocol::Player>) {
+    if (merged.name().empty()) {
+      merged.set_name(known.name());
+    }
     if (merged.weapon() == 0) {
       merged.set_weapon(known.weapon());
+    }
+  } else {
+    if (merged.kind() == 0) {
+      merged.set_kind(known.kind());
     }
   }
   known = std::move(merged);

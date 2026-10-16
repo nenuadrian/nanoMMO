@@ -37,7 +37,6 @@ struct Player {
 };
 
 struct Monster {
-  std::string name;
   /// By its id in the monsters file.
   uint32_t kind = 0;
   float x = 0.0f;
@@ -75,10 +74,6 @@ struct Npc {
   float x = 0.0f;
   float z = 0.0f;
   float yaw = 0.0f;
-  /// As 0xRRGGBBAA.
-  uint32_t color = 0xFFFFFFFF;
-  /// In metres. Until NPCs have models, each is a ball this size.
-  float radius = 0.5f;
   /// Whether players can talk to it.
   bool talks = false;
 };

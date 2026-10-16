@@ -40,8 +40,11 @@ message Player {
 }
 
 message Monster {
+  // Its name comes from its kind now. A number we've used stays retired, so
+  // that an old client never reads a new field as an old one.
+  reserved 2;
+  reserved "name";
   uint32 id = 1;
-  string name = 2;
   float x = 3;
   float z = 4;
   float yaw = 5;
@@ -49,19 +52,20 @@ message Monster {
   uint32 level = 7;
   uint32 health = 8;
   uint32 max_health = 9;
+  // By its id in the monsters file.
+  uint32 kind = 10;
 }
 
 // Someone who stands in one place, and doesn't fight. Each comes once a
-// second, with its look: a ball of the colour, as 0xRRGGBBAA, and radius.
+// second, with its kind, whose name and look are in the NPCs file.
 message Npc {
+  reserved 2, 6 to 8;
+  reserved "name", "color", "radius", "talks";
   uint32 id = 1;
-  string name = 2;
   float x = 3;
   float z = 4;
   float yaw = 5;
-  uint32 color = 6;
-  float radius = 7;
-  bool talks = 8;
+  uint32 kind = 9;
 }
 
 message Chat {

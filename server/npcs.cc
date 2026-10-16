@@ -23,8 +23,6 @@ void SpawnNpcs(World& land, int index, const NpcTable& table) {
                    .x = spawn.x(),
                    .z = spawn.z(),
                    .yaw = spawn.yaw(),
-                   .color = kind.look().color(),
-                   .radius = kind.look().radius(),
                    .talks = kind.talks()});
   }
 }

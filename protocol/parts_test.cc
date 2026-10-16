@@ -120,14 +120,14 @@ TEST(Parts, KeepsNpcsBetweenTheWorldsThatSendThemUntilTheyAreGone) {
   constexpr int64_t kSecond = 1'000'000;
   nanommo::protocol::World full = MakeWorld(1, kSecond);
   full.add_npcs()->set_id(1);
-  full.mutable_npcs(0)->set_name("Guard");
+  full.mutable_npcs(0)->set_kind(1);
   nanommo::Parts assembled;
   assembled.Add(full);
 
   // The next full world, a second later, was lost.
   assembled.Add(MakeWorld(1, 3 * kSecond));
   ASSERT_EQ(assembled.world().npcs_size(), 1);
-  EXPECT_EQ(assembled.world().npcs(0).name(), "Guard");
+  EXPECT_EQ(assembled.world().npcs(0).kind(), 1u);
 
   assembled.Add(MakeWorld(1, 5 * kSecond));
   EXPECT_EQ(assembled.world().npcs_size(), 0);

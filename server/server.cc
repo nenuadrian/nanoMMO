@@ -101,7 +101,7 @@ protocol::Player ToProtocol(uint32_t id, const Player& player) {
 protocol::Monster ToProtocol(uint32_t id, const Monster& monster) {
   protocol::Monster sent;
   sent.set_id(id);
-  sent.set_name(monster.name);
+  sent.set_kind(monster.kind);
   sent.set_x(monster.x);
   sent.set_z(monster.z);
   sent.set_yaw(monster.yaw);
@@ -115,13 +115,10 @@ protocol::Monster ToProtocol(uint32_t id, const Monster& monster) {
 protocol::Npc ToProtocol(uint32_t id, const Npc& npc) {
   protocol::Npc sent;
   sent.set_id(id);
-  sent.set_name(npc.name);
+  sent.set_kind(npc.kind);
   sent.set_x(npc.x);
   sent.set_z(npc.z);
   sent.set_yaw(npc.yaw);
-  sent.set_color(npc.color);
-  sent.set_radius(npc.radius);
-  sent.set_talks(npc.talks);
   return sent;
 }
 
@@ -460,9 +457,9 @@ void Server::SaveChanged() {
 
 void Server::Broadcast() {
   ZoneScoped;
-  // Names, levels, weapons and the most health a unit can have change now and
-  // then, and NPCs never do, so they go out once a second, and the clients
-  // keep them in between.
+  // Names, kinds, levels, weapons and the most health a unit can have change
+  // now and then, and NPCs never do, so they go out once a second, and the
+  // clients keep them in between.
   const bool full = broadcasts_ == 0;
   broadcasts_ = (broadcasts_ + 1) % kFullEvery;
   for (std::size_t index = 0; index < lands_.size(); ++index) {
@@ -492,7 +489,7 @@ void Server::BroadcastLand(std::size_t index, bool full) {
     for (const auto& [id, monster] : land.monsters()) {
       protocol::Monster entry = ToProtocol(id, monster);
       if (!full) {
-        entry.clear_name();
+        entry.clear_kind();
         entry.clear_level();
         entry.clear_max_health();
       }

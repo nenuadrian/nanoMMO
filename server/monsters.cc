@@ -43,8 +43,7 @@ void PickTarget(Monster& monster, const Terrain& terrain,
 
 Monster MonsterOf(const monsters::Kind& kind, float x, float z) {
   const monsters::Fight& fight = kind.fight();
-  return {.name = kind.name(),
-          .kind = kind.id(),
+  return {.kind = kind.id(),
           .x = x,
           .z = z,
           .level = static_cast<int>(kind.level()),
