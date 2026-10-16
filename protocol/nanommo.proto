@@ -35,6 +35,8 @@ message Player {
   uint32 level = 7;
   uint32 health = 8;
   uint32 max_health = 9;
+  // What the player holds, by its id in the items file.
+  uint32 weapon = 10;
 }
 
 message Monster {

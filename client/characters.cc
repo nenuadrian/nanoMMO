@@ -22,9 +22,6 @@ constexpr std::array<const char*, 5> kClips = {"idle", "walk", "run", "attac",
 
 constexpr std::string_view kRightHand = "mixamorig:RightHand";
 
-// The middle of the sword's grip is a sixth of the way up from the pommel.
-constexpr float kGrip = 1.0f / 6.0f;
-
 constexpr float kPalm = 0.08f;
 
 // raylib cuts clip names at 31 characters, so the skeleton's run ends in
@@ -103,6 +100,10 @@ std::string WeaponsFolder() {
   return std::string(GetApplicationDirectory()) + "weapons";
 }
 
+std::string ItemsFile() {
+  return std::string(GetApplicationDirectory()) + "items.txtpb";
+}
+
 Characters::Characters(const std::string& folder,
                        const std::vector<std::string>& files, float height,
                        Shader shader) {
@@ -159,13 +160,14 @@ Characters::~Characters() {
     UnloadModelAnimations(character.clips, character.clip_count);
     UnloadModel(character.model);
   }
-  if (weapon_) {
-    UnloadModel(*weapon_);
+  for (auto& [id, weapon] : weapons_) {
+    UnloadModel(weapon.model);
   }
 }
 
-void Characters::Hold(const std::string& path, float length, Shader shader) {
-  if (!FileExists(path.c_str())) {
+void Characters::Hold(uint32_t id, const items::Look& look, Shader shader) {
+  const std::string path = WeaponsFolder() + "/" + look.model();
+  if (look.model().empty() || !FileExists(path.c_str())) {
     return;
   }
   Model weapon = LoadModel(path.c_str());
@@ -181,10 +183,10 @@ void Characters::Hold(const std::string& path, float length, Shader shader) {
   }
   const BoundingBox box = GetModelBoundingBox(weapon);
   const float height = box.max.y - box.min.y;
-  const float scale = length / height;
-  const Matrix sized =
-      MatrixMultiply(MatrixTranslate(0.0f, -(box.min.y + kGrip * height), 0.0f),
-                     MatrixScale(scale, scale, scale));
+  const float scale = look.length() / height;
+  const Matrix sized = MatrixMultiply(
+      MatrixTranslate(0.0f, -(box.min.y + look.grip() * height), 0.0f),
+      MatrixScale(scale, scale, scale));
   // Mixamo's hand: y along the fingers, x along the knuckles, palm facing z.
   // The fist holds the blade along x, leaning 20 degrees towards the fingers.
   const Matrix along = MatrixRotateZ(-(90.0f - 20.0f) * DEG2RAD);
@@ -193,8 +195,7 @@ void Characters::Hold(const std::string& path, float length, Shader shader) {
   const Matrix out = MatrixRotateY(40.0f * DEG2RAD);
   const Matrix in_hand = MatrixMultiply(MatrixMultiply(along, out),
                                         MatrixTranslate(0.0f, kPalm, 0.0f));
-  grip_ = MatrixMultiply(sized, in_hand);
-  weapon_ = weapon;
+  weapons_[id] = {.model = weapon, .grip = MatrixMultiply(sized, in_hand)};
 }
 
 void Characters::Draw(const Figure& figure, Color color) const {
@@ -220,7 +221,8 @@ void Characters::Draw(const Figure& figure, Color color) const {
   DrawModelEx(character.model, figure.position, {0.0f, 1.0f, 0.0f},
               figure.yaw * RAD2DEG, {scale, scale, scale}, color);
 
-  if (!weapon_ || character.hand < 0) {
+  const auto held = weapons_.find(figure.weapon);
+  if (held == weapons_.end() || character.hand < 0) {
     return;
   }
   const Transform& hand = character.model.currentPose[character.hand];
@@ -233,8 +235,9 @@ void Characters::Draw(const Figure& figure, Color color) const {
       MatrixMultiply(MatrixScale(scale, scale, scale),
                      MatrixRotateY(figure.yaw)),
       MatrixTranslate(figure.position.x, figure.position.y, figure.position.z));
-  Model weapon = *weapon_;
-  weapon.transform = MatrixMultiply(MatrixMultiply(grip_, bone), placed);
+  Model weapon = held->second.model;
+  weapon.transform =
+      MatrixMultiply(MatrixMultiply(held->second.grip, bone), placed);
   DrawModel(weapon, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
 }
 

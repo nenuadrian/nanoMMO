@@ -4,6 +4,7 @@
 #include <chrono>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -15,8 +16,9 @@ namespace {
 // parts, and the client's own you, experience, next level, seed and land.
 constexpr std::size_t kRoom = 48;
 
-// Names and levels come once a second, and protobuf leaves out a field that's
-// empty or zero, which no name or level is, so we keep the last ones we had.
+// Names, levels and weapons come once a second, and protobuf leaves out a
+// field that's empty or zero, which no name, level or item id is, so we keep
+// the last ones we had.
 template <typename Unit>
 void Update(Unit& known, const Unit& now) {
   Unit merged = now;
@@ -28,6 +30,11 @@ void Update(Unit& known, const Unit& now) {
   }
   if (merged.max_health() == 0) {
     merged.set_max_health(known.max_health());
+  }
+  if constexpr (std::is_same_v<Unit, protocol::Player>) {
+    if (merged.weapon() == 0) {
+      merged.set_weapon(known.weapon());
+    }
   }
   known = std::move(merged);
 }

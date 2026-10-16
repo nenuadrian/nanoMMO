@@ -5,11 +5,13 @@
 
 #include <array>
 #include <cstddef>
-#include <optional>
+#include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
 #include "client/animator.h"
+#include "items/items.pb.h"
 
 namespace nanommo {
 
@@ -18,6 +20,8 @@ std::string CharactersFolder();
 std::string MonstersFolder();
 
 std::string WeaponsFolder();
+
+std::string ItemsFile();
 
 class Characters {
  public:
@@ -30,7 +34,9 @@ class Characters {
 
   std::size_t size() const { return characters_.size(); }
 
-  void Hold(const std::string& path, float length, Shader shader);
+  /// Loads the item's model, to draw in the hand of each figure that holds
+  /// the item.
+  void Hold(uint32_t id, const items::Look& look, Shader shader);
 
   void Draw(const Figure& figure, Color color) const;
 
@@ -45,9 +51,13 @@ class Characters {
     int hand = -1;
   };
 
+  struct Weapon {
+    Model model;
+    Matrix grip;
+  };
+
   std::vector<Character> characters_;
-  std::optional<Model> weapon_;
-  Matrix grip_{};
+  std::map<uint32_t, Weapon> weapons_;
 };
 
 }  // namespace nanommo

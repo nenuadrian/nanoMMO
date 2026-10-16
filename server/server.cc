@@ -92,6 +92,7 @@ protocol::Player ToProtocol(uint32_t id, const Player& player) {
   sent.set_level(level);
   sent.set_health(player.health);
   sent.set_max_health(MaxHealth(level));
+  sent.set_weapon(player.weapon);
   return sent;
 }
 
@@ -457,9 +458,9 @@ void Server::SaveChanged() {
 
 void Server::Broadcast() {
   ZoneScoped;
-  // Names, levels and the most health a unit can have change now and then,
-  // and NPCs never do, so they go out once a second, and the clients keep them
-  // in between.
+  // Names, levels, weapons and the most health a unit can have change now and
+  // then, and NPCs never do, so they go out once a second, and the clients
+  // keep them in between.
   const bool full = broadcasts_ == 0;
   broadcasts_ = (broadcasts_ + 1) % kFullEvery;
   for (std::size_t index = 0; index < lands_.size(); ++index) {
@@ -482,6 +483,7 @@ void Server::BroadcastLand(std::size_t index, bool full) {
         entry.clear_name();
         entry.clear_level();
         entry.clear_max_health();
+        entry.clear_weapon();
       }
       players[id] = Piece(entry);
     }

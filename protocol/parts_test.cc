@@ -99,6 +99,7 @@ TEST(Parts, DropsPlayersWhoLeftAndPartsThatArriveLate) {
 TEST(Parts, KeepsNamesAndLevelsBetweenTheTicksThatSendThem) {
   nanommo::protocol::World full = MakeWorld(3, 1);
   full.mutable_players(0)->set_level(4);
+  full.mutable_players(0)->set_weapon(1);
   nanommo::protocol::World compact = MakeWorld(3, 2, 0.5f);
   for (nanommo::protocol::Player& player : *compact.mutable_players()) {
     player.clear_name();
@@ -111,6 +112,7 @@ TEST(Parts, KeepsNamesAndLevelsBetweenTheTicksThatSendThem) {
   ASSERT_EQ(result.players_size(), 3);
   EXPECT_EQ(result.players(0).name(), "bot1");
   EXPECT_EQ(result.players(0).level(), 4u);
+  EXPECT_EQ(result.players(0).weapon(), 1u);
   EXPECT_EQ(result.players(0).x(), 1.5f);
 }
 
