@@ -20,6 +20,7 @@ struct Progress {
   uint32_t experience = 0;
   int health = 0;
   int land = 0;
+  uint32_t weapon = 0;
 
   bool operator==(const Progress&) const = default;
 };

@@ -71,13 +71,15 @@ Progress ProgressOf(const Player& player) {
   if (player.motion == Motion::kDead) {
     return {.experience = player.experience,
             .health = MaxHealth(LevelFor(player.experience).number),
-            .land = player.land};
+            .land = player.land,
+            .weapon = player.weapon};
   }
   return {.x = player.x,
           .z = player.z,
           .experience = player.experience,
           .health = player.health,
-          .land = player.land};
+          .land = player.land,
+          .weapon = player.weapon};
 }
 
 protocol::Player ToProtocol(uint32_t id, const Player& player) {

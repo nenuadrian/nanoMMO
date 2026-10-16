@@ -26,7 +26,8 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
   const absl::StatusOr<Result> result = database_.Run(
       "SELECT accounts.username, COALESCE(players.x, 0), "
       "COALESCE(players.z, 0), COALESCE(players.experience, 0), "
-      "players.health, COALESCE(players.land, 'Meadows') FROM accounts "
+      "players.health, COALESCE(players.land, 'Meadows'), players.weapon "
+      "FROM accounts "
       "LEFT JOIN players ON players.account_id = accounts.id "
       "AND players.world = ? "
       "WHERE accounts.id = ?",
@@ -43,7 +44,7 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
 
   const absl::StatusOr<std::vector<std::vector<std::string>>> newer =
       redis_.Pipeline({{"HMGET", Key(world, account_id), "x", "z", "experience",
-                        "health", "land"}});
+                        "health", "land", "weapon"}});
   if (!newer.ok()) {
     return newer.status();
   }
@@ -59,6 +60,10 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
     return absl::InternalError("a saved health that isn't a number");
   }
   player.land = LandNamed(saved[4]);
+  // None saved, which the world takes as the starting weapon.
+  if (!saved[5].empty() && !absl::SimpleAtoi(saved[5], &player.weapon)) {
+    return absl::InternalError("a saved weapon that isn't a number");
+  }
   return player;
 }
 
@@ -74,7 +79,8 @@ absl::Status Players::Save(const std::string& world,
         {"HSET", Key(world, id), "world", world, "account", absl::StrCat(id),
          "x", absl::StrCat(progress.x), "z", absl::StrCat(progress.z),
          "experience", absl::StrCat(progress.experience), "health",
-         absl::StrCat(progress.health), "land", kLands[progress.land].name});
+         absl::StrCat(progress.health), "land", kLands[progress.land].name,
+         "weapon", absl::StrCat(progress.weapon)});
     unsaved.push_back(Key(world, id));
   }
   commands.push_back(unsaved);
@@ -109,10 +115,10 @@ absl::StatusOr<int> Players::Flush() {
       // Before worlds, the set held account IDs, for hashes with no world.
       if (key.starts_with("player:")) {
         reads.push_back({"HMGET", key, "world", "account", "x", "z",
-                         "experience", "health", "land"});
+                         "experience", "health", "land", "weapon"});
       } else {
         reads.push_back({"HMGET", absl::StrCat("player:", key), "x", "z",
-                         "experience", "health", "land"});
+                         "experience", "health", "land", "weapon"});
       }
     }
     const absl::StatusOr<std::vector<std::vector<std::string>>> hashes =
@@ -125,7 +131,7 @@ absl::StatusOr<int> Players::Flush() {
     // row MySQL refuses doesn't hold back the batch on each flush.
     std::string sql =
         "INSERT IGNORE INTO players (world, account_id, x, z, experience, "
-        "health, land) VALUES ";
+        "health, land, weapon) VALUES ";
     std::vector<std::string> values;
     int rows = 0;
     for (std::size_t i = 0; i < keys.size(); ++i) {
@@ -133,11 +139,11 @@ absl::StatusOr<int> Players::Flush() {
       if ((*hashes)[i][0].empty()) {
         continue;
       }
-      // A hash saved before we kept health has none, which goes in as NULL,
-      // and one saved before lands is in the Meadows.
+      // A hash saved before we kept health or weapons has none, which goes in
+      // as NULL, and one saved before lands is in the Meadows.
       absl::StrAppend(&sql, rows == 0 ? "" : ", ",
                       "(?, ?, ?, ?, ?, NULLIF(?, ''), "
-                      "COALESCE(NULLIF(?, ''), 'Meadows'))");
+                      "COALESCE(NULLIF(?, ''), 'Meadows'), NULLIF(?, ''))");
       ++rows;
       if (!keys[i].starts_with("player:")) {
         values.push_back("Ember");
@@ -151,7 +157,8 @@ absl::StatusOr<int> Players::Flush() {
     absl::StrAppend(&sql,
                     " AS saved ON DUPLICATE KEY UPDATE x = saved.x, "
                     "z = saved.z, experience = saved.experience, "
-                    "health = saved.health, land = saved.land");
+                    "health = saved.health, land = saved.land, "
+                    "weapon = saved.weapon");
     const absl::StatusOr<Result> result = database_.Run(sql, values);
     if (!result.ok()) {
       // Back into the set, so that the next flush tries them again.
