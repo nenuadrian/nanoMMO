@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package nanommo.items;
+
+// How a weapon fights: the server's part.
+message Weapon {
+  // In metres.
+  float reach = 1;
+  uint32 swing_ms = 2;
+  // How far into the swing the blow lands.
+  uint32 hit_ms = 3;
+  uint32 damage = 4;
+}
+
+// How an item looks: the client's part.
+message Look {
+  // A glTF file in the client's weapons folder.
+  string model = 1;
+  // In metres, from end to end.
+  float length = 2;
+  // Where the hand holds it, as a share of its length from the bottom.
+  float grip = 3;
+}
+
+message Item {
+  // From one, and an item keeps its id for good.
+  uint32 id = 1;
+  string name = 2;
+  Weapon weapon = 3;
+  Look look = 4;
+}
+
+message Items {
+  // What a new player holds, by its id.
+  uint32 starting_weapon = 1;
+  repeated Item items = 2;
+}

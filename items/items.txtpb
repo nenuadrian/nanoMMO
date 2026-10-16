@@ -1,0 +1,20 @@
+# proto-file: items/items.proto
+# proto-message: nanommo.items.Items
+
+starting_weapon: 1
+
+items {
+  id: 1
+  name: "Sword"
+  weapon {
+    reach: 1.6
+    swing_ms: 2000
+    hit_ms: 900
+    damage: 15
+  }
+  look {
+    model: "sword.glb"
+    length: 1
+    grip: 0.1667
+  }
+}

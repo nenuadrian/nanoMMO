@@ -114,6 +114,6 @@ RUN pip install --no-cache-dir clang-format==18.1.3 cpplint==2.0.2
 # one, so the folder is named after the project: NANOMMO_SERVER_TICK_H_.
 WORKDIR /nanommo
 COPY . .
-RUN find server bot client protocol terrain -name '*.cc' -o -name '*.h' \
+RUN find server bot client protocol items terrain -name '*.cc' -o -name '*.h' \
  | xargs clang-format --dry-run --Werror \
- && cpplint --root=.. --recursive --quiet server bot client protocol terrain
+ && cpplint --root=.. --recursive --quiet server bot client protocol items terrain
