@@ -1,5 +1,7 @@
 #include "content/content.h"
 
+#include <algorithm>
+
 #include "gtest/gtest.h"
 
 TEST(Content, ReadsTheGamesContent) {
@@ -15,6 +17,9 @@ TEST(Content, ReadsTheGamesContent) {
   const nanommo::monsters::Kind& skeleton = content->monsters.kinds.at(1);
   EXPECT_EQ(skeleton.name(), "Skeleton");
   EXPECT_FALSE(content->monsters.spawns.empty());
+  EXPECT_TRUE(std::ranges::any_of(content->npcs.kinds, [](const auto& kind) {
+    return kind.second.talks();
+  }));
 }
 
 TEST(Content, RefusesItemsThatDontAddUp) {
@@ -47,4 +52,10 @@ TEST(Content, RefusesMonstersThatDontAddUp) {
       nanommo::ParseMonsters("kinds { id: 1 fight { leash: 6 } } "
                              "spawns { kind: 1 land: \"Meadows\" x: 5 }")
           .ok());
+}
+
+TEST(Content, RefusesNpcsThatDontAddUp) {
+  EXPECT_FALSE(nanommo::ParseNpcs("kinds { id: 1 } "
+                                  "spawns { kind: 2 land: \"Meadows\" }")
+                   .ok());
 }

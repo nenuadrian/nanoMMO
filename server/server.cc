@@ -188,7 +188,7 @@ absl::Status Server::Start(uint16_t port, const Content& content) {
   for (std::size_t index = 0; index < lands_.size(); ++index) {
     World& land = lands_[index];
     SpawnMonsters(land, static_cast<int>(index), content.monsters);
-    SpawnNpcs(land, static_cast<int>(index));
+    SpawnNpcs(land, static_cast<int>(index), content.npcs);
     npc_cells_.push_back(CellsOf(land.npcs()));
   }
   Accept();

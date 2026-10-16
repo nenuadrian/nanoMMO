@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package nanommo.npcs;
+
+// How a kind of NPC is drawn, until NPCs have models: a ball.
+message Look {
+  // As 0xRRGGBBAA.
+  uint32 color = 1;
+  // In metres.
+  float radius = 2;
+}
+
+message Kind {
+  // From one, and a kind keeps its id for good.
+  uint32 id = 1;
+  string name = 2;
+  // Whether players can talk to it. An NPC that talks tells stories.
+  bool talks = 3;
+  Look look = 4;
+}
+
+// Where an NPC stands, in metres from the middle of its land, and which way
+// it faces, in radians.
+message Spawn {
+  uint32 kind = 1;
+  string land = 2;
+  float x = 3;
+  float z = 4;
+  float yaw = 5;
+}
+
+message Npcs {
+  repeated Kind kinds = 1;
+  repeated Spawn spawns = 2;
+}

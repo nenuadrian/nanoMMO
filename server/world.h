@@ -70,6 +70,8 @@ struct Monster {
 /// so they have none of a monster's health or of what it thinks with.
 struct Npc {
   std::string name;
+  /// By its id in the NPCs file.
+  uint32_t kind = 0;
   float x = 0.0f;
   float z = 0.0f;
   float yaw = 0.0f;

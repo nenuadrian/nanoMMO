@@ -1,0 +1,38 @@
+# proto-file: content/npcs.proto
+# proto-message: nanommo.npcs.Npcs
+
+kinds {
+  id: 1
+  name: "Guard"
+  look { color: 0x3E6FD8FF radius: 0.6 }
+}
+kinds {
+  id: 2
+  name: "Merchant"
+  look { color: 0xE3B53BFF radius: 0.5 }
+}
+kinds {
+  id: 3
+  name: "Healer"
+  look { color: 0x5BC46BFF radius: 0.4 }
+}
+kinds {
+  id: 4
+  name: "Ash Warden"
+  look { color: 0xD8552EFF radius: 0.7 }
+}
+kinds {
+  id: 5
+  name: "Storyteller"
+  talks: true
+  look { color: 0x9B6BD8FF radius: 0.5 }
+}
+
+spawns { kind: 1 land: "Meadows" x: -3.2 z: -7.5 yaw: 0 }
+spawns { kind: 5 land: "Meadows" x: 3.2 z: -7.5 yaw: 0 }
+spawns { kind: 2 land: "Meadows" x: -6 z: -4 yaw: 1.57 }
+spawns { kind: 3 land: "Meadows" x: 6 z: -4.5 yaw: -1.57 }
+spawns { kind: 4 land: "Ashlands" x: 3.2 z: -7.5 yaw: 0 }
+spawns { kind: 5 land: "Ashlands" x: -3.2 z: -7.5 yaw: 0 }
+spawns { kind: 2 land: "Ashlands" x: -6 z: -4 yaw: 1.57 }
+spawns { kind: 3 land: "Ashlands" x: 6 z: -4.5 yaw: -1.57 }

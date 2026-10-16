@@ -39,6 +39,9 @@ absl::StatusOr<Content> ReadContent(const std::string& folder) {
   if (read.ok()) {
     read = Read(folder, "monsters.txtpb", ParseMonsters, content.monsters);
   }
+  if (read.ok()) {
+    read = Read(folder, "npcs.txtpb", ParseNpcs, content.npcs);
+  }
   if (!read.ok()) {
     return read;
   }
