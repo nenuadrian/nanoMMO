@@ -10,7 +10,8 @@ share them.
 The file is as it comes from Poly Pizza. CC0 doesn't ask for credit, but Quaternius made it, so
 here it is.
 
-The client loads it as it is: it scales the skeleton to 1.6 metres, finds the clips by the word in
+The client loads it as it is: it scales the skeleton to the height of each kind whose look names it,
+in `content/monsters.txtpb`, finds the clips by the word in
 their names, and walks with the run, played at 0.4 of its speed. It reads the bind pose from the
 file's inverse bind matrices too, as raylib binds the mesh to where the bones rest, and the
 skeleton's arms rest about 70 degrees from where its mesh was bound.

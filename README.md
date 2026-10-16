@@ -69,8 +69,8 @@ the window. View, Settings changes the sky, which is the colour of the fog too, 
 takes you back to the login screen. Next time you log in to that world, you're where you left off.
 
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
-it, and all sides use the C++ it generates. The items are data that the server and the client both
-read, from `items/items.txtpb` (see [Items](#items)).
+it, and all sides use the C++ it generates. Items, monsters and NPCs are data (see
+[Content](#content)).
 
 ## Code style
 
@@ -96,7 +96,7 @@ slash and the death keep their motion, so a player falls back as it dies. The bu
 `assets/characters` next to the client, which loads them from there. Without them, the players are
 cubes, and the client's character tests skip themselves.
 
-Each player holds a weapon from the items file (see [Items](#items)), so far Quaternius's sword, from
+Each player holds a weapon from the items file (see [Content](#content)), so far Quaternius's sword, from
 [Poly Pizza](https://poly.pizza/m/ajOJ2NLz5m), which is public domain and in the repo, as it was
 downloaded, in `assets/weapons`. The client scales it to its length in the file, a metre, holds it
 where the file says, a sixth of the way up, and, each frame, puts it where the right hand's bone is
@@ -196,15 +196,15 @@ docker run --rm nanommo-build xvfb-run --auto-servernum -s "-screen 0 1280x720x2
 The monsters are Quaternius's skeleton, from [Poly Pizza](https://poly.pizza/m/wODZYCgX5Z). It's
 public domain (CC0), so it's in the repo, in `assets/monsters`, as it was downloaded:
 [assets/monsters/README.md](assets/monsters/README.md) says where it's from. The client loads it as
-it is. It scales it to 1.6 metres, finds its clips by the word in their names, and walks with its
+it is, for each kind of monster whose look names it. It scales it to the kind's height, finds its clips by the word in their names, and walks with its
 run, played at 0.4 of its speed, which puts the feet at the walking speed. It reads the bind pose
 from the file's inverse bind matrices, as raylib binds the mesh to where the bones rest, and the
 skeleton's arms rest about 70 degrees from where its mesh was bound.
 
-The server spawns the monsters that `server/monsters.h` lists (see [NPCs](#npcs)): three skeletons
+The server spawns the monsters that `content/monsters.txtpb` lists (see [Content](#content)): three monsters
 around the middle of each land, and up to three more at each of eight camps, which the land's seed
 places between the beach and the rock, at least thirty metres from the middle. It runs their AI each
-tick: a monster rests for two to six seconds, walks to a random place within three metres of where
+tick: a monster rests for two to six seconds, walks to a random place within its kind's wander of where
 it spawned, at 1.8 metres a second, and rests again. If the sea or a tree stops it, it rests, and
 picks another place. The world's random generator takes a seed, so the tests pick theirs.
 
@@ -217,13 +217,13 @@ it comes across the front, if the monster is still alive and in reach, for fifte
 level after the first adds five to whatever you hold. Holding Space down swings again and again. All
 of it happens on the server: the client only says that Space is down, in `Input`.
 
-A monster goes for the nearest living player within three metres of it, if that player is within
-four metres of the monster's home. Each skeleton's home is further than that from the middle of the
+A monster goes for the nearest living player within its kind's sight, three metres for a skeleton, if that player is within
+its leash of the monster's home, four metres. The content's checks keep each fixed home further than that from the middle of the
 island, so the middle, where players start and come back, is safe. A monster runs at them at the
 players' running speed, and swings once it's within 1.2 metres. The skeleton's swing takes 0.9 seconds, its attack animation, and hits for five,
-0.65 seconds in. Run, or die, and it gives up and wanders back.
+0.65 seconds in. An Ash Skeleton, in the Ashlands, is level two, and hits for eight. Run, or die, and it gives up and wanders back.
 
-A monster with no health left dies, and whoever killed it gets its experience, fifty for a skeleton.
+A monster with no health left dies, and whoever killed it gets its experience, fifty for a skeleton, and ninety for an Ash Skeleton.
 Going up a level fills your health, to the new level's most. A player with no health left dies. The
 dead play their death animation, lie there for ten seconds, and come back: a monster where it
 spawned, and a player in the middle of the island, both at full health.
@@ -618,7 +618,7 @@ A world takes its port as its first argument (7777 by default), and the rest fro
 | `NANOMMO_PUBLIC_HOST` | `localhost` | Where players reach it, on its port; Compose takes it from your shell |
 | `NANOMMO_METRICS_PORT` | `9464` | Where Prometheus reaches its metrics |
 | `NANOMMO_CONSUL_HOST` | `127.0.0.1` | Where Consul is, on port 8500 |
-| `NANOMMO_ITEMS` | `items/items.txtpb` | The items file (see [Items](#items)); the image has its own |
+| `NANOMMO_CONTENT` | `content` | The content folder (see [Content](#content)); the image has its own |
 
 - A world registers with its name, its address, the public host and port, the metrics port and how
   many players it has, and a health check that turns critical ten seconds after its last pass.
@@ -723,28 +723,19 @@ storytellers tell stories (see [The storyteller](#the-storyteller)), and the oth
 yet. Until they have models, each one is a ball of its own colour and size, with its name over it in
 green.
 
-Monsters and NPCs are data, in tables like the lands':
-
-- `server/monsters.h` has each kind of monster, with its name, level, health, experience, damage and
-  swing, and where they spawn: the monsters that always have their home in the same place, by land,
-  and how many camps of which kind each land gets, in places its seed picks. The skeleton is the
-  only kind so far.
-- `server/npcs.h` has each kind of NPC, with its name, its look, a colour and a radius, and whether
-  players can talk to it, and where each one stands, in which land, and which way it faces. The server leaves out an NPC whose ground
-  isn't walkable, which another world's seed could do, and says so.
-
-A new kind of monster or NPC, or one more of them somewhere, is a line in a table.
+Kinds of NPC, and where each NPC stands, are in `content/npcs.txtpb` (see [Content](#content)).
+The server leaves out an NPC whose ground isn't walkable, which another world's seed could do.
 
 An NPC isn't a monster that stands still. It has no health, level or experience, and nothing to
 think with, so it's a small `Npc` of its own in each land's `World`, with ids of its own, apart
-from the monsters'. NPCs are never saved, as the tables put them back where they were whenever a
+from the monsters'. NPCs are never saved, as the content puts them back where they were whenever a
 server starts.
 
 - NPCs never move, so the server puts them into their interest cells once, when it spawns them, and
   each player gets the NPCs near them, like the players and monsters (see
   [What each player gets](#what-each-player-gets)).
 - They never change either, so they go out once a second, with the names and levels, in every
-  twentieth world, and each one comes with its look, so the client needs no table of its own.
+  twentieth world, by kind.
 - The client keeps each NPC for three seconds after the world it last came in was sent
   (`kNpcTimeout`, in `protocol/parts.h`), so one lost datagram, or two, doesn't make them blink out
   over UDP. It drops one that's been gone for longer, such as when you walk away from it, and a new
@@ -752,13 +743,61 @@ server starts.
 - The client draws every NPC with one sphere mesh, scaled to its radius and tinted its colour,
   resting on the ground, so a model can take the ball's place later, as data.
 
-The Meadows' four NPCs are 150 bytes in each world they go in, so sent with every world, they would
-be 3 KB a second for each player near them, and once a second, they're 150 bytes. With 300 bots,
-about 220 of them near the NPCs, the server sends 33 KB of NPCs a second, where it would send 660 KB
-with every world.
+By kind, the Meadows' four NPCs take 74 bytes in each world they go in, half of what their names and
+looks took.
 
 An NPC that walks a round, or whose look changes, would have to go out with every world, like a
 monster, or in a message of its own whenever it changes.
+
+## Content
+
+The game's content is data, in the `content` folder, which the world servers, the client and the
+bots read, so that there's one place to change it: `items.txtpb`, `monsters.txtpb` and `npcs.txtpb`,
+in protobuf's text format, each with its schema next to it, in `items.proto`, `monsters.proto` and
+`npcs.proto`. So far there's one item, the sword, which every player holds, two kinds of monster,
+the skeleton and the Ash Skeleton, and five kinds of NPC.
+
+- An item, or a kind of monster or NPC, has an id and a name, and parts that each side reads what it
+  needs from. A weapon's `weapon` and a monster's `fight` are the server's: reach, swing and hit
+  times, damage, and for a monster, its sight, its leash and how far it wanders. A `look` is the
+  client's: an item's or a monster's model, its length or height, where a weapon is held, a
+  monster's tint, and an NPC's ball, a colour and a radius. A monster's level, health and experience
+  are the server's too. `starting_weapon` names the weapon a new player holds.
+- Monsters with a fixed home, camps of monsters and NPCs name their kind by id, and their land by
+  name.
+- Each file's first two lines, `# proto-file:` and `# proto-message:`, name its schema, so that
+  editors and tools that know text protos can check it and complete its fields.
+- `content/content.h` (`nanommo_content`) reads the folder with protobuf's `TextFormat`, so a field
+  the schema doesn't have, or a value of the wrong type, is an error with the file and the line it's
+  on. Then it checks what types can't: every item and kind has an id, no two share one, the starting
+  weapon is a weapon, each spawn and camps names a kind and a land we have, and no monster with a
+  fixed home has a leash that reaches the middle of its land, where players come back to life. The
+  server, the client and the bots don't start without good content.
+- Ids start at one, and an item or a kind keeps its id for good, as they're saved and sent by id.
+  Protobuf leaves a zero out, so the client takes a missing weapon or kind as one it already knows.
+- Each player holds a weapon, by its id, saved with the rest of the player (see
+  [Saving players](#saving-players)), in the `weapon` column of the `players` table from V5. A
+  player with none saved, or with one that's gone from the file, holds the starting weapon, so the
+  database doesn't need to know which item that is.
+- Players' weapons, and monsters and NPCs, go to the clients by id, once a second, with the names
+  and levels, and the client looks up the name and the look in its content. The fields that carried
+  them before, a monster's name and an NPC's name, colour, radius and whether it talks, are reserved
+  in `nanommo.proto`, so that no new field takes their numbers. The client draws a monster of a kind
+  it doesn't have as a cube.
+- The world servers and the bots read the folder from `content`, under where they start, or from
+  `NANOMMO_CONTENT`, which their images set to their own copy, in `/usr/local/share/nanommo/content`.
+  The build copies the files next to the client, which reads them from there.
+
+Each side reads its own copy, so a client and a world have to agree on what the client reads. Each
+world works out its `ClientHash`, a 64-bit FNV-1a of the ids, names and looks, serialized
+deterministically, registers it with Consul, and the login server lists it with the world. The
+fights stay out of it, so that changing a sword's damage or a skeleton's leash needs no new client.
+A client lists a world with other content than its own as such, and doesn't log in to it. The servers
+and the client print their hash as they start.
+
+A change to the content, such as the sword's reach, is an edit to a file and a restart of the world
+servers, and a rebuild of the client when it changes what the client reads. A new item or kind is
+another entry, with the next id, as the Ash Skeleton was. Nothing gives a player another item yet.
 
 ## The storyteller
 
@@ -807,40 +846,6 @@ curl localhost:8000/v1/completions -H 'Content-Type: application/json' \
 The world server finds the storyteller at `NANOMMO_STORYTELLER_HOST` (`127.0.0.1` by default), which
 Compose sets to `storyteller`. Any server with OpenAI's completions API can take its place, such as
 vLLM, as long as its model writes stories from words like these.
-
-## Items
-
-The items are data, in one file that the world server and the client both read, so that there's one
-place to change an item: `items/items.txtpb`, in protobuf's text format, with its schema in
-`items/items.proto`. So far it has one item, the sword, which every player holds.
-
-- An item has an id and a name, and parts that each side reads what it needs from: a weapon's
-  `weapon` says how it fights (reach, swing and hit times, damage), which only the server reads, and
-  its `look` says how it's drawn (its model in `assets/weapons`, its length, where it's held), which
-  only the client reads. `starting_weapon` names the weapon a new player holds.
-- The file's first two lines, `# proto-file:` and `# proto-message:`, name its schema, so that
-  editors and tools that know text protos can check it and complete its fields.
-- `items/items.h` (`nanommo_items`, which the server and the client link) parses it with protobuf's
-  `TextFormat`, so a field the schema doesn't have, or a value of the wrong type, is an error with
-  the line it's on. Then it checks what types can't: every item has an id, no two items share one,
-  and the starting weapon is a weapon. The server won't start without a good file. The client says
-  why in its log, and draws nobody holding anything.
-- Ids start at one, and an item keeps its id for good, as players' weapons are saved and sent by id.
-  Protobuf leaves a zero out, so the client takes a missing weapon as one it already knows.
-- Each player holds a weapon, by its id, saved with the rest of the player (see
-  [Saving players](#saving-players)), in the `weapon` column of the `players` table from V5. A
-  player with none saved, or with one that's gone from the file, holds the starting weapon, so the
-  database doesn't need to know which item that is.
-- A player's weapon changes about as often as their name, so it goes out with the names and levels,
-  once a second, and the client keeps it in between.
-- The server reads the file from `items/items.txtpb`, under where it starts, or from `NANOMMO_ITEMS`,
-  which its image sets to its own copy, in `/usr/local/share/nanommo`. The build copies the file
-  next to the client, which reads it from there.
-
-Each side reads its own copy, so the server and the client should be built from the same commit: a
-client whose file doesn't have a weapon draws the player holding nothing. A change to an item, such as
-the sword's reach, is an edit to the file, and a restart of the server, or a rebuild of the client. A
-new item is another `items` entry, with the next id. Nothing gives a player another item yet.
 
 ## Deployment
 
