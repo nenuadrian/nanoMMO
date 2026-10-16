@@ -135,7 +135,7 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
   std::unique_ptr<Server> server = absl::WrapUnique(
       new Server(io, tls, interval, std::move(name), seed, content, metrics,
                  tokens, players, storyteller));
-  const absl::Status started = server->Start(port);
+  const absl::Status started = server->Start(port, content);
   if (!started.ok()) {
     return started;
   }
@@ -171,7 +171,7 @@ int Server::players() const {
   return count;
 }
 
-absl::Status Server::Start(uint16_t port) {
+absl::Status Server::Start(uint16_t port, const Content& content) {
   const absl::Status listening = Listen(acceptor_, port);
   if (!listening.ok()) {
     return listening;
@@ -187,7 +187,7 @@ absl::Status Server::Start(uint16_t port) {
                   ignored);
   for (std::size_t index = 0; index < lands_.size(); ++index) {
     World& land = lands_[index];
-    SpawnMonsters(land, static_cast<int>(index));
+    SpawnMonsters(land, static_cast<int>(index), content.monsters);
     SpawnNpcs(land, static_cast<int>(index));
     npc_cells_.push_back(CellsOf(land.npcs()));
   }

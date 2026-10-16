@@ -1,0 +1,45 @@
+#ifndef NANOMMO_SERVER_TEST_CONTENT_H_
+#define NANOMMO_SERVER_TEST_CONTENT_H_
+
+#include "content/items.h"
+#include "content/monsters.h"
+
+namespace nanommo::testing {
+
+// The tests' own content, so that the game's can change.
+
+inline ItemTable Sword() {
+  return *ParseItems(R"pb(
+    starting_weapon: 1
+    items {
+      id: 1
+      weapon { reach: 1.6 swing_ms: 2000 hit_ms: 900 damage: 15 }
+    }
+  )pb");
+}
+
+inline monsters::Kind Skeleton() {
+  return ParseMonsters(R"pb(
+           kinds {
+             id: 1
+             name: "Skeleton"
+             level: 1
+             max_health: 50
+             experience: 50
+             fight {
+               damage: 5
+               swing_ms: 900
+               hit_ms: 650
+               reach: 1.2
+               sight: 3
+               leash: 4
+               wander: 3
+             }
+           }
+         )pb")
+      ->kinds.at(1);
+}
+
+}  // namespace nanommo::testing
+
+#endif  // NANOMMO_SERVER_TEST_CONTENT_H_

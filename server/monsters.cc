@@ -8,6 +8,8 @@
 #include <utility>
 #include <vector>
 
+#include "terrain/lands.h"
+
 namespace nanommo {
 
 namespace {
@@ -30,7 +32,7 @@ void PickTarget(Monster& monster, const Terrain& terrain,
                 std::mt19937& random) {
   std::uniform_real_distribution<float> unit(0.0f, 1.0f);
   const float angle = 2.0f * std::numbers::pi_v<float> * unit(random);
-  const float distance = kWanderRadius * std::sqrt(unit(random));
+  const float distance = monster.wander * std::sqrt(unit(random));
   monster.target_x = std::clamp(monster.home_x + distance * std::sin(angle),
                                 -terrain.edge(), terrain.edge());
   monster.target_z = std::clamp(monster.home_z + distance * std::cos(angle),
@@ -39,33 +41,41 @@ void PickTarget(Monster& monster, const Terrain& terrain,
 
 }  // namespace
 
-Monster MonsterOf(const MonsterKind& kind, float x, float z) {
-  return {.name = kind.name,
+Monster MonsterOf(const monsters::Kind& kind, float x, float z) {
+  const monsters::Fight& fight = kind.fight();
+  return {.name = kind.name(),
+          .kind = kind.id(),
           .x = x,
           .z = z,
-          .level = kind.level,
-          .max_health = kind.max_health,
-          .experience = kind.experience,
-          .damage = kind.damage,
-          .swing_time = kind.swing_time,
-          .hit_time = kind.hit_time};
+          .level = static_cast<int>(kind.level()),
+          .max_health = static_cast<int>(kind.max_health()),
+          .experience = kind.experience(),
+          .damage = static_cast<int>(fight.damage()),
+          .swing_time = std::chrono::milliseconds(fight.swing_ms()),
+          .hit_time = std::chrono::milliseconds(fight.hit_ms()),
+          .reach = fight.reach(),
+          .sight = fight.sight(),
+          .leash = fight.leash(),
+          .wander = fight.wander()};
 }
 
-void SpawnMonsters(World& land, int index) {
-  for (const MonsterSpawn& spawn : kMonsterSpawns) {
-    if (spawn.land == index) {
-      land.Spawn(MonsterOf(*spawn.kind, spawn.x, spawn.z));
+void SpawnMonsters(World& land, int index, const MonsterTable& table) {
+  for (const monsters::Spawn& spawn : table.spawns) {
+    if (LandNamed(spawn.land()) == index) {
+      land.Spawn(MonsterOf(table.kinds.at(spawn.kind()), spawn.x(), spawn.z()));
     }
   }
   const Terrain& terrain = land.terrain();
-  for (const MonsterCamps& camps : kMonsterCamps) {
-    if (camps.land != index) {
+  for (const monsters::Camps& camps : table.camps) {
+    if (LandNamed(camps.land()) != index) {
       continue;
     }
-    for (const auto& [camp_x, camp_z] : Camps(terrain, camps.count)) {
+    const monsters::Kind& kind = table.kinds.at(camps.kind());
+    for (const auto& [camp_x, camp_z] :
+         Camps(terrain, static_cast<int>(camps.count()))) {
       for (const auto& [x, z] : kCampLayout) {
         if (terrain.Walkable(camp_x + x, camp_z + z)) {
-          land.Spawn(MonsterOf(*camps.kind, camp_x + x, camp_z + z));
+          land.Spawn(MonsterOf(kind, camp_x + x, camp_z + z));
         }
       }
     }
@@ -130,13 +140,13 @@ void Wander(Monster& monster, const Terrain& terrain,
 uint32_t Spot(const Monster& monster,
               const std::map<uint32_t, Player>& players) {
   uint32_t nearest = 0;
-  float closest = kSight;
+  float closest = monster.sight;
   for (const auto& [id, player] : players) {
     const float away = std::hypot(player.x - monster.x, player.z - monster.z);
     const float from_home =
         std::hypot(player.x - monster.home_x, player.z - monster.home_z);
     if (player.motion != Motion::kDead && away <= closest &&
-        from_home <= kLeash) {
+        from_home <= monster.leash) {
       nearest = id;
       closest = away;
     }
@@ -162,14 +172,14 @@ void Hunt(Monster& monster, const std::map<uint32_t, Player>& players,
   const float dz = player.z - monster.z;
   const float distance = std::hypot(dx, dz);
   monster.yaw = std::atan2(dx, dz);
-  if (distance <= kMonsterReach) {
+  if (distance <= monster.reach) {
     monster.motion = Motion::kAttack;
     monster.swing = std::chrono::nanoseconds::zero();
     return;
   }
   const float step =
       std::min(World::kRunSpeed * std::chrono::duration<float>(time).count(),
-               distance - kMonsterReach);
+               distance - monster.reach);
   Walk(terrain, monster.x, monster.z, monster.x + dx / distance * step,
        monster.z + dz / distance * step);
   monster.motion = Motion::kRun;

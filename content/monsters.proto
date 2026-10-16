@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package nanommo.monsters;
+
+// How a kind of monster fights, and how far it goes: the server's part.
+message Fight {
+  uint32 damage = 1;
+  uint32 swing_ms = 2;
+  // How far into its swing the blow lands.
+  uint32 hit_ms = 3;
+  // In metres, like the rest.
+  float reach = 4;
+  // How close a player comes before it gives chase.
+  float sight = 5;
+  // It gives up on a player this far from its home.
+  float leash = 6;
+  // How far from its home it wanders.
+  float wander = 7;
+}
+
+// How a kind of monster is drawn: the client's part.
+message Look {
+  // A glTF file in the client's monsters folder.
+  string model = 1;
+  // In metres.
+  float height = 2;
+  // As 0xRRGGBBAA. Without one, the model keeps its own colours.
+  optional uint32 tint = 3;
+}
+
+message Kind {
+  // From one, and a kind keeps its id for good.
+  uint32 id = 1;
+  string name = 2;
+  uint32 level = 3;
+  uint32 max_health = 4;
+  // What a player gets for killing one.
+  uint32 experience = 5;
+  Fight fight = 6;
+  Look look = 7;
+}
+
+// A monster that always has its home in the same place, in metres from the
+// middle of its land.
+message Spawn {
+  uint32 kind = 1;
+  string land = 2;
+  float x = 3;
+  float z = 4;
+}
+
+// Camps of monsters of a kind, in places that the land's seed picks.
+message Camps {
+  uint32 kind = 1;
+  string land = 2;
+  uint32 count = 3;
+}
+
+message Monsters {
+  repeated Kind kinds = 1;
+  repeated Spawn spawns = 2;
+  repeated Camps camps = 3;
+}

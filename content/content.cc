@@ -35,8 +35,10 @@ absl::Status Read(const std::string& folder, const char* file,
 
 absl::StatusOr<Content> ReadContent(const std::string& folder) {
   Content content;
-  const absl::Status read =
-      Read(folder, "items.txtpb", ParseItems, content.items);
+  absl::Status read = Read(folder, "items.txtpb", ParseItems, content.items);
+  if (read.ok()) {
+    read = Read(folder, "monsters.txtpb", ParseMonsters, content.monsters);
+  }
   if (!read.ok()) {
     return read;
   }

@@ -51,7 +51,7 @@ class Server {
          const Content& content, Metrics& metrics, Tokens& tokens,
          Players& players, Storyteller& storyteller);
 
-  absl::Status Start(uint16_t port);
+  absl::Status Start(uint16_t port, const Content& content);
   World* LandOf(uint32_t id);
   void Accept();
   uint32_t HandleHello(Session& session, const std::string& bytes);

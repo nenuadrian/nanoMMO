@@ -5,9 +5,9 @@
 #include <limits>
 #include <numbers>
 
-#include "content/items.h"
 #include "gtest/gtest.h"
 #include "server/monsters.h"
+#include "server/test_content.h"
 #include "terrain/terrain.h"
 
 namespace {
@@ -18,17 +18,6 @@ void RunOneSecond(nanommo::World& world) {
   for (int tick = 0; tick < 20; ++tick) {
     world.Step(kTick);
   }
-}
-
-// The tests' own sword, so that the game's can change.
-nanommo::ItemTable Sword() {
-  return *nanommo::ParseItems(R"pb(
-    starting_weapon: 1
-    items {
-      id: 1
-      weapon { reach: 1.6 swing_ms: 2000 hit_ms: 900 damage: 15 }
-    }
-  )pb");
 }
 
 }  // namespace
@@ -138,10 +127,10 @@ TEST(World, IgnoresInputThatIsNotANumber) {
 TEST(World, SpawnsMonstersWithIdsOfTheirOwn) {
   nanommo::World world;
 
-  const uint32_t first =
-      world.Spawn(nanommo::MonsterOf(nanommo::kSkeleton, 2.0f, -1.0f));
-  const uint32_t second =
-      world.Spawn(nanommo::MonsterOf(nanommo::kSkeleton, -3.0f, 0.0f));
+  const uint32_t first = world.Spawn(
+      nanommo::MonsterOf(nanommo::testing::Skeleton(), 2.0f, -1.0f));
+  const uint32_t second = world.Spawn(
+      nanommo::MonsterOf(nanommo::testing::Skeleton(), -3.0f, 0.0f));
 
   EXPECT_EQ(first, 1u);
   EXPECT_EQ(second, 2u);
@@ -149,12 +138,12 @@ TEST(World, SpawnsMonstersWithIdsOfTheirOwn) {
 }
 
 TEST(World, SwingsAtTheNearestMonsterInReach) {
-  nanommo::World world(1, nanommo::Terrain(), Sword());
+  nanommo::World world(1, nanommo::Terrain(), nanommo::testing::Sword());
   world.Join(1, {});
   const uint32_t near =
-      world.Spawn(nanommo::MonsterOf(nanommo::kSkeleton, 1.0f, 0.0f));
-  const uint32_t far =
-      world.Spawn(nanommo::MonsterOf(nanommo::kSkeleton, 0.0f, -1.5f));
+      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 1.0f, 0.0f));
+  const uint32_t far = world.Spawn(
+      nanommo::MonsterOf(nanommo::testing::Skeleton(), 0.0f, -1.5f));
 
   world.SetInput(1, 0.0f, 0.0f, false, true);
   world.Step(kTick);
@@ -168,9 +157,10 @@ TEST(World, SwingsAtTheNearestMonsterInReach) {
 }
 
 TEST(World, KillsMonstersForTheirExperienceAndTheyComeBack) {
-  nanommo::World world(1, nanommo::Terrain(), Sword());
+  nanommo::World world(1, nanommo::Terrain(), nanommo::testing::Sword());
   world.Join(1, {.experience = 60});
-  nanommo::Monster weak = nanommo::MonsterOf(nanommo::kSkeleton, 1.0f, 0.0f);
+  nanommo::Monster weak =
+      nanommo::MonsterOf(nanommo::testing::Skeleton(), 1.0f, 0.0f);
   weak.max_health = 10;
   const uint32_t id = world.Spawn(weak);
 
@@ -193,7 +183,7 @@ TEST(World, KillsMonstersForTheirExperienceAndTheyComeBack) {
 TEST(World, MonstersKillPlayersWhoComeBackInTheMiddle) {
   nanommo::World world;
   world.Join(1, {.x = 2.0f});
-  world.Spawn(nanommo::MonsterOf(nanommo::kSkeleton, 3.0f, 0.0f));
+  world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 3.0f, 0.0f));
 
   for (int second = 0; second < 18; ++second) {
     RunOneSecond(world);

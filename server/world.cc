@@ -227,7 +227,7 @@ void World::Hit(Monster& monster) {
   }
   Player& player = found->second;
   if (player.motion == Motion::kDead ||
-      Distance(player, monster) > kMonsterReach) {
+      Distance(player, monster) > monster.reach) {
     return;
   }
   player.health = std::max(player.health - monster.damage, 0);

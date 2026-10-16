@@ -38,6 +38,8 @@ struct Player {
 
 struct Monster {
   std::string name;
+  /// By its id in the monsters file.
+  uint32_t kind = 0;
   float x = 0.0f;
   float z = 0.0f;
   float yaw = 0.0f;
@@ -49,6 +51,11 @@ struct Monster {
   int damage = 0;
   std::chrono::nanoseconds swing_time{0};
   std::chrono::nanoseconds hit_time{0};
+  /// In metres, from its kind's fight.
+  float reach = 0.0f;
+  float sight = 0.0f;
+  float leash = 0.0f;
+  float wander = 0.0f;
   float home_x = 0.0f;
   float home_z = 0.0f;
   float target_x = 0.0f;

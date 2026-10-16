@@ -50,6 +50,8 @@ constexpr float kArrival = 3.0f;
 /// Its place in the list, or the first land's for a name that isn't there.
 int LandNamed(std::string_view name);
 
+bool IsLand(std::string_view name);
+
 bool InGate(const Land& land, float x, float z);
 
 /// Where a player who goes through a gate comes out at the land's gate: past

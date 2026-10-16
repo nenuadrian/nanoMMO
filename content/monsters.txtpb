@@ -1,0 +1,33 @@
+# proto-file: content/monsters.proto
+# proto-message: nanommo.monsters.Monsters
+
+kinds {
+  id: 1
+  name: "Skeleton"
+  level: 1
+  max_health: 50
+  experience: 50
+  fight {
+    damage: 5
+    swing_ms: 900
+    hit_ms: 650
+    reach: 1.2
+    sight: 3
+    leash: 4
+    wander: 3
+  }
+  look {
+    model: "skeleton.glb"
+    height: 1.6
+  }
+}
+
+spawns { kind: 1 land: "Meadows" x: -3.5 z: -3 }
+spawns { kind: 1 land: "Meadows" x: 3.5 z: -2.5 }
+spawns { kind: 1 land: "Meadows" x: 3 z: 3.5 }
+spawns { kind: 1 land: "Ashlands" x: -3.5 z: -3 }
+spawns { kind: 1 land: "Ashlands" x: 3.5 z: -2.5 }
+spawns { kind: 1 land: "Ashlands" x: 3 z: 3.5 }
+
+camps { kind: 1 land: "Meadows" count: 8 }
+camps { kind: 1 land: "Ashlands" count: 8 }

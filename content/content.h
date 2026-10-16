@@ -5,6 +5,7 @@
 
 #include "absl/status/statusor.h"
 #include "content/items.h"
+#include "content/monsters.h"
 
 namespace nanommo {
 
@@ -12,6 +13,7 @@ namespace nanommo {
 /// read from the content folder.
 struct Content {
   ItemTable items;
+  MonsterTable monsters;
 };
 
 /// Reads each file in the folder, or says which file is wrong, and where.

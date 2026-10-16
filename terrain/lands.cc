@@ -15,6 +15,15 @@ int LandNamed(std::string_view name) {
   return 0;
 }
 
+bool IsLand(std::string_view name) {
+  for (const Land& land : kLands) {
+    if (land.name == name) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool InGate(const Land& land, float x, float z) {
   return std::hypot(x - land.gate.x, z - land.gate.z) < kGateRadius;
 }
