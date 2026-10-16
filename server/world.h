@@ -7,6 +7,7 @@
 #include <random>
 #include <string>
 
+#include "items/items.h"
 #include "terrain/terrain.h"
 
 namespace nanommo {
@@ -24,6 +25,8 @@ struct Player {
   int health = 0;
   /// Which of the world's lands, by its place in kLands.
   int land = 0;
+  /// What the player holds, by its id in the items file.
+  uint32_t weapon = 0;
   uint32_t target = 0;
   std::chrono::nanoseconds swing{0};
   std::chrono::nanoseconds respawn{0};
@@ -82,17 +85,12 @@ class World {
 
   static constexpr float kRunSpeed = 3.1f;
 
-  static constexpr float kReach = 1.6f;
-
-  /// As long as the slash animation.
-  static constexpr std::chrono::milliseconds kSwingTime{2000};
-
-  static constexpr std::chrono::milliseconds kHitTime{900};
-
   static constexpr std::chrono::seconds kRespawnTime{10};
 
+  /// Players fight with the items' weapons, so in a world without items,
+  /// nobody can.
   explicit World(uint32_t seed = std::mt19937::default_seed,
-                 Terrain terrain = Terrain());
+                 Terrain terrain = Terrain(), ItemTable items = {});
 
   void Join(uint32_t id, Player player);
 
@@ -115,12 +113,14 @@ class World {
  private:
   void Act(Player& player, std::chrono::nanoseconds time);
   void Move(Player& player, std::chrono::nanoseconds time);
-  void Swing(Player& player);
-  void Hit(Player& player);
+  const items::Weapon* WeaponOf(const Player& player) const;
+  void Swing(Player& player, const items::Weapon& weapon);
+  void Hit(Player& player, const items::Weapon& weapon);
   void Act(Monster& monster, std::chrono::nanoseconds time);
   void Hit(Monster& monster);
 
   Terrain terrain_;
+  ItemTable items_;
   std::map<uint32_t, Player> players_;
   std::map<uint32_t, Monster> monsters_;
   uint32_t next_monster_ = 1;

@@ -15,7 +15,8 @@ Level LevelFor(uint32_t experience);
 
 int MaxHealth(int level);
 
-int Damage(int level);
+/// What a level adds to the damage of the weapon a player holds.
+int ExtraDamage(int level);
 
 }  // namespace nanommo
 

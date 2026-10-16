@@ -127,11 +127,11 @@ protocol::Npc ToProtocol(uint32_t id, const Npc& npc) {
 absl::StatusOr<std::unique_ptr<Server>> Server::Create(
     asio::io_context& io, uint16_t port, asio::ssl::context& tls,
     std::chrono::nanoseconds interval, std::string name, uint32_t seed,
-    Metrics& metrics, Tokens& tokens, Players& players,
+    const ItemTable& items, Metrics& metrics, Tokens& tokens, Players& players,
     Storyteller& storyteller) {
-  std::unique_ptr<Server> server =
-      absl::WrapUnique(new Server(io, tls, interval, std::move(name), seed,
-                                  metrics, tokens, players, storyteller));
+  std::unique_ptr<Server> server = absl::WrapUnique(
+      new Server(io, tls, interval, std::move(name), seed, items, metrics,
+                 tokens, players, storyteller));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -141,8 +141,8 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
 
 Server::Server(asio::io_context& io, asio::ssl::context& tls,
                std::chrono::nanoseconds interval, std::string name,
-               uint32_t seed, Metrics& metrics, Tokens& tokens,
-               Players& players, Storyteller& storyteller)
+               uint32_t seed, const ItemTable& items, Metrics& metrics,
+               Tokens& tokens, Players& players, Storyteller& storyteller)
     : acceptor_(io),
       tls_(tls),
       udp_(io),
@@ -156,7 +156,7 @@ Server::Server(asio::io_context& io, asio::ssl::context& tls,
       storyteller_(storyteller) {
   for (const Land& land : kLands) {
     lands_.emplace_back(std::random_device()(),
-                        Terrain(seed + land.seed, land.wading));
+                        Terrain(seed + land.seed, land.wading), items);
   }
 }
 

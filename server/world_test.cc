@@ -6,6 +6,7 @@
 #include <numbers>
 
 #include "gtest/gtest.h"
+#include "items/items.h"
 #include "server/monsters.h"
 #include "terrain/terrain.h"
 
@@ -17,6 +18,17 @@ void RunOneSecond(nanommo::World& world) {
   for (int tick = 0; tick < 20; ++tick) {
     world.Step(kTick);
   }
+}
+
+// The tests' own sword, so that the game's can change.
+nanommo::ItemTable Sword() {
+  return *nanommo::ParseItems(R"pb(
+    starting_weapon: 1
+    items {
+      id: 1
+      weapon { reach: 1.6 swing_ms: 2000 hit_ms: 900 damage: 15 }
+    }
+  )pb");
 }
 
 }  // namespace
@@ -137,7 +149,7 @@ TEST(World, SpawnsMonstersWithIdsOfTheirOwn) {
 }
 
 TEST(World, SwingsAtTheNearestMonsterInReach) {
-  nanommo::World world;
+  nanommo::World world(1, nanommo::Terrain(), Sword());
   world.Join(1, {});
   const uint32_t near =
       world.Spawn(nanommo::MonsterOf(nanommo::kSkeleton, 1.0f, 0.0f));
@@ -156,7 +168,7 @@ TEST(World, SwingsAtTheNearestMonsterInReach) {
 }
 
 TEST(World, KillsMonstersForTheirExperienceAndTheyComeBack) {
-  nanommo::World world;
+  nanommo::World world(1, nanommo::Terrain(), Sword());
   world.Join(1, {.experience = 60});
   nanommo::Monster weak = nanommo::MonsterOf(nanommo::kSkeleton, 1.0f, 0.0f);
   weak.max_health = 10;

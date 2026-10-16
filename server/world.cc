@@ -29,8 +29,8 @@ void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z) {
   }
 }
 
-World::World(uint32_t seed, Terrain terrain)
-    : terrain_(std::move(terrain)), random_(seed) {}
+World::World(uint32_t seed, Terrain terrain, ItemTable items)
+    : terrain_(std::move(terrain)), items_(std::move(items)), random_(seed) {}
 
 void World::Join(uint32_t id, Player player) {
   // Saved somewhere that's sea now, such as on a terrain from another seed.
@@ -41,6 +41,10 @@ void World::Join(uint32_t id, Player player) {
   // Zero when none was saved, as for a player from before we kept health.
   if (player.health <= 0) {
     player.health = MaxHealth(LevelFor(player.experience).number);
+  }
+  // No weapon, or one that isn't in the items file: the starting weapon.
+  if (!items_.by_id.contains(player.weapon)) {
+    player.weapon = items_.starting_weapon;
   }
   players_[id] = std::move(player);
 }
@@ -103,19 +107,21 @@ void World::Act(Player& player, std::chrono::nanoseconds time) {
     }
     return;
   }
+  const items::Weapon* weapon = WeaponOf(player);
   if (player.motion == Motion::kAttack) {
     const auto before = player.swing;
     player.swing += time;
-    if (before < kHitTime && player.swing >= kHitTime) {
-      Hit(player);
+    const std::chrono::milliseconds hit(weapon->hit_ms());
+    if (before < hit && player.swing >= hit) {
+      Hit(player, *weapon);
     }
-    if (player.swing < kSwingTime) {
+    if (player.swing < std::chrono::milliseconds(weapon->swing_ms())) {
       return;
     }
     player.motion = Motion::kIdle;
   }
-  if (player.input_attack) {
-    Swing(player);
+  if (player.input_attack && weapon != nullptr) {
+    Swing(player, *weapon);
   } else {
     Move(player, time);
   }
@@ -144,11 +150,19 @@ void World::Move(Player& player, std::chrono::nanoseconds time) {
   player.z = z;
 }
 
-void World::Swing(Player& player) {
+const items::Weapon* World::WeaponOf(const Player& player) const {
+  const auto found = items_.by_id.find(player.weapon);
+  if (found == items_.by_id.end() || !found->second.has_weapon()) {
+    return nullptr;
+  }
+  return &found->second.weapon();
+}
+
+void World::Swing(Player& player, const items::Weapon& weapon) {
   player.motion = Motion::kAttack;
   player.swing = std::chrono::nanoseconds::zero();
   player.target = 0;
-  float nearest = kReach;
+  float nearest = weapon.reach();
   for (const auto& [id, monster] : monsters_) {
     if (monster.motion != Motion::kDead &&
         Distance(player, monster) <= nearest) {
@@ -162,17 +176,19 @@ void World::Swing(Player& player) {
   }
 }
 
-void World::Hit(Player& player) {
+void World::Hit(Player& player, const items::Weapon& weapon) {
   const auto found = monsters_.find(player.target);
   if (found == monsters_.end()) {
     return;
   }
   Monster& monster = found->second;
-  if (monster.motion == Motion::kDead || Distance(player, monster) > kReach) {
+  if (monster.motion == Motion::kDead ||
+      Distance(player, monster) > weapon.reach()) {
     return;
   }
   const int level = LevelFor(player.experience).number;
-  monster.health = std::max(monster.health - Damage(level), 0);
+  const int damage = static_cast<int>(weapon.damage()) + ExtraDamage(level);
+  monster.health = std::max(monster.health - damage, 0);
   if (monster.health > 0) {
     return;
   }
