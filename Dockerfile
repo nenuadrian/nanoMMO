@@ -23,8 +23,8 @@ RUN apt-get update \
 
 FROM runtime AS server
 COPY --from=test /src/build/bin/nanommo_server /usr/local/bin/
-COPY items/items.txtpb /usr/local/share/nanommo/
-ENV NANOMMO_ITEMS=/usr/local/share/nanommo/items.txtpb
+COPY content/*.txtpb /usr/local/share/nanommo/content/
+ENV NANOMMO_CONTENT=/usr/local/share/nanommo/content
 USER ubuntu
 EXPOSE 7777 7777/udp 9464
 ENTRYPOINT ["nanommo_server"]
@@ -80,8 +80,8 @@ RUN mkdir /opt/flamegraph \
  && rm /tmp/*.tar.gz
 ENV PATH=/opt/flamegraph:$PATH
 COPY --from=profile-build /src/build/bin/nanommo_server /usr/local/bin/
-COPY items/items.txtpb /usr/local/share/nanommo/
-ENV NANOMMO_ITEMS=/usr/local/share/nanommo/items.txtpb
+COPY content/*.txtpb /usr/local/share/nanommo/content/
+ENV NANOMMO_CONTENT=/usr/local/share/nanommo/content
 COPY bench/profile.sh /usr/local/bin/
 EXPOSE 7777 7777/udp 9464 8086
 ENTRYPOINT ["nanommo_server"]
@@ -118,6 +118,6 @@ RUN pip install --no-cache-dir clang-format==18.1.3 cpplint==2.0.2
 # one, so the folder is named after the project: NANOMMO_SERVER_TICK_H_.
 WORKDIR /nanommo
 COPY . .
-RUN find server bot client protocol items terrain -name '*.cc' -o -name '*.h' \
+RUN find server bot client protocol content terrain -name '*.cc' -o -name '*.h' \
  | xargs clang-format --dry-run --Werror \
- && cpplint --root=.. --recursive --quiet server bot client protocol items terrain
+ && cpplint --root=.. --recursive --quiet server bot client protocol content terrain

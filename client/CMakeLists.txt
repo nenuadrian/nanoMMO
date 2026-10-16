@@ -8,10 +8,11 @@ add_library(nanommo_client_core
 )
 target_include_directories(nanommo_client_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_client_core PUBLIC
-  raylib imgui nanommo_protocol nanommo_items nanommo_terrain asio
+  raylib imgui nanommo_protocol nanommo_content nanommo_terrain asio
   absl::memory absl::status absl::statusor absl::strings
 )
 
+file(GLOB content_files CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/content/*.txtpb)
 add_custom_target(nanommo_client_assets ALL
   COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
     ${PROJECT_SOURCE_DIR}/assets/characters
@@ -25,9 +26,10 @@ add_custom_target(nanommo_client_assets ALL
   COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
     ${PROJECT_SOURCE_DIR}/assets/trees
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/trees
+  COMMAND ${CMAKE_COMMAND} -E make_directory
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/content
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${PROJECT_SOURCE_DIR}/items/items.txtpb
-    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/items.txtpb
+    ${content_files} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/content
 )
 
 add_executable(nanommo_client main.cc)

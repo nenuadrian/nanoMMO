@@ -7,7 +7,7 @@
 #include <random>
 #include <string>
 
-#include "items/items.h"
+#include "content/items.h"
 #include "terrain/terrain.h"
 
 namespace nanommo {

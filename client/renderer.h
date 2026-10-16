@@ -15,13 +15,14 @@
 #include "client/chunks.h"
 #include "client/cube.h"
 #include "client/trees.h"
+#include "content/content.h"
 #include "terrain/terrain.h"
 
 namespace nanommo {
 
 class Renderer {
  public:
-  Renderer();
+  explicit Renderer(const Content& content = Content());
   ~Renderer();
 
   Renderer(const Renderer&) = delete;

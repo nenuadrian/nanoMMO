@@ -17,7 +17,7 @@
 #include "asio/ip/udp.hpp"
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
-#include "items/items.h"
+#include "content/content.h"
 #include "protocol/nanommo.pb.h"
 #include "server/interest.h"
 #include "server/metrics.h"
@@ -39,7 +39,7 @@ class Server {
   static absl::StatusOr<std::unique_ptr<Server>> Create(
       asio::io_context& io, uint16_t port, asio::ssl::context& tls,
       std::chrono::nanoseconds interval, std::string name, uint32_t seed,
-      const ItemTable& items, Metrics& metrics, Tokens& tokens,
+      const Content& content, Metrics& metrics, Tokens& tokens,
       Players& players, Storyteller& storyteller);
 
   /// In all its lands.
@@ -48,7 +48,7 @@ class Server {
  private:
   Server(asio::io_context& io, asio::ssl::context& tls,
          std::chrono::nanoseconds interval, std::string name, uint32_t seed,
-         const ItemTable& items, Metrics& metrics, Tokens& tokens,
+         const Content& content, Metrics& metrics, Tokens& tokens,
          Players& players, Storyteller& storyteller);
 
   absl::Status Start(uint16_t port);

@@ -5,8 +5,8 @@
 #include <limits>
 #include <numbers>
 
+#include "content/items.h"
 #include "gtest/gtest.h"
-#include "items/items.h"
 #include "server/monsters.h"
 #include "terrain/terrain.h"
 

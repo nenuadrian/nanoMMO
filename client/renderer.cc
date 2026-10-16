@@ -8,7 +8,6 @@
 
 #include "client/ground.h"
 #include "client/scene.h"
-#include "items/items.h"
 
 namespace nanommo {
 
@@ -102,7 +101,7 @@ void SetAtmosphere(Shader shader, const Atmosphere& atmosphere) {
 
 }  // namespace
 
-Renderer::Renderer()
+Renderer::Renderer(const Content& content)
     : cube_shader_(LoadShaderFromMemory(kVertexShader, kFragmentShader)),
       character_shader_(
           LoadShaderFromMemory(kSkinnedVertexShader, kFragmentShader)),
@@ -113,14 +112,9 @@ Renderer::Renderer()
       monsters_(MonstersFolder(), {"skeleton.glb"}, 1.6f, character_shader_) {
   cube_.materials[0].shader = cube_shader_;
   sphere_.materials[0].shader = cube_shader_;
-  const absl::StatusOr<ItemTable> items = ReadItems(ItemsFile());
-  if (items.ok()) {
-    // Weapons have no bones, so they're drawn with the cube's shader.
-    for (const auto& [id, item] : items->by_id) {
-      characters_.Hold(id, item.look(), cube_shader_);
-    }
-  } else {
-    TraceLog(LOG_WARNING, "%s", items.status().ToString().c_str());
+  // Weapons have no bones, so they're drawn with the cube's shader.
+  for (const auto& [id, item] : content.items.by_id) {
+    characters_.Hold(id, item.look(), cube_shader_);
   }
 
   tree_ = LoadFaces(TreesFolder() + "/tree.glb");

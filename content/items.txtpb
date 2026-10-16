@@ -1,4 +1,4 @@
-# proto-file: items/items.proto
+# proto-file: content/items.proto
 # proto-message: nanommo.items.Items
 
 starting_weapon: 1

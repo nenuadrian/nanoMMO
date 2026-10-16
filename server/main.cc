@@ -21,7 +21,7 @@
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
 #include "asio/thread_pool.hpp"
-#include "items/items.h"
+#include "content/content.h"
 #include "prometheus/exposer.h"
 #include "protocol/settings.h"
 #include "protocol/tls.h"
@@ -89,10 +89,10 @@ int main(int argc, char* argv[]) {
               << seed_setting << "\n";
     return 1;
   }
-  const absl::StatusOr<nanommo::ItemTable> items = nanommo::ReadItems(
-      nanommo::Setting("NANOMMO_ITEMS", "items/items.txtpb"));
-  if (!items.ok()) {
-    std::cerr << "nanommo server: " << items.status() << "\n";
+  const absl::StatusOr<nanommo::Content> content =
+      nanommo::ReadContent(nanommo::Setting("NANOMMO_CONTENT", "content"));
+  if (!content.ok()) {
+    std::cerr << "nanommo server: " << content.status() << "\n";
     return 1;
   }
 
@@ -132,7 +132,7 @@ int main(int argc, char* argv[]) {
   nanommo::Storyteller storyteller(
       io, nanommo::Setting("NANOMMO_STORYTELLER_HOST", "127.0.0.1"));
   absl::StatusOr<std::unique_ptr<nanommo::Server>> server_or =
-      nanommo::Server::Create(io, *port, *tls, *interval, name, seed, *items,
+      nanommo::Server::Create(io, *port, *tls, *interval, name, seed, *content,
                               metrics, tokens, players, storyteller);
   if (!server_or.ok()) {
     std::cerr << "nanommo server: " << server_or.status() << "\n";

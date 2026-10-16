@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "client/animator.h"
-#include "items/items.pb.h"
+#include "content/items.pb.h"
 
 namespace nanommo {
 
@@ -21,7 +21,7 @@ std::string MonstersFolder();
 
 std::string WeaponsFolder();
 
-std::string ItemsFile();
+std::string ContentFolder();
 
 class Characters {
  public:

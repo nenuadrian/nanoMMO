@@ -1,13 +1,12 @@
-#ifndef NANOMMO_ITEMS_ITEMS_H_
-#define NANOMMO_ITEMS_ITEMS_H_
+#ifndef NANOMMO_CONTENT_ITEMS_H_
+#define NANOMMO_CONTENT_ITEMS_H_
 
 #include <cstdint>
 #include <map>
-#include <string>
 #include <string_view>
 
 #include "absl/status/statusor.h"
-#include "items/items.pb.h"
+#include "content/items.pb.h"
 
 namespace nanommo {
 
@@ -22,8 +21,6 @@ struct ItemTable {
 /// that isn't one.
 absl::StatusOr<ItemTable> ParseItems(std::string_view text);
 
-absl::StatusOr<ItemTable> ReadItems(const std::string& path);
-
 }  // namespace nanommo
 
-#endif  // NANOMMO_ITEMS_ITEMS_H_
+#endif  // NANOMMO_CONTENT_ITEMS_H_

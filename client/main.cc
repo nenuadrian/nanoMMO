@@ -29,6 +29,7 @@
 #include "client/renderer.h"
 #include "client/talk_window.h"
 #include "client/window.h"
+#include "content/content.h"
 #include "protocol/login_client.h"
 #include "protocol/settings.h"
 #include "protocol/tls.h"
@@ -99,6 +100,13 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  const absl::StatusOr<nanommo::Content> content =
+      nanommo::ReadContent(nanommo::ContentFolder());
+  if (!content.ok()) {
+    std::cerr << "nanommo client: " << content.status() << "\n";
+    return 1;
+  }
+
   absl::StatusOr<std::unique_ptr<nanommo::Window>> window_or =
       nanommo::Window::Create("nanoMMO", 1280, 720);
   if (!window_or.ok()) {
@@ -112,7 +120,7 @@ int main(int argc, char* argv[]) {
   nanommo::ChatWindow chat_window;
   nanommo::TalkWindow talk_window;
   nanommo::LoginScreen login_screen;
-  nanommo::Renderer renderer;
+  nanommo::Renderer renderer(*content);
   nanommo::Animator animator;
   std::optional<nanommo::Terrain> terrain;
   int land = 0;

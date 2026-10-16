@@ -100,8 +100,8 @@ std::string WeaponsFolder() {
   return std::string(GetApplicationDirectory()) + "weapons";
 }
 
-std::string ItemsFile() {
-  return std::string(GetApplicationDirectory()) + "items.txtpb";
+std::string ContentFolder() {
+  return std::string(GetApplicationDirectory()) + "content";
 }
 
 Characters::Characters(const std::string& folder,
