@@ -23,6 +23,8 @@ RUN apt-get update \
 
 FROM runtime AS server
 COPY --from=test /src/build/bin/nanommo_server /usr/local/bin/
+COPY items/items.txtpb /usr/local/share/nanommo/
+ENV NANOMMO_ITEMS=/usr/local/share/nanommo/items.txtpb
 USER ubuntu
 EXPOSE 7777 7777/udp 9464
 ENTRYPOINT ["nanommo_server"]
@@ -78,6 +80,8 @@ RUN mkdir /opt/flamegraph \
  && rm /tmp/*.tar.gz
 ENV PATH=/opt/flamegraph:$PATH
 COPY --from=profile-build /src/build/bin/nanommo_server /usr/local/bin/
+COPY items/items.txtpb /usr/local/share/nanommo/
+ENV NANOMMO_ITEMS=/usr/local/share/nanommo/items.txtpb
 COPY bench/profile.sh /usr/local/bin/
 EXPOSE 7777 7777/udp 9464 8086
 ENTRYPOINT ["nanommo_server"]
