@@ -69,7 +69,8 @@ the window. View, Settings changes the sky, which is the colour of the fog too, 
 takes you back to the login screen. Next time you log in to that world, you're where you left off.
 
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
-it, and all sides use the C++ it generates.
+it, and all sides use the C++ it generates. The items are data that the server and the client both
+read, from `items/items.txtpb` (see [Items](#items)).
 
 ## Code style
 
@@ -95,11 +96,12 @@ slash and the death keep their motion, so a player falls back as it dies. The bu
 `assets/characters` next to the client, which loads them from there. Without them, the players are
 cubes, and the client's character tests skip themselves.
 
-Each player holds Quaternius's sword, from [Poly Pizza](https://poly.pizza/m/ajOJ2NLz5m), which is
-public domain and in the repo, as it was downloaded, in `assets/weapons`. The client scales it to a
-metre and, each frame, puts it where the right hand's bone is in the pose: along the knuckles, with
-the blade out past the index finger. glTF colours are linear, so the client turns the sword's into
-sRGB, as our shader writes colours out as they are.
+Each player holds a weapon from the items file (see [Items](#items)), so far Quaternius's sword, from
+[Poly Pizza](https://poly.pizza/m/ajOJ2NLz5m), which is public domain and in the repo, as it was
+downloaded, in `assets/weapons`. The client scales it to its length in the file, a metre, holds it
+where the file says, a sixth of the way up, and, each frame, puts it where the right hand's bone is
+in the pose: along the knuckles, with the blade out past the index finger. glTF colours are linear,
+so the client turns the sword's into sRGB, as our shader writes colours out as they are.
 
 The server decides which way each player faces, and whether it stands, walks or runs. It moves them
 at 1.8 and 3.1 metres a second, the speeds of the walk and the run, so that the feet don't slide.
@@ -208,11 +210,12 @@ picks another place. The world's random generator takes a seed, so the tests pic
 
 ## Fighting
 
-Space swings your sword at the nearest monster within 1.6 metres, and turns you to face it. A swing
-takes two seconds, the length of the slash animation, and you stand still until it's over. The
-sword hits 0.9 seconds in, as it comes across the front, if the monster is still alive and in reach:
-fifteen health at level one, and five more for each level after it. Holding Space down swings again
-and again. All of it happens on the server: the client only says that Space is down, in `Input`.
+Space swings your weapon at the nearest monster within its reach, and turns you to face it. The
+sword's numbers are in the items file: it reaches 1.6 metres, and a swing takes two seconds, the
+length of the slash animation, and you stand still until it's over. The sword hits 0.9 seconds in, as
+it comes across the front, if the monster is still alive and in reach, for fifteen health, and each
+level after the first adds five to whatever you hold. Holding Space down swings again and again. All
+of it happens on the server: the client only says that Space is down, in `Input`.
 
 A monster goes for the nearest living player within three metres of it, if that player is within
 four metres of the monster's home. Each skeleton's home is further than that from the middle of the
@@ -330,7 +333,7 @@ openssl s_client -connect localhost:7778 -CAfile tls/ca.crt < /dev/null
 
 After each tick, the game server saves the players whose position, experience or health changed, into
 Redis: a hash for each player in each world, `player:<world>:<account id>`, with `world`, `account`,
-`x`, `z`, `experience`, `health` and `land`, and its key in a set, `players:unsaved` (see [Worlds](#worlds)). It sends all of it in one round trip, as a pipeline, so saving takes a few
+`x`, `z`, `experience`, `health`, `land` and `weapon`, and its key in a set, `players:unsaved` (see [Worlds](#worlds)). It sends all of it in one round trip, as a pipeline, so saving takes a few
 milliseconds a tick with hundreds of players, and the server keeps up with as many players as it did
 without saving. Writing each change to MySQL instead, one statement at a time, takes the tick past
 its 50 ms at around 50 players: each save is two round trips, to prepare the statement and to run
@@ -615,6 +618,7 @@ A world takes its port as its first argument (7777 by default), and the rest fro
 | `NANOMMO_PUBLIC_HOST` | `localhost` | Where players reach it, on its port; Compose takes it from your shell |
 | `NANOMMO_METRICS_PORT` | `9464` | Where Prometheus reaches its metrics |
 | `NANOMMO_CONSUL_HOST` | `127.0.0.1` | Where Consul is, on port 8500 |
+| `NANOMMO_ITEMS` | `items/items.txtpb` | The items file (see [Items](#items)); the image has its own |
 
 - A world registers with its name, its address, the public host and port, the metrics port and how
   many players it has, and a health check that turns critical ten seconds after its last pass.
@@ -803,6 +807,40 @@ curl localhost:8000/v1/completions -H 'Content-Type: application/json' \
 The world server finds the storyteller at `NANOMMO_STORYTELLER_HOST` (`127.0.0.1` by default), which
 Compose sets to `storyteller`. Any server with OpenAI's completions API can take its place, such as
 vLLM, as long as its model writes stories from words like these.
+
+## Items
+
+The items are data, in one file that the world server and the client both read, so that there's one
+place to change an item: `items/items.txtpb`, in protobuf's text format, with its schema in
+`items/items.proto`. So far it has one item, the sword, which every player holds.
+
+- An item has an id and a name, and parts that each side reads what it needs from: a weapon's
+  `weapon` says how it fights (reach, swing and hit times, damage), which only the server reads, and
+  its `look` says how it's drawn (its model in `assets/weapons`, its length, where it's held), which
+  only the client reads. `starting_weapon` names the weapon a new player holds.
+- The file's first two lines, `# proto-file:` and `# proto-message:`, name its schema, so that
+  editors and tools that know text protos can check it and complete its fields.
+- `items/items.h` (`nanommo_items`, which the server and the client link) parses it with protobuf's
+  `TextFormat`, so a field the schema doesn't have, or a value of the wrong type, is an error with
+  the line it's on. Then it checks what types can't: every item has an id, no two items share one,
+  and the starting weapon is a weapon. The server won't start without a good file. The client says
+  why in its log, and draws nobody holding anything.
+- Ids start at one, and an item keeps its id for good, as players' weapons are saved and sent by id.
+  Protobuf leaves a zero out, so the client takes a missing weapon as one it already knows.
+- Each player holds a weapon, by its id, saved with the rest of the player (see
+  [Saving players](#saving-players)), in the `weapon` column of the `players` table from V5. A
+  player with none saved, or with one that's gone from the file, holds the starting weapon, so the
+  database doesn't need to know which item that is.
+- A player's weapon changes about as often as their name, so it goes out with the names and levels,
+  once a second, and the client keeps it in between.
+- The server reads the file from `items/items.txtpb`, under where it starts, or from `NANOMMO_ITEMS`,
+  which its image sets to its own copy, in `/usr/local/share/nanommo`. The build copies the file
+  next to the client, which reads it from there.
+
+Each side reads its own copy, so the server and the client should be built from the same commit: a
+client whose file doesn't have a weapon draws the player holding nothing. A change to an item, such as
+the sword's reach, is an edit to the file, and a restart of the server, or a rebuild of the client. A
+new item is another `items` entry, with the next id. Nothing gives a player another item yet.
 
 ## Deployment
 
