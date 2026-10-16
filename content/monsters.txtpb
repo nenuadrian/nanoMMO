@@ -21,13 +21,34 @@ kinds {
     height: 1.6
   }
 }
+kinds {
+  id: 2
+  name: "Ash Skeleton"
+  level: 2
+  max_health: 80
+  experience: 90
+  fight {
+    damage: 8
+    swing_ms: 900
+    hit_ms: 650
+    reach: 1.2
+    sight: 4
+    leash: 4
+    wander: 3
+  }
+  look {
+    model: "skeleton.glb"
+    height: 1.6
+    tint: 0xF06A46FF
+  }
+}
 
 spawns { kind: 1 land: "Meadows" x: -3.5 z: -3 }
 spawns { kind: 1 land: "Meadows" x: 3.5 z: -2.5 }
 spawns { kind: 1 land: "Meadows" x: 3 z: 3.5 }
-spawns { kind: 1 land: "Ashlands" x: -3.5 z: -3 }
-spawns { kind: 1 land: "Ashlands" x: 3.5 z: -2.5 }
-spawns { kind: 1 land: "Ashlands" x: 3 z: 3.5 }
+spawns { kind: 2 land: "Ashlands" x: -3.5 z: -3 }
+spawns { kind: 2 land: "Ashlands" x: 3.5 z: -2.5 }
+spawns { kind: 2 land: "Ashlands" x: 3 z: 3.5 }
 
 camps { kind: 1 land: "Meadows" count: 8 }
-camps { kind: 1 land: "Ashlands" count: 8 }
+camps { kind: 2 land: "Ashlands" count: 8 }
