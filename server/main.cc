@@ -14,6 +14,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "asio/io_context.hpp"
 #include "asio/post.hpp"
@@ -143,6 +144,10 @@ int main(int argc, char* argv[]) {
             << ", " << kTicksPerSecond << " ticks/s, "
             << absl::FormatDuration(absl::FromChrono(*interval)) << " per tick"
             << ", world seed " << seed << std::endl;
+  const uint64_t content_hash = nanommo::ClientHash(*content);
+  std::cout << "nanommo server: content "
+            << absl::StrCat(absl::Hex(content_hash, absl::kZeroPad16))
+            << std::endl;
   std::cout << "nanommo server: metrics on port " << *metrics_port
             << ", at /metrics" << std::endl;
 
@@ -152,6 +157,7 @@ int main(int argc, char* argv[]) {
       .public_host = nanommo::Setting("NANOMMO_PUBLIC_HOST", "localhost"),
       .port = *port,
       .metrics_port = *metrics_port,
+      .content = content_hash,
   };
   // Consul gets its own thread, so that a slow answer can't hold up a tick.
   asio::thread_pool consul_thread(1);

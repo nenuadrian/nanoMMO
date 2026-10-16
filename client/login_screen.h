@@ -2,6 +2,7 @@
 #define NANOMMO_CLIENT_LOGIN_SCREEN_H_
 
 #include <array>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
@@ -13,6 +14,10 @@ namespace nanommo {
 
 class LoginScreen {
  public:
+  /// With the ClientHash of this client's content, to tell the worlds that
+  /// have other content apart.
+  explicit LoginScreen(uint64_t content) : content_(content) {}
+
   /// Draws the worlds, or the login for the world picked, and returns what
   /// to ask the login server, if there's anything: the worlds when they're
   /// shown and refreshed, or a login.
@@ -27,6 +32,7 @@ class LoginScreen {
   std::optional<protocol::LoginRequest> BuildWorlds();
   std::optional<protocol::LoginRequest> BuildLogin();
 
+  uint64_t content_;
   std::vector<protocol::WorldListing> worlds_;
   int selected_ = 0;
   std::optional<protocol::WorldListing> world_;

@@ -106,6 +106,9 @@ int main(int argc, char* argv[]) {
     std::cerr << "nanommo client: " << content.status() << "\n";
     return 1;
   }
+  const uint64_t content_hash = nanommo::ClientHash(*content);
+  std::cout << "nanommo client: content "
+            << absl::StrCat(absl::Hex(content_hash, absl::kZeroPad16)) << '\n';
 
   absl::StatusOr<std::unique_ptr<nanommo::Window>> window_or =
       nanommo::Window::Create("nanoMMO", 1280, 720);
@@ -119,7 +122,7 @@ int main(int argc, char* argv[]) {
   nanommo::CharacterScreen character_screen;
   nanommo::ChatWindow chat_window;
   nanommo::TalkWindow talk_window;
-  nanommo::LoginScreen login_screen;
+  nanommo::LoginScreen login_screen(content_hash);
   nanommo::Renderer renderer(*content);
   nanommo::Animator animator(*content);
   std::optional<nanommo::Terrain> terrain;

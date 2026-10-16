@@ -23,7 +23,8 @@ TEST(ConsulTest, ListsAWorldUntilItDeregisters) {
                              .public_host = "example.test",
                              .port = 7000,
                              .metrics_port = 9000,
-                             .players = 12})
+                             .players = 12,
+                             .content = 0xfedcba9876543210})
                   .ok());
 
   const absl::StatusOr<std::vector<WorldListing>> listed = consul.Worlds();
@@ -33,6 +34,7 @@ TEST(ConsulTest, ListsAWorldUntilItDeregisters) {
   EXPECT_EQ(world->host(), "example.test");
   EXPECT_EQ(world->port(), 7000u);
   EXPECT_EQ(world->players(), 12u);
+  EXPECT_EQ(world->content(), 0xfedcba9876543210u);
 
   ASSERT_TRUE(consul.Deregister(name).ok());
   const absl::StatusOr<std::vector<WorldListing>> left = consul.Worlds();

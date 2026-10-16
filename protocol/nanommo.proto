@@ -100,6 +100,9 @@ message WorldListing {
   string host = 2;
   uint32 port = 3;
   uint32 players = 4;
+  // The world's ClientHash. Its high bits are as likely set as not, so it
+  // takes 8 bytes as a fixed64, where a varint would take up to 10.
+  fixed64 content = 5;
 }
 
 message LoginReply {

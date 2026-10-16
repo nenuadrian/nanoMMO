@@ -1,6 +1,7 @@
 #include "content/content.h"
 
 #include <algorithm>
+#include <cstdint>
 
 #include "gtest/gtest.h"
 
@@ -20,6 +21,16 @@ TEST(Content, ReadsTheGamesContent) {
   EXPECT_TRUE(std::ranges::any_of(content->npcs.kinds, [](const auto& kind) {
     return kind.second.talks();
   }));
+}
+
+TEST(Content, HashesWhatTheClientsRead) {
+  nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  const uint64_t hash = nanommo::ClientHash(content);
+
+  content.items.by_id.at(1).mutable_weapon()->set_damage(1000);
+  EXPECT_EQ(nanommo::ClientHash(content), hash);
+  content.items.by_id.at(1).mutable_look()->set_length(2.0f);
+  EXPECT_NE(nanommo::ClientHash(content), hash);
 }
 
 TEST(Content, RefusesItemsThatDontAddUp) {

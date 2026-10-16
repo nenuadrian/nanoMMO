@@ -66,7 +66,8 @@ absl::Status Consul::Register(const WorldRegistration& world) const {
       {"Port", world.port},
       {"Meta",
        {{"players", absl::StrCat(world.players)},
-        {"metrics_port", absl::StrCat(world.metrics_port)}}},
+        {"metrics_port", absl::StrCat(world.metrics_port)},
+        {"content", absl::StrCat(absl::Hex(world.content, absl::kZeroPad16))}}},
       {"TaggedAddresses",
        {{"wan", {{"Address", world.public_host}, {"Port", world.port}}}}},
       {"Check",
@@ -103,7 +104,9 @@ absl::StatusOr<std::vector<protocol::WorldListing>> Consul::Worlds() const {
     const auto* port =
         Find<uint64_t>(entry, "/Service/TaggedAddresses/wan/Port");
     const auto* players = Find<std::string>(entry, "/Service/Meta/players");
+    const auto* content = Find<std::string>(entry, "/Service/Meta/content");
     uint32_t count = 0;
+    uint64_t hash = 0;
     // Something under our name that isn't a world we could reach stays out,
     // so that the other worlds still make the list.
     if (!name || !host || !port || *port == 0 || *port > 65535 || !players ||
@@ -115,6 +118,10 @@ absl::StatusOr<std::vector<protocol::WorldListing>> Consul::Worlds() const {
     world.set_host(*host);
     world.set_port(static_cast<uint32_t>(*port));
     world.set_players(count);
+    // A world from before content hashes lists none, which no client has.
+    if (content != nullptr && absl::SimpleHexAtoi(*content, &hash)) {
+      world.set_content(hash);
+    }
   }
   std::ranges::sort(worlds, {}, &protocol::WorldListing::name);
   return worlds;

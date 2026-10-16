@@ -19,6 +19,8 @@ struct WorldRegistration {
   uint16_t port = 0;
   uint16_t metrics_port = 0;
   int players = 0;
+  /// The ClientHash of the world's content.
+  uint64_t content = 0;
 };
 
 class Consul {

@@ -1,11 +1,14 @@
 #include "content/content.h"
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <utility>
 
 #include "absl/strings/str_cat.h"
 #include "content/text.h"
+#include "google/protobuf/io/coded_stream.h"
+#include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 
 namespace nanommo {
 
@@ -31,6 +34,27 @@ absl::Status Read(const std::string& folder, const char* file,
   return absl::OkStatus();
 }
 
+// FNV-1a, 64 bits wide, which gives the same hash on each machine, where
+// std::hash and absl::Hash don't promise to.
+constexpr uint64_t kOffsetBasis = 14695981039346656037u;
+constexpr uint64_t kPrime = 1099511628211u;
+
+void Add(uint64_t& hash, const google::protobuf::Message& message) {
+  std::string bytes;
+  {
+    google::protobuf::io::StringOutputStream stream(&bytes);
+    google::protobuf::io::CodedOutputStream coded(&stream);
+    // So that equal messages give equal bytes, whatever order they were
+    // built in.
+    coded.SetSerializationDeterministic(true);
+    message.SerializeToCodedStream(&coded);
+  }
+  for (const char byte : bytes) {
+    hash ^= static_cast<unsigned char>(byte);
+    hash *= kPrime;
+  }
+}
+
 }  // namespace
 
 absl::StatusOr<Content> ReadContent(const std::string& folder) {
@@ -46,6 +70,34 @@ absl::StatusOr<Content> ReadContent(const std::string& folder) {
     return read;
   }
   return content;
+}
+
+uint64_t ClientHash(const Content& content) {
+  uint64_t hash = kOffsetBasis;
+  // A copy of each with what the clients read, by id.
+  for (const auto& [id, item] : content.items.by_id) {
+    items::Item seen;
+    seen.set_id(id);
+    seen.set_name(item.name());
+    *seen.mutable_look() = item.look();
+    Add(hash, seen);
+  }
+  for (const auto& [id, kind] : content.monsters.kinds) {
+    monsters::Kind seen;
+    seen.set_id(id);
+    seen.set_name(kind.name());
+    *seen.mutable_look() = kind.look();
+    Add(hash, seen);
+  }
+  for (const auto& [id, kind] : content.npcs.kinds) {
+    npcs::Kind seen;
+    seen.set_id(id);
+    seen.set_name(kind.name());
+    seen.set_talks(kind.talks());
+    *seen.mutable_look() = kind.look();
+    Add(hash, seen);
+  }
+  return hash;
 }
 
 }  // namespace nanommo

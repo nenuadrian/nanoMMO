@@ -61,6 +61,10 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildWorlds() {
     }
     ImGui::SameLine();
     ImGui::TextDisabled(ICON_FA_USERS " %u", worlds_[i].players());
+    if (worlds_[i].content() != content_) {
+      ImGui::SameLine();
+      ImGui::TextDisabled(ICON_FA_TRIANGLE_EXCLAMATION " other content");
+    }
     ImGui::PopID();
   }
   if (count == 0) {
@@ -73,8 +77,17 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildWorlds() {
   ImGui::End();
 
   if (pick && count > 0) {
-    world_ = worlds_[selected_];
-    error_.clear();
+    const protocol::WorldListing& picked = worlds_[selected_];
+    // A client draws what the world sends from its own content, so with
+    // other content, it would draw the wrong things, or nothing.
+    if (picked.content() != content_) {
+      error_ = absl::StrCat(picked.name(),
+                            " has other content than this client, so they "
+                            "can't play together.");
+    } else {
+      world_ = picked;
+      error_.clear();
+    }
   }
   if (!refresh) {
     return std::nullopt;
