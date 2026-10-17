@@ -161,12 +161,21 @@ target_compile_options(imgui PRIVATE -w)
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
+option(NANOMMO_FUZZ "Build the fuzzers in fuzz/, with Clang" OFF)
+if(NANOMMO_FUZZ)
+  # So that libFuzzer sees which of our code each input reaches.
+  add_compile_options(-fsanitize=fuzzer-no-link)
+endif()
+
 add_subdirectory(protocol)
 add_subdirectory(content)
 add_subdirectory(terrain)
 add_subdirectory(server)
 add_subdirectory(bot)
 add_subdirectory(client)
+if(NANOMMO_FUZZ)
+  add_subdirectory(fuzz)
+endif()
 
 find_package(Doxygen)
 if(DOXYGEN_FOUND)

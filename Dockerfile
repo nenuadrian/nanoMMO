@@ -36,6 +36,13 @@ RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
  && cmake --build build \
  && xvfb-run --auto-servernum ctest --test-dir build --output-on-failure
 
+FROM clang AS fuzz
+WORKDIR /src
+COPY . .
+RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DNANOMMO_SANITIZE=address,undefined -DNANOMMO_FUZZ=ON \
+ && cmake --build build --target stories_fuzzer world_fuzzer
+
 FROM ubuntu:24.04 AS runtime
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libmysqlclient21 libsodium23 libssl3t64 \
@@ -140,6 +147,6 @@ RUN pip install --no-cache-dir clang-format==18.1.3 cpplint==2.0.2
 # one, so the folder is named after the project: NANOMMO_SERVER_TICK_H_.
 WORKDIR /nanommo
 COPY . .
-RUN find server bot client protocol content terrain -name '*.cc' -o -name '*.h' \
+RUN find server bot client protocol content terrain fuzz -name '*.cc' -o -name '*.h' \
  | xargs clang-format --dry-run --Werror \
- && cpplint --root=.. --recursive --quiet server bot client protocol content terrain
+ && cpplint --root=.. --recursive --quiet server bot client protocol content terrain fuzz
