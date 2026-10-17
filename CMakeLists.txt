@@ -86,9 +86,13 @@ set(ENABLE_TESTING OFF)
 FetchContent_Declare(
   prometheus-cpp
   URL https://github.com/jupp0r/prometheus-cpp/releases/download/v1.3.0/prometheus-cpp-with-submodules.tar.gz
+  PATCH_COMMAND patch -p1 -i ${PROJECT_SOURCE_DIR}/patches/civetweb-stop-flag.patch
   SYSTEM
 )
 FetchContent_MakeAvailable(prometheus-cpp)
+# civetweb serves the metrics, and stops its threads with a plain int unless
+# we ask for atomics.
+target_compile_definitions(civetweb PRIVATE STOP_FLAG_NEEDS_LOCK)
 
 set(BUILD_SHARED_LIBS OFF)
 set(DISABLE_TESTS ON)

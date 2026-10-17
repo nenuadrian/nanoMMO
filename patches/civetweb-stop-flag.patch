@@ -1,0 +1,17 @@
+civetweb's fix for a data race on its stop flag, from its main branch
+(a87a7aaffd, April 2025), which no release of it has yet. prometheus-cpp
+1.3.0 comes with civetweb 1.16.
+
+--- a/3rdparty/civetweb/src/civetweb.c
++++ b/3rdparty/civetweb/src/civetweb.c
+@@ -2312,7 +2312,9 @@
+ {
+ 	stop_flag_t sf;
+ 	do {
+-		sf = mg_atomic_compare_and_swap(f, *f, v);
++		sf = mg_atomic_compare_and_swap(f,
++		                                __atomic_load_n(f, __ATOMIC_SEQ_CST),
++		                                v);
+ 	} while (sf != v);
+ }
+ 
