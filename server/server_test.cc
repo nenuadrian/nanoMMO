@@ -62,6 +62,11 @@ class TestPlayer {
 
   bool closed() const { return closed_; }
 
+  void Leave() {
+    std::error_code ignored;
+    stream_.lowest_layer().close(ignored);
+  }
+
  private:
   void Greet(const std::string& token, std::error_code error) {
     if (error) {
@@ -113,6 +118,7 @@ class ServerTest : public ::testing::Test {
                       "the server";
     }
     alice_ = NewAccount();
+    bob_ = NewAccount();
     tokens_ = std::make_unique<nanommo::Tokens>(*redis_);
     players_ = std::make_unique<nanommo::Players>(*database_, *redis_);
     // Nobody asks it for a story, as the world has no NPCs.
@@ -179,6 +185,7 @@ class ServerTest : public ::testing::Test {
   std::unique_ptr<nanommo::Redis> redis_;
   std::vector<uint32_t> accounts_;
   uint32_t alice_ = 0;
+  uint32_t bob_ = 0;
   std::unique_ptr<nanommo::Tokens> tokens_;
   std::unique_ptr<nanommo::Players> players_;
   std::unique_ptr<nanommo::Storyteller> storyteller_;
@@ -193,10 +200,17 @@ class ServerTest : public ::testing::Test {
 
 }  // namespace
 
-TEST_F(ServerTest, APlayerJoins) {
+TEST_F(ServerTest, PlayersSeeEachOtherUntilOneLeaves) {
   TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
-
   ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
   EXPECT_EQ(alice.world().you(), alice_);
   EXPECT_EQ(server_->players(), 1);
+
+  TestPlayer bob(io_, *client_tls_, server_->port(), Token(bob_));
+  EXPECT_TRUE(RunUntil([&] { return alice.Sees(bob_) && bob.Sees(alice_); }));
+  EXPECT_EQ(server_->players(), 2);
+
+  bob.Leave();
+  EXPECT_TRUE(
+      RunUntil([&] { return server_->players() == 1 && !alice.Sees(bob_); }));
 }
