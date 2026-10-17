@@ -45,6 +45,10 @@ class Server {
   /// In all its lands.
   int players() const;
 
+  /// The port it listens on, over TCP and UDP. Given port zero, Create has the
+  /// system pick a free one.
+  uint16_t port() const;
+
  private:
   Server(asio::io_context& io, asio::ssl::context& tls,
          std::chrono::nanoseconds interval, std::string name, uint32_t seed,

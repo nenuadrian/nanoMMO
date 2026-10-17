@@ -168,12 +168,18 @@ int Server::players() const {
   return count;
 }
 
+uint16_t Server::port() const {
+  std::error_code ignored;
+  return acceptor_.local_endpoint(ignored).port();
+}
+
 absl::Status Server::Start(uint16_t port, const Content& content) {
   const absl::Status listening = Listen(acceptor_, port);
   if (!listening.ok()) {
     return listening;
   }
-  const absl::Status bound = Bind(udp_, port);
+  // On port zero, the system gave TCP a free port, and UDP takes that one too.
+  const absl::Status bound = Bind(udp_, this->port());
   if (!bound.ok()) {
     return bound;
   }
