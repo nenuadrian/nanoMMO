@@ -214,3 +214,17 @@ TEST_F(ServerTest, PlayersSeeEachOtherUntilOneLeaves) {
   EXPECT_TRUE(
       RunUntil([&] { return server_->players() == 1 && !alice.Sees(bob_); }));
 }
+
+TEST_F(ServerTest, AnAccountPlaysOnceAtATime) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
+
+  TestPlayer again(io_, *client_tls_, server_->port(), Token(alice_));
+  EXPECT_TRUE(RunUntil([&] { return again.closed(); }));
+  EXPECT_EQ(server_->players(), 1);
+
+  alice.Leave();
+  ASSERT_TRUE(RunUntil([&] { return server_->players() == 0; }));
+  TestPlayer later(io_, *client_tls_, server_->port(), Token(alice_));
+  EXPECT_TRUE(RunUntil([&] { return later.Sees(alice_); }));
+}

@@ -340,6 +340,11 @@ NANOMMO_MYSQL_HOST=127.0.0.1 NANOMMO_REDIS_HOST=127.0.0.1 NANOMMO_CONSUL_HOST=12
 docker compose run --rm tests
 ```
 
+The world server's test starts a server inside the test, on a port the system picks, and has
+players join it over TLS, with the protocol tests' certificates: they see each other until one of
+them leaves, and an account can't play twice at once. The server and the players run on the test's
+thread, one handler at a time, until what the test waits for happens, or for five seconds at most.
+
 MySQL keeps its data in the `mysql` volume, and Redis in the `redis` volume, so they survive `docker
 compose down`. Flyway makes the tables, and changes them, before anything else uses MySQL (see
 [Migrations](#migrations)). `docker compose down -v` deletes the volumes, and with them all the
