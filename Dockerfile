@@ -16,6 +16,25 @@ FROM build AS test
 # xvfb-run gives the client's tests a virtual display to open their window on.
 RUN xvfb-run --auto-servernum ctest --test-dir build --output-on-failure
 
+# On Linux, Clang links GCC's runtime library unless told otherwise, and the
+# sanitizers need some of Clang's own.
+FROM toolchain AS clang
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      clang-18 libclang-rt-18-dev llvm-18 \
+ && rm -rf /var/lib/apt/lists/*
+ENV PATH=/usr/lib/llvm-18/bin:$PATH CC=clang CXX=clang++ \
+    LDFLAGS="-rtlib=compiler-rt -unwindlib=libgcc"
+
+FROM clang AS sanitize
+ARG SANITIZE=address,undefined
+WORKDIR /src
+COPY . .
+RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DNANOMMO_SANITIZE=${SANITIZE} \
+ && cmake --build build \
+ && xvfb-run --auto-servernum ctest --test-dir build --output-on-failure
+
 FROM ubuntu:24.04 AS runtime
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libmysqlclient21 libsodium23 libssl3t64 \
