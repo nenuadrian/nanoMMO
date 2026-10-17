@@ -86,6 +86,13 @@ void ReadBindPose(const std::string& path, Model& model) {
   cgltf_free(data);
 }
 
+// raylib 6.0's UnloadModel leaves a model's pose and bone matrices behind.
+void UnloadWithBones(Model model) {
+  UnloadModel(model);
+  MemFree(model.currentPose);
+  MemFree(model.boneMatrices);
+}
+
 }  // namespace
 
 std::string CharactersFolder() {
@@ -137,7 +144,7 @@ Characters::Characters(const std::string& folder,
     if (idle < 0 || walk < 0 || run < 0 || attack < 0 || death < 0) {
       TraceLog(LOG_WARNING, "%s doesn't have the clips we need", file.c_str());
       UnloadModelAnimations(character.clips, character.clip_count);
-      UnloadModel(character.model);
+      UnloadWithBones(character.model);
       continue;
     }
 
@@ -158,7 +165,7 @@ Characters::Characters(const std::string& folder,
 Characters::~Characters() {
   for (Character& character : characters_) {
     UnloadModelAnimations(character.clips, character.clip_count);
-    UnloadModel(character.model);
+    UnloadWithBones(character.model);
   }
   for (auto& [id, weapon] : weapons_) {
     UnloadModel(weapon.model);
