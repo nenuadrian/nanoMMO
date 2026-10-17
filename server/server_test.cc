@@ -172,6 +172,9 @@ class ServerTest : public ::testing::Test {
     return true;
   }
 
+  // First, so that it's destroyed last, as the server's sockets and timers
+  // need it while they close.
+  asio::io_context io_;
   std::unique_ptr<nanommo::Database> database_;
   std::unique_ptr<nanommo::Redis> redis_;
   std::vector<uint32_t> accounts_;
@@ -186,7 +189,6 @@ class ServerTest : public ::testing::Test {
   absl::StatusOr<asio::ssl::context> server_tls_;
   absl::StatusOr<asio::ssl::context> client_tls_;
   std::unique_ptr<nanommo::Server> server_;
-  asio::io_context io_;
 };
 
 }  // namespace
