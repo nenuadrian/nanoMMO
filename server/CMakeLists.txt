@@ -26,8 +26,14 @@ add_executable(nanommo_server_tests
   levels_test.cc metrics_test.cc password_test.cc
   accounts_test.cc players_test.cc tokens_test.cc
   login_server_test.cc consul_test.cc token_bucket_test.cc stories_test.cc
+  server_test.cc
 )
 target_link_libraries(nanommo_server_tests PRIVATE nanommo_server_core GTest::gtest_main)
+# The server's test talks TLS with the certificates the protocol tests made.
+add_dependencies(nanommo_server_tests nanommo_test_certificates)
+target_compile_definitions(nanommo_server_tests PRIVATE
+  NANOMMO_TEST_TLS="${PROJECT_BINARY_DIR}/protocol/tls"
+)
 
 include(GoogleTest)
 gtest_discover_tests(nanommo_server_tests)
