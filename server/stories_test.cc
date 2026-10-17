@@ -37,5 +37,19 @@ TEST(Stories, BreaksAStoryIntoLinesOfChat) {
             std::vector<std::string>{"Tom said, \"Can I come?\""});
 }
 
+TEST(Stories, CutsAWordLongerThanALineBetweenCharacters) {
+  // é is two bytes, so the first cut can't be at 200, which is inside one.
+  std::string word = "A";
+  for (int i = 0; i < 150; ++i) {
+    word += "é";
+  }
+  const std::vector<std::string> lines = StoryLines("He shouted " + word);
+
+  ASSERT_EQ(lines.size(), 3u);
+  EXPECT_EQ(lines[0], "He shouted");
+  EXPECT_EQ(lines[1].size(), 199u);
+  EXPECT_EQ(lines[1] + lines[2], word);
+}
+
 }  // namespace
 }  // namespace nanommo

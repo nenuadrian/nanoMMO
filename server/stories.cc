@@ -29,6 +29,17 @@ bool EndsSentence(std::string_view word) {
          kSentenceEnds.find(word.back()) != std::string_view::npos;
 }
 
+// Where to cut a word longer than a line. In UTF-8, each byte after a
+// character's first starts with the bits 10, so the cut goes back past those.
+std::size_t Cut(std::string_view word) {
+  std::size_t cut = kMaxChatLength;
+  while (cut > 0 && (static_cast<unsigned char>(word[cut]) & 0xC0) == 0x80) {
+    --cut;
+  }
+  // Nothing but those isn't UTF-8, so any cut will do.
+  return cut > 0 ? cut : kMaxChatLength;
+}
+
 }  // namespace
 
 std::optional<std::string> StoryPrompt(std::string_view words) {
@@ -60,8 +71,18 @@ std::vector<std::string> StoryLines(std::string_view story) {
   std::string line;
   // How much of the line is whole sentences.
   std::size_t sentences = 0;
-  for (const std::string_view word :
+  for (std::string_view word :
        absl::StrSplit(story, absl::ByAsciiWhitespace(), absl::SkipEmpty())) {
+    while (word.size() > kMaxChatLength) {
+      if (!line.empty()) {
+        lines.push_back(line);
+        line.clear();
+        sentences = 0;
+      }
+      const std::size_t cut = Cut(word);
+      lines.emplace_back(word.substr(0, cut));
+      word.remove_prefix(cut);
+    }
     while (!line.empty() && line.size() + 1 + word.size() > kMaxChatLength) {
       const std::size_t cut = sentences > 0 ? sentences : line.size();
       lines.push_back(line.substr(0, cut));

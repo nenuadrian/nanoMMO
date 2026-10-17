@@ -19,9 +19,10 @@ std::optional<std::string> StoryPrompt(std::string_view words);
 
 /// The story as lines of chat, each of at most kMaxChatLength bytes, broken
 /// after the last sentence that fits, or between words in a sentence that
-/// doesn't. A story that ran out of tokens stops in the middle of a sentence,
-/// so the story ends at its last full stop, or question or exclamation mark,
-/// when it has one.
+/// doesn't. A word longer than a line gets lines of its own, cut between two
+/// of its characters. A story that ran out of tokens stops in the middle of a
+/// sentence, so the story ends at its last full stop, or question or
+/// exclamation mark, when it has one.
 std::vector<std::string> StoryLines(std::string_view story);
 
 }  // namespace nanommo
