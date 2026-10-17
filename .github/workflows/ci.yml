@@ -21,6 +21,9 @@ jobs:
       - name: Run the tests against MySQL and Redis
         run: docker compose run --rm tests
 
+      - name: Check the code with clang-tidy
+        run: docker build --target tidy .
+
       - name: Test the website
         run: docker build --target test web
 
@@ -38,9 +41,55 @@ jobs:
       - name: Generate the API docs
         run: docker build --target docs --output site .
 
+      - name: Measure what the tests cover
+        run: docker compose run --rm coverage
+
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site
+
+  sanitize:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sanitize: ["address,undefined", "thread"]
+    env:
+      SANITIZE: ${{ matrix.sanitize }}
+      COMPOSE_FILE: compose.yaml:compose.sanitize.yaml
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Leave ThreadSanitizer room for its memory
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+
+      - name: Build and run the tests with the sanitizers
+        run: docker build --target sanitize --build-arg SANITIZE .
+
+      - name: Run the tests against MySQL and Redis with the sanitizers
+        run: docker compose run --rm tests
+
+      - name: Play with bots against the servers with the sanitizers
+        run: |
+          docker compose up -d --build --wait login server saver
+          BOTS=50 RAMP=20 docker compose up -d bots
+          sleep 60
+          docker compose stop bots login server saver
+          if docker compose logs login server saver bots | grep -E 'Sanitizer|runtime error'; then
+            exit 1
+          fi
+
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the fuzzers
+        run: docker build --target fuzz -t nanommo-fuzz .
+
+      - name: Fuzz each for a minute
+        run: |
+          docker run --rm nanommo-fuzz build/bin/stories_fuzzer -max_total_time=60
+          docker run --rm nanommo-fuzz build/bin/world_fuzzer -max_total_time=60
 
   docs:
     if: github.ref == 'refs/heads/main'
