@@ -114,6 +114,10 @@ set(HTTPLIB_USE_BROTLI_IF_AVAILABLE OFF)
 set(HTTPLIB_USE_ZSTD_IF_AVAILABLE OFF)
 set(HTTPLIB_NO_EXCEPTIONS ON)
 set(HTTPLIB_INSTALL OFF)
+# glibc looks names up for httplib on a thread ThreadSanitizer can't see.
+if(NANOMMO_SANITIZE MATCHES "thread")
+  set(HTTPLIB_USE_NON_BLOCKING_GETADDRINFO OFF)
+endif()
 FetchContent_Declare(
   httplib
   URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.57.1.tar.gz

@@ -28,6 +28,7 @@ ENV PATH=/usr/lib/llvm-18/bin:$PATH CC=clang CXX=clang++ \
 
 FROM clang AS sanitize
 ARG SANITIZE=address,undefined
+ENV TSAN_OPTIONS=suppressions=/src/tsan.supp
 WORKDIR /src
 COPY . .
 RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \

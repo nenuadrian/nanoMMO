@@ -1,0 +1,3 @@
+# Mesa draws the client's tests in Docker, and orders its threads in code
+# ThreadSanitizer can't follow.
+called_from_lib:libgallium
