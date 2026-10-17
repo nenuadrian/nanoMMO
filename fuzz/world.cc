@@ -47,7 +47,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
       case 2:
         world.Step(std::chrono::milliseconds(50));
         break;
-      case 3:
+      default:
         if (playing) {
           world.Leave(id);
         }

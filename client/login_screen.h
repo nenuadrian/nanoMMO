@@ -30,7 +30,7 @@ class LoginScreen {
 
  private:
   std::optional<protocol::LoginRequest> BuildWorlds();
-  std::optional<protocol::LoginRequest> BuildLogin();
+  std::optional<protocol::LoginRequest> BuildLogin(const std::string& title);
 
   uint64_t content_;
   std::vector<protocol::WorldListing> worlds_;

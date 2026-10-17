@@ -320,7 +320,7 @@ void Server::Talk(uint32_t id, const protocol::Talk& talk) {
   const std::optional<std::string> words = CleanChat(talk.words());
   const std::optional<std::string> prompt =
       words ? StoryPrompt(*words) : std::nullopt;
-  if (!prompt) {
+  if (!words || !prompt) {
     metrics_.AddStory("refused");
     return;
   }
@@ -505,6 +505,8 @@ void Server::BroadcastLand(std::size_t index, bool full) {
   for (const auto& [cell, view] :
        Views(land.players(), land.monsters(), npc_cells_[index])) {
     std::vector<std::string_view> pieces;
+    pieces.reserve(view.players.size() + view.monsters.size() +
+                   (full ? view.npcs.size() : 0));
     for (const uint32_t id : view.players) {
       pieces.push_back(players.at(id));
     }
@@ -583,7 +585,8 @@ void Server::SendTo(const asio::ip::udp::endpoint& client,
   const std::array buffers{asio::buffer(*part), asio::buffer(*tail)};
   // The handler keeps the bytes alive until the datagram has gone.
   udp_.async_send_to(buffers, client,
-                     [part, tail](std::error_code, std::size_t) {});
+                     [part = std::move(part), tail = std::move(tail)](
+                         std::error_code, std::size_t) {});
 }
 
 }  // namespace nanommo

@@ -26,7 +26,7 @@ absl::StatusOr<std::string> Tokens::Issue(uint32_t account_id) {
   randombytes_buf(bytes.data(), bytes.size());
   std::array<char, 2 * bytes.size() + 1> hex;
   sodium_bin2hex(hex.data(), hex.size(), bytes.data(), bytes.size());
-  const std::string token = hex.data();
+  std::string token = hex.data();
 
   const absl::StatusOr<std::string> stored = redis_.Command(
       {"SET", absl::StrCat(kPrefix, token), absl::StrCat(account_id), "EX",

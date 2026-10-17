@@ -58,7 +58,7 @@ uint32_t World::Spawn(Monster monster) {
   // A rest of its own, so that the monsters don't all set off together.
   monster.rest = RandomRest(random_);
   const uint32_t id = next_monster_++;
-  monsters_[id] = std::move(monster);
+  monsters_[id] = monster;
   return id;
 }
 

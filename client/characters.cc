@@ -11,6 +11,8 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
+
 namespace nanommo {
 
 namespace {
@@ -115,7 +117,7 @@ Characters::Characters(const std::string& folder,
                        const std::vector<std::string>& files, float height,
                        Shader shader) {
   for (const std::string& file : files) {
-    const std::string path = folder + "/" + file;
+    const std::string path = absl::StrCat(folder, "/", file);
     if (!FileExists(path.c_str())) {
       continue;
     }

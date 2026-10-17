@@ -30,7 +30,8 @@ void ShowErrorText(const std::string& error) {
 std::optional<protocol::LoginRequest> LoginScreen::Build() {
   ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(),
                           ImGuiCond_Always, {0.5f, 0.5f});
-  return world_ ? BuildLogin() : BuildWorlds();
+  return world_ ? BuildLogin(absl::StrCat("Log in to ", world_->name()))
+                : BuildWorlds();
 }
 
 void LoginScreen::ShowWorlds(std::vector<protocol::WorldListing> worlds) {
@@ -97,8 +98,8 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildWorlds() {
   return request;
 }
 
-std::optional<protocol::LoginRequest> LoginScreen::BuildLogin() {
-  const std::string title = absl::StrCat("Log in to ", world_->name());
+std::optional<protocol::LoginRequest> LoginScreen::BuildLogin(
+    const std::string& title) {
   ImGui::Begin(title.c_str(), nullptr, kWindowFlags);
 
   if (ImGui::IsWindowAppearing()) {

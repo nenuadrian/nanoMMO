@@ -215,7 +215,7 @@ void Bot::Wander() {
     if (!input) {
       trip_.reset();
       stay_ = std::uniform_int_distribution<int>(5, 15)(random_);
-      if (asking_) {
+      if (asking_ && storyteller_) {
         asking_ = false;
         talk.emplace();
         talk->set_npc(storyteller_->id());
