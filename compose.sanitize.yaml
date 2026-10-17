@@ -1,0 +1,30 @@
+x-sanitize: &sanitize
+  build:
+    target: sanitize
+    args:
+      SANITIZE: ${SANITIZE:-address,undefined}
+
+services:
+  login:
+    <<: *sanitize
+    image: nanommo-login-sanitize
+    entrypoint: ["build/bin/nanommo_login"]
+
+  server:
+    <<: *sanitize
+    image: nanommo-server-sanitize
+    entrypoint: ["build/bin/nanommo_server"]
+
+  saver:
+    <<: *sanitize
+    image: nanommo-saver-sanitize
+    entrypoint: ["build/bin/nanommo_saver"]
+
+  bots:
+    <<: *sanitize
+    image: nanommo-bot-sanitize
+    entrypoint: ["build/bin/nanommo_bot"]
+
+  tests:
+    <<: *sanitize
+    image: nanommo-tests-sanitize

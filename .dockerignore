@@ -5,6 +5,7 @@ bench/results/
 site/
 compose.yaml
 compose.profile.yaml
+compose.sanitize.yaml
 compose.prod.yaml
 deploy.sh
 db/
