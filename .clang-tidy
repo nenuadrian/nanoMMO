@@ -1,0 +1,18 @@
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-narrowing-conversions,
+  clang-analyzer-*,
+  concurrency-*,
+  -concurrency-mt-unsafe,
+  performance-*,
+  -performance-avoid-endl,
+  -performance-enum-size
+CheckOptions:
+  performance-no-automatic-move.AllowedTypes: '::absl::Status'
+  bugprone-unused-return-value.CheckedReturnTypes: '::std::expected'
+WarningsAsErrors: '*'
+HeaderFilterRegex: '/(server|bot|client|protocol|content|terrain|fuzz)/[a-z_]+\.h$'

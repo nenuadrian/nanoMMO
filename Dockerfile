@@ -43,6 +43,18 @@ RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DNANOMMO_SANITIZE=address,undefined -DNANOMMO_FUZZ=ON \
  && cmake --build build --target stories_fuzzer world_fuzzer
 
+FROM clang AS tidy
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends clang-tidy-18 \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY . .
+# clang-tidy reads the headers protoc writes, so those come first.
+RUN cmake -S . -B build -G Ninja -DNANOMMO_FUZZ=ON \
+ && cmake --build build --target nanommo_protocol nanommo_content \
+ && run-clang-tidy -quiet -p build \
+      '^/src/(server|bot|client|protocol|content|terrain|fuzz)/(?!.*_test\.cc)'
+
 FROM ubuntu:24.04 AS runtime
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libmysqlclient21 libsodium23 libssl3t64 \
