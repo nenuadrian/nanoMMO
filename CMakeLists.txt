@@ -161,6 +161,12 @@ target_compile_options(imgui PRIVATE -w)
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
+option(NANOMMO_COVERAGE "Count the lines the tests run, with Clang" OFF)
+if(NANOMMO_COVERAGE)
+  add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+  add_link_options(-fprofile-instr-generate)
+endif()
+
 option(NANOMMO_FUZZ "Build the fuzzers in fuzz/, with Clang" OFF)
 if(NANOMMO_FUZZ)
   # So that libFuzzer sees which of our code each input reaches.

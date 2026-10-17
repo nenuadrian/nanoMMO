@@ -55,6 +55,12 @@ RUN cmake -S . -B build -G Ninja -DNANOMMO_FUZZ=ON \
  && run-clang-tidy -quiet -p build \
       '^/src/(server|bot|client|protocol|content|terrain|fuzz)/(?!.*_test\.cc)'
 
+FROM clang AS coverage
+WORKDIR /src
+COPY . .
+RUN cmake -S . -B build -G Ninja -DNANOMMO_COVERAGE=ON \
+ && cmake --build build
+
 FROM ubuntu:24.04 AS runtime
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libmysqlclient21 libsodium23 libssl3t64 \

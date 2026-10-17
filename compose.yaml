@@ -236,6 +236,27 @@ services:
     profiles:
       - test
 
+  coverage:
+    build:
+      context: .
+      target: coverage
+    command: ["./coverage.sh"]
+    environment:
+      NANOMMO_MYSQL_HOST: mysql
+      NANOMMO_REDIS_HOST: redis
+      NANOMMO_CONSUL_HOST: consul
+    volumes:
+      - ./site/coverage:/coverage
+    depends_on:
+      consul:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    profiles:
+      - test
+
 volumes:
   mysql:
   redis:
