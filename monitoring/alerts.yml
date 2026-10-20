@@ -1,0 +1,14 @@
+groups:
+  - name: nanommo
+    rules:
+      - alert: WorldFallingBehind
+        expr: sum by (world) (rate(nanommo_tick_duration_seconds_count[30s])) < 19
+        for: 1m
+        annotations:
+          summary: '{{ $labels.world }} runs {{ $value | printf "%.1f" }} ticks a second, out of 20'
+
+      - alert: WorldDown
+        expr: up{job="nanommo-server"} == 0
+        for: 1m
+        annotations:
+          summary: "Prometheus can't scrape {{ $labels.world }}"
