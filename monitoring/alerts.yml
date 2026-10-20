@@ -8,7 +8,9 @@ groups:
           summary: '{{ $labels.world }} runs {{ $value | printf "%.1f" }} ticks a second, out of 20'
 
       - alert: WorldDown
-        expr: up{job="nanommo-server"} == 0
+        expr: >-
+          max by (world) (max_over_time(up{job="nanommo-server"}[1d]))
+          unless on (world) up{job="nanommo-server"} == 1
         for: 1m
         annotations:
-          summary: "Prometheus can't scrape {{ $labels.world }}"
+          summary: "{{ $labels.world }} is down, or gone from Prometheus's targets"
