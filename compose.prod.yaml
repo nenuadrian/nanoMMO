@@ -58,6 +58,16 @@ services:
       - "127.0.0.1:9090:9090"
     restart: unless-stopped
 
+  alertmanager:
+    ports: !override
+      - "127.0.0.1:9093:9093"
+    restart: unless-stopped
+
+  mailpit:
+    ports: !override
+      - "127.0.0.1:8025:8025"
+    restart: unless-stopped
+
   grafana:
     ports: !override
       - "127.0.0.1:3000:3000"
