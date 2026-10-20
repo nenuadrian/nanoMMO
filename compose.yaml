@@ -249,6 +249,15 @@ services:
     profiles:
       - test
 
+  alerts:
+    image: prom/prometheus:v3.15.0
+    entrypoint: ["promtool"]
+    command: ["test", "rules", "/etc/prometheus/alerts_test.yml"]
+    volumes:
+      - ./monitoring:/etc/prometheus:ro
+    profiles:
+      - test
+
   coverage:
     build:
       context: .

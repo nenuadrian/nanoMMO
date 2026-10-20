@@ -559,6 +559,34 @@ BOTS=1000 RAMP=60 docker compose up -d bots
 A few hundred bots need more open files than macOS allows a shell by default, so on the Mac, run
 `ulimit -n 4096` first. Stop everything with `docker compose --profile load down`.
 
+## Alerts
+
+Prometheus checks the rules in `monitoring/alerts.yml` every five seconds, and its alerts page,
+http://localhost:9090/alerts, shows each one as inactive, pending or firing:
+
+- `WorldFallingBehind`, when a world has run fewer than 19 ticks a second, out of its 20, for a
+  minute. A world that keeps up runs a little either side of 20.
+- `WorldDown`, when a world that was one of Prometheus's targets in the last day hasn't been up for a
+  minute. A world that stops leaves Consul, and Prometheus stops scraping it, so `up == 0` would miss
+  it. A world whose tick is stuck stops its heartbeat too, so Consul drops it, and `WorldDown` fires.
+
+Prometheus sends the alerts to Alertmanager, at http://localhost:9093, which emails each one when it
+fires and when it resolves. The mail goes to Mailpit, a mail server for development, which keeps it,
+and shows it at http://localhost:8025 and through its API:
+
+```bash
+curl -s localhost:8025/api/v1/messages | jq -r '.messages[].Subject'
+curl -s localhost:8025/api/v1/message/latest | jq -r .Text
+```
+
+To get the mail somewhere else, `smtp_smarthost` in `monitoring/alertmanager.yml` points at a real mail
+server, with `smtp_auth_username` and `smtp_auth_password_file`. The rules have tests, in
+`monitoring/alerts_test.yml`, which CI runs too:
+
+```bash
+docker compose run --rm alerts
+```
+
 ## Benchmarking and profiling
 
 `bench/load.sh` measures how the server copes as players arrive. With the stack from `compose.yaml`
@@ -938,9 +966,10 @@ The game runs on any Linux server with Docker and Docker Compose, such as a VPS,
   UDP, and the website on port 8080, and nothing else. MySQL, Redis, the storyteller and the worlds'
   metrics stay on Compose's own network. Docker publishes a port past a firewall such as ufw, so leaving a port out of
   the file is what keeps it off the internet.
-- Prometheus, Grafana and Consul listen on the server's localhost. Reach them through SSH:
-  `ssh -L 3000:localhost:3000 -L 9090:localhost:9090 -L 8500:localhost:8500 debian@203.0.113.7`,
-  then open http://localhost:3000.
+- Prometheus, Grafana, Alertmanager, Mailpit and Consul listen on the server's localhost. Reach them
+  through SSH: `ssh -L 3000:localhost:3000 -L 9090:localhost:9090 -L 9093:localhost:9093 -L
+  8025:localhost:8025 -L 8500:localhost:8500 debian@203.0.113.7`, then open
+  http://localhost:3000.
 - MySQL's password and the website's `APP_KEY` come from `.env` on the server, which `deploy.sh` makes
   on the first deploy, with random ones, readable by the deploying user alone. Git and the Docker
   builds leave `.env` out.

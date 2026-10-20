@@ -1,0 +1,35 @@
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 5s
+
+tests:
+  - name: Frost falls behind
+    interval: 2s
+    input_series:
+      - series: 'nanommo_tick_duration_seconds_count{job="nanommo-server", world="Ember"}'
+        values: '0+40x60'
+      - series: 'nanommo_tick_duration_seconds_count{job="nanommo-server", world="Frost"}'
+        values: '0+30x60'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: WorldFallingBehind
+        exp_alerts:
+          - exp_labels: { world: Frost }
+            exp_annotations:
+              summary: Frost runs 15.0 ticks a second, out of 20
+
+  - name: Frost is gone
+    interval: 2s
+    input_series:
+      - series: 'up{job="nanommo-server", world="Ember"}'
+        values: '1x60'
+      - series: 'up{job="nanommo-server", world="Frost"}'
+        values: '1x10 stale'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: WorldDown
+        exp_alerts:
+          - exp_labels: { world: Frost }
+            exp_annotations:
+              summary: "Frost is down, or gone from Prometheus's targets"

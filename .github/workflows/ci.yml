@@ -21,6 +21,9 @@ jobs:
       - name: Run the tests against MySQL and Redis
         run: docker compose run --rm tests
 
+      - name: Test the alerts
+        run: docker compose run --rm alerts
+
       - name: Check the code with clang-tidy
         run: docker build --target tidy .
 
