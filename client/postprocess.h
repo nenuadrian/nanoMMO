@@ -11,7 +11,7 @@ namespace nanommo {
 /// GUI goes on top, as it is.
 class PostProcess {
  public:
-  PostProcess() = default;
+  PostProcess();
   ~PostProcess();
 
   PostProcess(const PostProcess&) = delete;
@@ -21,10 +21,11 @@ class PostProcess {
   void Begin();
   void End();
 
-  /// Draws the frame to the screen.
+  /// Draws the frame to the screen, with bloom.
   void Draw() const;
 
  private:
+  Shader bloom_;
   RenderTexture2D frame_{};
 };
 
