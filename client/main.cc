@@ -30,6 +30,7 @@
 #include "client/picking.h"
 #include "client/player_frame.h"
 #include "client/renderer.h"
+#include "client/sound.h"
 #include "client/talk_window.h"
 #include "client/window.h"
 #include "content/content.h"
@@ -124,6 +125,7 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<nanommo::AudioDevice> audio;
   std::unique_ptr<nanommo::Track> music;
   nanommo::Jukebox jukebox;
+  nanommo::SoundSettings sound;
   if (absl::StatusOr<std::unique_ptr<nanommo::AudioDevice>> audio_or =
           nanommo::AudioDevice::Create();
       audio_or.ok()) {
@@ -255,7 +257,7 @@ int main(int argc, char* argv[]) {
       }
       character_screen.Build(renderer.figures(), connection->world(),
                              nanommo::kLands[land].name);
-      if (menu.Build(*window, *renderer.mutable_atmosphere(),
+      if (menu.Build(*window, sound, *renderer.mutable_atmosphere(),
                      nanommo::kLooks[land].atmosphere,
                      character_screen.mutable_visible())) {
         connection.reset();
@@ -285,8 +287,12 @@ int main(int argc, char* argv[]) {
         case nanommo::Jukebox::Cue::kNothing:
           break;
       }
-      music->SetVolume(jukebox.volume());
+      music->SetVolume(nanommo::Gain(sound.music) * jukebox.volume());
       music->Update();
+    }
+    // The master volume covers each sound the game makes, so far the music.
+    if (audio) {
+      SetMasterVolume(sound.muted ? 0.0f : nanommo::Gain(sound.master));
     }
   }
   return 0;

@@ -3,6 +3,7 @@
 #include <imgui.h>
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 
 #include "extras/IconsFontAwesome6.h"
@@ -47,10 +48,21 @@ constexpr std::array<Preset, 4> kPresets = {{
       .ambient = {0.36f, 0.28f, 0.28f}}},
 }};
 
+// A slider from 0 to 100 percent, for a setting from nothing to full.
+void SliderPercent(const char* label, float& value) {
+  int percent = static_cast<int>(std::lround(value * 100.0f));
+  // Ctrl and a click lets a player type a number, which ImGui takes past the
+  // slider's ends unless it's told to clamp it, and 500% would be far too loud.
+  if (ImGui::SliderInt(label, &percent, 0, 100, "%d%%",
+                       ImGuiSliderFlags_AlwaysClamp)) {
+    value = static_cast<float>(percent) / 100.0f;
+  }
+}
+
 }  // namespace
 
-bool Menu::Build(Window& window, Atmosphere& atmosphere, const Atmosphere& land,
-                 bool* show_character) {
+bool Menu::Build(Window& window, SoundSettings& sound, Atmosphere& atmosphere,
+                 const Atmosphere& land, bool* show_character) {
   bool log_out = false;
   if (ImGui::BeginMainMenuBar()) {
     if (ImGui::BeginMenu("Game")) {
@@ -72,6 +84,13 @@ bool Menu::Build(Window& window, Atmosphere& atmosphere, const Atmosphere& land,
   if (show_settings_) {
     ImGui::Begin("Settings", &show_settings_,
                  ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::SeparatorText(ICON_FA_VOLUME_HIGH " Sound");
+    SliderPercent("Volume", sound.master);
+    SliderPercent("Music", sound.music);
+    ImGui::Checkbox("Mute", &sound.muted);
+    ImGui::TextDisabled(ICON_FA_MUSIC
+                        " \"Background Music\" by Pavel Bekirov, from Pixabay");
+    ImGui::SeparatorText(ICON_FA_CLOUD_SUN " Sky");
     ImGui::ColorEdit3("Sky", atmosphere.sky.data());
     ImGui::DragFloatRange2("Fog", &atmosphere.fog_near, &atmosphere.fog_far,
                            1.0f, 0.0f, 400.0f, "%.0f m");

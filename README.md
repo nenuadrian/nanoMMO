@@ -66,7 +66,7 @@ bottom left corner, where Enter again says what you typed to everyone in your wo
 Press C, or choose View, Character, to open your character screen. It shows your name, level,
 health, experience and position, next to an idle preview of your character facing the camera. The
 client renders that preview into a texture with a camera of its own, then ImGui draws the texture in
-the window. View, Settings changes the sky, which is the colour of the fog too, and Game, Log out
+the window. View, Settings changes the sound, and the sky, which is the colour of the fog too, and Game, Log out
 takes you back to the login screen. Next time you log in to that world, you're where you left off.
 
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
@@ -207,6 +207,11 @@ the repo: [assets/music/README.md](assets/music/README.md) says where to get it.
   fades it out over a second and a half. `client/jukebox.h` decides all of that from the frame's
   time, whether you're in the world and whether the track is playing, apart from raylib, so that its
   test needs no sound card. raylib loops a music stream by default, so the track turns that off.
+- View, Settings has the sound: Volume, which raylib's master volume applies to each sound the game
+  makes, so far the music, Music, and Mute, with the track's credit under them. Each slider goes
+  through 40 decibels, from a tenth of the amplitude at the middle to full, and its bottom is
+  silence, as we hear loudness on a logarithmic scale: a slider that moved the amplitude in a
+  straight line would do nearly all of its work at its bottom end.
 
 ## The world
 
