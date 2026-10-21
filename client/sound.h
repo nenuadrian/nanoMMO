@@ -9,6 +9,8 @@ struct SoundSettings {
   float master = 1.0f;
   float music = 0.7f;
   bool muted = false;
+
+  bool operator==(const SoundSettings&) const = default;
 };
 
 /// The gain for a slider at that position. We hear loudness on a logarithmic

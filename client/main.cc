@@ -1,3 +1,4 @@
+#include <imgui.h>
 #include <raylib.h>
 
 #include <algorithm>
@@ -30,6 +31,7 @@
 #include "client/picking.h"
 #include "client/player_frame.h"
 #include "client/renderer.h"
+#include "client/settings.h"
 #include "client/sound.h"
 #include "client/talk_window.h"
 #include "client/window.h"
@@ -125,7 +127,16 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<nanommo::AudioDevice> audio;
   std::unique_ptr<nanommo::Track> music;
   nanommo::Jukebox jukebox;
+  const std::string settings_path = nanommo::SettingsPath();
   nanommo::SoundSettings sound;
+  if (absl::StatusOr<nanommo::SoundSettings> loaded =
+          nanommo::LoadSettings(settings_path);
+      loaded.ok()) {
+    sound = *loaded;
+  } else {
+    std::cerr << "nanommo client: " << loaded.status() << "\n";
+  }
+  nanommo::SoundSettings saved = sound;
   if (absl::StatusOr<std::unique_ptr<nanommo::AudioDevice>> audio_or =
           nanommo::AudioDevice::Create();
       audio_or.ok()) {
@@ -271,6 +282,15 @@ int main(int argc, char* argv[]) {
         sent.Clear();
         nearby = 0;
       }
+    }
+    // Once a slider lets go, so that a drag across one writes once.
+    if (sound != saved && !ImGui::IsAnyItemActive()) {
+      if (const absl::Status written =
+              nanommo::SaveSettings(settings_path, sound);
+          !written.ok()) {
+        std::cerr << "nanommo client: " << written << "\n";
+      }
+      saved = sound;
     }
     gui.End();
     EndDrawing();

@@ -1,12 +1,22 @@
 add_library(nanommo_client_core
-  window.cc audio.cc jukebox.cc sound.cc gui.cc menu.cc renderer.cc offscreen.cc
+  settings.proto
+  window.cc audio.cc jukebox.cc sound.cc settings.cc gui.cc menu.cc renderer.cc
+  offscreen.cc
   camera.cc scene.cc input.cc connection.cc
   login_screen.cc nameplates.cc player_frame.cc hotbar.cc character_screen.cc
   chat_window.cc talk_window.cc picking.cc
   animator.cc characters.cc triangles.cc ground.cc trees.cc chunks.cc
   gate.cc
 )
-target_include_directories(nanommo_client_core PUBLIC ${PROJECT_SOURCE_DIR})
+protobuf_generate(TARGET nanommo_client_core
+  IMPORT_DIRS ${PROJECT_SOURCE_DIR} PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}
+)
+set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/settings.pb.cc
+  PROPERTIES COMPILE_OPTIONS -w
+)
+target_include_directories(nanommo_client_core PUBLIC
+  ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}
+)
 target_link_libraries(nanommo_client_core PUBLIC
   raylib imgui nanommo_protocol nanommo_content nanommo_terrain asio
   absl::memory absl::status absl::statusor absl::strings
@@ -45,7 +55,7 @@ add_dependencies(nanommo_client_bench nanommo_client_assets)
 
 add_executable(nanommo_client_tests
   renderer_test.cc animator_test.cc characters_test.cc picking_test.cc
-  jukebox_test.cc sound_test.cc
+  jukebox_test.cc sound_test.cc settings_test.cc
 )
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)
 add_dependencies(nanommo_client_tests nanommo_client_assets)

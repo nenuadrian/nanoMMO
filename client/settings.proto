@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package nanommo.settings;
+
+// Each field is optional, so that one the file doesn't have keeps its
+// default, where protobuf would give a plain field zero: no sound.
+message Sound {
+  optional float master = 1;
+  optional float music = 2;
+  optional bool muted = 3;
+}
+
+// What the player sets, which the client keeps between runs.
+message Settings {
+  Sound sound = 1;
+}

@@ -212,6 +212,15 @@ the repo: [assets/music/README.md](assets/music/README.md) says where to get it.
   through 40 decibels, from a tenth of the amplitude at the middle to full, and its bottom is
   silence, as we hear loudness on a logarithmic scale: a slider that moved the amplitude in a
   straight line would do nearly all of its work at its bottom end.
+- The client keeps the sound settings between runs, in `settings.txtpb`, in protobuf's text format
+  like the content, in `~/Library/Application Support/nanoMMO` on macOS, and in the XDG config
+  folder elsewhere, `~/.config/nanommo` unless `XDG_CONFIG_HOME` says otherwise. Each field is
+  optional, so a setting the file doesn't have keeps its default, and with no file, as on a first
+  run, they're all the defaults. A player can edit the file by hand, so a volume in it stays between
+  nothing and full, as one past full would play many times louder, and one that isn't a number keeps
+  its default. The client writes the file once a slider lets go, to `settings.txtpb.new` first, and
+  renames that over the old file, which replaces it in one step, so a crash halfway through leaves
+  the old file whole.
 
 ## The world
 
