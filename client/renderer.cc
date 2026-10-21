@@ -21,16 +21,12 @@ in vec3 vertexNormal;
 in vec4 vertexColor;
 uniform mat4 mvp;
 uniform mat4 matNormal;
-uniform vec3 sun;
-uniform vec3 sunlight;
-uniform vec3 ambient;
-out vec3 light;
+out vec3 normal;
 out vec4 color;
 out float depth;
 
 void main() {
-  vec3 normal = normalize(mat3(matNormal) * vertexNormal);
-  light = ambient + sunlight * max(dot(normal, normalize(sun)), 0.0);
+  normal = mat3(matNormal) * vertexNormal;
   color = vertexColor;
   gl_Position = mvp * vec4(vertexPosition, 1.0);
   depth = gl_Position.w;
@@ -46,10 +42,7 @@ in vec4 vertexColor;
 uniform mat4 mvp;
 uniform mat4 matNormal;
 uniform mat4 boneMatrices[128];
-uniform vec3 sun;
-uniform vec3 sunlight;
-uniform vec3 ambient;
-out vec3 light;
+out vec3 normal;
 out vec4 color;
 out float depth;
 
@@ -58,27 +51,39 @@ void main() {
             + boneMatrices[int(vertexBoneIndices.y)] * vertexBoneWeights.y
             + boneMatrices[int(vertexBoneIndices.z)] * vertexBoneWeights.z
             + boneMatrices[int(vertexBoneIndices.w)] * vertexBoneWeights.w;
-  vec3 normal = normalize(mat3(matNormal) * mat3(skin) * vertexNormal);
-  light = ambient + sunlight * max(dot(normal, normalize(sun)), 0.0);
+  normal = mat3(matNormal) * mat3(skin) * vertexNormal;
   color = vertexColor;
   gl_Position = mvp * skin * vec4(vertexPosition, 1.0);
   depth = gl_Position.w;
 }
 )";
 
+// The light is worked out for each pixel, from the normal the vertex shaders
+// hand on, so that cel shading's bands follow the surface.
 constexpr const char* kFragmentShader = R"(#version 330
-in vec3 light;
+in vec3 normal;
 in vec4 color;
 in float depth;
 uniform vec4 colDiffuse;
+uniform vec3 sun;
+uniform vec3 sunlight;
+uniform vec3 ambient;
 uniform vec3 fogColor;
 uniform float fogNear;
 uniform float fogFar;
 uniform float emission;
+uniform float bands;
 out vec4 pixel;
 
 void main() {
-  vec3 lit = colDiffuse.rgb * color.rgb * (light + emission);
+  float sunlit = max(dot(normalize(normal), normalize(sun)), 0.0);
+  // Cel shading, like raylib's example: the sun's light in a few flat bands,
+  // as a cartoon's colours are, where no bands is smooth.
+  if (bands > 0.0) {
+    sunlit = min(floor(sunlit * bands), bands - 1.0) / (bands - 1.0);
+  }
+  vec3 light = ambient + sunlight * sunlit + emission;
+  vec3 lit = colDiffuse.rgb * color.rgb * light;
   float fog = clamp((depth - fogNear) / (fogFar - fogNear), 0.0, 1.0);
   pixel = vec4(mix(lit, fogColor, fog), colDiffuse.a * color.a);
 }
@@ -92,6 +97,8 @@ constexpr float kMiddle = 0.9f;
 constexpr float kGlowRadius = 1.1f;
 // A glow gives off half the light of a face turned to a white sun.
 constexpr float kGlowEmission = 0.5f;
+// The sun's light in three bands: in shadow, half lit and lit.
+constexpr float kBands = 3.0f;
 
 // The light what's drawn next gives off of its own, which takes it past white,
 // so that it blooms.
@@ -128,6 +135,11 @@ Renderer::Renderer(const Content& content)
                   character_shader_) {
   cube_.materials[0].shader = cube_shader_;
   sphere_.materials[0].shader = cube_shader_;
+  // A shader keeps a uniform's value until it's set again.
+  for (const Shader& shader : {cube_shader_, character_shader_}) {
+    SetShaderValue(shader, GetShaderLocation(shader, "bands"), &kBands,
+                   SHADER_UNIFORM_FLOAT);
+  }
   // Weapons have no bones, so they're drawn with the cube's shader.
   for (const auto& [id, item] : content.items.by_id) {
     characters_.Hold(id, item.look(), cube_shader_);

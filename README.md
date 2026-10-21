@@ -251,6 +251,11 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
   what's behind it. The screen cuts each channel at white on its own, which turns a bright orange
   yellow, so a colour past white goes to the screen scaled down to white as a whole, by its brightest
   channel.
+- Cel shading, from raylib's
+  [cel shading example](https://github.com/raysan5/raylib/blob/master/examples/shaders/shaders_cel_shading.c):
+  the sun's light comes in three flat bands, in shadow, half lit and lit, as a cartoon's colours do.
+  The light is worked out for each pixel, from the normal the vertex shaders hand on, so that the
+  bands follow the surface.
 
 ## The world
 
