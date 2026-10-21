@@ -271,6 +271,9 @@ int main(int argc, char* argv[]) {
     gui.End();
     EndDrawing();
 
+    if (music) {
+      music->Update();
+    }
     // The music plays while we're in the world.
     if (music && (connection != nullptr) != music->playing()) {
       if (connection) {

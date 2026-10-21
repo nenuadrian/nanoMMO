@@ -198,6 +198,10 @@ the repo: [assets/music/README.md](assets/music/README.md) says where to get it.
   miniaudio, opened after the window, and the track, which raylib streams from its file. Without a
   sound card, as in a container, or without the file, the client plays on in silence, and says why as
   it starts.
+- A stream plays from a buffer of two halves, about a quarter of a second each: while the device
+  plays one half, `UpdateMusicStream` decodes the next part of the file into the other. The client
+  calls it each frame, so a frame would have to take a quarter of a second for the music to skip.
+  Without it, the buffer stays empty, and the music makes no sound.
 
 ## The world
 

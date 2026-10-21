@@ -47,6 +47,11 @@ class Track {
 
   bool playing() const;
 
+  /// Refills the buffer the track plays from with what comes next in its file.
+  /// raylib needs this each frame, or the buffer runs dry and the track goes
+  /// quiet.
+  void Update();
+
  private:
   explicit Track(Music music) : music_(music) {}
 

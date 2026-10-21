@@ -42,4 +42,6 @@ void Track::Stop() { StopMusicStream(music_); }
 
 bool Track::playing() const { return IsMusicStreamPlaying(music_); }
 
+void Track::Update() { UpdateMusicStream(music_); }
+
 }  // namespace nanommo
