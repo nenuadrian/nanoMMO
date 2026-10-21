@@ -7,8 +7,6 @@
 
 namespace nanommo {
 
-constexpr float kMarkerHeight = 2.05f;
-
 Color PlayerColor(uint32_t id);
 
 }  // namespace nanommo

@@ -14,6 +14,7 @@ namespace {
 
 constexpr ImU32 kShadow = IM_COL32(0, 0, 0, 200);
 constexpr ImU32 kLevel = IM_COL32(190, 190, 190, 255);
+constexpr ImU32 kYourName = IM_COL32(255, 210, 80, 255);
 constexpr ImU32 kMonsterName = IM_COL32(255, 140, 120, 255);
 constexpr ImU32 kNpcName = IM_COL32(150, 230, 140, 255);
 constexpr ImU32 kPlayerHealth = IM_COL32(90, 200, 90, 255);
@@ -30,6 +31,15 @@ void DrawShadowedText(ImDrawList* draw, float size, ImVec2 at, ImU32 color,
   ImFont* font = ImGui::GetFont();
   draw->AddText(font, size, {at.x + 1, at.y + 1}, kShadow, text.c_str());
   draw->AddText(font, size, at, color, text.c_str());
+}
+
+// Yours stands out from the other players', so that you can find yourself in
+// a crowd.
+ImU32 NameColor(const Figure& figure) {
+  if (figure.monster) {
+    return kMonsterName;
+  }
+  return figure.you ? kYourName : IM_COL32_WHITE;
 }
 
 // In metres above a figure's feet.
@@ -92,8 +102,7 @@ void DrawNameplates(const std::vector<Figure>& figures,
     const float top = bar_min.y - 2.0f - name_size.y;
     DrawShadowedText(draw, font_size, {left, top}, kLevel, level);
     DrawShadowedText(draw, font_size, {left + level_width, top},
-                     figure.monster ? kMonsterName : IM_COL32_WHITE,
-                     figure.name);
+                     NameColor(figure), figure.name);
   }
 }
 

@@ -183,11 +183,6 @@ void Renderer::Draw() const {
   }
   for (const Figure& figure : figures_) {
     DrawFigure(figure);
-    if (figure.you) {
-      const Vector3& at = figure.position;
-      DrawModelEx(cube_, {at.x, at.y + kMarkerHeight, at.z}, {0.0f, 1.0f, 0.0f},
-                  0.0f, {0.25f, 0.25f, 0.25f}, WHITE);
-    }
   }
   // Last, as we see the ground under it through the water.
   if (sea_) {
