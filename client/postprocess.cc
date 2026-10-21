@@ -122,7 +122,8 @@ PostProcess::~PostProcess() {
   UnloadShader(combine_);
 }
 
-void PostProcess::Begin() {
+void PostProcess::Begin(const GraphicsSettings& graphics) {
+  graphics_ = graphics;
   // In pixels, as a high-DPI screen has more of them than points. It's made
   // again when the window changes size.
   const int width = GetRenderWidth();
@@ -150,7 +151,7 @@ void PostProcess::Resize(int width, int height) {
 
 void PostProcess::End() { EndTextureMode(); }
 
-void PostProcess::Draw() {
+void PostProcess::Bloom() {
   // What's bright, in a frame half the size.
   BeginShaderMode(bright_);
   DrawInto(halves_[0], frame_.texture);
@@ -173,7 +174,12 @@ void PostProcess::Draw() {
   }
   EndShaderMode();
   EndBlendMode();
+}
 
+void PostProcess::Draw() {
+  if (graphics_.bloom) {
+    Bloom();
+  }
   // The frame to the screen, with the bloom on top, fitted to its points, as
   // raylib draws on the screen in points. The sea and the glows leave the
   // frame see-through where they are, and the combine shader writes it opaque,
@@ -181,7 +187,8 @@ void PostProcess::Draw() {
   BeginShaderMode(combine_);
   SetShaderValueTexture(combine_, GetShaderLocation(combine_, "bloom"),
                         halves_[0].texture);
-  SetShaderValue(combine_, GetShaderLocation(combine_, "strength"), &kStrength,
+  const float strength = graphics_.bloom ? kStrength : 0.0f;
+  SetShaderValue(combine_, GetShaderLocation(combine_, "strength"), &strength,
                  SHADER_UNIFORM_FLOAT);
   DrawOver(frame_.texture, static_cast<float>(GetScreenWidth()),
            static_cast<float>(GetScreenHeight()));

@@ -37,10 +37,10 @@ std::string SettingsPath() {
 #endif
 }
 
-absl::StatusOr<SoundSettings> LoadSettings(const std::string& path) {
-  SoundSettings sound;
+absl::StatusOr<Settings> LoadSettings(const std::string& path) {
+  Settings loaded;
   if (!FileExists(path.c_str())) {
-    return sound;
+    return loaded;
   }
   const absl::StatusOr<std::string> text = ReadFile(path);
   if (!text.ok()) {
@@ -56,23 +56,33 @@ absl::StatusOr<SoundSettings> LoadSettings(const std::string& path) {
   // play many times louder, so each stays between nothing and full. The text
   // format reads nan too, which std::clamp lets through, so a volume that isn't
   // a number keeps its default.
-  if (file.sound().has_master() && !std::isnan(file.sound().master())) {
-    sound.master = std::clamp(file.sound().master(), 0.0f, 1.0f);
+  const settings::Sound& sound = file.sound();
+  if (sound.has_master() && !std::isnan(sound.master())) {
+    loaded.sound.master = std::clamp(sound.master(), 0.0f, 1.0f);
   }
-  if (file.sound().has_music() && !std::isnan(file.sound().music())) {
-    sound.music = std::clamp(file.sound().music(), 0.0f, 1.0f);
+  if (sound.has_music() && !std::isnan(sound.music())) {
+    loaded.sound.music = std::clamp(sound.music(), 0.0f, 1.0f);
   }
-  if (file.sound().has_muted()) {
-    sound.muted = file.sound().muted();
+  if (sound.has_muted()) {
+    loaded.sound.muted = sound.muted();
   }
-  return sound;
+  const settings::Graphics& graphics = file.graphics();
+  if (graphics.has_bloom()) {
+    loaded.graphics.bloom = graphics.bloom();
+  }
+  if (graphics.has_cel_shading()) {
+    loaded.graphics.cel_shading = graphics.cel_shading();
+  }
+  return loaded;
 }
 
-absl::Status SaveSettings(const std::string& path, const SoundSettings& sound) {
+absl::Status SaveSettings(const std::string& path, const Settings& player) {
   settings::Settings file;
-  file.mutable_sound()->set_master(sound.master);
-  file.mutable_sound()->set_music(sound.music);
-  file.mutable_sound()->set_muted(sound.muted);
+  file.mutable_sound()->set_master(player.sound.master);
+  file.mutable_sound()->set_music(player.sound.music);
+  file.mutable_sound()->set_muted(player.sound.muted);
+  file.mutable_graphics()->set_bloom(player.graphics.bloom);
+  file.mutable_graphics()->set_cel_shading(player.graphics.cel_shading);
   std::string text;
   if (!google::protobuf::TextFormat::PrintToString(file, &text)) {
     return absl::InternalError("couldn't print the settings");

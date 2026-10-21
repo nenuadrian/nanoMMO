@@ -61,7 +61,7 @@ void SliderPercent(const char* label, float& value) {
 
 }  // namespace
 
-bool Menu::Build(Window& window, SoundSettings& sound, Atmosphere& atmosphere,
+bool Menu::Build(Window& window, Settings& settings, Atmosphere& atmosphere,
                  const Atmosphere& land, bool* show_character) {
   bool log_out = false;
   if (ImGui::BeginMainMenuBar()) {
@@ -85,11 +85,14 @@ bool Menu::Build(Window& window, SoundSettings& sound, Atmosphere& atmosphere,
     ImGui::Begin("Settings", &show_settings_,
                  ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::SeparatorText(ICON_FA_VOLUME_HIGH " Sound");
-    SliderPercent("Volume", sound.master);
-    SliderPercent("Music", sound.music);
-    ImGui::Checkbox("Mute", &sound.muted);
+    SliderPercent("Volume", settings.sound.master);
+    SliderPercent("Music", settings.sound.music);
+    ImGui::Checkbox("Mute", &settings.sound.muted);
     ImGui::TextDisabled(ICON_FA_MUSIC
                         " \"Background Music\" by Pavel Bekirov, from Pixabay");
+    ImGui::SeparatorText(ICON_FA_DISPLAY " Graphics");
+    ImGui::Checkbox("Bloom", &settings.graphics.bloom);
+    ImGui::Checkbox("Cel shading", &settings.graphics.cel_shading);
     ImGui::SeparatorText(ICON_FA_CLOUD_SUN " Sky");
     ImGui::ColorEdit3("Sky", atmosphere.sky.data());
     ImGui::DragFloatRange2("Fog", &atmosphere.fog_near, &atmosphere.fog_far,

@@ -260,6 +260,9 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
   first, inside out, five centimetres bigger along its normals, in a dark colour that fades into the
   fog, so that its back shows around the figure's edges. Our characters are posed on the GPU, so
   their outline has a shader with bones of its own. The ground and its trees have none.
+- View, Settings has the graphics: Bloom, on by default, and Cel shading, off by default, as a
+  cartoon's look is the player's to choose. The client keeps them with the sound in `settings.txtpb`
+  (see [Music](#music)).
 
 ## The world
 

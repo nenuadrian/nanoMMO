@@ -50,6 +50,9 @@ class Renderer {
   const Camera3D& camera() const { return camera_; }
   void set_camera(const Camera3D& camera) { camera_ = camera; }
 
+  /// Cel shading's bands and outlines, on or off. It starts off.
+  void set_cel_shading(bool on);
+
   /// Builds the terrain's meshes in the look's colours, in place of any we
   /// had, and takes on the look's atmosphere.
   void set_terrain(const Terrain& terrain, const Look& look);
@@ -85,6 +88,7 @@ class Renderer {
   Shader cube_shader_;
   Shader character_shader_;
   Outline outline_;
+  bool cel_shading_ = false;
   Model cube_;
   /// Every NPC is this ball, scaled to its radius and tinted its colour.
   Model sphere_;

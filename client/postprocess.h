@@ -5,6 +5,8 @@
 
 #include <array>
 
+#include "client/graphics.h"
+
 namespace nanommo {
 
 /// What the world goes through on its way to the screen. The renderer draws
@@ -19,11 +21,12 @@ class PostProcess {
   PostProcess(const PostProcess&) = delete;
   PostProcess& operator=(const PostProcess&) = delete;
 
-  /// What's drawn from here goes into the frame, until End.
-  void Begin();
+  /// What's drawn from here goes into the frame, until End, and Draw puts it
+  /// on the screen as the settings say.
+  void Begin(const GraphicsSettings& graphics);
   void End();
 
-  /// Draws the frame to the screen, with bloom.
+  /// Draws the frame to the screen, with bloom if it's on.
   void Draw();
 
  private:
@@ -31,10 +34,12 @@ class PostProcess {
   static constexpr int kHalves = 5;
 
   void Resize(int width, int height);
+  void Bloom();
 
   Shader bright_;
   Shader spread_;
   Shader combine_;
+  GraphicsSettings graphics_;
   RenderTexture2D frame_{};
   std::array<RenderTexture2D, kHalves> halves_{};
 };

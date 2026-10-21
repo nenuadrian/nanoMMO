@@ -208,11 +208,6 @@ Renderer::Renderer(const Content& content)
                   character_shader_) {
   cube_.materials[0].shader = cube_shader_;
   sphere_.materials[0].shader = cube_shader_;
-  // A shader keeps a uniform's value until it's set again.
-  for (const Shader& shader : {cube_shader_, character_shader_}) {
-    SetShaderValue(shader, GetShaderLocation(shader, "bands"), &kBands,
-                   SHADER_UNIFORM_FLOAT);
-  }
   for (const Shader& shader : {outline_.still, outline_.skinned}) {
     SetShaderValue(shader, GetShaderLocation(shader, "thickness"),
                    &kOutlineThickness, SHADER_UNIFORM_FLOAT);
@@ -257,6 +252,20 @@ void Renderer::set_terrain(const Terrain& terrain, const Look& look) {
   sea_ = LoadModelFromMesh(SeaMesh(terrain));
   sea_->materials[0].shader = cube_shader_;
   sea_->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = look.sea;
+}
+
+void Renderer::set_cel_shading(bool on) {
+  if (on == cel_shading_) {
+    return;
+  }
+  cel_shading_ = on;
+  // A shader keeps a uniform's value until it's set again. With no bands,
+  // which a uniform starts at, the light is smooth.
+  const float bands = on ? kBands : 0.0f;
+  for (const Shader& shader : {cube_shader_, character_shader_}) {
+    SetShaderValue(shader, GetShaderLocation(shader, "bands"), &bands,
+                   SHADER_UNIFORM_FLOAT);
+  }
 }
 
 void Renderer::UnloadTerrain() {
@@ -345,10 +354,12 @@ void Renderer::DrawFigure(const Figure& figure) const {
     // The ball's middle is its origin, so it's raised to rest on the ground.
     const Vector3& at = figure.position;
     const float radius = figure.radius;
-    DrawOutline(sphere_,
-                MatrixMultiply(MatrixScale(radius, radius, radius),
-                               MatrixTranslate(at.x, at.y + radius, at.z)),
-                outline_.still);
+    if (cel_shading_) {
+      DrawOutline(sphere_,
+                  MatrixMultiply(MatrixScale(radius, radius, radius),
+                                 MatrixTranslate(at.x, at.y + radius, at.z)),
+                  outline_.still);
+    }
     DrawModelEx(sphere_, {at.x, at.y + radius, at.z}, {0.0f, 1.0f, 0.0f}, 0.0f,
                 {radius, radius, radius}, figure.color);
     return;
@@ -360,7 +371,7 @@ void Renderer::DrawFigure(const Figure& figure) const {
   }
   const Color color = figure.monster ? figure.color : PlayerColor(figure.id);
   if (looks != nullptr && looks->size() > 0) {
-    looks->Draw(figure, color, &outline_);
+    looks->Draw(figure, color, cel_shading_ ? &outline_ : nullptr);
     return;
   }
   const Vector3& at = figure.position;

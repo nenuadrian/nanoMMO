@@ -10,7 +10,13 @@ message Sound {
   optional bool muted = 3;
 }
 
+message Graphics {
+  optional bool bloom = 1;
+  optional bool cel_shading = 2;
+}
+
 // What the player sets, which the client keeps between runs.
 message Settings {
   Sound sound = 1;
+  Graphics graphics = 2;
 }

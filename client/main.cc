@@ -129,15 +129,15 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<nanommo::Track> music;
   nanommo::Jukebox jukebox;
   const std::string settings_path = nanommo::SettingsPath();
-  nanommo::SoundSettings sound;
-  if (absl::StatusOr<nanommo::SoundSettings> loaded =
+  nanommo::Settings settings;
+  if (absl::StatusOr<nanommo::Settings> loaded =
           nanommo::LoadSettings(settings_path);
       loaded.ok()) {
-    sound = *loaded;
+    settings = *loaded;
   } else {
     std::cerr << "nanommo client: " << loaded.status() << "\n";
   }
-  nanommo::SoundSettings saved = sound;
+  nanommo::Settings saved = settings;
   if (absl::StatusOr<std::unique_ptr<nanommo::AudioDevice>> audio_or =
           nanommo::AudioDevice::Create();
       audio_or.ok()) {
@@ -241,7 +241,8 @@ int main(int argc, char* argv[]) {
 
     // The world goes into a frame of its own, which the screen gets from there.
     if (connection) {
-      post.Begin();
+      renderer.set_cel_shading(settings.graphics.cel_shading);
+      post.Begin(settings.graphics);
       renderer.Draw();
       post.End();
     }
@@ -276,7 +277,7 @@ int main(int argc, char* argv[]) {
       }
       character_screen.Build(renderer.figures(), connection->world(),
                              nanommo::kLands[land].name);
-      if (menu.Build(*window, sound, *renderer.mutable_atmosphere(),
+      if (menu.Build(*window, settings, *renderer.mutable_atmosphere(),
                      nanommo::kLooks[land].atmosphere,
                      character_screen.mutable_visible())) {
         connection.reset();
@@ -292,13 +293,13 @@ int main(int argc, char* argv[]) {
       }
     }
     // Once a slider lets go, so that a drag across one writes once.
-    if (sound != saved && !ImGui::IsAnyItemActive()) {
+    if (settings != saved && !ImGui::IsAnyItemActive()) {
       if (const absl::Status written =
-              nanommo::SaveSettings(settings_path, sound);
+              nanommo::SaveSettings(settings_path, settings);
           !written.ok()) {
         std::cerr << "nanommo client: " << written << "\n";
       }
-      saved = sound;
+      saved = settings;
     }
     gui.End();
     EndDrawing();
@@ -315,12 +316,13 @@ int main(int argc, char* argv[]) {
         case nanommo::Jukebox::Cue::kNothing:
           break;
       }
-      music->SetVolume(nanommo::Gain(sound.music) * jukebox.volume());
+      music->SetVolume(nanommo::Gain(settings.sound.music) * jukebox.volume());
       music->Update();
     }
     // The master volume covers each sound the game makes, so far the music.
     if (audio) {
-      SetMasterVolume(sound.muted ? 0.0f : nanommo::Gain(sound.master));
+      SetMasterVolume(
+          settings.sound.muted ? 0.0f : nanommo::Gain(settings.sound.master));
     }
   }
   return 0;
