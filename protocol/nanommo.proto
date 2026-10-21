@@ -15,6 +15,9 @@ message Input {
   bool attack = 4;
   string say = 5;
   Talk talk = 6;
+  // A skill to use, by its id in the skills file. The client sends it once,
+  // as its key goes down.
+  uint32 skill = 7;
 }
 
 enum Motion {
@@ -23,6 +26,7 @@ enum Motion {
   MOTION_RUN = 2;
   MOTION_ATTACK = 3;
   MOTION_DEAD = 4;
+  MOTION_SKILL = 5;
 }
 
 message Player {
@@ -37,6 +41,8 @@ message Player {
   uint32 max_health = 9;
   // What the player holds, by its id in the items file.
   uint32 weapon = 10;
+  // While its motion is a skill's, which skill, by its id in the skills file.
+  uint32 skill = 11;
 }
 
 message Monster {
@@ -86,6 +92,9 @@ message World {
   uint32 land = 10;
   repeated Chat chat = 11;
   repeated Npc npcs = 12;
+  // Your skills that aren't ready yet: how long until each one is, in
+  // milliseconds, by its id.
+  map<uint32, uint32> cooldowns = 13;
 }
 
 message LoginRequest {

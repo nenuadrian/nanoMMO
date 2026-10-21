@@ -294,7 +294,9 @@ level after the first adds five to whatever you hold. Holding Space down swings 
 of it happens on the server: the client only says that Space is down, in `Input`.
 
 A monster goes for the nearest living player within its kind's sight, three metres for a skeleton, if that player is within
-its leash of the monster's home, four metres. The content's checks keep each fixed home further than that from the middle of the
+its leash of the monster's home, four metres. A monster that's hurt goes for whoever hurt it last
+instead, seen or not, while they're within its leash, so that a kick that knocks it out of sight
+doesn't make it forget them. The content's checks keep each fixed home further than that from the middle of the
 island, so the middle, where players start and come back, is safe. A monster runs at them at the
 players' running speed, and swings once it's within 1.2 metres. The skeleton's swing takes 0.9 seconds, its attack animation, and hits for five,
 0.65 seconds in. An Ash Skeleton, in the Ashlands, is level two, and hits for eight. Run, or die, and it gives up and wanders back.
@@ -313,6 +315,33 @@ health at level one, and twenty more for each level after it.
 Experience and health are saved with where you are (see [Saving players](#saving-players)), so you
 come back with the health you left with. If you leave dead, you come back as the respawn would bring
 you back, in the middle at full health. A player saved before health was kept joins at full health.
+
+## Skills
+
+A skill is a move with a cooldown, which a player can use from its level on. The four in
+`content/skills.txtpb` are a skill a level, from one to four:
+
+| Skill | From level | Cooldown | What it does |
+|---|---|---|---|
+| Thrust | 1 | 8 s | 35 damage to the nearest monster within 2.4 metres |
+| Kick | 2 | 6 s | 10 damage, and knocks the monster 3 metres back |
+| Second Wind | 3 | 30 s | Heals 40, up to your most |
+| Whirlwind | 4 | 12 s | 25 damage to each monster within 2.5 metres |
+
+Each level after the first adds five to a skill's damage, as it does to a weapon's. There's no
+skill tree: a player has each skill as soon as they reach its level.
+
+The server decides it all, as it does a swing. The client sends a skill's id in `Input` once, as its
+key goes down, and the world keeps it until the player is free: a skill asked for during a swing or
+another skill starts as that ends. Then it starts if the player has reached its level and its
+cooldown is over, and otherwise it goes. A skill holds the player for its cast time, like a swing,
+lands partway through, on the monster the player turned to as it started if it's still in reach,
+or on each one in reach, and starts its cooldown as it starts. Cooldowns run down whatever the player does, dead or alive,
+and aren't saved: a player who leaves and comes back finds their skills ready.
+
+A player using a skill has the motion `MOTION_SKILL`, and its id, so that everyone's clients can
+show it. Your cooldowns are yours alone, so they go with your experience, after the world: the
+milliseconds left for each skill that isn't ready, by its id.
 
 ## Accounts and logins
 
@@ -865,7 +894,7 @@ bots read, so that there's one place to change it: `items.txtpb`, `monsters.txtp
 and `skills.txtpb`, in protobuf's text format, each with its schema next to it, in `items.proto`,
 `monsters.proto`, `npcs.proto` and `skills.proto`. So far there's one item, the sword, which every
 player holds, two kinds of monster, the skeleton and the Ash Skeleton, five kinds of NPC, and four
-skills.
+skills (see [Skills](#skills)).
 
 - An item, or a kind of monster or NPC, has an id and a name, and parts that each side reads what it
   needs from. A weapon's `weapon` and a monster's `fight` are the server's: reach, swing and hit

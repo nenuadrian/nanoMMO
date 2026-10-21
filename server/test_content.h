@@ -3,6 +3,7 @@
 
 #include "content/items.h"
 #include "content/monsters.h"
+#include "content/skills.h"
 
 namespace nanommo::testing {
 
@@ -14,6 +15,18 @@ inline ItemTable Sword() {
     items {
       id: 1
       weapon { reach: 1.6 swing_ms: 2000 hit_ms: 900 damage: 15 }
+    }
+  )pb");
+}
+
+inline SkillTable Kick() {
+  return *ParseSkills(R"pb(
+    skills {
+      id: 1
+      name: "Kick"
+      level: 2
+      cooldown_ms: 6000
+      effect { cast_ms: 1000 hit_ms: 500 reach: 1.4 damage: 10 push: 3 }
     }
   )pb");
 }

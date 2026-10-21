@@ -180,6 +180,43 @@ TEST(World, KillsMonstersForTheirExperienceAndTheyComeBack) {
   EXPECT_EQ(world.monsters().at(id).health, 10);
 }
 
+TEST(World, UsesSkillsFromTheirLevelOnceTheyreReady) {
+  nanommo::World world(1, nanommo::Terrain(), nanommo::testing::Sword(),
+                       nanommo::testing::Kick());
+  world.Join(1, {});
+  world.Join(2, {.experience = 100});
+  const uint32_t skeleton =
+      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 1.0f, 0.0f));
+
+  // The kick is from level two, which the second player has reached.
+  world.UseSkill(1, 1);
+  world.UseSkill(2, 1);
+  world.Step(kTick);
+  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kIdle);
+  EXPECT_EQ(world.players().at(2).motion, nanommo::Motion::kSkill);
+  for (int tick = 0; tick < 10; ++tick) {
+    world.Step(kTick);
+  }
+  const nanommo::Monster& kicked = world.monsters().at(skeleton);
+  EXPECT_EQ(kicked.health, 50 - 10 - 5);
+  EXPECT_FLOAT_EQ(kicked.x, 4.0f);
+
+  // Out of its sight, it goes back for the player who kicked it.
+  RunOneSecond(world);
+  EXPECT_EQ(world.monsters().at(skeleton).prey, 2u);
+
+  // Then the player can't kick again until the cooldown's over.
+  world.UseSkill(2, 1);
+  world.Step(kTick);
+  EXPECT_NE(world.players().at(2).motion, nanommo::Motion::kSkill);
+  for (int second = 0; second < 5; ++second) {
+    RunOneSecond(world);
+  }
+  world.UseSkill(2, 1);
+  world.Step(kTick);
+  EXPECT_EQ(world.players().at(2).motion, nanommo::Motion::kSkill);
+}
+
 TEST(World, MonstersKillPlayersWhoComeBackInTheMiddle) {
   nanommo::World world;
   world.Join(1, {.x = 2.0f});

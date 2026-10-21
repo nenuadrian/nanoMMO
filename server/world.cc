@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <utility>
 
 #include "server/levels.h"
@@ -29,8 +30,11 @@ void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z) {
   }
 }
 
-World::World(uint32_t seed, Terrain terrain, ItemTable items)
-    : terrain_(std::move(terrain)), items_(std::move(items)), random_(seed) {}
+World::World(uint32_t seed, Terrain terrain, ItemTable items, SkillTable skills)
+    : terrain_(std::move(terrain)),
+      items_(std::move(items)),
+      skills_(std::move(skills)),
+      random_(seed) {}
 
 void World::Join(uint32_t id, Player player) {
   // Saved somewhere that's sea now, such as on a terrain from another seed.
@@ -86,18 +90,33 @@ void World::SetInput(uint32_t id, float x, float z, bool run, bool attack) {
   found->second.input_attack = attack;
 }
 
+void World::UseSkill(uint32_t id, uint32_t skill) {
+  const auto found = players_.find(id);
+  if (found != players_.end()) {
+    found->second.input_skill = skill;
+  }
+}
+
 void World::Step(std::chrono::nanoseconds time) {
   ZoneScoped;
   for (auto& [id, player] : players_) {
-    Act(player, time);
+    Act(id, player, time);
   }
   for (auto& [id, monster] : monsters_) {
     Act(monster, time);
   }
 }
 
-void World::Act(Player& player, std::chrono::nanoseconds time) {
+void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
+  // Cooldowns run down whatever the player's doing.
+  for (auto it = player.cooldowns.begin(); it != player.cooldowns.end();) {
+    it->second -= time;
+    it = it->second <= std::chrono::nanoseconds::zero()
+             ? player.cooldowns.erase(it)
+             : std::next(it);
+  }
   if (player.motion == Motion::kDead) {
+    player.input_skill = 0;
     player.respawn -= time;
     if (player.respawn <= std::chrono::nanoseconds::zero()) {
       player.x = 0.0f;
@@ -107,20 +126,38 @@ void World::Act(Player& player, std::chrono::nanoseconds time) {
     }
     return;
   }
+  if (player.motion == Motion::kSkill) {
+    const skills::Skill& skill = skills_.by_id.at(player.skill);
+    const auto before = player.cast;
+    player.cast += time;
+    const std::chrono::milliseconds hit(skill.effect().hit_ms());
+    if (before < hit && player.cast >= hit) {
+      Land(id, player, skill);
+    }
+    if (player.cast < std::chrono::milliseconds(skill.effect().cast_ms())) {
+      return;
+    }
+    player.motion = Motion::kIdle;
+  }
   const items::Weapon* weapon = WeaponOf(player);
   if (player.motion == Motion::kAttack) {
     const auto before = player.swing;
     player.swing += time;
     const std::chrono::milliseconds hit(weapon->hit_ms());
     if (before < hit && player.swing >= hit) {
-      Hit(player, *weapon);
+      Hit(id, player, *weapon);
     }
     if (player.swing < std::chrono::milliseconds(weapon->swing_ms())) {
       return;
     }
     player.motion = Motion::kIdle;
   }
-  if (player.input_attack && weapon != nullptr) {
+  // A skill asked for while the player was busy waits until now, and one they
+  // can't use yet goes.
+  if (const skills::Skill* skill =
+          Usable(player, std::exchange(player.input_skill, 0))) {
+    Start(player, *skill);
+  } else if (player.input_attack && weapon != nullptr) {
     Swing(player, *weapon);
   } else {
     Move(player, time);
@@ -158,11 +195,10 @@ const items::Weapon* World::WeaponOf(const Player& player) const {
   return &found->second.weapon();
 }
 
-void World::Swing(Player& player, const items::Weapon& weapon) {
-  player.motion = Motion::kAttack;
-  player.swing = std::chrono::nanoseconds::zero();
+// Picks the nearest monster in reach, and turns the player towards it.
+void World::Aim(Player& player, float reach) {
   player.target = 0;
-  float nearest = weapon.reach();
+  float nearest = reach;
   for (const auto& [id, monster] : monsters_) {
     if (monster.motion != Motion::kDead &&
         Distance(player, monster) <= nearest) {
@@ -176,7 +212,13 @@ void World::Swing(Player& player, const items::Weapon& weapon) {
   }
 }
 
-void World::Hit(Player& player, const items::Weapon& weapon) {
+void World::Swing(Player& player, const items::Weapon& weapon) {
+  player.motion = Motion::kAttack;
+  player.swing = std::chrono::nanoseconds::zero();
+  Aim(player, weapon.reach());
+}
+
+void World::Hit(uint32_t id, Player& player, const items::Weapon& weapon) {
   const auto found = monsters_.find(player.target);
   if (found == monsters_.end()) {
     return;
@@ -187,7 +229,64 @@ void World::Hit(Player& player, const items::Weapon& weapon) {
     return;
   }
   const int level = LevelFor(player.experience).number;
-  const int damage = static_cast<int>(weapon.damage()) + ExtraDamage(level);
+  Hurt(id, player, monster,
+       static_cast<int>(weapon.damage()) + ExtraDamage(level));
+}
+
+const skills::Skill* World::Usable(const Player& player, uint32_t id) const {
+  const auto found = skills_.by_id.find(id);
+  if (found == skills_.by_id.end() || player.cooldowns.contains(id) ||
+      LevelFor(player.experience).number <
+          static_cast<int>(found->second.level())) {
+    return nullptr;
+  }
+  return &found->second;
+}
+
+void World::Start(Player& player, const skills::Skill& skill) {
+  player.motion = Motion::kSkill;
+  player.skill = skill.id();
+  player.cast = std::chrono::nanoseconds::zero();
+  player.cooldowns[skill.id()] = std::chrono::milliseconds(skill.cooldown_ms());
+  Aim(player, skill.effect().reach());
+}
+
+void World::Land(uint32_t id, Player& player, const skills::Skill& skill) {
+  const skills::Effect& effect = skill.effect();
+  const int level = LevelFor(player.experience).number;
+  player.health = std::min(player.health + static_cast<int>(effect.heal()),
+                           MaxHealth(level));
+  if (effect.damage() == 0) {
+    return;
+  }
+  const int damage = static_cast<int>(effect.damage()) + ExtraDamage(level);
+  for (auto& [monster_id, monster] : monsters_) {
+    if ((effect.all() || monster_id == player.target) &&
+        monster.motion != Motion::kDead &&
+        Distance(player, monster) <= effect.reach()) {
+      Push(player, monster, effect.push());
+      Hurt(id, player, monster, damage);
+    }
+  }
+}
+
+// Away from the player, like a walk: where the sea or a tree is in the way, it
+// slides along it, or stays put.
+void World::Push(const Player& player, Monster& monster, float metres) {
+  const float distance = Distance(player, monster);
+  if (metres == 0.0f || distance == 0.0f) {
+    return;
+  }
+  const float dx = (monster.x - player.x) / distance * metres;
+  const float dz = (monster.z - player.z) / distance * metres;
+  const float edge = terrain_.edge();
+  Walk(terrain_, monster.x, monster.z, std::clamp(monster.x + dx, -edge, edge),
+       std::clamp(monster.z + dz, -edge, edge));
+}
+
+void World::Hurt(uint32_t id, Player& player, Monster& monster, int damage) {
+  const int level = LevelFor(player.experience).number;
+  monster.attacker = id;
   monster.health = std::max(monster.health - damage, 0);
   if (monster.health > 0) {
     return;

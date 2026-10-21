@@ -21,7 +21,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
   static const nanommo::World* const island = [] {
     const nanommo::Content content =
         *nanommo::ReadContent(NANOMMO_CONTENT_FOLDER);
-    auto* world = new nanommo::World(1, nanommo::Terrain(1), content.items);
+    auto* world = new nanommo::World(1, nanommo::Terrain(1), content.items,
+                                     content.skills);
     nanommo::SpawnMonsters(*world, 0, content.monsters);
     return world;
   }();
@@ -34,10 +35,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
   while (input.remaining_bytes() > 0) {
     const uint32_t id = input.ConsumeIntegralInRange<uint32_t>(1, 3);
     const bool playing = world.players().contains(id);
-    switch (input.ConsumeIntegralInRange(0, 3)) {
+    switch (input.ConsumeIntegralInRange(0, 4)) {
       case 0:
+        // Up to level four, where the last skill is.
         if (!playing) {
-          world.Join(id, {.name = "bot", .weapon = 1});
+          world.Join(id, {.name = "bot",
+                          .experience = input.ConsumeIntegralInRange(0u, 999u),
+                          .weapon = 1});
         }
         break;
       case 1:
@@ -46,6 +50,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
         break;
       case 2:
         world.Step(std::chrono::milliseconds(50));
+        break;
+      case 3:
+        world.UseSkill(id, input.ConsumeIntegralInRange<uint32_t>(0, 5));
         break;
       default:
         if (playing) {

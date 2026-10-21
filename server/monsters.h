@@ -32,6 +32,8 @@ std::chrono::nanoseconds RandomRest(std::mt19937& random);
 void Wander(Monster& monster, const Terrain& terrain,
             std::chrono::nanoseconds time, std::mt19937& random);
 
+/// The player the monster goes for: the one who hurt it last, seen or not, or
+/// else the nearest it can see, either way within its leash of its home.
 uint32_t Spot(const Monster& monster,
               const std::map<uint32_t, Player>& players);
 

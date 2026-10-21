@@ -138,6 +138,12 @@ void Wander(Monster& monster, const Terrain& terrain,
 
 uint32_t Spot(const Monster& monster,
               const std::map<uint32_t, Player>& players) {
+  const auto attacker = players.find(monster.attacker);
+  if (attacker != players.end() && attacker->second.motion != Motion::kDead &&
+      std::hypot(attacker->second.x - monster.home_x,
+                 attacker->second.z - monster.home_z) <= monster.leash) {
+    return monster.attacker;
+  }
   uint32_t nearest = 0;
   float closest = monster.sight;
   for (const auto& [id, player] : players) {
@@ -157,6 +163,10 @@ void Hunt(Monster& monster, const std::map<uint32_t, Player>& players,
           const Terrain& terrain, std::chrono::nanoseconds time,
           std::mt19937& random) {
   monster.prey = Spot(monster, players);
+  // Once its attacker dies, leaves or gets past its leash, it forgets them.
+  if (monster.prey != monster.attacker) {
+    monster.attacker = 0;
+  }
   if (monster.prey == 0) {
     if (monster.motion == Motion::kRun) {
       monster.motion = Motion::kIdle;
@@ -194,6 +204,7 @@ void Revive(Monster& monster, std::chrono::nanoseconds time,
   monster.z = monster.home_z;
   monster.health = monster.max_health;
   monster.motion = Motion::kIdle;
+  monster.attacker = 0;
   monster.rest = RandomRest(random);
 }
 

@@ -8,11 +8,12 @@
 #include <string>
 
 #include "content/items.h"
+#include "content/skills.h"
 #include "terrain/terrain.h"
 
 namespace nanommo {
 
-enum class Motion { kIdle, kWalk, kRun, kAttack, kDead };
+enum class Motion { kIdle, kWalk, kRun, kAttack, kDead, kSkill };
 
 struct Player {
   std::string name;
@@ -29,11 +30,19 @@ struct Player {
   uint32_t weapon = 0;
   uint32_t target = 0;
   std::chrono::nanoseconds swing{0};
+  /// The skill the player's using, by its id in the skills file, and how far
+  /// into it they are.
+  uint32_t skill = 0;
+  std::chrono::nanoseconds cast{0};
+  /// How long until each skill they've used is ready again, by its id.
+  std::map<uint32_t, std::chrono::nanoseconds> cooldowns;
   std::chrono::nanoseconds respawn{0};
   float input_x = 0.0f;
   float input_z = 0.0f;
   bool input_run = false;
   bool input_attack = false;
+  /// A skill the player asked for, which waits until they're free.
+  uint32_t input_skill = 0;
 };
 
 struct Monster {
@@ -61,6 +70,9 @@ struct Monster {
   float target_z = 0.0f;
   std::chrono::nanoseconds rest{0};
   uint32_t prey = 0;
+  /// The player who hurt it last, whom it goes for, seen or not, while they're
+  /// within its leash.
+  uint32_t attacker = 0;
   std::chrono::nanoseconds swing{0};
   std::chrono::nanoseconds respawn{0};
 };
@@ -91,16 +103,21 @@ class World {
 
   static constexpr std::chrono::seconds kRespawnTime{10};
 
-  /// Players fight with the items' weapons, so in a world without items,
-  /// nobody can.
+  /// Players fight with the items' weapons and the skills, so in a world
+  /// without items, nobody can.
   explicit World(uint32_t seed = std::mt19937::default_seed,
-                 Terrain terrain = Terrain(), ItemTable items = {});
+                 Terrain terrain = Terrain(), ItemTable items = {},
+                 SkillTable skills = {});
 
   void Join(uint32_t id, Player player);
 
   void Leave(uint32_t id);
 
   void SetInput(uint32_t id, float x, float z, bool run, bool attack = false);
+
+  /// The player uses the skill as soon as they're free, if they've reached
+  /// its level and it's ready.
+  void UseSkill(uint32_t id, uint32_t skill);
 
   uint32_t Spawn(Monster monster);
 
@@ -115,16 +132,23 @@ class World {
   const Terrain& terrain() const { return terrain_; }
 
  private:
-  void Act(Player& player, std::chrono::nanoseconds time);
+  void Act(uint32_t id, Player& player, std::chrono::nanoseconds time);
   void Move(Player& player, std::chrono::nanoseconds time);
   const items::Weapon* WeaponOf(const Player& player) const;
+  void Aim(Player& player, float reach);
   void Swing(Player& player, const items::Weapon& weapon);
-  void Hit(Player& player, const items::Weapon& weapon);
+  void Hit(uint32_t id, Player& player, const items::Weapon& weapon);
+  const skills::Skill* Usable(const Player& player, uint32_t id) const;
+  void Start(Player& player, const skills::Skill& skill);
+  void Land(uint32_t id, Player& player, const skills::Skill& skill);
+  void Push(const Player& player, Monster& monster, float metres);
+  void Hurt(uint32_t id, Player& player, Monster& monster, int damage);
   void Act(Monster& monster, std::chrono::nanoseconds time);
   void Hit(Monster& monster);
 
   Terrain terrain_;
   ItemTable items_;
+  SkillTable skills_;
   std::map<uint32_t, Player> players_;
   std::map<uint32_t, Monster> monsters_;
   uint32_t next_monster_ = 1;

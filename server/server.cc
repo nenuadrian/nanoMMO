@@ -60,6 +60,8 @@ protocol::Motion ToProtocol(Motion motion) {
       return protocol::MOTION_ATTACK;
     case Motion::kDead:
       return protocol::MOTION_DEAD;
+    case Motion::kSkill:
+      return protocol::MOTION_SKILL;
     case Motion::kIdle:
       break;
   }
@@ -95,6 +97,9 @@ protocol::Player ToProtocol(uint32_t id, const Player& player) {
   sent.set_health(player.health);
   sent.set_max_health(MaxHealth(level));
   sent.set_weapon(player.weapon);
+  if (player.motion == Motion::kSkill) {
+    sent.set_skill(player.skill);
+  }
   return sent;
 }
 
@@ -156,7 +161,8 @@ Server::Server(asio::io_context& io, asio::ssl::context& tls,
       storyteller_(storyteller) {
   for (const Land& land : kLands) {
     lands_.emplace_back(std::random_device()(),
-                        Terrain(seed + land.seed, land.wading), content.items);
+                        Terrain(seed + land.seed, land.wading), content.items,
+                        content.skills);
   }
 }
 
@@ -228,6 +234,9 @@ void Server::Accept() {
         if (land != nullptr && input.ParseFromString(bytes)) {
           land->SetInput(*id, input.x(), input.z(), input.run(),
                          input.attack());
+          if (input.skill() != 0) {
+            land->UseSkill(*id, input.skill());
+          }
           if (!input.say().empty()) {
             Say(*id, input.say());
           }
@@ -532,11 +541,17 @@ void Server::BroadcastLand(std::size_t index, bool full) {
       if (session == sessions_.end()) {
         continue;
       }
-      const Level level = LevelFor(land.players().at(id).experience);
+      const Player& player = land.players().at(id);
+      const Level level = LevelFor(player.experience);
       protocol::World you;
       you.set_you(id);
       you.set_experience(level.experience);
       you.set_next_level(level.next);
+      for (const auto& [skill, left] : player.cooldowns) {
+        (*you.mutable_cooldowns())[skill] = static_cast<uint32_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(left)
+                .count());
+      }
       you.set_seed(seed_ + kLands[index].seed);
       you.set_land(static_cast<uint32_t>(index));
       std::string own = you.SerializeAsString();
