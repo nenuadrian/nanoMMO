@@ -92,6 +92,8 @@ class Renderer {
   Characters characters_;
   /// Each kind of monster, by id, as its model at its height.
   std::map<uint32_t, std::unique_ptr<Characters>> monsters_;
+  /// The glows' colours, by the id of the skill each goes with.
+  std::map<uint32_t, Color> glows_;
 };
 
 }  // namespace nanommo

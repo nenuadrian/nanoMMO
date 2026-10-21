@@ -37,8 +37,11 @@ struct Figure {
   Vector3 position{0.0f, 0.0f, 0.0f};
   float yaw = 0.0f;
   protocol::Motion from = protocol::MOTION_IDLE;
+  /// While a motion is a skill's, which skill, by its id in the skills file.
+  uint32_t from_skill = 0;
   float from_time = 0.0f;
   protocol::Motion to = protocol::MOTION_IDLE;
+  uint32_t to_skill = 0;
   float to_time = 0.0f;
   float blend = 1.0f;
 };

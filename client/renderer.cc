@@ -85,6 +85,11 @@ void main() {
 
 constexpr std::array<float, 3> kPreviewBackground = {0.12f, 0.14f, 0.19f};
 
+// In metres: a glow's middle is halfway up a player, and it reaches past their
+// head and their feet.
+constexpr float kMiddle = 0.9f;
+constexpr float kGlowRadius = 1.1f;
+
 void SetAtmosphere(Shader shader, const Atmosphere& atmosphere) {
   // Into the sky's colour, so that far away things fade into the sky.
   SetShaderValue(shader, GetShaderLocation(shader, "fogColor"),
@@ -116,6 +121,12 @@ Renderer::Renderer(const Content& content)
   // Weapons have no bones, so they're drawn with the cube's shader.
   for (const auto& [id, item] : content.items.by_id) {
     characters_.Hold(id, item.look(), cube_shader_);
+  }
+  for (const auto& [id, skill] : content.skills.by_id) {
+    characters_.Learn(id, skill.look());
+    if (skill.look().has_glow()) {
+      glows_[id] = GetColor(skill.look().glow());
+    }
   }
   // Two kinds with one model load it twice, which is fine for a few kinds.
   for (const auto& [id, kind] : content.monsters.kinds) {
@@ -188,6 +199,17 @@ void Renderer::Draw() const {
   if (sea_) {
     DrawCounted(sea_->meshes[0], sea_->materials[0],
                 MatrixTranslate(0.0f, Terrain::kSeaLevel, 0.0f));
+  }
+  // The glows are see-through too, around the players using a skill with one.
+  // Each grows over the first quarter of a second.
+  for (const Figure& figure : figures_) {
+    const auto glow = glows_.find(figure.to_skill);
+    if (figure.to == protocol::MOTION_SKILL && glow != glows_.end()) {
+      const Vector3& at = figure.position;
+      const float radius = kGlowRadius * figure.blend;
+      DrawModelEx(sphere_, {at.x, at.y + kMiddle, at.z}, {0.0f, 1.0f, 0.0f},
+                  0.0f, {radius, radius, radius}, glow->second);
+    }
   }
   EndMode3D();
 }

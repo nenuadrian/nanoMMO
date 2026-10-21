@@ -157,7 +157,8 @@ ThreadSanitizer found.
 
 ## Characters
 
-The players are Mixamo's X Bot and Y Bot, with an idle, a walk, a run, a sword slash and a death.
+The players are Mixamo's X Bot and Y Bot, with an idle, a walk, a run, a sword slash and a death,
+and a clip for each skill that has one: a thrust, a kick and a spin.
 Mixamo's terms don't let us share its files, so they're not in the repo:
 [assets/mixamo/README.md](assets/mixamo/README.md) lists what to download from mixamo.com. Then make
 the characters:
@@ -348,7 +349,12 @@ or on each one in reach, and starts its cooldown as it starts. Cooldowns run dow
 and aren't saved: a player who leaves and comes back finds their skills ready.
 
 A player using a skill has the motion `MOTION_SKILL`, and its id, so that everyone's clients can
-show it. Your cooldowns are yours alone, so they go with your experience, after the world: the
+show it. The skills file names each skill's clip, which the client finds in the characters by name,
+and plays once, from the start: Thrust plays Mixamo's Thrust Slash, Kick its Kicking, and Whirlwind
+its Standing Melee Attack 360 Low, each about as long as the skill holds the player. Second Wind has no
+clip, so the player stands, in a green glow, see-through and drawn after the sea, that grows over
+the first quarter of a second. One skill straight after another blends from one clip into the next,
+as a change of motion does. Your cooldowns are yours alone, so they go with your experience, after the world: the
 milliseconds left for each skill that isn't ready, by its id.
 
 ## Accounts and logins

@@ -18,9 +18,10 @@ float Turn(float from, float to, float step) {
   return from + std::clamp(gap, -step, step);
 }
 
+// A monster uses no skills, so its skill is zero.
 template <typename Unit>
 Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
-              float seconds) {
+              uint32_t skill, float seconds) {
   const Vector3 target{unit.x(), 0.0f, unit.z()};
   const auto found = figures.find(unit.id());
   const bool back = found != figures.end() &&
@@ -31,7 +32,9 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
                       : Figure{.position = target,
                                .yaw = unit.yaw(),
                                .from = unit.motion(),
-                               .to = unit.motion()};
+                               .from_skill = skill,
+                               .to = unit.motion(),
+                               .to_skill = skill};
   figure.id = unit.id();
   figure.level = static_cast<int>(unit.level());
   figure.health = static_cast<int>(unit.health());
@@ -39,10 +42,13 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
 
   figure.from_time += seconds;
   figure.to_time += seconds;
-  if (unit.motion() != figure.to) {
+  // One skill straight after another is a new clip too.
+  if (unit.motion() != figure.to || skill != figure.to_skill) {
     figure.from = figure.to;
+    figure.from_skill = figure.to_skill;
     figure.from_time = figure.to_time;
     figure.to = unit.motion();
+    figure.to_skill = skill;
     figure.to_time = 0.0f;
     figure.blend = 0.0f;
   }
@@ -86,7 +92,7 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
   std::map<uint32_t, Figure> npcs;
   std::vector<Figure> figures;
   for (const protocol::Player& player : world.players()) {
-    Figure figure = Follow(players_, player, seconds);
+    Figure figure = Follow(players_, player, player.skill(), seconds);
     figure.name = player.name();
     figure.you = player.id() == world.you();
     figure.weapon = player.weapon();
@@ -94,7 +100,7 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
     figures.push_back(std::move(figure));
   }
   for (const protocol::Monster& monster : world.monsters()) {
-    Figure figure = Follow(monsters_, monster, seconds);
+    Figure figure = Follow(monsters_, monster, 0, seconds);
     figure.monster = true;
     figure.kind = monster.kind();
     const auto kind = content_.monsters.kinds.find(monster.kind());

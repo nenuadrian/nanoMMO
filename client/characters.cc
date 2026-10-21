@@ -207,25 +207,49 @@ void Characters::Hold(uint32_t id, const items::Look& look, Shader shader) {
   weapons_[id] = {.model = weapon, .grip = MatrixMultiply(sized, in_hand)};
 }
 
+void Characters::Learn(uint32_t skill, const skills::Look& look) {
+  if (look.clip().empty()) {
+    return;
+  }
+  for (Character& character : characters_) {
+    for (int i = 0; i < character.clip_count; ++i) {
+      if (HasWord(character.clips[i].name, look.clip()) &&
+          IsModelAnimationValid(character.model, character.clips[i])) {
+        character.skill_clips[skill] = i;
+      }
+    }
+  }
+}
+
+// A skill plays its clip once. One without a clip, or with one this
+// character doesn't have, stands.
+Characters::Pose Characters::PoseFor(const Character& character,
+                                     protocol::Motion motion, uint32_t skill,
+                                     float time) {
+  if (motion == protocol::MOTION_SKILL) {
+    const auto found = character.skill_clips.find(skill);
+    if (found != character.skill_clips.end()) {
+      const ModelAnimation& clip = character.clips[found->second];
+      return {&clip, FrameAt(clip, time, false)};
+    }
+    motion = protocol::MOTION_IDLE;
+  }
+  const int index = motion >= 0 && motion < std::ssize(kClips) ? motion : 0;
+  const ModelAnimation& clip = character.clips[character.clip_for[index]];
+  return {&clip, FrameAt(clip, time * character.speed[index],
+                         index != protocol::MOTION_DEAD)};
+}
+
 void Characters::Draw(const Figure& figure, Color color) const {
   const Character& character = characters_[figure.id % characters_.size()];
-  const auto index = [](protocol::Motion motion) {
-    return motion >= 0 && motion < std::ssize(kClips) ? motion : 0;
-  };
-  const int from = index(figure.from);
-  const int to = index(figure.to);
-  const ModelAnimation& from_clip = character.clips[character.clip_for[from]];
-  const ModelAnimation& to_clip = character.clips[character.clip_for[to]];
+  const Pose from =
+      PoseFor(character, figure.from, figure.from_skill, figure.from_time);
+  const Pose to =
+      PoseFor(character, figure.to, figure.to_skill, figure.to_time);
 
   // Players share the model's bones, so we pose them right before each draw.
-  UpdateModelAnimationEx(
-      character.model, from_clip,
-      FrameAt(from_clip, figure.from_time * character.speed[from],
-              from != protocol::MOTION_DEAD),
-      to_clip,
-      FrameAt(to_clip, figure.to_time * character.speed[to],
-              to != protocol::MOTION_DEAD),
-      figure.blend);
+  UpdateModelAnimationEx(character.model, *from.clip, from.frame, *to.clip,
+                         to.frame, figure.blend);
   const float scale = character.scale;
   DrawModelEx(character.model, figure.position, {0.0f, 1.0f, 0.0f},
               figure.yaw * RAD2DEG, {scale, scale, scale}, color);

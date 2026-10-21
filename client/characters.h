@@ -12,6 +12,7 @@
 
 #include "client/animator.h"
 #include "content/items.pb.h"
+#include "content/skills.pb.h"
 
 namespace nanommo {
 
@@ -38,6 +39,9 @@ class Characters {
   /// the item.
   void Hold(uint32_t id, const items::Look& look, Shader shader);
 
+  /// Finds the skill's clip, by its name, in each character that has it.
+  void Learn(uint32_t skill, const skills::Look& look);
+
   void Draw(const Figure& figure, Color color) const;
 
  private:
@@ -49,7 +53,17 @@ class Characters {
     std::array<float, 5> speed{1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
     float scale = 1.0f;
     int hand = -1;
+    /// Each skill's clip, by the skill's id.
+    std::map<uint32_t, int> skill_clips;
   };
+
+  struct Pose {
+    const ModelAnimation* clip;
+    float frame;
+  };
+
+  static Pose PoseFor(const Character& character, protocol::Motion motion,
+                      uint32_t skill, float time);
 
   struct Weapon {
     Model model;
