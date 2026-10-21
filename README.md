@@ -232,12 +232,20 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
 - OpenGL keeps a texture's rows from the bottom up, so the frame goes to the screen with a negative
   height, which flips it the right way up.
 - The sea and the glows are see-through, and leave the frame see-through where they are, so the
-  frame replaces what's on the screen: blending it in would let an older picture show through.
+  shader that puts it on the screen writes it opaque: blending it in would let an older picture show
+  through.
 - The frame is the screen's size in pixels, from `GetRenderWidth` and `GetRenderHeight`, and goes to
   the screen fitted to its points. A high-DPI screen has more pixels than points, so a frame in
   points makes the world coarse. A render texture has one sample to a pixel, so the window doesn't
   ask for multisampling, which would smooth nothing but the GUI: on a high-DPI screen, a jagged edge
   is a pixel wide.
+- Bloom is the light that spills around what's brighter than the screen can show. The frame keeps
+  half a float to each channel, where raylib's render textures keep eight bits, which stop at white,
+  so the world's colours can go past it. The bloom keeps what's past white, in a frame half the
+  screen's size, halves that four more times, down to a thirty-second of the screen, and adds the
+  halves back up from the smallest, each spread over the nine pixels around as it doubles. A quarter
+  of it goes on top of the frame. raylib's example blurs the whole picture onto itself instead, which
+  washes it out.
 
 ## The world
 
