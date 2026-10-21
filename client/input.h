@@ -3,6 +3,8 @@
 
 #include <raylib.h>
 
+#include <optional>
+
 namespace nanommo {
 
 /// Whether the player is typing into a text field, such as the chat's, which
@@ -15,6 +17,10 @@ Vector3 Movement();
 bool Running();
 
 bool Attacking();
+
+/// Which of the number keys, from 1 to 9, went down this frame, as a slot
+/// from zero.
+std::optional<int> HotbarKey();
 
 /// Whether the left button went down this frame on the world, and not on one
 /// of the GUI's windows.

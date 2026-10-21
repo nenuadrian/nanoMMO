@@ -3,6 +3,7 @@
 #include <imgui.h>
 
 #include <numbers>
+#include <optional>
 
 namespace nanommo {
 
@@ -49,6 +50,19 @@ bool Running() {
 }
 
 bool Attacking() { return !Typing() && IsKeyDown(KEY_SPACE); }
+
+std::optional<int> HotbarKey() {
+  if (Typing()) {
+    return std::nullopt;
+  }
+  // raylib's KEY_ONE to KEY_NINE follow each other, as in ASCII.
+  for (int slot = 0; slot < 9; ++slot) {
+    if (IsKeyPressed(KEY_ONE + slot)) {
+      return slot;
+    }
+  }
+  return std::nullopt;
+}
 
 bool ClickedWorld() {
   return !ImGui::GetIO().WantCaptureMouse &&

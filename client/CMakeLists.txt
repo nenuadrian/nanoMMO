@@ -1,7 +1,7 @@
 add_library(nanommo_client_core
   window.cc gui.cc menu.cc renderer.cc offscreen.cc
   camera.cc scene.cc input.cc connection.cc
-  login_screen.cc nameplates.cc player_frame.cc character_screen.cc
+  login_screen.cc nameplates.cc player_frame.cc hotbar.cc character_screen.cc
   chat_window.cc talk_window.cc picking.cc
   animator.cc characters.cc triangles.cc ground.cc trees.cc chunks.cc
   gate.cc

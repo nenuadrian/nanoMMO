@@ -20,6 +20,7 @@
 #include "client/connection.h"
 #include "client/gate.h"
 #include "client/gui.h"
+#include "client/hotbar.h"
 #include "client/input.h"
 #include "client/login_screen.h"
 #include "client/menu.h"
@@ -122,6 +123,7 @@ int main(int argc, char* argv[]) {
   nanommo::CharacterScreen character_screen;
   nanommo::ChatWindow chat_window;
   nanommo::TalkWindow talk_window;
+  nanommo::Hotbar hotbar(content->skills);
   nanommo::LoginScreen login_screen(content_hash);
   nanommo::Renderer renderer(*content);
   nanommo::Animator animator(*content);
@@ -211,6 +213,12 @@ int main(int argc, char* argv[]) {
     if (connection) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera());
       nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
+      if (const std::optional<uint32_t> skill =
+              hotbar.Build(renderer.figures(), connection->world())) {
+        nanommo::protocol::Input use = sent;
+        use.set_skill(*skill);
+        connection->Send(use);
+      }
       if (const std::optional<std::string> line =
               chat_window.Build(connection->chat())) {
         // With what we sent last, so that we keep moving as we were.

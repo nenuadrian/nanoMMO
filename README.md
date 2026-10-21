@@ -56,7 +56,8 @@ its level, name and health over it, or a cube until you've made the characters (
 Skeletons wander around the middle, and in camps around the island, and a few NPCs stand near the
 middle, each a coloured ball with its name over it (see [NPCs](#npcs)). Click the storyteller, the
 purple one, to ask it for a story (see [The storyteller](#the-storyteller)). W, A, S and D, or the arrow
-keys, move yours, whose name is in gold, Shift makes it run, and Space swings the sword.
+keys, move yours, whose name is in gold, Shift makes it run, Space swings the sword, and 1 to 4 use
+your skills, from the bar along the bottom (see [Skills](#skills)).
 The camera follows you: Q and E, or dragging with the right mouse button, turn it around you,
 dragging up and down tilts it, and the mouse wheel zooms in and out. W always walks away from the camera. The frame in the top left
 corner shows your health, and your experience towards the next level. Enter opens the chat, in the
@@ -330,6 +331,13 @@ A skill is a move with a cooldown, which a player can use from its level on. The
 
 Each level after the first adds five to a skill's damage, as it does to a weapon's. There's no
 skill tree: a player has each skill as soon as they reach its level.
+
+The hotbar along the bottom of the screen has the skills in the order of their levels, each on a
+number key, 1 for the first, up to 9, and a click on one uses it too. Each shows its icon and its key,
+and its name and level when the mouse is over it. A skill you haven't reached yet is greyed out,
+with the level it needs, and one that's cooling down is shaded, a slice that shrinks clockwise from
+the top, with the seconds left in the middle. The client works that out from the milliseconds the
+server sends and the cooldown in the skills file.
 
 The server decides it all, as it does a swing. The client sends a skill's id in `Input` once, as its
 key goes down, and the world keeps it until the player is free: a skill asked for during a swing or
