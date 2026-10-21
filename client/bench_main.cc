@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
     const float z = kRadius * std::cos(angle);
     // Turning with us, so that it looks over us at the middle of the island.
     camera.Update({x, terrain.Height(x, z), z}, frame > 0 ? step : 0.0f, 0.0f,
-                  terrain);
+                  0.0f, terrain);
     renderer.set_camera(camera.camera());
     BeginDrawing();
     renderer.Draw();

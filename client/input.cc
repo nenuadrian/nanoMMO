@@ -71,6 +71,14 @@ float CameraTurn(float seconds) {
   return turn;
 }
 
+float CameraTilt() {
+  if (ImGui::GetIO().WantCaptureMouse ||
+      !IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+    return 0.0f;
+  }
+  return GetMouseDelta().y * kDragTurn;
+}
+
 float CameraZoom() {
   if (ImGui::GetIO().WantCaptureMouse) {
     return 0.0f;

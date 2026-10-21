@@ -24,6 +24,11 @@ bool ClickedWorld();
 /// mouse, dragged with the right button down.
 float CameraTurn(float seconds);
 
+/// How far to tilt the camera this frame, in radians, up over the player or
+/// down towards the ground: with the mouse, dragged with the right button
+/// down.
+float CameraTilt();
+
 /// How much closer to bring the camera this frame, as a share of its
 /// distance, from the mouse wheel.
 float CameraZoom();

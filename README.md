@@ -57,8 +57,8 @@ Skeletons wander around the middle, and in camps around the island, and a few NP
 middle, each a coloured ball with its name over it (see [NPCs](#npcs)). Click the storyteller, the
 purple one, to ask it for a story (see [The storyteller](#the-storyteller)). W, A, S and D, or the arrow
 keys, move yours, which has a white marker over it, Shift makes it run, and Space swings the sword.
-The camera follows you: Q and E, or dragging with the right mouse button, turn it around you, and
-the mouse wheel zooms in and out. W always walks away from the camera. The frame in the top left
+The camera follows you: Q and E, or dragging with the right mouse button, turn it around you,
+dragging up and down tilts it, and the mouse wheel zooms in and out. W always walks away from the camera. The frame in the top left
 corner shows your health, and your experience towards the next level. Enter opens the chat, in the
 bottom left corner, where Enter again says what you typed to everyone in your world (see
 [Chat](#chat)).

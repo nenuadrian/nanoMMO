@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
       const auto you = std::ranges::find_if(figures, &nanommo::Figure::you);
       if (you != figures.end()) {
         camera.Update(you->position, nanommo::CameraTurn(GetFrameTime()),
-                      nanommo::CameraZoom(), *terrain);
+                      nanommo::CameraTilt(), nanommo::CameraZoom(), *terrain);
         renderer.set_camera(camera.camera());
       }
       renderer.set_figures(std::move(figures));

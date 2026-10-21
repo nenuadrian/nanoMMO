@@ -16,9 +16,10 @@ class FollowCamera {
   static constexpr float kNearest = 4.0f;
   static constexpr float kFarthest = 40.0f;
 
-  /// Turns by the angle, in radians, and zooms in by the share of the
-  /// distance, then looks at the player from there.
-  void Update(Vector3 player, float turn, float zoom, const Terrain& terrain);
+  /// Turns and tilts by the angles, in radians, and zooms in by the share of
+  /// the distance, then looks at the player from there.
+  void Update(Vector3 player, float turn, float tilt, float zoom,
+              const Terrain& terrain);
 
   /// Turns the keys' direction from the screen's to the world's, so that W
   /// always walks away from the camera.
@@ -28,6 +29,8 @@ class FollowCamera {
 
  private:
   float yaw_ = 0.0f;
+  /// How far above the player it looks down from, in radians.
+  float pitch_ = 30.0f * DEG2RAD;
   float distance_ = 15.0f;
   Camera3D camera_ = GameCamera();
 };
