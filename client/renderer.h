@@ -89,6 +89,7 @@ class Renderer {
   std::vector<Face> tree_;
   std::vector<Chunk> chunks_;
   std::optional<Model> sea_;
+  float sea_emission_ = 0.0f;
   Characters characters_;
   /// Each kind of monster, by id, as its model at its height.
   std::map<uint32_t, std::unique_ptr<Characters>> monsters_;

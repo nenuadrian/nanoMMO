@@ -74,10 +74,11 @@ uniform vec4 colDiffuse;
 uniform vec3 fogColor;
 uniform float fogNear;
 uniform float fogFar;
+uniform float emission;
 out vec4 pixel;
 
 void main() {
-  vec3 lit = colDiffuse.rgb * color.rgb * light;
+  vec3 lit = colDiffuse.rgb * color.rgb * (light + emission);
   float fog = clamp((depth - fogNear) / (fogFar - fogNear), 0.0, 1.0);
   pixel = vec4(mix(lit, fogColor, fog), colDiffuse.a * color.a);
 }
@@ -89,6 +90,15 @@ constexpr std::array<float, 3> kPreviewBackground = {0.12f, 0.14f, 0.19f};
 // head and their feet.
 constexpr float kMiddle = 0.9f;
 constexpr float kGlowRadius = 1.1f;
+// A glow gives off half the light of a face turned to a white sun.
+constexpr float kGlowEmission = 0.5f;
+
+// The light what's drawn next gives off of its own, which takes it past white,
+// so that it blooms.
+void SetEmission(Shader shader, float emission) {
+  SetShaderValue(shader, GetShaderLocation(shader, "emission"), &emission,
+                 SHADER_UNIFORM_FLOAT);
+}
 
 void SetAtmosphere(Shader shader, const Atmosphere& atmosphere) {
   // Into the sky's colour, so that far away things fade into the sky.
@@ -150,6 +160,7 @@ Renderer::~Renderer() {
 void Renderer::set_terrain(const Terrain& terrain, const Look& look) {
   UnloadTerrain();
   atmosphere_ = look.atmosphere;
+  sea_emission_ = look.sea_emission;
   // The ground, the trees and the sea have no bones either.
   chunks_ = LoadChunks(terrain, look, tree_, cube_shader_);
   sea_ = LoadModelFromMesh(SeaMesh(terrain));
@@ -197,11 +208,15 @@ void Renderer::Draw() const {
   }
   // Last, as we see the ground under it through the water.
   if (sea_) {
+    SetEmission(cube_shader_, sea_emission_);
     DrawCounted(sea_->meshes[0], sea_->materials[0],
                 MatrixTranslate(0.0f, Terrain::kSeaLevel, 0.0f));
   }
   // The glows are see-through too, around the players using a skill with one.
-  // Each grows over the first quarter of a second.
+  // Each grows over the first quarter of a second. A glow is light, so it adds
+  // to what's behind it, where blending would cover it.
+  SetEmission(cube_shader_, kGlowEmission);
+  BeginBlendMode(BLEND_ADDITIVE);
   for (const Figure& figure : figures_) {
     const auto glow = glows_.find(figure.to_skill);
     if (figure.to == protocol::MOTION_SKILL && glow != glows_.end()) {
@@ -211,6 +226,8 @@ void Renderer::Draw() const {
                   0.0f, {radius, radius, radius}, glow->second);
     }
   }
+  EndBlendMode();
+  SetEmission(cube_shader_, 0.0f);
   EndMode3D();
 }
 

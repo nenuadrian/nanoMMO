@@ -55,7 +55,10 @@ out vec4 finalColor;
 void main() {
   vec3 color = texture(texture0, fragTexCoord).rgb;
   color += texture(bloom, fragTexCoord).rgb * strength;
-  finalColor = vec4(color, 1.0);
+  // The screen cuts each channel at white on its own, which turns a bright
+  // orange yellow, so a colour past white is scaled down to it as a whole.
+  float brightest = max(color.r, max(color.g, color.b));
+  finalColor = vec4(color / max(brightest, 1.0), 1.0);
 }
 )";
 

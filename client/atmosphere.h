@@ -35,6 +35,9 @@ struct Look {
   Color sea;
   /// Multiplies the colours of the trees' faces.
   Color trees;
+  /// The light the sea gives off of its own, added to the sun's, where 1 is as
+  /// bright as a face turned to a white sun.
+  float sea_emission = 0.0f;
 };
 
 constexpr Look kMeadows = {
@@ -63,8 +66,10 @@ constexpr Look kAshlands = {
     .grass = {124, 112, 104, 255},
     .rock = {84, 74, 72, 255},
     .snow = {196, 84, 40, 255},
-    .sea = {255, 190, 60, 255},
+    .sea = {255, 130, 30, 255},
     .trees = {58, 46, 42, 255},
+    // Lava.
+    .sea_emission = 1.0f,
 };
 
 /// In the order of the lands.

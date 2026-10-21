@@ -246,6 +246,11 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
   halves back up from the smallest, each spread over the nine pixels around as it doubles. A quarter
   of it goes on top of the frame. raylib's example blurs the whole picture onto itself instead, which
   washes it out.
+- The lava and Second Wind's glow give off light of their own, their emission, which the world's
+  shader adds to the sun's, and which takes them past white, so they bloom. A glow adds its light to
+  what's behind it. The screen cuts each channel at white on its own, which turns a bright orange
+  yellow, so a colour past white goes to the screen scaled down to white as a whole, by its brightest
+  channel.
 
 ## The world
 
