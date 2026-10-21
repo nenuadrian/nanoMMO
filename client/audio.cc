@@ -31,6 +31,9 @@ absl::StatusOr<std::unique_ptr<Track>> Track::Load(
   if (!IsMusicValid(music)) {
     return absl::NotFoundError(absl::StrCat("couldn't load ", path));
   }
+  // raylib loops music by default, and the jukebox decides when it plays
+  // again.
+  music.looping = false;
   return absl::WrapUnique(new Track(music));
 }
 
@@ -41,6 +44,8 @@ void Track::Play() { PlayMusicStream(music_); }
 void Track::Stop() { StopMusicStream(music_); }
 
 bool Track::playing() const { return IsMusicStreamPlaying(music_); }
+
+void Track::SetVolume(float volume) { SetMusicVolume(music_, volume); }
 
 void Track::Update() { UpdateMusicStream(music_); }
 

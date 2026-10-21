@@ -202,6 +202,11 @@ the repo: [assets/music/README.md](assets/music/README.md) says where to get it.
   plays one half, `UpdateMusicStream` decodes the next part of the file into the other. The client
   calls it each frame, so a frame would have to take a quarter of a second for the music to skip.
   Without it, the buffer stays empty, and the music makes no sound.
+- The track fades in over three seconds as you enter the world, and plays through. Then it rests
+  for 45 seconds, as an hour of one track on repeat wears thin, and plays again. Leaving the world
+  fades it out over a second and a half. `client/jukebox.h` decides all of that from the frame's
+  time, whether you're in the world and whether the track is playing, apart from raylib, so that its
+  test needs no sound card. raylib loops a music stream by default, so the track turns that off.
 
 ## The world
 

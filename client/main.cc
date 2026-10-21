@@ -23,6 +23,7 @@
 #include "client/gui.h"
 #include "client/hotbar.h"
 #include "client/input.h"
+#include "client/jukebox.h"
 #include "client/login_screen.h"
 #include "client/menu.h"
 #include "client/nameplates.h"
@@ -122,6 +123,7 @@ int main(int argc, char* argv[]) {
   // Without a sound card, as in a container, the game plays on in silence.
   std::unique_ptr<nanommo::AudioDevice> audio;
   std::unique_ptr<nanommo::Track> music;
+  nanommo::Jukebox jukebox;
   if (absl::StatusOr<std::unique_ptr<nanommo::AudioDevice>> audio_or =
           nanommo::AudioDevice::Create();
       audio_or.ok()) {
@@ -272,15 +274,19 @@ int main(int argc, char* argv[]) {
     EndDrawing();
 
     if (music) {
-      music->Update();
-    }
-    // The music plays while we're in the world.
-    if (music && (connection != nullptr) != music->playing()) {
-      if (connection) {
-        music->Play();
-      } else {
-        music->Stop();
+      switch (jukebox.Update(GetFrameTime(), connection != nullptr,
+                             music->playing())) {
+        case nanommo::Jukebox::Cue::kStart:
+          music->Play();
+          break;
+        case nanommo::Jukebox::Cue::kStop:
+          music->Stop();
+          break;
+        case nanommo::Jukebox::Cue::kNothing:
+          break;
       }
+      music->SetVolume(jukebox.volume());
+      music->Update();
     }
   }
   return 0;

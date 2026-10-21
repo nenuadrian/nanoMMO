@@ -47,6 +47,9 @@ class Track {
 
   bool playing() const;
 
+  /// From nothing to the file's own loudness.
+  void SetVolume(float volume);
+
   /// Refills the buffer the track plays from with what comes next in its file.
   /// raylib needs this each frame, or the buffer runs dry and the track goes
   /// quiet.
