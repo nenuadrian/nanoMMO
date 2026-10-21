@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package nanommo.skills;
+
+// What a skill does, and when: the server's part.
+message Effect {
+  // How long it holds the player, who can't move or swing until it's done.
+  uint32 cast_ms = 1;
+  // How far into it the skill lands.
+  uint32 hit_ms = 2;
+  // In metres.
+  float reach = 3;
+  uint32 damage = 4;
+  // Whether it hits each monster in reach, or the nearest.
+  bool all = 5;
+  // How far it knocks a monster back, in metres.
+  float push = 6;
+  uint32 heal = 7;
+}
+
+// How a skill looks: the client's part.
+message Look {
+  // A Font Awesome icon, by its code point.
+  uint32 icon = 1;
+  // The characters' clip the player moves with. Without one, they stand.
+  string clip = 2;
+  // As 0xRRGGBBAA, a glow around the player while they use it.
+  optional uint32 glow = 3;
+}
+
+message Skill {
+  // From one, and a skill keeps its id for good.
+  uint32 id = 1;
+  string name = 2;
+  // The level a player can use it from.
+  uint32 level = 3;
+  // How long until a player can use it again.
+  uint32 cooldown_ms = 4;
+  Effect effect = 5;
+  Look look = 6;
+}
+
+message Skills {
+  repeated Skill skills = 1;
+}

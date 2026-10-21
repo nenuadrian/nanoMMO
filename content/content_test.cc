@@ -21,6 +21,9 @@ TEST(Content, ReadsTheGamesContent) {
   EXPECT_TRUE(std::ranges::any_of(content->npcs.kinds, [](const auto& kind) {
     return kind.second.talks();
   }));
+  EXPECT_TRUE(std::ranges::any_of(content->skills.by_id, [](const auto& skill) {
+    return skill.second.level() == 1;
+  }));
 }
 
 TEST(Content, HashesWhatTheClientsRead) {
@@ -28,6 +31,7 @@ TEST(Content, HashesWhatTheClientsRead) {
   const uint64_t hash = nanommo::ClientHash(content);
 
   content.items.by_id.at(1).mutable_weapon()->set_damage(1000);
+  content.skills.by_id.at(1).mutable_effect()->set_damage(1000);
   EXPECT_EQ(nanommo::ClientHash(content), hash);
   content.items.by_id.at(1).mutable_look()->set_length(2.0f);
   EXPECT_NE(nanommo::ClientHash(content), hash);
@@ -69,4 +73,20 @@ TEST(Content, RefusesNpcsThatDontAddUp) {
   EXPECT_FALSE(nanommo::ParseNpcs("kinds { id: 1 } "
                                   "spawns { kind: 2 land: \"Meadows\" }")
                    .ok());
+}
+
+TEST(Content, RefusesSkillsThatDontAddUp) {
+  EXPECT_TRUE(nanommo::ParseSkills("skills { id: 1 name: \"Kick\" level: 1 "
+                                   "effect { cast_ms: 900 hit_ms: 300 } }")
+                  .ok());
+  EXPECT_EQ(nanommo::ParseSkills("skills { id: 1 name: \"Kick\" "
+                                 "effect { cast_ms: 900 hit_ms: 300 } }")
+                .status()
+                .message(),
+            "the Kick has no level");
+  EXPECT_EQ(nanommo::ParseSkills("skills { id: 1 name: \"Kick\" level: 1 "
+                                 "effect { cast_ms: 300 hit_ms: 900 } }")
+                .status()
+                .message(),
+            "the Kick lands after it's over");
 }

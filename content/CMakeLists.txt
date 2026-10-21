@@ -1,6 +1,6 @@
 add_library(nanommo_content
-  items.proto monsters.proto npcs.proto
-  text.cc items.cc monsters.cc npcs.cc content.cc
+  items.proto monsters.proto npcs.proto skills.proto
+  text.cc items.cc monsters.cc npcs.cc skills.cc content.cc
 )
 protobuf_generate(TARGET nanommo_content
   IMPORT_DIRS ${PROJECT_SOURCE_DIR} PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}
@@ -9,6 +9,7 @@ set_source_files_properties(
   ${CMAKE_CURRENT_BINARY_DIR}/items.pb.cc
   ${CMAKE_CURRENT_BINARY_DIR}/monsters.pb.cc
   ${CMAKE_CURRENT_BINARY_DIR}/npcs.pb.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/skills.pb.cc
   PROPERTIES COMPILE_OPTIONS -w
 )
 target_include_directories(nanommo_content PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})

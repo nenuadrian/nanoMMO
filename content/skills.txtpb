@@ -1,0 +1,68 @@
+# proto-file: content/skills.proto
+# proto-message: nanommo.skills.Skills
+
+skills {
+  id: 1
+  name: "Thrust"
+  level: 1
+  cooldown_ms: 8000
+  effect {
+    cast_ms: 3000
+    hit_ms: 900
+    reach: 2.4
+    damage: 35
+  }
+  look {
+    icon: 0xF140
+    clip: "thrust"
+  }
+}
+skills {
+  id: 2
+  name: "Kick"
+  level: 2
+  cooldown_ms: 6000
+  effect {
+    cast_ms: 2150
+    hit_ms: 1200
+    reach: 1.4
+    damage: 10
+    push: 3
+  }
+  look {
+    icon: 0xF54B
+    clip: "kick"
+  }
+}
+skills {
+  id: 3
+  name: "Second Wind"
+  level: 3
+  cooldown_ms: 30000
+  effect {
+    cast_ms: 1000
+    hit_ms: 200
+    heal: 40
+  }
+  look {
+    icon: 0xF21E
+    glow: 0x5BC46B80
+  }
+}
+skills {
+  id: 4
+  name: "Whirlwind"
+  level: 4
+  cooldown_ms: 12000
+  effect {
+    cast_ms: 2500
+    hit_ms: 1000
+    reach: 2.5
+    damage: 25
+    all: true
+  }
+  look {
+    icon: 0xF76F
+    clip: "whirlwind"
+  }
+}

@@ -66,6 +66,9 @@ absl::StatusOr<Content> ReadContent(const std::string& folder) {
   if (read.ok()) {
     read = Read(folder, "npcs.txtpb", ParseNpcs, content.npcs);
   }
+  if (read.ok()) {
+    read = Read(folder, "skills.txtpb", ParseSkills, content.skills);
+  }
   if (!read.ok()) {
     return read;
   }
@@ -95,6 +98,13 @@ uint64_t ClientHash(const Content& content) {
     seen.set_name(kind.name());
     seen.set_talks(kind.talks());
     *seen.mutable_look() = kind.look();
+    Add(hash, seen);
+  }
+  // The clients show each skill's level and cooldown, and the effect is the
+  // server's alone.
+  for (const auto& [id, skill] : content.skills.by_id) {
+    skills::Skill seen = skill;
+    seen.clear_effect();
     Add(hash, seen);
   }
   return hash;

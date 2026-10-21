@@ -861,17 +861,20 @@ monster, or in a message of its own whenever it changes.
 ## Content
 
 The game's content is data, in the `content` folder, which the world servers, the client and the
-bots read, so that there's one place to change it: `items.txtpb`, `monsters.txtpb` and `npcs.txtpb`,
-in protobuf's text format, each with its schema next to it, in `items.proto`, `monsters.proto` and
-`npcs.proto`. So far there's one item, the sword, which every player holds, two kinds of monster,
-the skeleton and the Ash Skeleton, and five kinds of NPC.
+bots read, so that there's one place to change it: `items.txtpb`, `monsters.txtpb`, `npcs.txtpb`
+and `skills.txtpb`, in protobuf's text format, each with its schema next to it, in `items.proto`,
+`monsters.proto`, `npcs.proto` and `skills.proto`. So far there's one item, the sword, which every
+player holds, two kinds of monster, the skeleton and the Ash Skeleton, five kinds of NPC, and four
+skills.
 
 - An item, or a kind of monster or NPC, has an id and a name, and parts that each side reads what it
   needs from. A weapon's `weapon` and a monster's `fight` are the server's: reach, swing and hit
   times, damage, and for a monster, its sight, its leash and how far it wanders. A `look` is the
   client's: an item's or a monster's model, its length or height, where a weapon is held, a
   monster's tint, and an NPC's ball, a colour and a radius. A monster's level, health and experience
-  are the server's too. `starting_weapon` names the weapon a new player holds.
+  are the server's too. `starting_weapon` names the weapon a new player holds. A skill's `effect` is
+  the server's, and its `look` the client's: its icon, its clip and its glow. The client shows a
+  skill's level and cooldown too, so those are in both.
 - Monsters with a fixed home, camps of monsters and NPCs name their kind by id, and their land by
   name.
 - Each file's first two lines, `# proto-file:` and `# proto-message:`, name its schema, so that
@@ -879,8 +882,9 @@ the skeleton and the Ash Skeleton, and five kinds of NPC.
 - `content/content.h` (`nanommo_content`) reads the folder with protobuf's `TextFormat`, so a field
   the schema doesn't have, or a value of the wrong type, is an error with the file and the line it's
   on. Then it checks what types can't: every item and kind has an id, no two share one, the starting
-  weapon is a weapon, each spawn and camps names a kind and a land we have, and no monster with a
-  fixed home has a leash that reaches the middle of its land, where players come back to life. The
+  weapon is a weapon, each spawn and camps names a kind and a land we have, no monster with a
+  fixed home has a leash that reaches the middle of its land, where players come back to life, and
+  each skill has a level and lands before it's over. The
   server, the client and the bots don't start without good content.
 - Ids start at one, and an item or a kind keeps its id for good, as they're saved and sent by id.
   Protobuf leaves a zero out, so the client takes a missing weapon or kind as one it already knows.
@@ -898,9 +902,10 @@ the skeleton and the Ash Skeleton, and five kinds of NPC.
   The build copies the files next to the client, which reads them from there.
 
 Each side reads its own copy, so a client and a world have to agree on what the client reads. Each
-world works out its `ClientHash`, a 64-bit FNV-1a of the ids, names and looks, serialized
-deterministically, registers it with Consul, and the login server lists it with the world. The
-fights stay out of it, so that changing a sword's damage or a skeleton's leash needs no new client.
+world works out its `ClientHash`, a 64-bit FNV-1a of the ids, names and looks, and the skills'
+levels and cooldowns, serialized deterministically, registers it with Consul, and the login server
+lists it with the world. The fights and the skills' effects stay out of it, so that changing a
+sword's damage or a skeleton's leash needs no new client.
 A client lists a world with other content than its own as such, and doesn't log in to it. The servers
 and the client print their hash as they start.
 

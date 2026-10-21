@@ -8,6 +8,7 @@
 #include "content/items.h"
 #include "content/monsters.h"
 #include "content/npcs.h"
+#include "content/skills.h"
 
 namespace nanommo {
 
@@ -17,6 +18,7 @@ struct Content {
   ItemTable items;
   MonsterTable monsters;
   NpcTable npcs;
+  SkillTable skills;
 };
 
 /// Reads each file in the folder, or says which file is wrong, and where.
