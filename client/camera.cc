@@ -12,6 +12,12 @@ constexpr float kChest = 1.2f;
 
 constexpr float kAboveGround = 1.0f;
 
+// Past straight down, the camera would go over the top of the player and look
+// back the other way. Near level, it looks along the ground, and any rise in
+// between hides the player.
+constexpr float kLowest = 5.0f * DEG2RAD;
+constexpr float kHighest = 80.0f * DEG2RAD;
+
 }  // namespace
 
 Camera3D GameCamera() {
@@ -25,7 +31,7 @@ Camera3D GameCamera() {
 void FollowCamera::Update(Vector3 player, float turn, float tilt, float zoom,
                           const Terrain& terrain) {
   yaw_ += turn;
-  pitch_ += tilt;
+  pitch_ = std::clamp(pitch_ + tilt, kLowest, kHighest);
   distance_ = std::clamp(distance_ * (1.0f - zoom), kNearest, kFarthest);
 
   const Vector3 target{player.x, player.y + kChest, player.z};
