@@ -713,7 +713,8 @@ How the world gets there over UDP:
 - The players and the monsters go out in parts of up to 1,200 bytes, so that each fits in a packet and
   IP doesn't split it into fragments, which would all be lost with any one of them. A lost part leaves
   its players and monsters where they were for a tick. `protocol/parts.h` splits the world and
-  puts it back together.
+  puts it back together. Each part ends with what's the player's own, their id, experience, seed,
+  land and cooldowns, so the parts leave room for that, with the cooldowns of up to nine skills.
 
 ## What each player gets
 

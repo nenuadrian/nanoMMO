@@ -13,8 +13,9 @@ namespace nanommo {
 namespace {
 
 // Room for the fields besides the players and the monsters: sent, part,
-// parts, and the client's own you, experience, next level, seed and land.
-constexpr std::size_t kRoom = 48;
+// parts, and the client's own you, experience, next level, seed and land, and
+// its cooldowns, up to ten bytes each for the nine skills a hotbar holds.
+constexpr std::size_t kRoom = 48 + 9 * 10;
 
 // Names, kinds, levels and weapons come once a second, and protobuf leaves
 // out a field that's empty or zero, which no name, level or id is, so we keep
@@ -109,6 +110,7 @@ void Parts::Add(const protocol::World& part) {
   next_level_ = part.next_level();
   seed_ = part.seed();
   land_ = part.land();
+  cooldowns_ = {part.cooldowns().begin(), part.cooldowns().end()};
   arrived_.insert(part.part());
   for (const protocol::Player& player : part.players()) {
     Update(players_[player.id()], player);
@@ -141,6 +143,7 @@ protocol::World Parts::world() const {
   world.set_next_level(next_level_);
   world.set_seed(seed_);
   world.set_land(land_);
+  world.mutable_cooldowns()->insert(cooldowns_.begin(), cooldowns_.end());
   world.set_sent(sent_);
   for (const auto& [id, player] : players_) {
     *world.add_players() = player;
