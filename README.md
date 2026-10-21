@@ -260,9 +260,13 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
   first, inside out, five centimetres bigger along its normals, in a dark colour that fades into the
   fog, so that its back shows around the figure's edges. Our characters are posed on the GPU, so
   their outline has a shader with bones of its own. The ground and its trees have none.
-- View, Settings has the graphics: Bloom, on by default, and Cel shading, off by default, as a
-  cartoon's look is the player's to choose. The client keeps them with the sound in `settings.txtpb`
-  (see [Music](#music)).
+- The frame has one sample to a pixel, so the world's edges are smoothed with FXAA, Timothy Lottes'
+  fast approximate anti-aliasing, as the last pass: the frame and its bloom go into a picture of
+  eight bits a channel at the screen's size, and a shader finds which way each edge runs from the
+  brightness around each pixel, and blends along it, a pass over the screen's pixels.
+- View, Settings has the graphics: Bloom, on by default, Cel shading, off by default, as a cartoon's
+  look is the player's to choose, and Anti-aliasing, on by default. The client keeps them with the
+  sound in `settings.txtpb` (see [Music](#music)).
 
 ## The world
 

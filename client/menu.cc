@@ -93,6 +93,7 @@ bool Menu::Build(Window& window, Settings& settings, Atmosphere& atmosphere,
     ImGui::SeparatorText(ICON_FA_DISPLAY " Graphics");
     ImGui::Checkbox("Bloom", &settings.graphics.bloom);
     ImGui::Checkbox("Cel shading", &settings.graphics.cel_shading);
+    ImGui::Checkbox("Anti-aliasing", &settings.graphics.antialias);
     ImGui::SeparatorText(ICON_FA_CLOUD_SUN " Sky");
     ImGui::ColorEdit3("Sky", atmosphere.sky.data());
     ImGui::DragFloatRange2("Fog", &atmosphere.fog_near, &atmosphere.fog_far,

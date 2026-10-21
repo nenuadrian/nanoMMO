@@ -35,13 +35,18 @@ class PostProcess {
 
   void Resize(int width, int height);
   void Bloom();
+  /// Draws the frame with the bloom on top, at a width and a height.
+  void Combine(float width, float height);
 
   Shader bright_;
   Shader spread_;
   Shader combine_;
+  Shader fxaa_;
   GraphicsSettings graphics_;
   RenderTexture2D frame_{};
   std::array<RenderTexture2D, kHalves> halves_{};
+  /// The frame with its bloom, as the screen would show it, for FXAA.
+  RenderTexture2D picture_{};
 };
 
 }  // namespace nanommo

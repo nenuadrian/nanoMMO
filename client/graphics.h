@@ -10,6 +10,8 @@ struct GraphicsSettings {
   /// The sun's light in bands, and outlines, like a cartoon. A look like that
   /// is the player's to choose, so it starts off.
   bool cel_shading = false;
+  /// Smooths the world's edges, with FXAA.
+  bool antialias = true;
 
   bool operator==(const GraphicsSettings&) const = default;
 };

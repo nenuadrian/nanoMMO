@@ -62,6 +62,49 @@ void main() {
 }
 )";
 
+// FXAA, Timothy Lottes' fast approximate anti-aliasing, in its short form: it
+// finds which way an edge runs from the brightness around each pixel, and
+// blends along it.
+constexpr const char* kFxaaShader = R"(#version 330
+in vec2 fragTexCoord;
+uniform sampler2D texture0;
+uniform vec2 pixel;
+out vec4 finalColor;
+
+// How bright each channel looks to us.
+const vec3 luma = vec3(0.299, 0.587, 0.114);
+
+float Brightness(vec2 at) {
+  return dot(texture(texture0, fragTexCoord + at * pixel).rgb, luma);
+}
+
+void main() {
+  float nw = Brightness(vec2(-1.0, -1.0));
+  float ne = Brightness(vec2(1.0, -1.0));
+  float sw = Brightness(vec2(-1.0, 1.0));
+  float se = Brightness(vec2(1.0, 1.0));
+  float middle = Brightness(vec2(0.0));
+  float darkest = min(middle, min(min(nw, ne), min(sw, se)));
+  float brightest = max(middle, max(max(nw, ne), max(sw, se)));
+  // Across an edge, the brightness changes, so the edge runs at right angles
+  // to the change.
+  vec2 along = vec2((sw + se) - (nw + ne), (nw + sw) - (ne + se));
+  float reduce = max((nw + ne + sw + se) / 32.0, 1.0 / 128.0);
+  float scale = 1.0 / (min(abs(along.x), abs(along.y)) + reduce);
+  along = clamp(along * scale, -8.0, 8.0) * pixel;
+  vec3 near = 0.5 * (texture(texture0, fragTexCoord - along / 6.0).rgb +
+                     texture(texture0, fragTexCoord + along / 6.0).rgb);
+  vec3 ends = texture(texture0, fragTexCoord - along / 2.0).rgb +
+              texture(texture0, fragTexCoord + along / 2.0).rgb;
+  vec3 far = 0.5 * near + 0.25 * ends;
+  // Reaching further can cross into another edge, which shows as a
+  // brightness that isn't around the pixel.
+  float reached = dot(far, luma);
+  bool crossed = reached < darkest || reached > brightest;
+  finalColor = vec4(crossed ? near : far, 1.0);
+}
+)";
+
 // How much of the bloom goes on the frame. The halves add up, so it's a
 // fraction.
 constexpr float kStrength = 0.25f;
@@ -110,7 +153,8 @@ void DrawInto(const RenderTexture2D& target, const Texture2D& texture) {
 PostProcess::PostProcess()
     : bright_(LoadShaderFromMemory(nullptr, kBrightShader)),
       spread_(LoadShaderFromMemory(nullptr, kSpreadShader)),
-      combine_(LoadShaderFromMemory(nullptr, kCombineShader)) {}
+      combine_(LoadShaderFromMemory(nullptr, kCombineShader)),
+      fxaa_(LoadShaderFromMemory(nullptr, kFxaaShader)) {}
 
 PostProcess::~PostProcess() {
   UnloadRenderTexture(frame_);
@@ -119,7 +163,9 @@ PostProcess::~PostProcess() {
   }
   UnloadShader(bright_);
   UnloadShader(spread_);
+  UnloadRenderTexture(picture_);
   UnloadShader(combine_);
+  UnloadShader(fxaa_);
 }
 
 void PostProcess::Begin(const GraphicsSettings& graphics) {
@@ -140,6 +186,11 @@ void PostProcess::Resize(int width, int height) {
   // Halving a texture with the bilinear filter averages each two by two block
   // of its pixels.
   SetTextureFilter(frame_.texture, TEXTURE_FILTER_BILINEAR);
+  // Eight bits a channel, as it's past the bloom, and white is as bright as
+  // the screen goes. FXAA reads it between its pixels.
+  UnloadRenderTexture(picture_);
+  picture_ = LoadRenderTexture(width, height);
+  SetTextureFilter(picture_.texture, TEXTURE_FILTER_BILINEAR);
   for (RenderTexture2D& half : halves_) {
     width = std::max(width / 2, 1);
     height = std::max(height / 2, 1);
@@ -180,18 +231,41 @@ void PostProcess::Draw() {
   if (graphics_.bloom) {
     Bloom();
   }
-  // The frame to the screen, with the bloom on top, fitted to its points, as
-  // raylib draws on the screen in points. The sea and the glows leave the
-  // frame see-through where they are, and the combine shader writes it opaque,
-  // so that it covers what's on the screen.
+  // FXAA smooths the picture as the screen would show it, so the frame and its
+  // bloom go into the picture first.
+  if (graphics_.antialias) {
+    BeginTextureMode(picture_);
+    Combine(static_cast<float>(picture_.texture.width),
+            static_cast<float>(picture_.texture.height));
+    EndTextureMode();
+  }
+  // The frame to the screen, fitted to its points, as raylib draws on the
+  // screen in points. The sea and the glows leave the frame see-through where
+  // they are, and both shaders write it opaque, so that it covers what's on the
+  // screen.
+  if (graphics_.antialias) {
+    BeginShaderMode(fxaa_);
+    const Vector2 pixel = {1.0f / static_cast<float>(picture_.texture.width),
+                           1.0f / static_cast<float>(picture_.texture.height)};
+    SetShaderValue(fxaa_, GetShaderLocation(fxaa_, "pixel"), &pixel,
+                   SHADER_UNIFORM_VEC2);
+    DrawOver(picture_.texture, static_cast<float>(GetScreenWidth()),
+             static_cast<float>(GetScreenHeight()));
+    EndShaderMode();
+  } else {
+    Combine(static_cast<float>(GetScreenWidth()),
+            static_cast<float>(GetScreenHeight()));
+  }
+}
+
+void PostProcess::Combine(float width, float height) {
   BeginShaderMode(combine_);
   SetShaderValueTexture(combine_, GetShaderLocation(combine_, "bloom"),
                         halves_[0].texture);
   const float strength = graphics_.bloom ? kStrength : 0.0f;
   SetShaderValue(combine_, GetShaderLocation(combine_, "strength"), &strength,
                  SHADER_UNIFORM_FLOAT);
-  DrawOver(frame_.texture, static_cast<float>(GetScreenWidth()),
-           static_cast<float>(GetScreenHeight()));
+  DrawOver(frame_.texture, width, height);
   EndShaderMode();
 }
 

@@ -13,6 +13,7 @@ message Sound {
 message Graphics {
   optional bool bloom = 1;
   optional bool cel_shading = 2;
+  optional bool antialias = 3;
 }
 
 // What the player sets, which the client keeps between runs.

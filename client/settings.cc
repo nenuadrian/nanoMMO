@@ -73,6 +73,9 @@ absl::StatusOr<Settings> LoadSettings(const std::string& path) {
   if (graphics.has_cel_shading()) {
     loaded.graphics.cel_shading = graphics.cel_shading();
   }
+  if (graphics.has_antialias()) {
+    loaded.graphics.antialias = graphics.antialias();
+  }
   return loaded;
 }
 
@@ -83,6 +86,7 @@ absl::Status SaveSettings(const std::string& path, const Settings& player) {
   file.mutable_sound()->set_muted(player.sound.muted);
   file.mutable_graphics()->set_bloom(player.graphics.bloom);
   file.mutable_graphics()->set_cel_shading(player.graphics.cel_shading);
+  file.mutable_graphics()->set_antialias(player.graphics.antialias);
   std::string text;
   if (!google::protobuf::TextFormat::PrintToString(file, &text)) {
     return absl::InternalError("couldn't print the settings");
