@@ -14,6 +14,7 @@
 #include "asio/ssl/context.hpp"
 #include "client/animator.h"
 #include "client/atmosphere.h"
+#include "client/audio.h"
 #include "client/camera.h"
 #include "client/character_screen.h"
 #include "client/chat_window.h"
@@ -118,6 +119,24 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   const std::unique_ptr<nanommo::Window> window = *std::move(window_or);
+  // Without a sound card, as in a container, the game plays on in silence.
+  std::unique_ptr<nanommo::AudioDevice> audio;
+  std::unique_ptr<nanommo::Track> music;
+  if (absl::StatusOr<std::unique_ptr<nanommo::AudioDevice>> audio_or =
+          nanommo::AudioDevice::Create();
+      audio_or.ok()) {
+    audio = *std::move(audio_or);
+    absl::StatusOr<std::unique_ptr<nanommo::Track>> music_or =
+        nanommo::Track::Load(*audio,
+                             nanommo::MusicFolder() + "/background.mp3");
+    if (music_or.ok()) {
+      music = *std::move(music_or);
+    } else {
+      std::cerr << "nanommo client: " << music_or.status() << "\n";
+    }
+  } else {
+    std::cerr << "nanommo client: " << audio_or.status() << "\n";
+  }
   nanommo::Gui gui;
   nanommo::Menu menu;
   nanommo::CharacterScreen character_screen;
@@ -251,6 +270,15 @@ int main(int argc, char* argv[]) {
     }
     gui.End();
     EndDrawing();
+
+    // The music plays while we're in the world.
+    if (music && (connection != nullptr) != music->playing()) {
+      if (connection) {
+        music->Play();
+      } else {
+        music->Stop();
+      }
+    }
   }
   return 0;
 }

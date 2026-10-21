@@ -186,6 +186,19 @@ at 1.8 and 3.1 metres a second, the speeds of the walk and the run, so that the 
 The client blends from one clip into the next over a quarter of a second, and smooths each player's
 position between the server's ticks.
 
+## Music
+
+While you're in the world, the client plays "Background Music" by
+[Pavel Bekirov](https://pixabay.com/users/paulyudin-27739282/), from [Pixabay](https://pixabay.com/).
+Pixabay's licence lets us use it in the game, but not hand out the file on its own, so it isn't in
+the repo: [assets/music/README.md](assets/music/README.md) says where to get it. The build copies
+`assets/music` next to the client.
+
+- `client/audio.h` has raylib's audio device, which plays through the system's sound with
+  miniaudio, opened after the window, and the track, which raylib streams from its file. Without a
+  sound card, as in a container, or without the file, the client plays on in silence, and says why as
+  it starts.
+
 ## The world
 
 Each land's island comes from a seed, a number: the game server's `NANOMMO_WORLD_SEED`, 1 by

@@ -1,5 +1,5 @@
 add_library(nanommo_client_core
-  window.cc gui.cc menu.cc renderer.cc offscreen.cc
+  window.cc audio.cc gui.cc menu.cc renderer.cc offscreen.cc
   camera.cc scene.cc input.cc connection.cc
   login_screen.cc nameplates.cc player_frame.cc hotbar.cc character_screen.cc
   chat_window.cc talk_window.cc picking.cc
@@ -26,6 +26,9 @@ add_custom_target(nanommo_client_assets ALL
   COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
     ${PROJECT_SOURCE_DIR}/assets/trees
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/trees
+  COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+    ${PROJECT_SOURCE_DIR}/assets/music
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/music
   COMMAND ${CMAKE_COMMAND} -E make_directory
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/content
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
