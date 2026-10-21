@@ -89,6 +89,71 @@ void main() {
 }
 )";
 
+// Cel shading's outlines: each vertex pushed out along its normal, in metres,
+// so that the model is drawn a little bigger.
+constexpr const char* kOutlineVertexShader = R"(#version 330
+in vec3 vertexPosition;
+in vec3 vertexNormal;
+uniform mat4 matModel;
+uniform mat4 matNormal;
+uniform mat4 matView;
+uniform mat4 matProjection;
+uniform float thickness;
+out float depth;
+
+void main() {
+  vec3 normal = normalize(mat3(matNormal) * vertexNormal);
+  vec4 at = matModel * vec4(vertexPosition, 1.0)
+          + vec4(normal * thickness, 0.0);
+  gl_Position = matProjection * matView * at;
+  depth = gl_Position.w;
+}
+)";
+
+// For models with bones, posed like the skinned vertex shader.
+constexpr const char* kSkinnedOutlineVertexShader = R"(#version 330
+in vec3 vertexPosition;
+in vec3 vertexNormal;
+in vec4 vertexBoneIndices;
+in vec4 vertexBoneWeights;
+uniform mat4 matModel;
+uniform mat4 matNormal;
+uniform mat4 matView;
+uniform mat4 matProjection;
+uniform mat4 boneMatrices[128];
+uniform float thickness;
+out float depth;
+
+void main() {
+  mat4 skin = boneMatrices[int(vertexBoneIndices.x)] * vertexBoneWeights.x
+            + boneMatrices[int(vertexBoneIndices.y)] * vertexBoneWeights.y
+            + boneMatrices[int(vertexBoneIndices.z)] * vertexBoneWeights.z
+            + boneMatrices[int(vertexBoneIndices.w)] * vertexBoneWeights.w;
+  vec3 normal = normalize(mat3(matNormal) * mat3(skin) * vertexNormal);
+  vec4 at = matModel * skin * vec4(vertexPosition, 1.0)
+          + vec4(normal * thickness, 0.0);
+  gl_Position = matProjection * matView * at;
+  depth = gl_Position.w;
+}
+)";
+
+// Nearly black, into the fog like the rest of the world.
+constexpr const char* kOutlineFragmentShader = R"(#version 330
+in float depth;
+uniform vec3 fogColor;
+uniform float fogNear;
+uniform float fogFar;
+out vec4 pixel;
+
+void main() {
+  float fog = clamp((depth - fogNear) / (fogFar - fogNear), 0.0, 1.0);
+  pixel = vec4(mix(vec3(0.05), fogColor, fog), 1.0);
+}
+)";
+
+// In metres, so that an outline is thinner the further away it is.
+constexpr float kOutlineThickness = 0.05f;
+
 constexpr std::array<float, 3> kPreviewBackground = {0.12f, 0.14f, 0.19f};
 
 // In metres: a glow's middle is halfway up a player, and it reaches past their
@@ -107,7 +172,7 @@ void SetEmission(Shader shader, float emission) {
                  SHADER_UNIFORM_FLOAT);
 }
 
-void SetAtmosphere(Shader shader, const Atmosphere& atmosphere) {
+void SetFog(Shader shader, const Atmosphere& atmosphere) {
   // Into the sky's colour, so that far away things fade into the sky.
   SetShaderValue(shader, GetShaderLocation(shader, "fogColor"),
                  atmosphere.sky.data(), SHADER_UNIFORM_VEC3);
@@ -115,6 +180,10 @@ void SetAtmosphere(Shader shader, const Atmosphere& atmosphere) {
                  &atmosphere.fog_near, SHADER_UNIFORM_FLOAT);
   SetShaderValue(shader, GetShaderLocation(shader, "fogFar"),
                  &atmosphere.fog_far, SHADER_UNIFORM_FLOAT);
+}
+
+void SetAtmosphere(Shader shader, const Atmosphere& atmosphere) {
+  SetFog(shader, atmosphere);
   SetShaderValue(shader, GetShaderLocation(shader, "sun"),
                  atmosphere.sun.data(), SHADER_UNIFORM_VEC3);
   SetShaderValue(shader, GetShaderLocation(shader, "sunlight"),
@@ -129,6 +198,10 @@ Renderer::Renderer(const Content& content)
     : cube_shader_(LoadShaderFromMemory(kVertexShader, kFragmentShader)),
       character_shader_(
           LoadShaderFromMemory(kSkinnedVertexShader, kFragmentShader)),
+      outline_{.still = LoadShaderFromMemory(kOutlineVertexShader,
+                                             kOutlineFragmentShader),
+               .skinned = LoadShaderFromMemory(kSkinnedOutlineVertexShader,
+                                               kOutlineFragmentShader)},
       cube_(LoadModelFromMesh(GenMeshCube(1.0f, 1.0f, 1.0f))),
       sphere_(LoadModelFromMesh(GenMeshSphere(1.0f, 16, 16))),
       characters_(CharactersFolder(), {"x_bot.glb", "y_bot.glb"}, 1.8f,
@@ -139,6 +212,10 @@ Renderer::Renderer(const Content& content)
   for (const Shader& shader : {cube_shader_, character_shader_}) {
     SetShaderValue(shader, GetShaderLocation(shader, "bands"), &kBands,
                    SHADER_UNIFORM_FLOAT);
+  }
+  for (const Shader& shader : {outline_.still, outline_.skinned}) {
+    SetShaderValue(shader, GetShaderLocation(shader, "thickness"),
+                   &kOutlineThickness, SHADER_UNIFORM_FLOAT);
   }
   // Weapons have no bones, so they're drawn with the cube's shader.
   for (const auto& [id, item] : content.items.by_id) {
@@ -166,6 +243,8 @@ Renderer::~Renderer() {
   UnloadModel(cube_);
   UnloadModel(sphere_);
   UnloadShader(character_shader_);
+  UnloadShader(outline_.still);
+  UnloadShader(outline_.skinned);
   UnloadShader(cube_shader_);
 }
 
@@ -200,6 +279,8 @@ void Renderer::Draw() const {
   Clear();
   SetAtmosphere(cube_shader_, atmosphere_);
   SetAtmosphere(character_shader_, atmosphere_);
+  SetFog(outline_.still, atmosphere_);
+  SetFog(outline_.skinned, atmosphere_);
   BeginMode3D(camera_);
   // As BeginMode3D set them up, so we cull with what the GPU will use.
   const Matrix view_projection =
@@ -252,6 +333,8 @@ void Renderer::DrawPreview(const Figure& figure, const Camera3D& camera) const {
   preview.sky = kPreviewBackground;
   SetAtmosphere(cube_shader_, preview);
   SetAtmosphere(character_shader_, preview);
+  SetFog(outline_.still, preview);
+  SetFog(outline_.skinned, preview);
   BeginMode3D(camera);
   DrawFigure(figure);
   EndMode3D();
@@ -262,6 +345,10 @@ void Renderer::DrawFigure(const Figure& figure) const {
     // The ball's middle is its origin, so it's raised to rest on the ground.
     const Vector3& at = figure.position;
     const float radius = figure.radius;
+    DrawOutline(sphere_,
+                MatrixMultiply(MatrixScale(radius, radius, radius),
+                               MatrixTranslate(at.x, at.y + radius, at.z)),
+                outline_.still);
     DrawModelEx(sphere_, {at.x, at.y + radius, at.z}, {0.0f, 1.0f, 0.0f}, 0.0f,
                 {radius, radius, radius}, figure.color);
     return;
@@ -273,7 +360,7 @@ void Renderer::DrawFigure(const Figure& figure) const {
   }
   const Color color = figure.monster ? figure.color : PlayerColor(figure.id);
   if (looks != nullptr && looks->size() > 0) {
-    looks->Draw(figure, color);
+    looks->Draw(figure, color, &outline_);
     return;
   }
   const Vector3& at = figure.position;

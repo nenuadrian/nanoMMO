@@ -17,6 +17,7 @@
 #include "client/characters.h"
 #include "client/chunks.h"
 #include "client/cube.h"
+#include "client/outline.h"
 #include "client/trees.h"
 #include "content/content.h"
 #include "terrain/terrain.h"
@@ -83,6 +84,7 @@ class Renderer {
 
   Shader cube_shader_;
   Shader character_shader_;
+  Outline outline_;
   Model cube_;
   /// Every NPC is this ball, scaled to its radius and tinted its colour.
   Model sphere_;

@@ -240,7 +240,8 @@ Characters::Pose Characters::PoseFor(const Character& character,
                          index != protocol::MOTION_DEAD)};
 }
 
-void Characters::Draw(const Figure& figure, Color color) const {
+void Characters::Draw(const Figure& figure, Color color,
+                      const Outline* outline) const {
   const Character& character = characters_[figure.id % characters_.size()];
   const Pose from =
       PoseFor(character, figure.from, figure.from_skill, figure.from_time);
@@ -251,6 +252,13 @@ void Characters::Draw(const Figure& figure, Color color) const {
   UpdateModelAnimationEx(character.model, *from.clip, from.frame, *to.clip,
                          to.frame, figure.blend);
   const float scale = character.scale;
+  const Matrix placed = MatrixMultiply(
+      MatrixMultiply(MatrixScale(scale, scale, scale),
+                     MatrixRotateY(figure.yaw)),
+      MatrixTranslate(figure.position.x, figure.position.y, figure.position.z));
+  if (outline != nullptr) {
+    DrawOutline(character.model, placed, outline->skinned);
+  }
   DrawModelEx(character.model, figure.position, {0.0f, 1.0f, 0.0f},
               figure.yaw * RAD2DEG, {scale, scale, scale}, color);
 
@@ -264,13 +272,12 @@ void Characters::Draw(const Figure& figure, Color color) const {
                      QuaternionToMatrix(hand.rotation)),
       MatrixTranslate(hand.translation.x, hand.translation.y,
                       hand.translation.z));
-  const Matrix placed = MatrixMultiply(
-      MatrixMultiply(MatrixScale(scale, scale, scale),
-                     MatrixRotateY(figure.yaw)),
-      MatrixTranslate(figure.position.x, figure.position.y, figure.position.z));
   Model weapon = held->second.model;
   weapon.transform =
       MatrixMultiply(MatrixMultiply(held->second.grip, bone), placed);
+  if (outline != nullptr) {
+    DrawOutline(weapon, MatrixIdentity(), outline->still);
+  }
   DrawModel(weapon, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
 }
 

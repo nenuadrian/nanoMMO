@@ -256,6 +256,10 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
   the sun's light comes in three flat bands, in shadow, half lit and lit, as a cartoon's colours do.
   The light is worked out for each pixel, from the normal the vertex shaders hand on, so that the
   bands follow the surface.
+- Cel shading's outlines, the way raylib's example draws them: each figure is drawn a second time
+  first, inside out, five centimetres bigger along its normals, in a dark colour that fades into the
+  fog, so that its back shows around the figure's edges. Our characters are posed on the GPU, so
+  their outline has a shader with bones of its own. The ground and its trees have none.
 
 ## The world
 

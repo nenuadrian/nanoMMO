@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "client/animator.h"
+#include "client/outline.h"
 #include "content/items.pb.h"
 #include "content/skills.pb.h"
 
@@ -42,7 +43,9 @@ class Characters {
   /// Finds the skill's clip, by its name, in each character that has it.
   void Learn(uint32_t skill, const skills::Look& look);
 
-  void Draw(const Figure& figure, Color color) const;
+  /// Draws the figure, posed, with its weapon, and with an outline, when it's
+  /// given one.
+  void Draw(const Figure& figure, Color color, const Outline* outline) const;
 
  private:
   struct Character {
