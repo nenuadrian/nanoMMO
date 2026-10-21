@@ -233,6 +233,11 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
   height, which flips it the right way up.
 - The sea and the glows are see-through, and leave the frame see-through where they are, so the
   frame replaces what's on the screen: blending it in would let an older picture show through.
+- The frame is the screen's size in pixels, from `GetRenderWidth` and `GetRenderHeight`, and goes to
+  the screen fitted to its points. A high-DPI screen has more pixels than points, so a frame in
+  points makes the world coarse. A render texture has one sample to a pixel, so the window doesn't
+  ask for multisampling, which would smooth nothing but the GUI: on a high-DPI screen, a jagged edge
+  is a pixel wide.
 
 ## The world
 
