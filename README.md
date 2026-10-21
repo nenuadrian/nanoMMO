@@ -222,6 +222,18 @@ the repo: [assets/music/README.md](assets/music/README.md) says where to get it.
   renames that over the old file, which replaces it in one step, so a crash halfway through leaves
   the old file whole.
 
+## Post-processing
+
+The client draws the world into a frame of its own, a render texture, and puts the frame on the
+screen with the GUI on top, as raylib's
+[post-processing example](https://github.com/raysan5/raylib/blob/master/examples/shaders/shaders_postprocessing.c)
+does, so that shaders can work on the whole picture first. `client/postprocess.h` has it.
+
+- OpenGL keeps a texture's rows from the bottom up, so the frame goes to the screen with a negative
+  height, which flips it the right way up.
+- The sea and the glows are see-through, and leave the frame see-through where they are, so the
+  frame replaces what's on the screen: blending it in would let an older picture show through.
+
 ## The world
 
 Each land's island comes from a seed, a number: the game server's `NANOMMO_WORLD_SEED`, 1 by

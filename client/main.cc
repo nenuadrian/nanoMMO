@@ -30,6 +30,7 @@
 #include "client/nameplates.h"
 #include "client/picking.h"
 #include "client/player_frame.h"
+#include "client/postprocess.h"
 #include "client/renderer.h"
 #include "client/settings.h"
 #include "client/sound.h"
@@ -160,6 +161,7 @@ int main(int argc, char* argv[]) {
   nanommo::Hotbar hotbar(content->skills);
   nanommo::LoginScreen login_screen(content_hash);
   nanommo::Renderer renderer(*content);
+  nanommo::PostProcess post;
   nanommo::Animator animator(*content);
   std::optional<nanommo::Terrain> terrain;
   int land = 0;
@@ -237,9 +239,15 @@ int main(int argc, char* argv[]) {
       character_screen.Render(renderer);
     }
 
+    // The world goes into a frame of its own, which the screen gets from there.
+    if (connection) {
+      post.Begin();
+      renderer.Draw();
+      post.End();
+    }
     BeginDrawing();
     if (connection) {
-      renderer.Draw();
+      post.Draw();
     } else {
       renderer.Clear();
     }
