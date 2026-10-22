@@ -1,6 +1,8 @@
 # proto-file: content/skills.proto
 # proto-message: nanommo.skills.Skills
 
+starting: 1
+
 skills {
   id: 1
   name: "Thrust"

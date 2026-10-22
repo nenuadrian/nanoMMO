@@ -954,9 +954,9 @@ line to far fewer.
 
 Each land has a few NPCs near its middle, where players start. In the Meadows, a guard and a
 storyteller stand on either side of the road to the gate, and a merchant and a healer face each
-other across it. The Ashlands have an ash warden and a storyteller, a merchant and a healer. The
-storytellers tell stories (see [The storyteller](#the-storyteller)), and the others don't do anything
-yet. Until they have models, each one is a ball of its own colour and size, with its name over it in
+other across it. The Ashlands have an ash warden and a storyteller, a merchant and a healer. Each
+land has a trainer too, the silver ball a few steps from where players start. The storytellers
+tell stories (see [The storyteller](#the-storyteller)), and the others don't do anything yet. Until they have models, each one is a ball of its own colour and size, with its name over it in
 green.
 
 Kinds of NPC, and where each NPC stands, are in `content/npcs.txtpb` (see [Content](#content)).
@@ -991,7 +991,7 @@ The game's content is data, in the `content` folder, which the world servers, th
 bots read, so that there's one place to change it: `items.txtpb`, `monsters.txtpb`, `npcs.txtpb`
 and `skills.txtpb`, in protobuf's text format, each with its schema next to it, in `items.proto`,
 `monsters.proto`, `npcs.proto` and `skills.proto`. So far there's one item, the sword, which every
-player holds, two kinds of monster, the skeleton and the Ash Skeleton, five kinds of NPC, and four
+player holds, two kinds of monster, the skeleton and the Ash Skeleton, six kinds of NPC, and four
 skills (see [Skills](#skills)).
 
 - An item, or a kind of monster or NPC, has an id and a name, and parts that each side reads what it
@@ -1001,7 +1001,8 @@ skills (see [Skills](#skills)).
   monster's tint, and an NPC's ball, a colour and a radius. A monster's level, health and experience
   are the server's too. `starting_weapon` names the weapon a new player holds. A skill's `effect` is
   the server's, and its `look` the client's: its icon, its clip and its glow. The client shows a
-  skill's level and cooldown too, so those are in both.
+  skill's level and cooldown too, so those are in both. `starting` names the skills every new
+  player knows, and a kind of NPC's `teaches` the skills it teaches, by id.
 - Monsters with a fixed home, camps of monsters and NPCs name their kind by id, and their land by
   name.
 - Each file's first two lines, `# proto-file:` and `# proto-message:`, name its schema, so that
@@ -1010,9 +1011,11 @@ skills (see [Skills](#skills)).
   the schema doesn't have, or a value of the wrong type, is an error with the file and the line it's
   on. Then it checks what types can't: every item and kind has an id, no two share one, the starting
   weapon is a weapon, each spawn and camps names a kind and a land we have, no monster with a
-  fixed home has a leash that reaches the middle of its land, where players come back to life, and
-  each skill has a level and lands before it's over. The
-  server, the client and the bots don't start without good content.
+  fixed home has a leash that reaches the middle of its land, where players come back to life,
+  each skill has a level and lands before it's over, and each starting skill is in the file. Once
+  every file is read, `CheckContent` checks what no file can on its own: that each skill a trainer
+  teaches is in the skills file. The server, the client and the bots don't start without good
+  content.
 - Ids start at one, and an item or a kind keeps its id for good, as they're saved and sent by id.
   Protobuf leaves a zero out, so the client takes a missing weapon or kind as one it already knows.
 - Each player holds a weapon, by its id, saved with the rest of the player (see
@@ -1029,8 +1032,8 @@ skills (see [Skills](#skills)).
   The build copies the files next to the client, which reads them from there.
 
 Each side reads its own copy, so a client and a world have to agree on what the client reads. Each
-world works out its `ClientHash`, a 64-bit FNV-1a of the ids, names and looks, and the skills'
-levels and cooldowns, serialized deterministically, registers it with Consul, and the login server
+world works out its `ClientHash`, a 64-bit FNV-1a of the ids, names and looks, the skills'
+levels and cooldowns, and what each trainer teaches, serialized deterministically, registers it with Consul, and the login server
 lists it with the world. The fights and the skills' effects stay out of it, so that changing a
 sword's damage or a skeleton's leash needs no new client.
 A client lists a world with other content than its own as such, and doesn't log in to it. The servers

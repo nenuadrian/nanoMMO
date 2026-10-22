@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string_view>
 #include <utility>
 
@@ -33,7 +34,15 @@ absl::StatusOr<SkillTable> ParseSkills(std::string_view text) {
           absl::StrCat("the ", skill.name(), " lands after it's over"));
     }
   }
-  return SkillTable{.by_id = *std::move(by_id)};
+  std::set<uint32_t> starting(file.starting().begin(), file.starting().end());
+  for (const uint32_t id : starting) {
+    if (!by_id->contains(id)) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("there's no skill ", id, " to start with"));
+    }
+  }
+  return SkillTable{.by_id = *std::move(by_id),
+                    .starting = std::move(starting)};
 }
 
 }  // namespace nanommo

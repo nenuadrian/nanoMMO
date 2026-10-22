@@ -24,6 +24,10 @@ TEST(Content, ReadsTheGamesContent) {
   EXPECT_TRUE(std::ranges::any_of(content->skills.by_id, [](const auto& skill) {
     return skill.second.level() == 1;
   }));
+  EXPECT_FALSE(content->skills.starting.empty());
+  EXPECT_TRUE(std::ranges::any_of(content->npcs.kinds, [](const auto& kind) {
+    return !kind.second.teaches().empty();
+  }));
 }
 
 TEST(Content, HashesWhatTheClientsRead) {
@@ -73,6 +77,12 @@ TEST(Content, RefusesNpcsThatDontAddUp) {
   EXPECT_FALSE(nanommo::ParseNpcs("kinds { id: 1 } "
                                   "spawns { kind: 2 land: \"Meadows\" }")
                    .ok());
+
+  nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  EXPECT_TRUE(nanommo::CheckContent(content).ok());
+  content.npcs.kinds.at(1).add_teaches(99);
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "the Guard teaches a skill 99 that isn't in the skills file");
 }
 
 TEST(Content, RefusesSkillsThatDontAddUp) {
@@ -89,4 +99,9 @@ TEST(Content, RefusesSkillsThatDontAddUp) {
                 .status()
                 .message(),
             "the Kick lands after it's over");
+  EXPECT_EQ(nanommo::ParseSkills("starting: 2 skills { id: 1 name: \"Kick\" "
+                                 "level: 1 effect { cast_ms: 900 } }")
+                .status()
+                .message(),
+            "there's no skill 2 to start with");
 }

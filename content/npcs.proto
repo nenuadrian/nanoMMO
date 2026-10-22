@@ -17,6 +17,9 @@ message Kind {
   // Whether players can talk to it. An NPC that talks tells stories.
   bool talks = 3;
   Look look = 4;
+  // The skills it teaches, by their ids in the skills file. An NPC that
+  // teaches is a trainer.
+  repeated uint32 teaches = 5;
 }
 
 // Where an NPC stands, in metres from the middle of its land, and which way

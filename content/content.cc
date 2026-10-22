@@ -72,7 +72,25 @@ absl::StatusOr<Content> ReadContent(const std::string& folder) {
   if (!read.ok()) {
     return read;
   }
+  const absl::Status checked = CheckContent(content);
+  if (!checked.ok()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(folder, "/npcs.txtpb, ", checked.message()));
+  }
   return content;
+}
+
+absl::Status CheckContent(const Content& content) {
+  for (const auto& [id, kind] : content.npcs.kinds) {
+    for (const uint32_t skill : kind.teaches()) {
+      if (!content.skills.by_id.contains(skill)) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("the ", kind.name(), " teaches a skill ", skill,
+                         " that isn't in the skills file"));
+      }
+    }
+  }
+  return absl::OkStatus();
 }
 
 uint64_t ClientHash(const Content& content) {
@@ -98,6 +116,7 @@ uint64_t ClientHash(const Content& content) {
     seen.set_name(kind.name());
     seen.set_talks(kind.talks());
     *seen.mutable_look() = kind.look();
+    *seen.mutable_teaches() = kind.teaches();
     Add(hash, seen);
   }
   // The clients show each skill's level and cooldown, and the effect is the

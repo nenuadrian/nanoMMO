@@ -24,6 +24,10 @@ struct Content {
 /// Reads each file in the folder, or says which file is wrong, and where.
 absl::StatusOr<Content> ReadContent(const std::string& folder);
 
+/// What the whole folder can tell is wrong, and no single file can: a trainer
+/// that teaches a skill the skills file doesn't have.
+absl::Status CheckContent(const Content& content);
+
 /// A fingerprint of what the clients read, so that a client can tell whether
 /// a world has its content. What only the server reads, such as a weapon's
 /// damage, stays out, so that changing it doesn't need a new client.

@@ -42,4 +42,6 @@ message Skill {
 
 message Skills {
   repeated Skill skills = 1;
+  // What each new player knows, by id. The others they learn from a trainer.
+  repeated uint32 starting = 2;
 }

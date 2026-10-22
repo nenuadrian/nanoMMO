@@ -27,12 +27,20 @@ kinds {
   talks: true
   look { color: 0x9B6BD8FF radius: 0.5 }
 }
+kinds {
+  id: 6
+  name: "Trainer"
+  teaches: [2, 3, 4]
+  look { color: 0xC8CCD4FF radius: 0.5 }
+}
 
 spawns { kind: 1 land: "Meadows" x: -3.2 z: -7.5 yaw: 0 }
 spawns { kind: 5 land: "Meadows" x: 3.2 z: -7.5 yaw: 0 }
 spawns { kind: 2 land: "Meadows" x: -6 z: -4 yaw: 1.57 }
 spawns { kind: 3 land: "Meadows" x: 6 z: -4.5 yaw: -1.57 }
+spawns { kind: 6 land: "Meadows" x: -2.5 z: -3 yaw: 0.69 }
 spawns { kind: 4 land: "Ashlands" x: 3.2 z: -7.5 yaw: 0 }
 spawns { kind: 5 land: "Ashlands" x: -3.2 z: -7.5 yaw: 0 }
 spawns { kind: 2 land: "Ashlands" x: -6 z: -4 yaw: 1.57 }
 spawns { kind: 3 land: "Ashlands" x: 6 z: -4.5 yaw: -1.57 }
+spawns { kind: 6 land: "Ashlands" x: -2.5 z: -3 yaw: 0.69 }
