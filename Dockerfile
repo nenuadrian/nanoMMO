@@ -51,7 +51,7 @@ WORKDIR /src
 COPY . .
 # clang-tidy reads the headers protoc writes, so those come first.
 RUN cmake -S . -B build -G Ninja -DNANOMMO_FUZZ=ON \
- && cmake --build build --target nanommo_protocol nanommo_content \
+ && cmake --build build --target nanommo_protocol nanommo_content nanommo_client_core \
  && run-clang-tidy -quiet -p build \
       '^/src/(server|bot|client|protocol|content|terrain|fuzz)/(?!.*_test\.cc)'
 

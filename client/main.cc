@@ -285,9 +285,10 @@ int main(int argc, char* argv[]) {
     } else if (const auto request = login_screen.Build()) {
       if (request->list_worlds()) {
         ListWorlds(host, *tls, *request, login_screen);
-      } else {
-        connection = Enter(host, *login_screen.world(), transport == "udp",
-                           *tls, *request, login_screen);
+      } else if (const std::optional<nanommo::protocol::WorldListing>& world =
+                     login_screen.world()) {
+        connection = Enter(host, *world, transport == "udp", *tls, *request,
+                           login_screen);
         sent.Clear();
         nearby = 0;
       }

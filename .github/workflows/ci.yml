@@ -95,7 +95,7 @@ jobs:
           docker run --rm nanommo-fuzz build/bin/world_fuzzer -max_total_time=60
 
   docs:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && !github.event.repository.private
     needs: build
     runs-on: ubuntu-latest
     permissions:

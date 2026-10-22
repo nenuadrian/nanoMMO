@@ -149,7 +149,8 @@ Last, the coverage report shows which lines the tests run, and how often. `docke
 coverage` builds the code with Clang's counters, runs all of the tests against MySQL, Redis and
 Consul, and writes the report to `site/coverage`. It reads the servers, the bot and the client too,
 so that code no test reaches counts, at zero. CI publishes it with the API docs, at
-[nenuadrian.github.io/nanoMMO/coverage](https://nenuadrian.github.io/nanoMMO/coverage/).
+[nenuadrian.github.io/nanoMMO/coverage](https://nenuadrian.github.io/nanoMMO/coverage/), from a
+public repository only, as Pages would put a private copy's code where anyone can read it.
 
 `patches/` holds fixes to the libraries we fetch that their releases don't have yet, which CMake
 applies as it fetches them: civetweb's for a data race on the flag that stops its threads, which

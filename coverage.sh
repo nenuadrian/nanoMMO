@@ -16,3 +16,6 @@ llvm-cov show "$@" -format html -output-dir /coverage \
   -show-line-counts-or-regions -project-title nanoMMO
 llvm-cov report "$@"
 llvm-cov export "$@" -summary-only > /coverage/summary.json
+# llvm-cov's folders shut out other users, and in CI the pages upload reads
+# them as another user.
+chmod -R a+rX /coverage
