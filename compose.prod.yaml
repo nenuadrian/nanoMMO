@@ -68,6 +68,14 @@ services:
       - "127.0.0.1:8025:8025"
     restart: unless-stopped
 
+  loki:
+    ports: !override
+      - "127.0.0.1:3100:3100"
+    restart: unless-stopped
+
+  alloy:
+    restart: unless-stopped
+
   grafana:
     ports: !override
       - "127.0.0.1:3000:3000"

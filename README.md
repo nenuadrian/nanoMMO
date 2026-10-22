@@ -737,6 +737,33 @@ server, with `smtp_auth_username` and `smtp_auth_password_file`. The rules have 
 docker compose run --rm alerts
 ```
 
+## Logs
+
+Each server writes what it does to its output: who joins and leaves, what they say, what they
+learn, and what goes wrong. `docker compose logs` shows that a service at a time, and loses it with
+the container. [Loki](https://github.com/grafana/loki), Grafana's log store, keeps the logs of all
+the game's containers, and Grafana queries them next to the metrics:
+
+- Loki runs in a single process (`monitoring/loki.yaml`), with the logs on a volume of its own,
+  `loki`, and keeps them for a week. It indexes each line by its labels, and not by what it says, so
+  that keeping logs costs little, and a query picks the lines by their labels first, then searches
+  what they say.
+- [Alloy](https://github.com/grafana/alloy), Grafana's agent, finds the game's containers through
+  Docker's socket, which Compose mounts into it read-only: the ones in the Compose project
+  `nanommo`, and looks for new ones each five seconds. It reads what each one writes, as it comes,
+  and sends it to Loki
+  (`monitoring/config.alloy`). Each container's lines get its service's name as the `service` label,
+  such as `server` or `saver`.
+- Grafana has Loki as a second data source, so Explore, at http://localhost:3000/explore, searches
+  the logs with LogQL, Loki's query language:
+
+```
+{service="server"}                       # the world server's lines
+{service="server"} |= "joined"           # the ones that say joined
+```
+
+In production, Loki listens on the server's localhost, like Prometheus, and Alloy has no port.
+
 ## Benchmarking and profiling
 
 `bench/load.sh` measures how the server copes as players arrive. With the stack from `compose.yaml`
@@ -1127,10 +1154,10 @@ The game runs on any Linux server with Docker and Docker Compose, such as a VPS,
   UDP, and the website on port 8080, and nothing else. MySQL, Redis, the storyteller and the worlds'
   metrics stay on Compose's own network. Docker publishes a port past a firewall such as ufw, so leaving a port out of
   the file is what keeps it off the internet.
-- Prometheus, Grafana, Alertmanager, Mailpit and Consul listen on the server's localhost. Reach them
-  through SSH: `ssh -L 3000:localhost:3000 -L 9090:localhost:9090 -L 9093:localhost:9093 -L
+- Prometheus, Grafana, Loki, Alertmanager, Mailpit and Consul listen on the server's localhost. Reach
+  them through SSH: `ssh -L 3000:localhost:3000 -L 9090:localhost:9090 -L 9093:localhost:9093 -L
   8025:localhost:8025 -L 8500:localhost:8500 debian@203.0.113.7`, then open
-  http://localhost:3000.
+  http://localhost:3000, where Grafana reaches Loki on Compose's network.
 - MySQL's password and the website's `APP_KEY` come from `.env` on the server, which `deploy.sh` makes
   on the first deploy, with random ones, readable by the deploying user alone. Git and the Docker
   builds leave `.env` out.
