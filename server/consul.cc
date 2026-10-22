@@ -2,10 +2,11 @@
 
 #include <httplib.h>
 
-#include <algorithm>
 #include <cstdint>
+#include <map>
 #include <string>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/numbers.h"
@@ -54,18 +55,24 @@ const T* Find(const nlohmann::json& json, const char* path) {
 
 }  // namespace
 
+std::string InstanceId(const WorldRegistration& world) {
+  return absl::StrCat(world.name, "-", world.port);
+}
+
 absl::Status Consul::Register(const WorldRegistration& world) const {
   const absl::StatusOr<std::string> address = OwnAddress();
   if (!address.ok()) {
     return address.status();
   }
   const nlohmann::json service = {
-      {"ID", world.name},
+      {"ID", InstanceId(world)},
       {"Name", kService},
       {"Address", *address},
       {"Port", world.port},
       {"Meta",
-       {{"players", absl::StrCat(world.players)},
+       {{"world", world.name},
+        {"started", absl::StrCat(world.started)},
+        {"players", absl::StrCat(world.players)},
         {"metrics_port", absl::StrCat(world.metrics_port)},
         {"content", absl::StrCat(absl::Hex(world.content, absl::kZeroPad16))}}},
       {"TaggedAddresses",
@@ -78,12 +85,12 @@ absl::Status Consul::Register(const WorldRegistration& world) const {
   return Put("/v1/agent/service/register", service.dump());
 }
 
-absl::Status Consul::Pass(const std::string& name) const {
-  return Put(absl::StrCat("/v1/agent/check/pass/service:", name), "");
+absl::Status Consul::Pass(const std::string& instance) const {
+  return Put(absl::StrCat("/v1/agent/check/pass/service:", instance), "");
 }
 
-absl::Status Consul::Deregister(const std::string& name) const {
-  return Put(absl::StrCat("/v1/agent/service/deregister/", name), "");
+absl::Status Consul::Deregister(const std::string& instance) const {
+  return Put(absl::StrCat("/v1/agent/service/deregister/", instance), "");
 }
 
 absl::StatusOr<std::vector<protocol::WorldListing>> Consul::Worlds() const {
@@ -96,24 +103,31 @@ absl::StatusOr<std::vector<protocol::WorldListing>> Consul::Worlds() const {
   if (!entries.is_array()) {
     return absl::DataLossError("Consul's list of worlds isn't a list");
   }
-  std::vector<protocol::WorldListing> worlds;
+  // Each world's newest instance, with when it started, by the world's name.
+  std::map<std::string, std::pair<int64_t, protocol::WorldListing>> newest;
   for (const nlohmann::json& entry : entries) {
-    const auto* name = Find<std::string>(entry, "/Service/ID");
+    const auto* name = Find<std::string>(entry, "/Service/Meta/world");
     const auto* host =
         Find<std::string>(entry, "/Service/TaggedAddresses/wan/Address");
     const auto* port =
         Find<uint64_t>(entry, "/Service/TaggedAddresses/wan/Port");
     const auto* players = Find<std::string>(entry, "/Service/Meta/players");
     const auto* content = Find<std::string>(entry, "/Service/Meta/content");
+    const auto* started = Find<std::string>(entry, "/Service/Meta/started");
     uint32_t count = 0;
     uint64_t hash = 0;
+    int64_t since = 0;
     // Something under our name that isn't a world we could reach stays out,
     // so that the other worlds still make the list.
     if (!name || !host || !port || *port == 0 || *port > 65535 || !players ||
-        !absl::SimpleAtoi(*players, &count)) {
+        !absl::SimpleAtoi(*players, &count) || !started ||
+        !absl::SimpleAtoi(*started, &since)) {
       continue;
     }
-    protocol::WorldListing& world = worlds.emplace_back();
+    if (newest.contains(*name) && newest.at(*name).first > since) {
+      continue;
+    }
+    protocol::WorldListing world;
     world.set_name(*name);
     world.set_host(*host);
     world.set_port(static_cast<uint32_t>(*port));
@@ -122,8 +136,14 @@ absl::StatusOr<std::vector<protocol::WorldListing>> Consul::Worlds() const {
     if (content != nullptr && absl::SimpleHexAtoi(*content, &hash)) {
       world.set_content(hash);
     }
+    newest[*name] = {since, std::move(world)};
   }
-  std::ranges::sort(worlds, {}, &protocol::WorldListing::name);
+  // The map keeps the names in order.
+  std::vector<protocol::WorldListing> worlds;
+  worlds.reserve(newest.size());
+  for (auto& [name, instance] : newest) {
+    worlds.push_back(std::move(instance.second));
+  }
   return worlds;
 }
 

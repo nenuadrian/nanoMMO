@@ -15,6 +15,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "asio/io_context.hpp"
 #include "asio/post.hpp"
@@ -158,7 +159,9 @@ int main(int argc, char* argv[]) {
       .port = *port,
       .metrics_port = *metrics_port,
       .content = content_hash,
+      .started = absl::ToUnixSeconds(absl::Now()),
   };
+  const std::string instance = nanommo::InstanceId(registration);
   // Consul gets its own thread, so that a slow answer can't hold up a tick.
   asio::thread_pool consul_thread(1);
   // A beat still waiting on Consul is enough, so that beats can't pile up.
@@ -182,7 +185,7 @@ int main(int argc, char* argv[]) {
             // Registering again keeps a critical check critical, so each beat
             // passes it.
             if (status.ok()) {
-              status = consul.Pass(registration.name);
+              status = consul.Pass(nanommo::InstanceId(registration));
             }
             if (status.ok()) {
               listed = registration.players;
@@ -191,9 +194,10 @@ int main(int argc, char* argv[]) {
               // registers ours again.
               listed.reset();
             }
-            const std::string news =
-                status.ok() ? "registered with Consul as " + registration.name
-                            : status.ToString();
+            const std::string news = status.ok()
+                                         ? "registered with Consul as " +
+                                               nanommo::InstanceId(registration)
+                                         : status.ToString();
             // Once when it changes, not with each heartbeat.
             if (news != said) {
               said = news;
@@ -212,7 +216,7 @@ int main(int argc, char* argv[]) {
   signals.async_wait([&io](std::error_code, int) { io.stop(); });
   io.run();
   consul_thread.join();
-  const absl::Status deregistered = consul.Deregister(name);
+  const absl::Status deregistered = consul.Deregister(instance);
   if (!deregistered.ok()) {
     std::cerr << "nanommo server: " << deregistered << "\n";
   }

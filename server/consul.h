@@ -21,7 +21,14 @@ struct WorldRegistration {
   int players = 0;
   /// The ClientHash of the world's content.
   uint64_t content = 0;
+  /// When the instance started, in seconds since the epoch.
+  int64_t started = 0;
 };
+
+/// A world runs as two instances for a moment, while one hands its players
+/// over to the other, so each instance registers under a name of its own, its
+/// world's and its port's.
+std::string InstanceId(const WorldRegistration& world);
 
 class Consul {
  public:
@@ -33,14 +40,14 @@ class Consul {
   /// check starts as passing, and keeps its status when it's registered again.
   absl::Status Register(const WorldRegistration& world) const;
 
-  /// Passes the world's health check, which turns critical ten seconds after
-  /// the last pass. NotFound when Consul doesn't know the world.
-  absl::Status Pass(const std::string& name) const;
+  /// Passes the instance's health check, which turns critical ten seconds after
+  /// the last pass. NotFound when Consul doesn't know the instance.
+  absl::Status Pass(const std::string& instance) const;
 
-  absl::Status Deregister(const std::string& name) const;
+  absl::Status Deregister(const std::string& instance) const;
 
   /// The worlds that pass their health checks, by name, with the host and
-  /// port players reach them at.
+  /// port players reach them at: each world's newest instance.
   absl::StatusOr<std::vector<protocol::WorldListing>> Worlds() const;
 
  private:

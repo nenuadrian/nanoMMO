@@ -940,8 +940,9 @@ A world takes its port as its first argument (7777 by default), and the rest fro
 | `NANOMMO_CONSUL_HOST` | `127.0.0.1` | Where Consul is, on port 8500 |
 | `NANOMMO_CONTENT` | `content` | The content folder (see [Content](#content)); the image has its own |
 
-- A world registers with its name, its address, the public host and port, the metrics port and how
-  many players it has, and a health check that turns critical ten seconds after its last pass.
+- A world registers with its name, its address, the public host and port, the metrics port, how
+  many players it has and when it started, and a health check that turns critical ten seconds
+  after its last pass.
 - Every two seconds, the tick loop sends a heartbeat, and a thread of its own takes it to Consul, so
   a slow Consul can't hold up a tick, and a heartbeat that finds the last one still waiting skips.
   Each heartbeat passes the world's check, so a world that stops ticking drops out of the list, and
@@ -952,8 +953,11 @@ A world takes its port as its first argument (7777 by default), and the rest fro
   Prometheus reach it at, inside Compose's network. Players reach it at its public host instead,
   which in Docker is the machine the ports are published on.
 - When it stops, a world deregisters, and leaves the list at once.
-- A world's name is its ID, in Consul and in the `players` table, so two worlds with one name would
-  share their players, and the second to register would replace the first in the list.
+- A world's name is its ID in the `players` table, so two worlds with one name share their players.
+  In Consul, each instance of a world registers under its name and port, such as `Ember-7777`, as a
+  world can run as two instances for a moment, on two ports. The login server lists each world
+  once, at its newest instance, and Prometheus labels each instance with its world, from the
+  `world` in its registration.
 - To play from another machine, start the worlds with the address of this one:
   `NANOMMO_PUBLIC_HOST=192.168.1.20 docker compose up -d`.
 - Consul runs in development mode: one server, which keeps everything in memory. Each world
