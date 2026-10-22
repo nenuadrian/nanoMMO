@@ -772,6 +772,17 @@ and what the servers say, their lines as they come, newest first. A spike on a c
 from that minute are on one page. Grafana marks each line with its `level` label, which Alloy gives
 our servers' lines from their stream, `error` from `stderr`, and `info` from `stdout`.
 
+Loki checks rules on the logs too, like Prometheus checks its rules on the metrics, every 15
+seconds, from `monitoring/loki-rules.yml`, and sends the alerts to the same Alertmanager, which
+emails them (see [Alerts](#alerts)):
+
+- `SaverFailing`, when the saver has written errors for a minute, such as while MySQL is down. The
+  saver keeps going, and the players it couldn't save stay unsaved in Redis until it can, so the
+  game doesn't notice, and nothing in the metrics shows it either.
+
+Loki has no tenants of its own here, so its rules are in its tenant's folder, `fake`, the name Loki
+gives the tenant when `auth_enabled` is off.
+
 In production, Loki listens on the server's localhost, like Prometheus, and Alloy has no port.
 
 ## Benchmarking and profiling

@@ -1,0 +1,8 @@
+groups:
+  - name: logs
+    rules:
+      - alert: SaverFailing
+        expr: sum by (service) (count_over_time({service="saver", stream="stderr"}[1m])) > 0
+        for: 1m
+        annotations:
+          summary: "The saver has been writing errors for a minute, so players stay unsaved in Redis"

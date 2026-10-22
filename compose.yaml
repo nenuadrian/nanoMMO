@@ -198,6 +198,7 @@ services:
     command: ["-config.file=/etc/loki/loki.yaml"]
     volumes:
       - ./monitoring/loki.yaml:/etc/loki/loki.yaml:ro
+      - ./monitoring/loki-rules.yml:/etc/loki/rules/fake/rules.yml:ro
       - loki:/loki
     ports:
       - "3100:3100"
