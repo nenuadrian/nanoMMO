@@ -18,9 +18,19 @@ discovery.relabel "containers" {
 }
 
 loki.source.docker "containers" {
-  host       = "unix:///var/run/docker.sock"
-  targets    = discovery.relabel.containers.output
-  forward_to = [loki.write.loki.receiver]
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.relabel.containers.output
+  forward_to    = [loki.write.loki.receiver]
+  relabel_rules = loki.relabel.streams.rules
+}
+
+loki.relabel "streams" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
 }
 
 loki.write "loki" {

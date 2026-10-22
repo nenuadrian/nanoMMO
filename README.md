@@ -753,13 +753,17 @@ the game's containers, and Grafana queries them next to the metrics:
   `nanommo`, and looks for new ones each five seconds. It reads what each one writes, as it comes,
   and sends it to Loki
   (`monitoring/config.alloy`). Each container's lines get its service's name as the `service` label,
-  such as `server` or `saver`.
+  such as `server` or `saver`, and each line the stream it was written to as the `stream` label,
+  `stdout` or `stderr`, which Docker keeps apart. Our servers write their errors to `stderr` and the
+  rest to `stdout`, so `stream="stderr"` picks their errors. Other images use `stderr` for
+  everything, such as MySQL's.
 - Grafana has Loki as a second data source, so Explore, at http://localhost:3000/explore, searches
   the logs with LogQL, Loki's query language:
 
 ```
 {service="server"}                       # the world server's lines
 {service="server"} |= "joined"           # the ones that say joined
+{service=~"server|login|saver", stream="stderr"}   # what went wrong
 ```
 
 In production, Loki listens on the server's localhost, like Prometheus, and Alloy has no port.
