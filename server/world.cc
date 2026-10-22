@@ -115,6 +115,11 @@ absl::Status World::Learn(uint32_t id, uint32_t npc, uint32_t skill) {
         "You're too far away to learn from the ", trainer->second.name, "."));
   }
   const std::string& name = taught->second.name();
+  const uint32_t level = taught->second.level();
+  if (LevelFor(player->second.experience).number < static_cast<int>(level)) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("You can learn ", name, " from level ", level, "."));
+  }
   if (player->second.skills.contains(skill)) {
     return absl::AlreadyExistsError(
         absl::StrCat("You know ", name, " already."));
