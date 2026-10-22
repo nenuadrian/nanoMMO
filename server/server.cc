@@ -426,12 +426,20 @@ int Server::HandOver(const std::string& host, uint16_t port) {
   acceptor_.close(ignored);
   SaveChanged();
   int told = 0;
-  for (const auto& [token, id] : udp_tokens_) {
+  for (const auto& [id, session] : sessions_) {
+    // Tokens are one-time, and the player's own is used, so each move gets a
+    // token of its own.
+    const absl::StatusOr<std::string> token = tokens_.Issue(id);
+    if (!token.ok()) {
+      std::cerr << "couldn't hand player " << id << " over: " << token.status()
+                << "\n";
+      continue;
+    }
     protocol::World move;
     move.mutable_move()->set_host(host);
     move.mutable_move()->set_port(port);
-    move.mutable_move()->set_token(token);
-    sessions_.at(id)->Send(Frame(move));
+    move.mutable_move()->set_token(*token);
+    session->Send(Frame(move));
     ++told;
   }
   return told;

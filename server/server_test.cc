@@ -215,6 +215,30 @@ TEST_F(ServerTest, PlayersSeeEachOtherUntilOneLeaves) {
       RunUntil([&] { return server_->players() == 1 && !alice.Sees(bob_); }));
 }
 
+TEST_F(ServerTest, HandsItsPlayersOverToTheNextInstance) {
+  // The world's next instance, in this process, on a port of its own.
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> next =
+      nanommo::Server::Create(
+          io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1,
+          content_, metrics_, *tokens_, *players_, *storyteller_);
+  ASSERT_TRUE(next.ok()) << next.status();
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
+
+  EXPECT_EQ(server_->HandOver("localhost", (*next)->port()), 1);
+  ASSERT_TRUE(RunUntil([&] { return alice.world().has_move(); }));
+  const nanommo::protocol::Move move = alice.world().move();
+  EXPECT_EQ(move.port(), (*next)->port());
+
+  // With the move's token, alice plays on in the next instance, and the one
+  // before has nobody left once she leaves it.
+  TestPlayer moved(io_, *client_tls_, static_cast<uint16_t>(move.port()),
+                   move.token());
+  EXPECT_TRUE(RunUntil([&] { return moved.Sees(alice_); }));
+  alice.Leave();
+  EXPECT_TRUE(RunUntil([&] { return server_->players() == 0; }));
+}
+
 TEST_F(ServerTest, AnAccountPlaysOnceAtATime) {
   TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
   ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));

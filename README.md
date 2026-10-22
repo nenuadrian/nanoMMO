@@ -1191,7 +1191,8 @@ Instead, a world hands its players over to its next instance:
   the next one. If there is one, and the world has players, it hands them over: it stops ticking
   and taking new players, saves each player into Redis, where the next instance loads them from,
   and sends each client a `Move`, with the host and port players reach the next instance at, and a
-  token to say hello there with. Then it waits up to ten seconds for its clients to leave, and
+  token to say hello there with. Tokens are one-time, and the one each player said hello with is
+  used, so the world issues one for each move, in Redis like the login server's. Then it waits up to ten seconds for its clients to leave, and
   stops.
 - Without a next instance, a world stops as before.
 - The client connects to the next instance as soon as it gets the `Move`, and keeps drawing the
