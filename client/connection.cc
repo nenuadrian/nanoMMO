@@ -108,9 +108,11 @@ void Connection::Read() {
                                 connected_ = false;
                                 return;
                               }
-                              // Chat comes on its own, with nothing of the
-                              // world in it.
-                              if (world.chat().empty()) {
+                              // Chat and moves come on their own, with nothing
+                              // of the world in them.
+                              if (world.has_move()) {
+                                move_ = world.move();
+                              } else if (world.chat().empty()) {
                                 Receive(world);
                               } else {
                                 Hear(world);

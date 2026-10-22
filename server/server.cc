@@ -278,6 +278,10 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
     return 0;
   }
   lands_[player->land].Join(*id, *player);
+  // Names, kinds and NPCs go out once a second, so the next broadcast is a
+  // full one, and a player who's just joined, say from another instance,
+  // gets them in their first world.
+  broadcasts_ = 0;
   saved_[*id] = ProgressOf(*player);
   sessions_[*id] = session.shared_from_this();
   chat_limits_.emplace(*id, TokenBucket(kChatBurst, kChatRefill));

@@ -1194,6 +1194,9 @@ Instead, a world hands its players over to its next instance:
   token to say hello there with. Then it waits up to ten seconds for its clients to leave, and
   stops.
 - Without a next instance, a world stops as before.
+- The client connects to the next instance as soon as it gets the `Move`, and keeps drawing the
+  world it has until the next instance sends it one, so the world stays on the screen. Then it goes
+  over, and closes its connection to the instance before, which lets that one stop.
 
 ## Deployment
 

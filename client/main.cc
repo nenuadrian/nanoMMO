@@ -170,13 +170,47 @@ int main(int argc, char* argv[]) {
   nanommo::FollowCamera camera;
 
   std::unique_ptr<nanommo::Connection> connection;
+  // The world's next instance, while we move to it.
+  std::unique_ptr<nanommo::Connection> next;
   nanommo::protocol::Input sent;
   int nearby = 0;
 
   while (!window->ShouldClose()) {
     if (connection) {
       connection->Poll();
-      if (!connection->connected()) {
+      if (const std::optional<nanommo::protocol::Move>& move =
+              connection->move();
+          move && !next) {
+        absl::StatusOr<std::unique_ptr<nanommo::Connection>> next_or =
+            nanommo::Connection::Create(
+                move->host(), static_cast<uint16_t>(move->port()), *tls,
+                move->token(), transport == "udp");
+        if (next_or.ok()) {
+          next = *std::move(next_or);
+          std::cout << "nanommo client: moving to " << move->host() << ":"
+                    << move->port() << '\n';
+        } else {
+          std::cerr << "nanommo client: " << next_or.status() << "\n";
+          // The instance we're on has stopped ticking, so there's nothing left
+          // to play here.
+          connection.reset();
+          login_screen.ShowError("Lost the connection to the server.");
+        }
+      }
+      // We go over once the next instance has sent us our world, so that the
+      // world stays on the screen.
+      if (next) {
+        next->Poll();
+        if (next->world().you() != 0) {
+          connection = std::exchange(next, nullptr);
+          sent.Clear();
+        } else if (!next->connected()) {
+          next.reset();
+          connection.reset();
+          login_screen.ShowError("Lost the connection to the server.");
+        }
+      }
+      if (connection && !next && !connection->connected()) {
         connection.reset();
         login_screen.ShowError("Lost the connection to the server.");
       }

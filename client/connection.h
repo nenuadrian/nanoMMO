@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/status/status.h"
@@ -42,6 +43,9 @@ class Connection {
   /// The newest lines said in the world, oldest first.
   const std::deque<protocol::Chat>& chat() const { return chat_; }
 
+  /// Where the world's instance told us to go, once it hands its players over.
+  const std::optional<protocol::Move>& move() const { return move_; }
+
  private:
   Connection(asio::ssl::context& tls, const std::string& token);
 
@@ -64,6 +68,7 @@ class Connection {
   Parts parts_;
   protocol::World world_;
   std::deque<protocol::Chat> chat_;
+  std::optional<protocol::Move> move_;
   bool udp_worlds_ = false;
   bool connected_ = true;
 };
