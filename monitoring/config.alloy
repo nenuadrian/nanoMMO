@@ -31,6 +31,20 @@ loki.relabel "streams" {
     source_labels = ["__meta_docker_container_log_stream"]
     target_label  = "stream"
   }
+
+  rule {
+    source_labels = ["service", "__meta_docker_container_log_stream"]
+    regex         = "(server|frost|login|saver);stderr"
+    target_label  = "level"
+    replacement   = "error"
+  }
+
+  rule {
+    source_labels = ["service", "__meta_docker_container_log_stream"]
+    regex         = "(server|frost|login|saver);stdout"
+    target_label  = "level"
+    replacement   = "info"
+  }
 }
 
 loki.write "loki" {

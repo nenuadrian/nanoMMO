@@ -766,6 +766,12 @@ the game's containers, and Grafana queries them next to the metrics:
 {service=~"server|login|saver", stream="stderr"}   # what went wrong
 ```
 
+The server dashboard has two panels from Loki at the bottom, under the metrics: errors a minute,
+the servers' `stderr` lines counted a minute at a time by service with LogQL's `count_over_time`,
+and what the servers say, their lines as they come, newest first. A spike on a chart and the lines
+from that minute are on one page. Grafana marks each line with its `level` label, which Alloy gives
+our servers' lines from their stream, `error` from `stderr`, and `info` from `stdout`.
+
 In production, Loki listens on the server's localhost, like Prometheus, and Alloy has no port.
 
 ## Benchmarking and profiling
