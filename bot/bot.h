@@ -36,6 +36,12 @@ class Bot {
 
   bool connected() const { return connected_; }
 
+  /// Where the bot's world told it to go, once it hands its players over.
+  const std::optional<protocol::Move>& move() const { return move_; }
+
+  /// Closes the connection, as a player who goes elsewhere does.
+  void Leave();
+
   const std::vector<int64_t>& newest() const { return newest_; }
 
  private:
@@ -73,6 +79,7 @@ class Bot {
   bool asking_ = false;
   /// The skills the bot knows, from its world.
   std::vector<uint32_t> skills_;
+  std::optional<protocol::Move> move_;
 };
 
 }  // namespace nanommo

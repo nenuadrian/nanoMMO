@@ -1218,6 +1218,14 @@ docker compose --profile next build
 ./handover.sh server
 ```
 
+The bots follow a move too, like a client: a bot whose world hands it over closes its connection,
+and a new one with its number says hello to the next instance with the move's token. The bots play
+against a single machine, so a bot keeps the host it was given and takes the move's port. In
+Compose, `server` is both instances' name while both run, and asio's connect tries each address a
+name has, so a bot reaches the one on the move's port. Each swarm serves how many of its
+bots are connected, as `nanommo_bots_connected`, where a handover shows as a dip of a second at
+most, and the dashboard adds a world's players up across its instances.
+
 `deploy.sh` starts everything else again as before, and each world through `handover.sh`. Compose
 gives a world 15 seconds to stop before it kills it, which leaves the ten seconds the handover waits
 for. On a server, Compose publishes the next instances' ports like the worlds', TCP and UDP, so they're

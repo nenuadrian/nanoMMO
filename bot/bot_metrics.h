@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "prometheus/gauge.h"
 #include "prometheus/histogram.h"
 #include "prometheus/registry.h"
 
@@ -16,6 +17,8 @@ class BotMetrics {
 
   void ObserveAge(std::chrono::microseconds age);
 
+  void SetConnected(int bots);
+
   const std::shared_ptr<prometheus::Registry>& registry() const {
     return registry_;
   }
@@ -23,6 +26,7 @@ class BotMetrics {
  private:
   std::shared_ptr<prometheus::Registry> registry_;
   prometheus::Histogram& age_seconds_;
+  prometheus::Gauge& connected_;
 };
 
 }  // namespace nanommo

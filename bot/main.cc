@@ -1,9 +1,12 @@
 #include <chrono>
 #include <csignal>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -21,6 +24,7 @@
 #include "prometheus/exposer.h"
 #include "protocol/clock.h"
 #include "protocol/login_client.h"
+#include "protocol/nanommo.pb.h"
 #include "protocol/settings.h"
 #include "protocol/tls.h"
 
@@ -57,12 +61,13 @@ absl::StatusOr<std::string> LogIn(const std::string& host,
 class Swarm {
  public:
   Swarm(asio::io_context& io, asio::ssl::context& tls, std::string login,
-        asio::ip::tcp::resolver::results_type server, int count,
-        std::chrono::milliseconds ramp, int first, bool udp,
+        std::string host, asio::ip::tcp::resolver::results_type server,
+        int count, std::chrono::milliseconds ramp, int first, bool udp,
         nanommo::BotMetrics& metrics, const nanommo::NpcTable& npcs)
       : io_(io),
         tls_(tls),
         login_(std::move(login)),
+        host_(std::move(host)),
         server_(std::move(server)),
         count_(count),
         first_(first),
@@ -103,11 +108,49 @@ class Swarm {
     });
   }
 
+  // A bot whose world hands its players over goes to the world's next
+  // instance, as a client does, with the move's token. Bots play against a
+  // single machine, so the bot keeps its host, and takes the move's port.
+  void Follow() {
+    int moved = 0;
+    for (std::size_t i = 0; i < bots_.size(); ++i) {
+      const std::optional<nanommo::protocol::Move>& move = bots_[i]->move();
+      if (!move) {
+        continue;
+      }
+      std::error_code error;
+      const asio::ip::tcp::resolver::results_type next =
+          asio::ip::tcp::resolver(io_).resolve(
+              host_, std::to_string(move->port()), error);
+      if (error) {
+        std::cerr << "nanommo bot: couldn't find " << host_ << ": "
+                  << error.message() << "\n";
+        continue;
+      }
+      const std::string token = move->token();
+      const int number = first_ + static_cast<int>(i);
+      // The bot before stays until we stop, as its handlers may be waiting
+      // on its sockets.
+      bots_[i]->Leave();
+      left_.push_back(std::move(bots_[i]));
+      bots_[i] = std::make_unique<nanommo::Bot>(
+          io_, tls_, static_cast<uint32_t>(number), udp_, npcs_);
+      bots_[i]->Start(next, token);
+      ++moved;
+    }
+    if (moved > 0) {
+      std::cout << "nanommo bot: " << moved << " bots moved" << std::endl;
+    }
+  }
+
   void Report() {
     int connected = 0;
     for (const auto& bot : bots_) {
       connected += bot->connected() ? 1 : 0;
     }
+    metrics_.SetConnected(connected);
+    // After the count, as a bot that moves takes a moment to connect again.
+    Follow();
     if (connected != reported_) {
       std::cout << "nanommo bot: " << connected << " of " << count_
                 << " bots connected" << std::endl;
@@ -144,6 +187,7 @@ class Swarm {
   asio::io_context& io_;
   asio::ssl::context& tls_;
   std::string login_;
+  std::string host_;
   asio::ip::tcp::resolver::results_type server_;
   int count_;
   int first_;
@@ -155,6 +199,7 @@ class Swarm {
   asio::steady_timer report_;
   asio::steady_timer frame_;
   std::vector<std::unique_ptr<nanommo::Bot>> bots_;
+  std::vector<std::unique_ptr<nanommo::Bot>> left_;
   int reported_ = 0;
 };
 
@@ -208,8 +253,8 @@ int main(int argc, char* argv[]) {
             << ", logging in on " << login << ", over " << ramp.count()
             << " s, from bot" << first << ", worlds over " << transport
             << std::endl;
-  Swarm swarm(io, *tls, login, server, count, ramp, first, transport == "udp",
-              metrics, content->npcs);
+  Swarm swarm(io, *tls, login, host, server, count, ramp, first,
+              transport == "udp", metrics, content->npcs);
 
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });

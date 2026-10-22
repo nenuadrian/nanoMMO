@@ -170,9 +170,14 @@ void Bot::ReceiveOverUdp() {
 
 void Bot::Receive(std::string_view bytes) {
   protocol::World world;
-  // Chat has no land in it, which would read as the Meadows.
+  // Chat has no land in it, which would read as the Meadows, and neither
+  // does a move.
   if (!world.ParseFromArray(bytes.data(), static_cast<int>(bytes.size())) ||
       !world.chat().empty()) {
+    return;
+  }
+  if (world.has_move()) {
+    move_ = world.move();
     return;
   }
   const uint32_t parts = std::max(world.parts(), 1u);
@@ -256,6 +261,12 @@ void Bot::Wander() {
       Wander();
     }
   });
+}
+
+void Bot::Leave() {
+  Stop();
+  std::error_code ignored;
+  stream_.lowest_layer().close(ignored);
 }
 
 void Bot::Stop() {

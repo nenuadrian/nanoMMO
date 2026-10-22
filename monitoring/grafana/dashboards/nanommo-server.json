@@ -27,7 +27,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "nanommo_players_online",
+          "expr": "sum by (world, land) (nanommo_players_online)",
           "legendFormat": "{{world}}, {{land}}"
         }
       ],
