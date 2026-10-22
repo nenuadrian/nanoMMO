@@ -8,6 +8,12 @@ message Talk {
   string words = 2;
 }
 
+// A skill to learn from a trainer, by the NPC's id and the skill's.
+message Learn {
+  uint32 npc = 1;
+  uint32 skill = 2;
+}
+
 message Input {
   float x = 1;
   float z = 2;
@@ -18,6 +24,7 @@ message Input {
   // A skill to use, by its id in the skills file. The client sends it once,
   // as its key goes down.
   uint32 skill = 7;
+  Learn learn = 8;
 }
 
 enum Motion {
@@ -95,6 +102,8 @@ message World {
   // Your skills that aren't ready yet: how long until each one is, in
   // milliseconds, by its id.
   map<uint32, uint32> cooldowns = 13;
+  // The skills you know, by their ids.
+  repeated uint32 skills = 14;
 }
 
 message LoginRequest {

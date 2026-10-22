@@ -240,6 +240,9 @@ void Server::Accept() {
           if (input.has_talk()) {
             Talk(*id, input.talk());
           }
+          if (input.has_learn()) {
+            Learn(*id, input.learn());
+          }
         }
       };
       const auto on_close = [this, id] {
@@ -374,6 +377,17 @@ void Server::Talk(uint32_t id, const protocol::Talk& talk) {
       session->second->Send(Frame(told));
     }
   });
+}
+
+void Server::Learn(uint32_t id, const protocol::Learn& learn) {
+  World& land = *LandOf(id);
+  const absl::Status learned = land.Learn(id, learn.npc(), learn.skill());
+  if (!learned.ok()) {
+    Notify(id, std::string(learned.message()));
+    return;
+  }
+  std::cout << land.players().at(id).name << " learned skill " << learn.skill()
+            << std::endl;
 }
 
 void Server::Notify(uint32_t id, const std::string& text) {
@@ -549,6 +563,7 @@ void Server::BroadcastLand(std::size_t index, bool full) {
             std::chrono::duration_cast<std::chrono::milliseconds>(left)
                 .count());
       }
+      you.mutable_skills()->Add(player.skills.begin(), player.skills.end());
       you.set_seed(seed_ + kLands[index].seed);
       you.set_land(static_cast<uint32_t>(index));
       std::string own = you.SerializeAsString();

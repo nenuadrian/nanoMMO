@@ -449,6 +449,10 @@ to talk to someone. `World::Learn` checks each of those, and the skill isn't one
 already, or says why not, in words the server can send the player. The world joins each player
 with the starting skills, whatever was saved, so the database doesn't need to know which they are.
 
+The client asks for a skill in `Input`'s `learn`, with the trainer's id and the skill's, and the
+server sends a refusal back as a line in the chat, from nobody, like the storyteller's. The skills a
+player knows go to them with their cooldowns, after the world, by id.
+
 ## Accounts and logins
 
 - The login server, `nanommo_login`, listens on TCP port 7778. It creates accounts and checks passwords,
@@ -812,7 +816,8 @@ How the world gets there over UDP:
   IP doesn't split it into fragments, which would all be lost with any one of them. A lost part leaves
   its players and monsters where they were for a tick. `protocol/parts.h` splits the world and
   puts it back together. Each part ends with what's the player's own, their id, experience, seed,
-  land and cooldowns, so the parts leave room for that, with the cooldowns of up to nine skills.
+  land, cooldowns and the skills they know, so the parts leave room for that, for the nine skills
+  a hotbar holds.
 
 ## What each player gets
 

@@ -119,15 +119,20 @@ TEST(Parts, KeepsNamesAndLevelsBetweenTheTicksThatSendThem) {
   EXPECT_EQ(result.players(0).x(), 1.5f);
 }
 
-TEST(Parts, KeepsYourCooldowns) {
+TEST(Parts, KeepsYourCooldownsAndSkills) {
   nanommo::protocol::World world = MakeWorld(1, 1);
   (*world.mutable_cooldowns())[2] = 1500;
+  world.add_skills(1);
+  world.add_skills(2);
   nanommo::Parts assembled;
   assembled.Add(world);
 
   const nanommo::protocol::World result = assembled.world();
   ASSERT_TRUE(result.cooldowns().contains(2));
   EXPECT_EQ(result.cooldowns().at(2), 1500u);
+  EXPECT_EQ(
+      std::vector<uint32_t>(result.skills().begin(), result.skills().end()),
+      (std::vector<uint32_t>{1, 2}));
 }
 
 TEST(Parts, KeepsNpcsBetweenTheWorldsThatSendThemUntilTheyAreGone) {
