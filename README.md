@@ -680,7 +680,9 @@ island, within 170 metres of the middle, or on one trip in five into its land's 
 third of the time, for 5 to 15 directions of half a second to 3 seconds each, before it sets off
 again. When a bot gets where it was going, it says something, one time in four, from a few
 lines. Once it has seen its land's storyteller, one trip in eight goes there instead, where it asks
-for a story about three words from the game. A bot that stops
+for a story about three words from the game. While it wanders around somewhere, one direction in
+four uses one of the skills it knows, from its world, so that the bots' cooldowns go out with their
+worlds, as players' do. A bot that stops
 getting closer, at the sea or a lake, gives up on its trip. Each one logs in as bot1, bot2 and so on,
 and creates its account the first time. It takes the login server's
 host, the game server's host, how many bots, how many seconds to spread their arrival over, the

@@ -71,6 +71,8 @@ class Bot {
   std::optional<protocol::Npc> storyteller_;
   /// Whether the trip goes to the storyteller, for a story.
   bool asking_ = false;
+  /// The skills the bot knows, from its world.
+  std::vector<uint32_t> skills_;
 };
 
 }  // namespace nanommo

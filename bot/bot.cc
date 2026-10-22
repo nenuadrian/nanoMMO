@@ -44,6 +44,10 @@ constexpr std::array<const char*, 12> kWords = {
 
 constexpr double kAskForAStory = 0.125;
 
+// While it wanders around somewhere, a bot uses a skill it knows with one
+// direction in four, as players do in a fight.
+constexpr double kUseASkill = 0.25;
+
 std::string RandomWords(std::mt19937& random) {
   std::vector<const char*> words;
   std::ranges::sample(kWords, std::back_inserter(words), 3, random);
@@ -182,6 +186,7 @@ void Bot::Receive(std::string_view bytes) {
       z_ = player.z();
     }
   }
+  skills_ = {world.skills().begin(), world.skills().end()};
   // Through a gate: the trip was for the land we left.
   if (world.land() != land_ && world.land() < kLands.size()) {
     land_ = world.land();
@@ -229,6 +234,10 @@ void Bot::Wander() {
   if (!input) {
     --stay_;
     input = RandomDirection(random_);
+    if (!skills_.empty() && std::bernoulli_distribution(kUseASkill)(random_)) {
+      input->set_skill(skills_[std::uniform_int_distribution<std::size_t>(
+          0, skills_.size() - 1)(random_)]);
+    }
   }
   input->set_say(say);
   if (talk) {
