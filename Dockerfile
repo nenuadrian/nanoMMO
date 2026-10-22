@@ -3,7 +3,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       build-essential cmake ninja-build ca-certificates doxygen pkg-config \
       xorg-dev libgl1-mesa-dev xvfb xauth libgl1-mesa-dri \
-      libmysqlclient-dev libsodium-dev libssl-dev openssl \
+      libmysqlclient-dev libsodium-dev libssl-dev openssl curl \
  && rm -rf /var/lib/apt/lists/*
 
 FROM toolchain AS build
@@ -63,7 +63,7 @@ RUN cmake -S . -B build -G Ninja -DNANOMMO_COVERAGE=ON \
 
 FROM ubuntu:24.04 AS runtime
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libmysqlclient21 libsodium23 libssl3t64 \
+ && apt-get install -y --no-install-recommends libmysqlclient21 libsodium23 libssl3t64 curl \
  && rm -rf /var/lib/apt/lists/*
 
 FROM runtime AS server

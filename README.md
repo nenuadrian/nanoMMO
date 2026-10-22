@@ -1199,6 +1199,30 @@ Instead, a world hands its players over to its next instance:
   world it has until the next instance sends it one, so the world stays on the screen. Then it goes
   over, and closes its connection to the instance before, which lets that one stop.
 
+In Compose, each world has a next instance, `server-next` on port 7877 and `frost-next` on 7887,
+in the `next` profile, so `docker compose up` leaves them out. On Compose's network, each next
+instance answers to its world's name too, so `server` has two addresses while both run. Each world's
+health check asks Consul for its instance, so a world is healthy once Consul lists it, and
+`docker compose up --wait` waits for that. `handover.sh` starts a world again from its newest image
+while its players play on: it starts the next instance and waits until it's healthy, stops the
+world, which hands its players over, starts the world again and waits for it, and stops the next
+instance, which hands them back. A world hands its players over to its newest instance in Consul, so
+without the wait, a world could stop before the instance it hands over to has registered, and its
+players would end up at the login screen. So the world ends up where it was, on its own port, and
+the next instance is stopped, as it should be: two instances of a world that both took players would
+split them in two. Alloy gives the next instances' lines a level like the worlds', and the
+dashboard's log panels have them too.
+
+```bash
+docker compose --profile next build
+./handover.sh server
+```
+
+`deploy.sh` starts everything else again as before, and each world through `handover.sh`. Compose
+gives a world 15 seconds to stop before it kills it, which leaves the ten seconds the handover waits
+for. On a server, Compose publishes the next instances' ports like the worlds', TCP and UDP, so they're
+open to the internet too.
+
 ## Deployment
 
 The game runs on any Linux server with Docker and Docker Compose, such as a VPS, from
@@ -1206,7 +1230,7 @@ The game runs on any Linux server with Docker and Docker Compose, such as a VPS,
 `COMPOSE_FILE=compose.yaml:compose.prod.yaml`, so each `docker compose` command there reads both.
 
 - The internet reaches the login server on TCP port 7778, the worlds on ports 7777 and 7787, TCP and
-  UDP, and the website on port 8080, and nothing else. MySQL, Redis, the storyteller and the worlds'
+  UDP, and their next instances on 7877 and 7887, and the website on port 8080, and nothing else. MySQL, Redis, the storyteller and the worlds'
   metrics stay on Compose's own network. Docker publishes a port past a firewall such as ufw, so leaving a port out of
   the file is what keeps it off the internet.
 - Prometheus, Grafana, Loki, Alertmanager, Mailpit and Consul listen on the server's localhost. Reach
@@ -1237,7 +1261,9 @@ The server unpacks it into `nanommo.next`, keeps `.env`, and builds the images t
 tests run as part of the build, so a release that fails them, or doesn't build, leaves the running
 release as it is. Then the release before moves into `nanommo.previous`, the new one into `nanommo`,
 and `docker compose up -d --wait --force-recreate` starts each container again from the new
-release's folder: one left running would keep the folder it started from. The images build on the
+release's folder: one left running would keep the folder it started from. The worlds start again
+through `handover.sh` (see [Deploying without downtime](#deploying-without-downtime)), so their
+players play on through a deploy. The images build on the
 server from the source, protobuf and all: about fifteen minutes on 2 vCPUs, the first time and
 each time after. To go back to the release before, which builds its images again:
 

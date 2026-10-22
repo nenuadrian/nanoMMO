@@ -522,7 +522,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (service) (count_over_time({service=~\"server|frost|login|saver\", stream=\"stderr\"}[1m]))",
+          "expr": "sum by (service) (count_over_time({service=~\"server|frost|server-next|frost-next|login|saver\", stream=\"stderr\"}[1m]))",
           "legendFormat": "{{service}}"
         }
       ]
@@ -550,7 +550,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{service=~\"server|frost|login|saver\"}"
+          "expr": "{service=~\"server|frost|server-next|frost-next|login|saver\"}"
         }
       ]
     }

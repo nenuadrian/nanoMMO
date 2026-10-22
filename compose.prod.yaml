@@ -38,6 +38,16 @@ services:
       NANOMMO_PUBLIC_HOST: ${NANOMMO_PUBLIC_HOST:?set it in .env}
     restart: unless-stopped
 
+  server-next:
+    environment:
+      NANOMMO_MYSQL_PASSWORD: ${NANOMMO_MYSQL_PASSWORD:?set it in .env}
+      NANOMMO_PUBLIC_HOST: ${NANOMMO_PUBLIC_HOST:?set it in .env}
+
+  frost-next:
+    environment:
+      NANOMMO_MYSQL_PASSWORD: ${NANOMMO_MYSQL_PASSWORD:?set it in .env}
+      NANOMMO_PUBLIC_HOST: ${NANOMMO_PUBLIC_HOST:?set it in .env}
+
   saver:
     environment:
       NANOMMO_MYSQL_PASSWORD: ${NANOMMO_MYSQL_PASSWORD:?set it in .env}

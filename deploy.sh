@@ -30,7 +30,7 @@ git archive --format=tar --prefix=tls/ --add-file="$certificates/ca.crt" \
   grep -q "^NANOMMO_PUBLIC_HOST=" nanommo.next/.env ||
     echo "NANOMMO_PUBLIC_HOST=$public_host" >> nanommo.next/.env
   # A build that fails, or a test, leaves the release that runs as it is.
-  (cd nanommo.next && docker compose build)
+  (cd nanommo.next && docker compose --profile next build)
   if [ -d nanommo ]; then
     rm -rf nanommo.previous
     mv nanommo nanommo.previous
@@ -38,6 +38,10 @@ git archive --format=tar --prefix=tls/ --add-file="$certificates/ca.crt" \
   mv nanommo.next nanommo
   cd nanommo
   # A container left running would keep the folder it started from, which is
-  # nanommo.previous now.
-  docker compose up -d --wait --force-recreate
+  # nanommo.previous now. The worlds start again through their next instances,
+  # one at a time, so that their players play on.
+  docker compose up -d --wait --force-recreate \
+    $(docker compose config --services | grep -vx -e server -e frost)
+  ./handover.sh server
+  ./handover.sh frost
 '

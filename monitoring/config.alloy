@@ -34,14 +34,14 @@ loki.relabel "streams" {
 
   rule {
     source_labels = ["service", "__meta_docker_container_log_stream"]
-    regex         = "(server|frost|login|saver);stderr"
+    regex         = "(server|frost|server-next|frost-next|login|saver);stderr"
     target_label  = "level"
     replacement   = "error"
   }
 
   rule {
     source_labels = ["service", "__meta_docker_container_log_stream"]
-    regex         = "(server|frost|login|saver);stdout"
+    regex         = "(server|frost|server-next|frost-next|login|saver);stdout"
     target_label  = "level"
     replacement   = "info"
   }
