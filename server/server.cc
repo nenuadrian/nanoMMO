@@ -42,9 +42,6 @@ constexpr int kFullEvery = 20;
 constexpr int kChatBurst = 5;
 constexpr std::chrono::seconds kChatRefill{2};
 
-// In metres, from the middle of the NPC, as you'd talk to someone.
-constexpr float kTalkReach = 4.0f;
-
 // A story is a hundred tokens of the model's work, where a line of chat costs
 // nothing, so a player gets one story every ten seconds.
 constexpr int kStoryBurst = 1;
@@ -326,7 +323,7 @@ void Server::Talk(uint32_t id, const protocol::Talk& talk) {
     return;
   }
   const Npc& npc = found->second;
-  if (std::hypot(npc.x - player.x, npc.z - player.z) > kTalkReach) {
+  if (std::hypot(npc.x - player.x, npc.z - player.z) > World::kTalkReach) {
     metrics_.AddStory("refused");
     Notify(id,
            absl::StrCat("You're too far away to talk to the ", npc.name, "."));

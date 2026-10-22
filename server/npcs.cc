@@ -23,7 +23,8 @@ void SpawnNpcs(World& land, int index, const NpcTable& table) {
                    .x = spawn.x(),
                    .z = spawn.z(),
                    .yaw = spawn.yaw(),
-                   .talks = kind.talks()});
+                   .talks = kind.talks(),
+                   .teaches = {kind.teaches().begin(), kind.teaches().end()}});
   }
 }
 

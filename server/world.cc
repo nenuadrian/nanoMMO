@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <string>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "server/levels.h"
 #include "server/monsters.h"
 #include "tracy/Tracy.hpp"
@@ -50,6 +52,7 @@ void World::Join(uint32_t id, Player player) {
   if (!items_.by_id.contains(player.weapon)) {
     player.weapon = items_.starting_weapon;
   }
+  player.skills.insert(skills_.starting.begin(), skills_.starting.end());
   players_[id] = std::move(player);
 }
 
@@ -95,6 +98,29 @@ void World::UseSkill(uint32_t id, uint32_t skill) {
   if (found != players_.end()) {
     found->second.input_skill = skill;
   }
+}
+
+absl::Status World::Learn(uint32_t id, uint32_t npc, uint32_t skill) {
+  const auto player = players_.find(id);
+  const auto trainer = npcs_.find(npc);
+  const auto taught = skills_.by_id.find(skill);
+  if (player == players_.end() || trainer == npcs_.end() ||
+      !trainer->second.teaches.contains(skill) ||
+      taught == skills_.by_id.end()) {
+    return absl::NotFoundError("Nobody here teaches that.");
+  }
+  if (std::hypot(trainer->second.x - player->second.x,
+                 trainer->second.z - player->second.z) > kTalkReach) {
+    return absl::OutOfRangeError(absl::StrCat(
+        "You're too far away to learn from the ", trainer->second.name, "."));
+  }
+  const std::string& name = taught->second.name();
+  if (player->second.skills.contains(skill)) {
+    return absl::AlreadyExistsError(
+        absl::StrCat("You know ", name, " already."));
+  }
+  player->second.skills.insert(skill);
+  return absl::OkStatus();
 }
 
 void World::Step(std::chrono::nanoseconds time) {
@@ -235,9 +261,8 @@ void World::Hit(uint32_t id, Player& player, const items::Weapon& weapon) {
 
 const skills::Skill* World::Usable(const Player& player, uint32_t id) const {
   const auto found = skills_.by_id.find(id);
-  if (found == skills_.by_id.end() || player.cooldowns.contains(id) ||
-      LevelFor(player.experience).number <
-          static_cast<int>(found->second.level())) {
+  if (found == skills_.by_id.end() || !player.skills.contains(id) ||
+      player.cooldowns.contains(id)) {
     return nullptr;
   }
   return &found->second;

@@ -180,15 +180,15 @@ TEST(World, KillsMonstersForTheirExperienceAndTheyComeBack) {
   EXPECT_EQ(world.monsters().at(id).health, 10);
 }
 
-TEST(World, UsesSkillsFromTheirLevelOnceTheyreReady) {
+TEST(World, UsesTheSkillsTheyKnowOnceTheyreReady) {
   nanommo::World world(1, nanommo::Terrain(), nanommo::testing::Sword(),
                        nanommo::testing::Kick());
   world.Join(1, {});
-  world.Join(2, {.experience = 100});
+  world.Join(2, {.experience = 100, .skills = {1}});
   const uint32_t skeleton =
       world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 1.0f, 0.0f));
 
-  // The kick is from level two, which the second player has reached.
+  // The second player knows the kick, and the first doesn't.
   world.UseSkill(1, 1);
   world.UseSkill(2, 1);
   world.Step(kTick);
@@ -215,6 +215,30 @@ TEST(World, UsesSkillsFromTheirLevelOnceTheyreReady) {
   world.UseSkill(2, 1);
   world.Step(kTick);
   EXPECT_EQ(world.players().at(2).motion, nanommo::Motion::kSkill);
+}
+
+TEST(World, LearnsSkillsFromATrainerFromTheirLevel) {
+  nanommo::World world(1, nanommo::Terrain(), nanommo::testing::Sword(),
+                       nanommo::testing::Kick());
+  const uint32_t trainer =
+      world.Spawn(nanommo::Npc{.name = "Trainer", .x = 3.0f, .teaches = {1}});
+  world.Join(1, {.experience = 100});
+  world.Join(2, {});
+  world.Join(3, {.x = -2.0f, .experience = 100});
+
+  // At level two, three metres from the trainer, the first player learns the
+  // kick, once, and can use it straight away.
+  EXPECT_TRUE(world.Learn(1, trainer, 1).ok());
+  EXPECT_EQ(world.Learn(1, trainer, 1).message(), "You know Kick already.");
+  world.UseSkill(1, 1);
+  world.Step(kTick);
+  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kSkill);
+
+  EXPECT_EQ(world.Learn(2, trainer, 1).message(),
+            "You can learn Kick from level 2.");
+  EXPECT_FALSE(world.players().at(2).skills.contains(1));
+  EXPECT_EQ(world.Learn(3, trainer, 1).message(),
+            "You're too far away to learn from the Trainer.");
 }
 
 TEST(World, MonstersKillPlayersWhoComeBackInTheMiddle) {

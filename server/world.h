@@ -5,8 +5,10 @@
 #include <cstdint>
 #include <map>
 #include <random>
+#include <set>
 #include <string>
 
+#include "absl/status/status.h"
 #include "content/items.h"
 #include "content/skills.h"
 #include "terrain/terrain.h"
@@ -28,6 +30,8 @@ struct Player {
   int land = 0;
   /// What the player holds, by its id in the items file.
   uint32_t weapon = 0;
+  /// The skills the player knows, by their ids in the skills file.
+  std::set<uint32_t> skills;
   uint32_t target = 0;
   std::chrono::nanoseconds swing{0};
   /// The skill the player's using, by its id in the skills file, and how far
@@ -88,6 +92,8 @@ struct Npc {
   float yaw = 0.0f;
   /// Whether players can talk to it.
   bool talks = false;
+  /// The skills it teaches, by their ids in the skills file.
+  std::set<uint32_t> teaches;
 };
 
 /// Moves to the place, or if the terrain's in the way there, as far as it can
@@ -103,6 +109,9 @@ class World {
 
   static constexpr std::chrono::seconds kRespawnTime{10};
 
+  /// In metres, from the middle of an NPC, as you'd talk to someone.
+  static constexpr float kTalkReach = 4.0f;
+
   /// Players fight with the items' weapons and the skills, so in a world
   /// without items, nobody can.
   explicit World(uint32_t seed = std::mt19937::default_seed,
@@ -115,9 +124,13 @@ class World {
 
   void SetInput(uint32_t id, float x, float z, bool run, bool attack = false);
 
-  /// The player uses the skill as soon as they're free, if they've reached
-  /// its level and it's ready.
+  /// The player uses the skill as soon as they're free, if they know it and
+  /// it's ready.
   void UseSkill(uint32_t id, uint32_t skill);
+
+  /// The NPC, a trainer in this land, teaches the player the skill, or the
+  /// error says why not, in words for the player.
+  absl::Status Learn(uint32_t id, uint32_t npc, uint32_t skill);
 
   uint32_t Spawn(Monster monster);
 

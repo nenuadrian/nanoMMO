@@ -403,7 +403,8 @@ you back, in the middle at full health. A player saved before health was kept jo
 
 ## Skills
 
-A skill is a move with a cooldown, which a player can use from its level on. The four in
+A skill is a move with a cooldown. Each player knows the thrust from the start, and learns the
+others from a trainer, from their levels on (see [Learning skills](#learning-skills)). The four in
 `content/skills.txtpb` are a skill a level, from one to four:
 
 | Skill | From level | Cooldown | What it does |
@@ -414,7 +415,7 @@ A skill is a move with a cooldown, which a player can use from its level on. The
 | Whirlwind | 4 | 12 s | 25 damage to each monster within 2.5 metres |
 
 Each level after the first adds five to a skill's damage, as it does to a weapon's. There's no
-skill tree: a player has each skill as soon as they reach its level.
+skill tree: a trainer teaches each of its skills to any player who has reached its level.
 
 The hotbar along the bottom of the screen has the skills in the order of their levels, each on a
 number key, 1 for the first, up to 9, and a click on one uses it too. Each shows its icon and its key,
@@ -425,8 +426,8 @@ server sends and the cooldown in the skills file.
 
 The server decides it all, as it does a swing. The client sends a skill's id in `Input` once, as its
 key goes down, and the world keeps it until the player is free: a skill asked for during a swing or
-another skill starts as that ends. Then it starts if the player has reached its level and its
-cooldown is over, and otherwise it goes. A skill holds the player for its cast time, like a swing,
+another skill starts as that ends. Then it starts if the player knows it and its cooldown is over,
+and otherwise it goes. A skill holds the player for its cast time, like a swing,
 lands partway through, on the monster the player turned to as it started if it's still in reach,
 or on each one in reach, and starts its cooldown as it starts. Cooldowns run down whatever the player does, dead or alive,
 and aren't saved: a player who leaves and comes back finds their skills ready.
@@ -439,6 +440,14 @@ clip, so the player stands, in a green glow, see-through and drawn after the sea
 the first quarter of a second. One skill straight after another blends from one clip into the next,
 as a change of motion does. Your cooldowns are yours alone, so they go with your experience, after the world: the
 milliseconds left for each skill that isn't ready, by its id.
+
+### Learning skills
+
+A trainer, an NPC whose kind has `teaches` in the content, teaches a player a skill it teaches,
+once they've reached the skill's level and stand within four metres of it, as close as you'd stand
+to talk to someone. `World::Learn` checks each of those, and the skill isn't one the player knows
+already, or says why not, in words the server can send the player. The world joins each player
+with the starting skills, whatever was saved, so the database doesn't need to know which they are.
 
 ## Accounts and logins
 

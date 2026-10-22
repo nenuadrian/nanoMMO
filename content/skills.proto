@@ -32,7 +32,7 @@ message Skill {
   // From one, and a skill keeps its id for good.
   uint32 id = 1;
   string name = 2;
-  // The level a player can use it from.
+  // The level a player can learn it from.
   uint32 level = 3;
   // How long until a player can use it again.
   uint32 cooldown_ms = 4;

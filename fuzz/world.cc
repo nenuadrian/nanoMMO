@@ -12,6 +12,7 @@
 #include "content/content.h"
 #include "server/levels.h"
 #include "server/monsters.h"
+#include "server/npcs.h"
 #include "terrain/terrain.h"
 
 // A client can send any input, so the fuzzer plays with any input, and checks
@@ -24,6 +25,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
     auto* world = new nanommo::World(1, nanommo::Terrain(1), content.items,
                                      content.skills);
     nanommo::SpawnMonsters(*world, 0, content.monsters);
+    nanommo::SpawnNpcs(*world, 0, content.npcs);
     return world;
   }();
   FuzzedDataProvider input(data, size);
@@ -35,7 +37,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
   while (input.remaining_bytes() > 0) {
     const uint32_t id = input.ConsumeIntegralInRange<uint32_t>(1, 3);
     const bool playing = world.players().contains(id);
-    switch (input.ConsumeIntegralInRange(0, 4)) {
+    switch (input.ConsumeIntegralInRange(0, 5)) {
       case 0:
         // Up to level four, where the last skill is.
         if (!playing) {
@@ -53,6 +55,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
         break;
       case 3:
         world.UseSkill(id, input.ConsumeIntegralInRange<uint32_t>(0, 5));
+        break;
+      case 4:
+        world
+            .Learn(id, input.ConsumeIntegralInRange<uint32_t>(0, 9),
+                   input.ConsumeIntegralInRange<uint32_t>(0, 5))
+            .IgnoreError();
         break;
       default:
         if (playing) {
