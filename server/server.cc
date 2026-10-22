@@ -414,8 +414,30 @@ void Server::Receive() {
       });
 }
 
+int Server::HandOver(const std::string& host, uint16_t port) {
+  // The next instance loads each player from Redis, so they go in now, and
+  // nothing changes them here afterwards.
+  handing_over_ = true;
+  std::error_code ignored;
+  acceptor_.close(ignored);
+  SaveChanged();
+  int told = 0;
+  for (const auto& [token, id] : udp_tokens_) {
+    protocol::World move;
+    move.mutable_move()->set_host(host);
+    move.mutable_move()->set_port(port);
+    move.mutable_move()->set_token(token);
+    sessions_.at(id)->Send(Frame(move));
+    ++told;
+  }
+  return told;
+}
+
 void Server::Tick() {
   ZoneScoped;
+  if (handing_over_) {
+    return;
+  }
   const auto start = std::chrono::steady_clock::now();
   for (World& land : lands_) {
     land.Step(interval_);

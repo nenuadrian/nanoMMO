@@ -45,6 +45,11 @@ class Server {
   /// In all its lands.
   int players() const;
 
+  /// Hands the players over to the world's next instance, at the host and port
+  /// players reach it at: saves them, stops ticking and taking players, and
+  /// tells each client where to go. Returns how many it told.
+  int HandOver(const std::string& host, uint16_t port);
+
   /// The port it listens on, over TCP and UDP. Given port zero, Create has the
   /// system pick a free one.
   uint16_t port() const;
@@ -96,6 +101,7 @@ class Server {
   std::map<uint32_t, asio::ip::udp::endpoint> udp_clients_;
   std::map<uint32_t, Progress> saved_;
   int broadcasts_ = 0;
+  bool handing_over_ = false;
   /// What the players said since the last tick.
   protocol::World chat_;
   std::map<uint32_t, TokenBucket> chat_limits_;

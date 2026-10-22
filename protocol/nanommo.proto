@@ -86,6 +86,15 @@ message Chat {
   string text = 2;
 }
 
+// Where a player goes when their world's instance hands its players over to
+// the next one: the host and port players reach it at, and a token to say
+// hello there with.
+message Move {
+  string host = 1;
+  uint32 port = 2;
+  string token = 3;
+}
+
 message World {
   uint32 you = 1;
   repeated Player players = 2;
@@ -104,6 +113,7 @@ message World {
   map<uint32, uint32> cooldowns = 13;
   // The skills you know, by their ids.
   repeated uint32 skills = 14;
+  Move move = 15;
 }
 
 message LoginRequest {

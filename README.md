@@ -1180,6 +1180,21 @@ The world server finds the storyteller at `NANOMMO_STORYTELLER_HOST` (`127.0.0.1
 Compose sets to `storyteller`. Any server with OpenAI's completions API can take its place, such as
 vLLM, as long as its model writes stories from words like these.
 
+## Deploying without downtime
+
+Restarting a world throws its players out to the login screen, and a deploy restarts the worlds.
+Instead, a world hands its players over to its next instance:
+
+- The next instance starts next to it, on a port of its own, and registers with Consul, where it's
+  the world's newest instance, so the login server lists it.
+- On `SIGTERM`, a world leaves Consul, and asks it for the world's newest instance, which is now
+  the next one. If there is one, and the world has players, it hands them over: it stops ticking
+  and taking new players, saves each player into Redis, where the next instance loads them from,
+  and sends each client a `Move`, with the host and port players reach the next instance at, and a
+  token to say hello there with. Then it waits up to ten seconds for its clients to leave, and
+  stops.
+- Without a next instance, a world stops as before.
+
 ## Deployment
 
 The game runs on any Linux server with Docker and Docker Compose, such as a VPS, from

@@ -10,6 +10,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
@@ -211,15 +212,51 @@ int main(int argc, char* argv[]) {
   };
   beat({});
 
+  // Each client leaves once it's in the next instance, within a few seconds.
+  constexpr std::chrono::seconds kHandOverTime{10};
+  asio::steady_timer leaving(io);
+  std::chrono::steady_clock::time_point deadline;
+  std::function<void(std::error_code)> wait = [&](std::error_code) {
+    if (server->players() == 0 || std::chrono::steady_clock::now() > deadline) {
+      io.stop();
+      return;
+    }
+    leaving.expires_after(std::chrono::milliseconds(100));
+    leaving.async_wait(wait);
+  };
+
   // As process one in a container, SIGTERM does nothing unless we handle it.
   asio::signal_set signals(io, SIGINT, SIGTERM);
-  signals.async_wait([&io](std::error_code, int) { io.stop(); });
+  signals.async_wait([&](std::error_code, int) {
+    heartbeat.cancel();
+    consul_thread.join();
+    const absl::Status deregistered = consul.Deregister(instance);
+    if (!deregistered.ok()) {
+      std::cerr << "nanommo server: " << deregistered << "\n";
+    }
+    // A deploy starts the world's next instance before it stops this one, so
+    // with us gone from Consul, the world's newest instance is the next one.
+    const absl::StatusOr<std::vector<nanommo::protocol::WorldListing>> worlds =
+        consul.Worlds();
+    const nanommo::protocol::WorldListing* next = nullptr;
+    if (worlds.ok()) {
+      const auto found = std::ranges::find(
+          *worlds, name, &nanommo::protocol::WorldListing::name);
+      next = found != worlds->end() ? &*found : nullptr;
+    }
+    if (next == nullptr || server->players() == 0) {
+      io.stop();
+      return;
+    }
+    const int told =
+        server->HandOver(next->host(), static_cast<uint16_t>(next->port()));
+    std::cout << "nanommo server: handing " << told
+              << (told == 1 ? " player" : " players") << " over to "
+              << next->host() << ":" << next->port() << std::endl;
+    deadline = std::chrono::steady_clock::now() + kHandOverTime;
+    wait({});
+  });
   io.run();
-  consul_thread.join();
-  const absl::Status deregistered = consul.Deregister(instance);
-  if (!deregistered.ok()) {
-    std::cerr << "nanommo server: " << deregistered << "\n";
-  }
   std::cout << "nanommo server: stopped" << std::endl;
   return 0;
 }
