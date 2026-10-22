@@ -783,6 +783,17 @@ emails them (see [Alerts](#alerts)):
 Loki has no tenants of its own here, so its rules are in its tenant's folder, `fake`, the name Loki
 gives the tenant when `auth_enabled` is off.
 
+CI checks both configs, as a typo in either would leave us without logs, and Loki and Alloy refuse
+a field they don't know:
+
+```bash
+docker compose run --rm loki-config      # loki -verify-config
+docker compose run --rm alloy-config     # alloy validate
+```
+
+Neither looks at the rules' LogQL. A rule Loki can't parse shows up in its log, as `unable to list
+rules`, and the rest of its group doesn't load: `docker compose logs loki | grep rules`.
+
 In production, Loki listens on the server's localhost, like Prometheus, and Alloy has no port.
 
 ## Benchmarking and profiling

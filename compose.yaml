@@ -277,6 +277,20 @@ services:
     profiles:
       - test
 
+  loki-config:
+    extends:
+      service: loki
+    command: ["-config.file=/etc/loki/loki.yaml", "-verify-config"]
+    profiles:
+      - test
+
+  alloy-config:
+    extends:
+      service: alloy
+    command: ["validate", "/etc/alloy/config.alloy"]
+    profiles:
+      - test
+
   coverage:
     build:
       context: .

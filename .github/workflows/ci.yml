@@ -24,6 +24,11 @@ jobs:
       - name: Test the alerts
         run: docker compose run --rm alerts
 
+      - name: Check the logs' configs
+        run: |
+          docker compose run --rm loki-config
+          docker compose run --rm alloy-config
+
       - name: Check the code with clang-tidy
         run: docker build --target tidy .
 
