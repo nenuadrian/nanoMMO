@@ -557,14 +557,19 @@ openssl s_client -connect localhost:7778 -CAfile tls/ca.crt < /dev/null
 
 After each tick, the game server saves the players whose position, experience or health changed, into
 Redis: a hash for each player in each world, `player:<world>:<account id>`, with `world`, `account`,
-`x`, `z`, `experience`, `health`, `land` and `weapon`, and its key in a set, `players:unsaved` (see [Worlds](#worlds)). It sends all of it in one round trip, as a pipeline, so saving takes a few
+`x`, `z`, `experience`, `health`, `land`, `weapon` and `skills`, the ids of the skills they know with
+commas between them, and its key in a set, `players:unsaved` (see [Worlds](#worlds)). It sends all of it in one round trip, as a pipeline, so saving takes a few
 milliseconds a tick with hundreds of players, and the server keeps up with as many players as it did
 without saving. Writing each change to MySQL instead, one statement at a time, takes the tick past
 its 50 ms at around 50 players: each save is two round trips, to prepare the statement and to run
 it, and a commit that waits for the disk.
 
 `nanommo_saver` takes the unsaved players out of the set every five seconds, and writes them to the
-`players` table, 500 to an `INSERT`. If MySQL fails, they go back into the set, for the next try. A
+`players` table, 500 to an `INSERT`, and their skills to the `player_skills` table, from V6, a row
+for each skill a player knows in a world. A learned skill stays learned, so the saver inserts each
+of a player's skills each time, and `INSERT IGNORE` skips the rows MySQL has already. A player's
+skills go with their row in `players`: deleting the account deletes both. If MySQL fails, they go
+back into the set, for the next try. A
 player whose account was deleted, or whose hash is gone, is skipped, so that one player can't hold
 back the others. It saves what's left when it stops. So the `players` table, and the website's
 rankings, are at most about five seconds behind the game.

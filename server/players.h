@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string>
 
 #include "absl/status/status.h"
@@ -21,6 +22,7 @@ struct Progress {
   int health = 0;
   int land = 0;
   uint32_t weapon = 0;
+  std::set<uint32_t> skills;
 
   bool operator==(const Progress&) const = default;
 };

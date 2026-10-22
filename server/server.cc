@@ -71,14 +71,16 @@ Progress ProgressOf(const Player& player) {
     return {.experience = player.experience,
             .health = MaxHealth(LevelFor(player.experience).number),
             .land = player.land,
-            .weapon = player.weapon};
+            .weapon = player.weapon,
+            .skills = player.skills};
   }
   return {.x = player.x,
           .z = player.z,
           .experience = player.experience,
           .health = player.health,
           .land = player.land,
-          .weapon = player.weapon};
+          .weapon = player.weapon,
+          .skills = player.skills};
 }
 
 protocol::Player ToProtocol(uint32_t id, const Player& player) {

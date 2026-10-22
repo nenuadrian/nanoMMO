@@ -1,6 +1,8 @@
 #include "server/players.h"
 
+#include <cstdint>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -73,7 +75,8 @@ TEST_F(PlayersTest, LoadsWhereThePlayerWasSavedInThatWorld) {
                                    .experience = 40,
                                    .health = 35,
                                    .land = 1,
-                                   .weapon = 1};
+                                   .weapon = 1,
+                                   .skills = {1, 3}};
   ASSERT_TRUE(players.Save("Ember", {{id_, later}}).ok());
 
   const absl::StatusOr<nanommo::Player> player = players.Load("Ember", id_);
@@ -84,6 +87,7 @@ TEST_F(PlayersTest, LoadsWhereThePlayerWasSavedInThatWorld) {
   EXPECT_EQ(player->health, 35);
   EXPECT_EQ(player->land, 1);
   EXPECT_EQ(player->weapon, 1u);
+  EXPECT_EQ(player->skills, (std::set<uint32_t>{1, 3}));
 
   const absl::StatusOr<nanommo::Player> elsewhere = players.Load("Frost", id_);
   ASSERT_TRUE(elsewhere.ok());
@@ -98,7 +102,8 @@ TEST_F(PlayersTest, FlushesThePlayersToMySQL) {
                                       .experience = 70,
                                       .health = 60,
                                       .land = 1,
-                                      .weapon = 1};
+                                      .weapon = 1,
+                                      .skills = {1, 2}};
   ASSERT_TRUE(players.Save("Frost", {{id_, progress}}).ok());
   // No account has the id zero, so MySQL refuses this one, and it holds back
   // nobody.
@@ -123,4 +128,10 @@ TEST_F(PlayersTest, FlushesThePlayersToMySQL) {
             (std::vector<std::vector<std::string>>{
                 {"Ember", "3", "4", "5", "6", "Meadows", ""},
                 {"Frost", "1.5", "2", "70", "60", "Ashlands", "1"}}));
+
+  // With Redis's copy gone, the skills come back from MySQL's rows.
+  ASSERT_TRUE(redis_->Command({"DEL", "player:Frost:" + id}).ok());
+  const absl::StatusOr<nanommo::Player> player = players.Load("Frost", id_);
+  ASSERT_TRUE(player.ok());
+  EXPECT_EQ(player->skills, (std::set<uint32_t>{1, 2}));
 }

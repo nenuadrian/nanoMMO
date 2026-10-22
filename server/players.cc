@@ -3,10 +3,13 @@
 #include <algorithm>
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
+#include "absl/strings/str_split.h"
 #include "terrain/lands.h"
 
 namespace nanommo {
@@ -41,10 +44,22 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
   const std::vector<std::string>& row = result->rows.front();
   Player player{.name = row[0]};
   std::vector<std::string> saved(row.begin() + 1, row.end());
+  // A row for each skill, which we join the way Redis keeps them.
+  const absl::StatusOr<Result> skills = database_.Run(
+      "SELECT skill FROM player_skills WHERE account_id = ? AND world = ?",
+      {std::to_string(account_id), world});
+  if (!skills.ok()) {
+    return skills.status();
+  }
+  std::vector<std::string> known;
+  for (const std::vector<std::string>& skill : skills->rows) {
+    known.push_back(skill[0]);
+  }
+  saved.push_back(absl::StrJoin(known, ","));
 
   const absl::StatusOr<std::vector<std::vector<std::string>>> newer =
       redis_.Pipeline({{"HMGET", Key(world, account_id), "x", "z", "experience",
-                        "health", "land", "weapon"}});
+                        "health", "land", "weapon", "skills"}});
   if (!newer.ok()) {
     return newer.status();
   }
@@ -64,6 +79,14 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
   if (!saved[5].empty() && !absl::SimpleAtoi(saved[5], &player.weapon)) {
     return absl::InternalError("a saved weapon that isn't a number");
   }
+  for (const std::string_view skill :
+       absl::StrSplit(saved[6], ',', absl::SkipEmpty())) {
+    uint32_t id = 0;
+    if (!absl::SimpleAtoi(skill, &id)) {
+      return absl::InternalError("a saved skill that isn't a number");
+    }
+    player.skills.insert(id);
+  }
   return player;
 }
 
@@ -75,12 +98,16 @@ absl::Status Players::Save(const std::string& world,
   std::vector<std::vector<std::string>> commands;
   std::vector<std::string> unsaved = {"SADD", kUnsaved};
   for (const auto& [id, progress] : changed) {
-    commands.push_back(
-        {"HSET", Key(world, id), "world", world, "account", absl::StrCat(id),
-         "x", absl::StrCat(progress.x), "z", absl::StrCat(progress.z),
-         "experience", absl::StrCat(progress.experience), "health",
-         absl::StrCat(progress.health), "land", kLands[progress.land].name,
-         "weapon", absl::StrCat(progress.weapon)});
+    commands.push_back({"HSET",       Key(world, id),
+                        "world",      world,
+                        "account",    absl::StrCat(id),
+                        "x",          absl::StrCat(progress.x),
+                        "z",          absl::StrCat(progress.z),
+                        "experience", absl::StrCat(progress.experience),
+                        "health",     absl::StrCat(progress.health),
+                        "land",       kLands[progress.land].name,
+                        "weapon",     absl::StrCat(progress.weapon),
+                        "skills",     absl::StrJoin(progress.skills, ",")});
     unsaved.push_back(Key(world, id));
   }
   commands.push_back(unsaved);
@@ -115,7 +142,7 @@ absl::StatusOr<int> Players::Flush() {
       // Before worlds, the set held account IDs, for hashes with no world.
       if (key.starts_with("player:")) {
         reads.push_back({"HMGET", key, "world", "account", "x", "z",
-                         "experience", "health", "land", "weapon"});
+                         "experience", "health", "land", "weapon", "skills"});
       } else {
         reads.push_back({"HMGET", absl::StrCat("player:", key), "x", "z",
                          "experience", "health", "land", "weapon"});
@@ -134,9 +161,13 @@ absl::StatusOr<int> Players::Flush() {
         "health, land, weapon) VALUES ";
     std::vector<std::string> values;
     int rows = 0;
+    std::string skills_sql =
+        "INSERT IGNORE INTO player_skills (account_id, world, skill) VALUES ";
+    std::vector<std::string> skill_values;
     for (std::size_t i = 0; i < keys.size(); ++i) {
+      const std::vector<std::string>& hash = (*hashes)[i];
       // A player whose hash is gone has nothing to save.
-      if ((*hashes)[i][0].empty()) {
+      if (hash[0].empty()) {
         continue;
       }
       // A hash saved before we kept health or weapons has none, which goes in
@@ -148,8 +179,18 @@ absl::StatusOr<int> Players::Flush() {
       if (!keys[i].starts_with("player:")) {
         values.push_back("Ember");
         values.push_back(keys[i]);
+        values.insert(values.end(), hash.begin(), hash.end());
+        continue;
       }
-      values.insert(values.end(), (*hashes)[i].begin(), (*hashes)[i].end());
+      // The skills go into a table of their own, a row each.
+      values.insert(values.end(), hash.begin(), hash.end() - 1);
+      for (const std::string_view skill :
+           absl::StrSplit(hash.back(), ',', absl::SkipEmpty())) {
+        absl::StrAppend(&skills_sql, skill_values.empty() ? "" : ", ",
+                        "(?, ?, ?)");
+        skill_values.insert(skill_values.end(),
+                            {hash[1], hash[0], std::string(skill)});
+      }
     }
     if (rows == 0) {
       continue;
@@ -159,7 +200,13 @@ absl::StatusOr<int> Players::Flush() {
                     "z = saved.z, experience = saved.experience, "
                     "health = saved.health, land = saved.land, "
                     "weapon = saved.weapon");
-    const absl::StatusOr<Result> result = database_.Run(sql, values);
+    absl::StatusOr<Result> result = database_.Run(sql, values);
+    // A skill once learned stays learned, so each flush inserts each skill a
+    // player knows, and IGNORE skips the ones MySQL has already, and those of
+    // a player whose row it refused.
+    if (result.ok() && !skill_values.empty()) {
+      result = database_.Run(skills_sql, skill_values);
+    }
     if (!result.ok()) {
       // Back into the set, so that the next flush tries them again.
       std::vector<std::string> again = {"SADD", kUnsaved};
