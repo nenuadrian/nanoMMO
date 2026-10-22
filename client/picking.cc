@@ -9,7 +9,7 @@ const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray) {
   const Figure* picked = nullptr;
   float nearest = std::numeric_limits<float>::infinity();
   for (const Figure& figure : figures) {
-    if (!figure.npc || !figure.talks) {
+    if (!figure.npc || (!figure.talks && figure.teaches.empty())) {
       continue;
     }
     // The ball rests on the ground, so its middle is a radius up.

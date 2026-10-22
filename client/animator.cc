@@ -76,6 +76,8 @@ Figure Stand(const std::map<uint32_t, Figure>& figures,
     figure.color = GetColor(kind->second.look().color());
     figure.radius = kind->second.look().radius();
     figure.talks = kind->second.talks();
+    figure.teaches = {kind->second.teaches().begin(),
+                      kind->second.teaches().end()};
   }
   figure.position = {npc.x(), 0.0f, npc.z()};
   figure.yaw = npc.yaw();

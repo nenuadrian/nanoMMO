@@ -19,8 +19,8 @@ nanommo::Figure Npc(uint32_t id, float z, bool talks) {
 
 }  // namespace
 
-TEST(Picking, PicksTheNearestNpcThatTalks) {
-  const std::vector<nanommo::Figure> figures = {
+TEST(Picking, PicksTheNearestNpcThatTalksOrTeaches) {
+  std::vector<nanommo::Figure> figures = {
       Npc(1, -10.0f, true), Npc(2, -5.0f, false), Npc(3, -7.0f, true)};
   const Ray ahead{.position = {0.0f, 0.5f, 0.0f},
                   .direction = {0.0f, 0.0f, -1.0f}};
@@ -30,4 +30,9 @@ TEST(Picking, PicksTheNearestNpcThatTalks) {
   ASSERT_NE(nanommo::PickNpc(figures, ahead), nullptr);
   EXPECT_EQ(nanommo::PickNpc(figures, ahead)->id, 3u);
   EXPECT_EQ(nanommo::PickNpc(figures, beside), nullptr);
+
+  // A trainer is picked too, though it doesn't talk.
+  figures.push_back(Npc(4, -6.0f, false));
+  figures.back().teaches = {2};
+  EXPECT_EQ(nanommo::PickNpc(figures, ahead)->id, 4u);
 }

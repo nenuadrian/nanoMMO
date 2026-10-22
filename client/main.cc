@@ -35,6 +35,7 @@
 #include "client/settings.h"
 #include "client/sound.h"
 #include "client/talk_window.h"
+#include "client/trainer_window.h"
 #include "client/window.h"
 #include "content/content.h"
 #include "protocol/login_client.h"
@@ -158,6 +159,7 @@ int main(int argc, char* argv[]) {
   nanommo::CharacterScreen character_screen;
   nanommo::ChatWindow chat_window;
   nanommo::TalkWindow talk_window;
+  nanommo::TrainerWindow trainer_window(content->skills);
   nanommo::Hotbar hotbar(content->skills);
   nanommo::LoginScreen login_screen(content_hash);
   nanommo::Renderer renderer(*content);
@@ -230,7 +232,11 @@ int main(int argc, char* argv[]) {
             GetScreenToWorldRay(GetMousePosition(), camera.camera());
         if (const nanommo::Figure* npc =
                 nanommo::PickNpc(renderer.figures(), ray)) {
-          talk_window.Open(npc->id, npc->name);
+          if (npc->talks) {
+            talk_window.Open(npc->id, npc->name);
+          } else {
+            trainer_window.Open(npc->id, npc->name, npc->teaches);
+          }
         }
       }
       if (IsKeyPressed(KEY_C) && !nanommo::Typing()) {
@@ -273,6 +279,12 @@ int main(int argc, char* argv[]) {
               talk_window.Build()) {
         nanommo::protocol::Input ask = sent;
         *ask.mutable_talk() = *talk;
+        connection->Send(ask);
+      }
+      if (const std::optional<nanommo::protocol::Learn> learn =
+              trainer_window.Build(renderer.figures(), connection->world())) {
+        nanommo::protocol::Input ask = sent;
+        *ask.mutable_learn() = *learn;
         connection->Send(ask);
       }
       character_screen.Build(renderer.figures(), connection->world(),

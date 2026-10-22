@@ -55,7 +55,8 @@ Each player is an animated character with a sword, on an island of hills, woods 
 its level, name and health over it, or a cube until you've made the characters (see below).
 Skeletons wander around the middle, and in camps around the island, and a few NPCs stand near the
 middle, each a coloured ball with its name over it (see [NPCs](#npcs)). Click the storyteller, the
-purple one, to ask it for a story (see [The storyteller](#the-storyteller)). W, A, S and D, or the arrow
+purple one, to ask it for a story (see [The storyteller](#the-storyteller)), and the trainer, the
+silver one, to learn skills (see [Learning skills](#learning-skills)). W, A, S and D, or the arrow
 keys, move yours, whose name is in gold, Shift makes it run, Space swings the sword, and 1 to 4 use
 your skills, from the bar along the bottom (see [Skills](#skills)).
 The camera follows you: Q and E, or dragging with the right mouse button, turn it around you,
@@ -419,8 +420,8 @@ skill tree: a trainer teaches each of its skills to any player who has reached i
 
 The hotbar along the bottom of the screen has the skills in the order of their levels, each on a
 number key, 1 for the first, up to 9, and a click on one uses it too. Each shows its icon and its key,
-and its name and level when the mouse is over it. A skill you haven't reached yet is greyed out,
-with the level it needs, and one that's cooling down is shaded, a slice that shrinks clockwise from
+and its name and level when the mouse is over it. A skill you don't know yet is greyed out, with
+the level it needs, or Learn once you've reached it, and one that's cooling down is shaded, a slice that shrinks clockwise from
 the top, with the seconds left in the middle. The client works that out from the milliseconds the
 server sends and the cooldown in the skills file.
 
@@ -449,8 +450,11 @@ to talk to someone. `World::Learn` checks each of those, and the skill isn't one
 already, or says why not, in words the server can send the player. The world joins each player
 with the starting skills, whatever was saved, so the database doesn't need to know which they are.
 
-The client asks for a skill in `Input`'s `learn`, with the trainer's id and the skill's, and the
-server sends a refusal back as a line in the chat, from nobody, like the storyteller's. The skills a
+Click a trainer, and a window lists the skills it teaches, each with its icon and name, and Known,
+the level it's from, or a Learn button. The client asks for a skill in `Input`'s `learn`, with the
+trainer's id and the skill's, and the server sends a refusal back as a line in the chat, from
+nobody, like the storyteller's. The window stays open, and its button turns into Known once the
+server has taught you the skill. The skills a
 player knows go to them with their cooldowns, after the world, by id.
 
 ## Accounts and logins
@@ -970,7 +974,8 @@ Each land has a few NPCs near its middle, where players start. In the Meadows, a
 storyteller stand on either side of the road to the gate, and a merchant and a healer face each
 other across it. The Ashlands have an ash warden and a storyteller, a merchant and a healer. Each
 land has a trainer too, the silver ball a few steps from where players start. The storytellers
-tell stories (see [The storyteller](#the-storyteller)), and the others don't do anything yet. Until they have models, each one is a ball of its own colour and size, with its name over it in
+tell stories (see [The storyteller](#the-storyteller)), the trainers teach skills (see
+[Learning skills](#learning-skills)), and the others don't do anything yet. Until they have models, each one is a ball of its own colour and size, with its name over it in
 green.
 
 Kinds of NPC, and where each NPC stands, are in `content/npcs.txtpb` (see [Content](#content)).

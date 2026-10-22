@@ -29,6 +29,8 @@ struct Figure {
   float radius = 0.0f;
   /// Whether the player can talk to it, by clicking it.
   bool talks = false;
+  /// The skills an NPC teaches, by their ids, when it's a trainer.
+  std::vector<uint32_t> teaches;
   int level = 1;
   int health = 0;
   int max_health = 0;

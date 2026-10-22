@@ -20,8 +20,9 @@ class Hotbar {
   explicit Hotbar(const SkillTable& skills);
 
   /// Draws each skill with its icon and its key, and how long until it's
-  /// ready, or the level it needs. Returns the skill the player used, with
-  /// its key or a click.
+  /// ready, or, while the player doesn't know it, the level it needs, or Learn
+  /// once they've reached it. Returns the skill the player used, with its key
+  /// or a click.
   std::optional<uint32_t> Build(const std::vector<Figure>& figures,
                                 const protocol::World& world) const;
 

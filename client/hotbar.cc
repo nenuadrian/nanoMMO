@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "client/icon.h"
 #include "client/input.h"
 
 namespace nanommo {
@@ -25,14 +26,6 @@ constexpr ImU32 kShade = IM_COL32(0, 0, 0, 170);
 constexpr ImU32 kShadow = IM_COL32(0, 0, 0, 255);
 constexpr float kSecondsSize = 22.0f;
 constexpr ImU32 kKey = IM_COL32(230, 230, 230, 255);
-
-// Font Awesome's icons are in Unicode's private use area, between U+E000 and
-// U+F8FF, which UTF-8 writes in three bytes.
-std::string Icon(uint32_t code) {
-  return {static_cast<char>(0xE0 | (code >> 12)),
-          static_cast<char>(0x80 | ((code >> 6) & 0x3F)),
-          static_cast<char>(0x80 | (code & 0x3F))};
-}
 
 // With a shadow, so that it reads over the icon.
 void DrawCentered(ImDrawList* draw, ImVec2 at, float size,
@@ -96,27 +89,30 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
   for (std::size_t slot = 0; slot < slots_.size(); ++slot) {
     const skills::Skill& skill = slots_[slot];
     const bool reached = you->level >= static_cast<int>(skill.level());
+    const bool known =
+        std::ranges::find(world.skills(), skill.id()) != world.skills().end();
     if (slot > 0) {
       ImGui::SameLine();
     }
     ImGui::PushID(static_cast<int>(skill.id()));
-    ImGui::BeginDisabled(!reached);
+    ImGui::BeginDisabled(!known);
     ImGui::PushFont(nullptr, kIconSize);
     const bool clicked =
         ImGui::Button(Icon(skill.look().icon()).c_str(), kSlot);
     ImGui::PopFont();
     ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-      ImGui::SetTooltip("%s\nFrom level %u, ready again after %u seconds",
-                        skill.name().c_str(), skill.level(),
-                        skill.cooldown_ms() / 1000);
+      ImGui::SetTooltip(
+          "%s\nFrom a trainer, at level %u. Ready again after %u s.",
+          skill.name().c_str(), skill.level(), skill.cooldown_ms() / 1000);
     }
     const ImVec2 min = ImGui::GetItemRectMin();
     const ImVec2 max = ImGui::GetItemRectMax();
     const auto left = world.cooldowns().find(skill.id());
-    if (!reached) {
+    if (!known) {
       DrawCentered(draw, {(min.x + max.x) / 2, max.y - 10.0f},
-                   ImGui::GetFontSize(), "Lv " + std::to_string(skill.level()));
+                   ImGui::GetFontSize(),
+                   reached ? "Learn" : "Lv " + std::to_string(skill.level()));
     } else if (left != world.cooldowns().end() && skill.cooldown_ms() > 0) {
       DrawCooldown(draw, min, max,
                    std::min(static_cast<float>(left->second) /
