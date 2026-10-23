@@ -5,5 +5,8 @@ COPY --from=docker/compose-bin:v5.6.0 /docker-compose \
   /usr/local/lib/docker/cli-plugins/docker-compose
 # The runner says what it does, without its diagnostic log.
 ENV ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=
+# The runner checks each job before it runs it.
+COPY job-started.sh /usr/local/bin/
+ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=/usr/local/bin/job-started.sh
 COPY entrypoint.sh /usr/local/bin/
 ENTRYPOINT ["entrypoint.sh"]

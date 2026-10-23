@@ -1348,3 +1348,19 @@ folder for that user, so the runner's folder is their home there, where Docker a
 settings. Deploys go one at a time:
 a push while one runs waits for it, and a newer push takes the place of one that's waiting, so the
 newest commit is deployed, and no deploy stops halfway.
+
+The runner can do anything on the server that Docker can, which is anything root can, so it runs our
+deploy and nothing else. The repository is public, and a pull request from a fork runs the workflow
+as the pull request has it, so it could send a job of its own to the runner, by its labels, which is
+why GitHub recommends self-hosted runners for private repositories. So before each job, the runner
+runs `runner/job-started.sh`, from its image, which no pull request can change: it refuses any job
+that isn't for a push to `main`, and a job it refuses fails before its first step. Only someone who
+can push to `main` can give the runner a job, and they can change the game anyway. The
+repository's settings, under Actions, General, also have workflows from forks wait for our approval
+("Require approval for all external contributors"), so that we read a pull request before anything
+in it runs.
+
+```bash
+GITHUB_EVENT_NAME=pull_request GITHUB_REF=refs/pull/7/merge runner/job-started.sh   # refused
+GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main runner/job-started.sh             # taken
+```
