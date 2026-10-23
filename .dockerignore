@@ -8,6 +8,7 @@ compose.profile.yaml
 compose.sanitize.yaml
 compose.prod.yaml
 deploy.sh
+release.sh
 db/
 monitoring/
 assets/tools/node_modules/

@@ -1265,11 +1265,17 @@ NANOMMO_TLS_CA=tls/vps/ca.crt ./build/bin/nanommo_client 203.0.113.7
 `deploy.sh` sends the commit with `git archive`, so the server needs no git or access to the repo,
 with the certificates added under `tls/`, all in one SSH connection, so that a deploy right after
 other SSH commands isn't refused: ufw's `limit` on SSH refuses a sixth connection within 30 seconds.
-The server unpacks it into `nanommo.next`, keeps `.env`, and builds the images there first. The
-tests run as part of the build, so a release that fails them, or doesn't build, leaves the running
-release as it is. Then the release before moves into `nanommo.previous`, the new one into `nanommo`,
-and `docker compose up -d --wait --force-recreate` starts each container again from the new
-release's folder: one left running would keep the folder it started from. The worlds start again
+The server unpacks it into `nanommo.next`, and `release.sh` there starts it: it keeps `.env`, and
+builds the images first. The tests run as part of the build, so a release that fails them, or
+doesn't build, leaves the running release as it is. Then the release before moves into
+`nanommo.previous`, the new one into `nanommo`, and `docker compose up -d --wait --force-recreate`
+starts each container again from the new release's folder: one left running would keep the folder it
+started from.
+
+`release.sh` starts any release unpacked into `nanommo.next` next to `nanommo`, so something on
+the server can deploy too. A release without certificates keeps the running release's. The first
+release on a server comes from `deploy.sh`, which passes the server's address, and `release.sh`
+makes `.env` for it. The worlds start again
 through `handover.sh` (see [Deploying without downtime](#deploying-without-downtime)), so their
 players play on through a deploy. The images build on the
 server from the source, protobuf and all: about fifteen minutes on 2 vCPUs, the first time and
