@@ -485,6 +485,10 @@ void Server::Broadcast() {
 
 void Server::BroadcastCopy(const Copy& copy, bool full) {
   const World& land = copy.world;
+  // A dungeon's copy waits for its player with nobody to send it to.
+  if (land.players().empty()) {
+    return;
+  }
   // Each player and monster is serialized once a tick, and what each cell
   // gets is put together from those pieces.
   std::map<uint32_t, std::string> players;

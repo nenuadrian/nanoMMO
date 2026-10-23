@@ -22,12 +22,19 @@ struct Copy {
   /// Whose copy of a dungeon it is, by their id. Nobody owns an open land's
   /// copy, which everyone in the world shares.
   uint32_t owner = 0;
+  /// How long it's had nobody in it.
+  std::chrono::nanoseconds empty{0};
 };
 
 /// The world's lands, as copies. Each open land has one from the start, and a
 /// dungeon has one for each player who goes in, from when they do.
 class Copies {
  public:
+  /// After its last player leaves, a dungeon's copy stops, and waits this long
+  /// for them before it goes, so that someone who steps out finds it as they
+  /// left it.
+  static constexpr std::chrono::minutes kEmptyLife{5};
+
   /// The world's seed makes each land's terrain, and the content fills them.
   Copies(uint32_t seed, Content content);
 
@@ -39,7 +46,9 @@ class Copies {
   /// The copy the player's in, or nullptr.
   Copy* Of(uint32_t id);
 
-  /// Steps the copies, and takes players through the gates.
+  /// Steps the copies with players in them, and the open lands' always, takes
+  /// players through the gates, and drops the dungeons' copies that have been
+  /// empty for kEmptyLife.
   void Step(std::chrono::nanoseconds time);
 
   /// By their ids.

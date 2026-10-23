@@ -55,8 +55,22 @@ int Copies::players() const {
 }
 
 void Copies::Step(std::chrono::nanoseconds time) {
-  for (auto& [id, copy] : copies_) {
-    copy.world.Step(time);
+  for (auto it = copies_.begin(); it != copies_.end();) {
+    Copy& copy = it->second;
+    if (!kLands[copy.land].dungeon || !copy.world.players().empty()) {
+      copy.empty = std::chrono::nanoseconds::zero();
+      copy.world.Step(time);
+      ++it;
+      continue;
+    }
+    copy.empty += time;
+    if (copy.empty < kEmptyLife) {
+      ++it;
+      continue;
+    }
+    std::cout << "dropped player " << copy.owner << "'s copy of the "
+              << kLands[copy.land].name << std::endl;
+    it = copies_.erase(it);
   }
   Travel();
 }

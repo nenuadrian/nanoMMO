@@ -998,6 +998,10 @@ and monsters (`server/copies.h`). Each open land has one copy, which everyone in
 dungeon has one for each player who goes in, made as they go through its gate, with its own
 monsters, so that nobody else is in it:
 
+- A dungeon's copy that has nobody in it stops: its monsters stand where they are, and don't come
+  back to life. It waits five minutes for its player, so that someone who steps out finds it as they
+  left it, and then it goes.
+- A copy that has nobody in it gets nothing broadcast.
 - The `nanommo_copies` metric counts each land's copies.
 
 - Players wade into the Meadows' sea up to their knees, and not into the Ashlands' lava: each land
