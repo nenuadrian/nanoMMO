@@ -9,6 +9,7 @@ compose.sanitize.yaml
 compose.prod.yaml
 deploy.sh
 release.sh
+runner/
 db/
 monitoring/
 assets/tools/node_modules/

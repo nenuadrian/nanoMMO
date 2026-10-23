@@ -1302,3 +1302,26 @@ ssh debian@203.0.113.7 'cd nanommo && bench/load.sh 100 10' > bench/results/vps.
 
 On a VPS with 2 vCPUs, which the bots share with the servers, the game server keeps its 20 ticks a
 second up to about 700 players (see What each player gets).
+
+## Deploying on push
+
+A runner on the server deploys each push to `main`, once CI passes. It's GitHub Actions' own
+runner, self-hosted: it connects to GitHub and waits there for jobs with its labels, `self-hosted`
+and `nanommo`, so the server opens no port for it. Its image, in `runner/`, is GitHub's runner
+image with Docker Compose added, and it reaches the server's Docker through Docker's socket, which
+belongs to the server's `docker` group: `runner/start.sh` passes the group's number to the
+container, which has no such group of its own.
+
+The runner is in a Compose project of its own, `nanommo-runner`, so a deploy, which starts each
+container of the game's project again, leaves alone the runner it runs on. The first time it starts,
+it registers with the repository, with a registration token that lasts an hour, and its container
+keeps the registration from then on, through restarts and reboots. To start it on a server the game
+runs on:
+
+```bash
+token=$(gh api -X POST repos/nenuadrian/nanoMMO/actions/runners/registration-token --jq .token)
+ssh debian@203.0.113.7 "nanommo/runner/start.sh https://github.com/nenuadrian/nanoMMO $token"
+```
+
+The repository's settings list it under Actions, Runners. A change to its image makes a new
+container, which registers again, with a new token: the same two commands. CI builds its image too.

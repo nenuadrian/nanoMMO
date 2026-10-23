@@ -1,0 +1,18 @@
+# The runner, in a Compose project of its own: a deploy starts each container
+# of the game's project again, and this one runs the deploy.
+name: nanommo-runner
+
+services:
+  runner:
+    build: .
+    environment:
+      RUNNER_URL: ${RUNNER_URL:-}
+      RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+    # The server's Docker, which a deploy builds and starts the game with.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    # The socket belongs to the server's docker group, which the container
+    # knows by its number alone.
+    group_add:
+      - ${DOCKER_GROUP:?the group of Docker's socket}
+    restart: unless-stopped

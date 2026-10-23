@@ -46,6 +46,9 @@ jobs:
           docker build storyteller
           docker build web
 
+      - name: Build the runner's image
+        run: docker build runner
+
       - name: Generate the API docs
         run: docker build --target docs --output site .
 
