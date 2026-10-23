@@ -215,7 +215,8 @@ void Bot::Wander() {
     asking_ =
         storyteller_ && std::bernoulli_distribution(kAskForAStory)(random_);
     trip_ = asking_ ? Trip{.to_x = storyteller_->x(), .to_z = storyteller_->z()}
-                    : RandomTrip(random_, kLands[land_].gate);
+                    : RandomTrip(random_,
+                                 RandomGate(random_, static_cast<int>(land_)));
   }
   std::optional<protocol::Input> input;
   std::string say;

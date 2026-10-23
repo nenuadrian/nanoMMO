@@ -984,9 +984,9 @@ port 7777 of the host they're given, so they play in Ember (`server` in Compose)
 Each world has two lands, each an island of its own: the Meadows, where players start, and the
 Ashlands, where ash and charred trees stand around lava, under a red haze. `terrain/lands.h` lists
 them for the server, the client and the bots, in one order, as the server tells a client which land
-it's in by its place in the list:
+it's in by its place in the list, and lists the gates between them:
 
-| Land | Seed | Gate |
+| Land | Seed | Gates |
 |---|---|---|
 | Meadows | the world's seed | 10 metres north of the middle, to the Ashlands |
 | Ashlands | the world's seed + 1000 | 10 metres north of the middle, to the Meadows |
@@ -997,9 +997,10 @@ copy has an id, so that a land can have more than one.
 
 - Players wade into the Meadows' sea up to their knees, and not into the Ashlands' lava: each land
   says how deep its sea can be waded, and its `Terrain` takes that.
-- A gate is a ring of standing stones around a slab in the colour of the other land's sky. A player
-  who walks within a metre of its middle goes to the other land, and comes out three metres past the
-  middle of that land's gate, the way they were facing, so that they walk on out of it.
+- A gate is a ring of standing stones around a slab in the colour of the sky of the land it leads to.
+  A player who walks within a metre of its middle goes to that land, and comes out three metres past
+  the middle of its twin there, the gate that leads back, the way they were facing, so that they walk
+  on out of it. Each gate has a twin, which a `static_assert` checks.
 - The server sends each client its land and its land's seed, and the client builds that land in its
   look, from `client/atmosphere.h`, whenever the seed changes. That takes a moment, as it makes the
   island and its chunks again.
@@ -1008,7 +1009,7 @@ copy has an id, so that a land can have more than one.
   where the players from before were, and keeps the servers from before saving while a deploy
   migrates.
 - The players-online metric has a `land` label, and the dashboard shows each world's lands apart.
-- The bots go into their land's gate on one trip in five, so they spread over both lands.
+- The bots go into one of their land's gates on one trip in five, so they spread over both lands.
 
 Running a world's copies in one process makes a trip through a gate a move from one `World` to
 another, within a tick. With a server for each land, each land could have a machine of its own, and

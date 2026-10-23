@@ -65,16 +65,33 @@ TEST(Terrain, StandsOnTheTrianglesBetweenTheCorners) {
 
 TEST(Terrain, HasRoomAtEachGate) {
   for (const uint32_t seed : {1, 2, 3}) {
-    for (const nanommo::Land& land : nanommo::kLands) {
+    for (const nanommo::Gate& gate : nanommo::kGates) {
+      const nanommo::Land& land = nanommo::kLands[gate.land];
       const nanommo::Terrain island(seed + land.seed, land.wading);
-      EXPECT_TRUE(island.Walkable(land.gate.x, land.gate.z));
-      // Whichever way a player comes through, they land on the island, out of
-      // the gate.
+      EXPECT_TRUE(island.Walkable(gate.place.x, gate.place.z));
+      // Whichever way a player comes through the twin, they land on the
+      // island, out of each of its gates.
       for (float yaw = 0.0f; yaw < 6.3f; yaw += 0.5f) {
-        const nanommo::Place arrival = nanommo::Arrival(land, yaw);
+        const nanommo::Place arrival =
+            nanommo::Arrival(nanommo::Twin(gate), yaw);
         EXPECT_TRUE(island.Walkable(arrival.x, arrival.z));
-        EXPECT_FALSE(nanommo::InGate(land, arrival.x, arrival.z));
+        for (const nanommo::Gate& other : nanommo::kGates) {
+          if (other.land == gate.land) {
+            EXPECT_FALSE(nanommo::InGate(other, arrival.x, arrival.z));
+          }
+        }
       }
     }
+  }
+}
+
+TEST(Terrain, ComesOutOfTheGateThatLeadsBack) {
+  for (const nanommo::Gate& gate : nanommo::kGates) {
+    const nanommo::Gate& twin = nanommo::Twin(gate);
+    EXPECT_EQ(twin.land, gate.to);
+    EXPECT_EQ(twin.to, gate.land);
+    const nanommo::Place arrival = nanommo::Arrival(gate, 0.0f);
+    EXPECT_FLOAT_EQ(arrival.x, twin.place.x);
+    EXPECT_FLOAT_EQ(arrival.z, twin.place.z + nanommo::kArrival);
   }
 }

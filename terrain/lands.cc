@@ -1,5 +1,6 @@
 #include "terrain/lands.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <string_view>
@@ -24,13 +25,21 @@ bool IsLand(std::string_view name) {
   return false;
 }
 
-bool InGate(const Land& land, float x, float z) {
-  return std::hypot(x - land.gate.x, z - land.gate.z) < kGateRadius;
+bool InGate(const Gate& gate, float x, float z) {
+  return std::hypot(x - gate.place.x, z - gate.place.z) < kGateRadius;
 }
 
-Place Arrival(const Land& land, float yaw) {
-  return {.x = land.gate.x + kArrival * std::sin(yaw),
-          .z = land.gate.z + kArrival * std::cos(yaw)};
+const Gate& Twin(const Gate& gate) {
+  // GatesLeadBack makes sure there's one.
+  return *std::ranges::find_if(kGates, [&gate](const Gate& other) {
+    return other.land == gate.to && other.to == gate.land;
+  });
+}
+
+Place Arrival(const Gate& gate, float yaw) {
+  const Place& twin = Twin(gate).place;
+  return {.x = twin.x + kArrival * std::sin(yaw),
+          .z = twin.z + kArrival * std::cos(yaw)};
 }
 
 }  // namespace nanommo

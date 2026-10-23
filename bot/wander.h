@@ -25,9 +25,12 @@ struct Trip {
   float there = 3.0f;
 };
 
+/// One of the land's gates, at random, as players go through each of them.
+Place RandomGate(std::mt19937& random, int land);
+
 /// A place within 170 metres of the middle, where most of the island is, or
-/// on one trip in five, the middle of the gate, which takes the bot to the
-/// other land, as players go there too.
+/// on one trip in five, the middle of the gate, which takes the bot to
+/// another land, as players go there too.
 Trip RandomTrip(std::mt19937& random, const Place& gate);
 
 /// Running towards the end of the trip, from x and z, or nothing once the bot

@@ -80,24 +80,27 @@ uint32_t Copies::For(int land) const {
 
 void Copies::Travel() {
   for (auto& [from, copy] : copies_) {
-    const Land& here = kLands[copy.land];
-    // Leaving changes the map we go through, so first we note who's going.
-    std::vector<uint32_t> travellers;
+    // Leaving changes the map we go through, so first we note who's going,
+    // and through which gate.
+    std::vector<std::pair<uint32_t, const Gate*>> travellers;
     for (const auto& [id, player] : copy.world.players()) {
-      if (InGate(here, player.x, player.z)) {
-        travellers.push_back(id);
+      for (const Gate& gate : kGates) {
+        if (gate.land == copy.land && InGate(gate, player.x, player.z)) {
+          travellers.emplace_back(id, &gate);
+          break;
+        }
       }
     }
-    for (const uint32_t id : travellers) {
+    for (const auto& [id, gate] : travellers) {
       Player player = copy.world.players().at(id);
       copy.world.Leave(id);
-      const Land& there = kLands[here.to];
-      const Place arrival = Arrival(there, player.yaw);
+      const Place arrival = Arrival(*gate, player.yaw);
       player.x = arrival.x;
       player.z = arrival.z;
-      player.land = here.to;
-      std::cout << player.name << " went to the " << there.name << std::endl;
-      const uint32_t to = For(here.to);
+      player.land = gate->to;
+      std::cout << player.name << " went to the " << kLands[gate->to].name
+                << std::endl;
+      const uint32_t to = For(gate->to);
       copies_.at(to).world.Join(id, std::move(player));
       where_[id] = to;
     }

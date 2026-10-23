@@ -1,5 +1,6 @@
 #include "server/copies.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 
@@ -14,6 +15,12 @@ constexpr std::chrono::milliseconds kTick(50);
 // By their places in kLands.
 constexpr int kMeadows = 0;
 constexpr int kAshlands = 1;
+
+// The first gate that leads to the land, which for the others is the
+// Meadows' one.
+nanommo::Place GateTo(int land) {
+  return std::ranges::find(nanommo::kGates, land, &nanommo::Gate::to)->place;
+}
 
 // The id of the copy the player's in.
 uint32_t CopyOf(const nanommo::Copies& copies, uint32_t id) {
@@ -44,7 +51,7 @@ TEST(Copies, ShareALand) {
 
 TEST(Copies, TakeAPlayerThroughTheGate) {
   nanommo::Copies copies(1, {});
-  const nanommo::Place gate = nanommo::kLands[kMeadows].gate;
+  const nanommo::Place gate = GateTo(kAshlands);
   copies.Join(7, {.name = "alice", .x = gate.x, .z = gate.z, .land = kMeadows});
   copies.Step(kTick);
 

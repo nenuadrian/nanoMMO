@@ -1,8 +1,10 @@
 #include "bot/wander.h"
 
 #include <cmath>
+#include <cstddef>
 #include <numbers>
 #include <optional>
+#include <vector>
 
 namespace nanommo {
 
@@ -27,6 +29,18 @@ protocol::Input RandomDirection(std::mt19937& random) {
 std::chrono::milliseconds RandomHold(std::mt19937& random) {
   std::uniform_int_distribution<int> ms(500, 3000);
   return std::chrono::milliseconds(ms(random));
+}
+
+Place RandomGate(std::mt19937& random, int land) {
+  std::vector<Place> gates;
+  for (const Gate& gate : kGates) {
+    if (gate.land == land) {
+      gates.push_back(gate.place);
+    }
+  }
+  // Each land has a gate, as the way back to the land before.
+  return gates[std::uniform_int_distribution<std::size_t>(
+      0, gates.size() - 1)(random)];
 }
 
 Trip RandomTrip(std::mt19937& random, const Place& gate) {
