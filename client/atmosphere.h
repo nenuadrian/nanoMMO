@@ -72,8 +72,25 @@ constexpr Look kAshlands = {
     .sea_emission = 1.0f,
 };
 
+constexpr Look kCrypt = {
+    .atmosphere = {.sky = {0.13f, 0.11f, 0.18f},
+                   .fog_near = 20.0f,
+                   .fog_far = 90.0f,
+                   .sun = {0.3f, 0.9f, 0.2f},
+                   .sunlight = {0.45f, 0.42f, 0.6f},
+                   .ambient = {0.26f, 0.24f, 0.32f}},
+    .sand = {70, 66, 74, 255},
+    .grass = {88, 92, 84, 255},
+    .rock = {104, 98, 112, 255},
+    .snow = {150, 146, 160, 255},
+    .sea = {40, 200, 150, 255},
+    .trees = {70, 64, 80, 255},
+    // A glowing green ooze.
+    .sea_emission = 0.6f,
+};
+
 /// In the order of the lands.
-constexpr std::array<Look, 2> kLooks = {kMeadows, kAshlands};
+constexpr std::array<Look, 3> kLooks = {kMeadows, kAshlands, kCrypt};
 static_assert(kLooks.size() == kLands.size(), "each land needs its look");
 
 }  // namespace nanommo

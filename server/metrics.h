@@ -19,6 +19,9 @@ class Metrics {
 
   void SetPlayers(const char* land, std::size_t count);
 
+  /// How many copies of the land the server runs.
+  void SetCopies(const char* land, std::size_t count);
+
   void ObserveTick(std::chrono::nanoseconds time);
 
   void ObserveSave(std::chrono::nanoseconds time);
@@ -44,6 +47,7 @@ class Metrics {
  private:
   std::shared_ptr<prometheus::Registry> registry_;
   prometheus::Family<prometheus::Gauge>& players_;
+  prometheus::Family<prometheus::Gauge>& copies_;
   prometheus::Histogram& tick_seconds_;
   prometheus::Histogram& save_seconds_;
   prometheus::Counter& bytes_sent_;

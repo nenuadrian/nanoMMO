@@ -42,6 +42,27 @@ kinds {
     tint: 0xF06A46FF
   }
 }
+kinds {
+  id: 3
+  name: "Crypt Skeleton"
+  level: 3
+  max_health: 120
+  experience: 150
+  fight {
+    damage: 11
+    swing_ms: 900
+    hit_ms: 650
+    reach: 1.2
+    sight: 5
+    leash: 6
+    wander: 2
+  }
+  look {
+    model: "skeleton.glb"
+    height: 1.7
+    tint: 0x8C7AE6FF
+  }
+}
 
 spawns { kind: 1 land: "Meadows" x: -3.5 z: -3 }
 spawns { kind: 1 land: "Meadows" x: 3.5 z: -2.5 }
@@ -52,3 +73,4 @@ spawns { kind: 2 land: "Ashlands" x: 3 z: 3.5 }
 
 camps { kind: 1 land: "Meadows" count: 8 }
 camps { kind: 2 land: "Ashlands" count: 8 }
+camps { kind: 3 land: "Crypt" count: 12 }

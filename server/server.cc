@@ -427,11 +427,14 @@ void Server::Tick() {
   const auto start = std::chrono::steady_clock::now();
   copies_.Step(interval_);
   std::array<std::size_t, kLands.size()> in_land{};
+  std::array<std::size_t, kLands.size()> copies_of{};
   for (const auto& [id, copy] : copies_.all()) {
     in_land[copy.land] += copy.world.players().size();
+    ++copies_of[copy.land];
   }
   for (std::size_t land = 0; land < kLands.size(); ++land) {
     metrics_.SetPlayers(kLands[land].name, in_land[land]);
+    metrics_.SetCopies(kLands[land].name, copies_of[land]);
   }
   SaveChanged();
   Broadcast();
@@ -589,7 +592,7 @@ void Server::SendChat() {
     return;
   }
   // Each line has to arrive, so it goes over TCP, even to a client that gets
-  // the world over UDP. Everyone in the world hears it, in both lands.
+  // the world over UDP. Everyone in the world hears it, in all its lands.
   const auto bytes =
       std::make_shared<const std::string>(chat_.SerializeAsString());
   for (const auto& [id, session] : sessions_) {

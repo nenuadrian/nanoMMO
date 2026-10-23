@@ -981,26 +981,31 @@ port 7777 of the host they're given, so they play in Ember (`server` in Compose)
 
 ## Lands
 
-Each world has two lands, each an island of its own: the Meadows, where players start, and the
-Ashlands, where ash and charred trees stand around lava, under a red haze. `terrain/lands.h` lists
-them for the server, the client and the bots, in one order, as the server tells a client which land
-it's in by its place in the list, and lists the gates between them:
+Each world has three lands, each an island of its own: the Meadows, where players start, the
+Ashlands, where ash and charred trees stand around lava, under a red haze, and the Crypt, a dungeon
+of grey stone around a green ooze. `terrain/lands.h` lists them for the server, the client and the
+bots, in one order, as the server tells a client which land it's in by its place in the list, and
+lists the gates between them:
 
 | Land | Seed | Gates |
 |---|---|---|
-| Meadows | the world's seed | 10 metres north of the middle, to the Ashlands |
+| Meadows | the world's seed | 10 metres north of the middle, to the Ashlands; 12 metres east, to the Crypt |
 | Ashlands | the world's seed + 1000 | 10 metres north of the middle, to the Meadows |
+| Crypt | the world's seed + 2000 | 10 metres north of the middle, to the Meadows |
 
 The world server runs its lands as copies, in its one tick loop, each a `World` with its own players
-and monsters (`server/copies.h`). Each land has one copy, which everyone in the world shares. Each
-copy has an id, so that a land can have more than one.
+and monsters (`server/copies.h`). Each open land has one copy, which everyone in the world shares. A
+dungeon has one for each player who goes in, made as they go through its gate, with its own
+monsters, so that nobody else is in it:
+
+- The `nanommo_copies` metric counts each land's copies.
 
 - Players wade into the Meadows' sea up to their knees, and not into the Ashlands' lava: each land
   says how deep its sea can be waded, and its `Terrain` takes that.
 - A gate is a ring of standing stones around a slab in the colour of the sky of the land it leads to.
   A player who walks within a metre of its middle goes to that land, and comes out three metres past
   the middle of its twin there, the gate that leads back, the way they were facing, so that they walk
-  on out of it. Each gate has a twin, which a `static_assert` checks.
+  on out of it. Each gate has a twin, and each dungeon a gate, which a `static_assert` checks.
 - The server sends each client its land and its land's seed, and the client builds that land in its
   look, from `client/atmosphere.h`, whenever the seed changes. That takes a moment, as it makes the
   island and its chunks again.
@@ -1009,7 +1014,8 @@ copy has an id, so that a land can have more than one.
   where the players from before were, and keeps the servers from before saving while a deploy
   migrates.
 - The players-online metric has a `land` label, and the dashboard shows each world's lands apart.
-- The bots go into one of their land's gates on one trip in five, so they spread over both lands.
+- The bots go into one of their land's gates on one trip in five, so they spread over the lands, and
+  each that goes into the Crypt gets a copy of its own.
 
 Running a world's copies in one process makes a trip through a gate a move from one `World` to
 another, within a tick. With a server for each land, each land could have a machine of its own, and
@@ -1019,7 +1025,7 @@ login.
 ## Chat
 
 Enter opens a field at the bottom of the chat window, in the bottom left corner, and Enter again says
-what you typed to everyone in your world, in both lands, under your name. Escape leaves the field.
+what you typed to everyone in your world, in all its lands, under your name. Escape leaves the field.
 While you type, the game's keys do nothing, so a line doesn't walk you, turn the camera or swing
 your sword.
 
