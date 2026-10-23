@@ -6,5 +6,5 @@
 set -eu
 
 cd "$(dirname "$0")"
-RUNNER_URL=$1 RUNNER_TOKEN=$2 DOCKER_GROUP=$(stat -c %g /var/run/docker.sock) \
-  docker compose up -d --build
+RUNNER_URL=$1 RUNNER_TOKEN=$2 NANOMMO_USER="$(id -u):$(id -g)" \
+  DOCKER_GROUP=$(stat -c %g /var/run/docker.sock) docker compose up -d --build

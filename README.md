@@ -1323,8 +1323,9 @@ token=$(gh api -X POST repos/nenuadrian/nanoMMO/actions/runners/registration-tok
 ssh debian@203.0.113.7 "nanommo/runner/start.sh https://github.com/nenuadrian/nanoMMO $token"
 ```
 
-The repository's settings list it under Actions, Runners. A change to its image makes a new
-container, which registers again, with a new token: the same two commands. CI builds its image too.
+The repository's settings list it under Actions, Runners. A change to its image or to
+`runner/compose.yaml` makes a new container, which registers again, with a new token: the same two
+commands. CI builds its image too.
 
 The `deploy` job in `.github/workflows/ci.yml` runs on it, for a push to `main`, once the build,
 the sanitizers and the fuzzers pass. A job waits for a runner with its labels, for a day, so it runs
@@ -1336,6 +1337,14 @@ gh variable set NANOMMO_DEPLOY --body true --repo nenuadrian/nanoMMO
 ```
 
 The job unpacks the commit into `nanommo.next`, as `deploy.sh` does, and starts it with
-`release.sh`, which keeps the running release's `.env` and certificates. Deploys go one at a time:
+`release.sh`, which keeps the running release's `.env` and certificates. The releases are in the
+home folder of the user who deploys, which isn't the runner's: its container has a home of its own.
+So the runner mounts the home folder of the user who started it, and the job finds it in
+`NANOMMO_HOME`. It's mounted at the same path as on the server, because Compose hands the server's
+Docker the paths of what a container mounts, such as Flyway's `./db`, from the folder Compose runs
+in, and Docker looks for them on the server. The runner works as that user, so that it can write
+there, and what it writes is theirs, which `deploy.sh` can replace. The container may have no home
+folder for that user, so the runner's folder is their home there, where Docker and git keep their
+settings. Deploys go one at a time:
 a push while one runs waits for it, and a newer push takes the place of one that's waiting, so the
 newest commit is deployed, and no deploy stops halfway.

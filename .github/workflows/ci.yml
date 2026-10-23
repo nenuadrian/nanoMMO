@@ -118,7 +118,7 @@ jobs:
 
       - name: Deploy this commit to the server
         run: |
-          cd ~
+          cd "$NANOMMO_HOME"
           rm -rf nanommo.next
           mkdir nanommo.next
           git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C nanommo.next

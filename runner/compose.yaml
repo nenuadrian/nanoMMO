@@ -8,9 +8,20 @@ services:
     environment:
       RUNNER_URL: ${RUNNER_URL:-}
       RUNNER_TOKEN: ${RUNNER_TOKEN:-}
-    # The server's Docker, which a deploy builds and starts the game with.
+      NANOMMO_HOME: ${HOME}
+      # The container may have no home for the user, so they get the runner's
+      # folder, where Docker and git keep their settings.
+      HOME: /home/runner
+    # The user who started it, so that it can write in their home folder, and
+    # what it writes there is theirs.
+    user: ${NANOMMO_USER:?the user's id and group}
     volumes:
+      # The server's Docker, which a deploy builds and starts the game with.
       - /var/run/docker.sock:/var/run/docker.sock
+      # The home folder, where the releases are, at the same path as on the
+      # server: Compose hands Docker the paths of what a container mounts, and
+      # Docker looks for them on the server.
+      - ${HOME}:${HOME}
     # The socket belongs to the server's docker group, which the container
     # knows by its number alone.
     group_add:
