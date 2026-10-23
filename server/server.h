@@ -19,6 +19,7 @@
 #include "asio/steady_timer.hpp"
 #include "content/content.h"
 #include "protocol/nanommo.pb.h"
+#include "server/copies.h"
 #include "server/interest.h"
 #include "server/metrics.h"
 #include "server/players.h"
@@ -60,8 +61,9 @@ class Server {
          const Content& content, Metrics& metrics, Tokens& tokens,
          Players& players, Storyteller& storyteller);
 
-  absl::Status Start(uint16_t port, const Content& content);
-  World* LandOf(uint32_t id);
+  absl::Status Start(uint16_t port);
+  /// The World of the copy the player's in, or nullptr.
+  World* WorldOf(uint32_t id);
   void Accept();
   uint32_t HandleHello(Session& session, const std::string& bytes);
   void Leave(uint32_t id);
@@ -72,10 +74,9 @@ class Server {
   void Notify(uint32_t id, const std::string& text);
   void Receive();
   void Tick();
-  void Travel();
   void SaveChanged();
   void Broadcast();
-  void BroadcastLand(std::size_t index, bool full);
+  void BroadcastCopy(const Copy& copy, bool full);
   void SendChat();
   void SendTo(const asio::ip::udp::endpoint& client,
               std::shared_ptr<const std::string> part, std::string own);
@@ -89,9 +90,7 @@ class Server {
   std::chrono::nanoseconds interval_;
   std::string name_;
   uint32_t seed_;
-  std::vector<World> lands_;
-  /// Each land's NPCs, in their cells.
-  std::vector<Cells> npc_cells_;
+  Copies copies_;
   Metrics& metrics_;
   Tokens& tokens_;
   Players& players_;

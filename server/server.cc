@@ -6,7 +6,6 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <random>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -24,11 +23,8 @@
 #include "server/interest.h"
 #include "server/levels.h"
 #include "server/listen.h"
-#include "server/monsters.h"
-#include "server/npcs.h"
 #include "server/stories.h"
 #include "terrain/lands.h"
-#include "terrain/terrain.h"
 #include "tracy/Tracy.hpp"
 
 namespace nanommo {
@@ -136,7 +132,7 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
   std::unique_ptr<Server> server = absl::WrapUnique(
       new Server(io, tls, interval, std::move(name), seed, content, metrics,
                  tokens, players, storyteller));
-  const absl::Status started = server->Start(port, content);
+  const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
   }
@@ -154,31 +150,20 @@ Server::Server(asio::io_context& io, asio::ssl::context& tls,
       interval_(interval),
       name_(std::move(name)),
       seed_(seed),
+      copies_(seed, content),
       metrics_(metrics),
       tokens_(tokens),
       players_(players),
-      storyteller_(storyteller) {
-  for (const Land& land : kLands) {
-    lands_.emplace_back(std::random_device()(),
-                        Terrain(seed + land.seed, land.wading), content.items,
-                        content.skills);
-  }
-}
+      storyteller_(storyteller) {}
 
-int Server::players() const {
-  int count = 0;
-  for (const World& land : lands_) {
-    count += static_cast<int>(land.players().size());
-  }
-  return count;
-}
+int Server::players() const { return copies_.players(); }
 
 uint16_t Server::port() const {
   std::error_code ignored;
   return acceptor_.local_endpoint(ignored).port();
 }
 
-absl::Status Server::Start(uint16_t port, const Content& content) {
+absl::Status Server::Start(uint16_t port) {
   const absl::Status listening = Listen(acceptor_, port);
   if (!listening.ok()) {
     return listening;
@@ -193,12 +178,6 @@ absl::Status Server::Start(uint16_t port, const Content& content) {
   std::error_code ignored;
   udp_.set_option(asio::socket_base::send_buffer_size(4 * 1024 * 1024),
                   ignored);
-  for (std::size_t index = 0; index < lands_.size(); ++index) {
-    World& land = lands_[index];
-    SpawnMonsters(land, static_cast<int>(index), content.monsters);
-    SpawnNpcs(land, static_cast<int>(index), content.npcs);
-    npc_cells_.push_back(CellsOf(land.npcs()));
-  }
   Accept();
   Receive();
   timer_.expires_after(interval_);
@@ -206,13 +185,9 @@ absl::Status Server::Start(uint16_t port, const Content& content) {
   return absl::OkStatus();
 }
 
-World* Server::LandOf(uint32_t id) {
-  for (World& land : lands_) {
-    if (land.players().contains(id)) {
-      return &land;
-    }
-  }
-  return nullptr;
+World* Server::WorldOf(uint32_t id) {
+  Copy* copy = copies_.Of(id);
+  return copy != nullptr ? &copy->world : nullptr;
 }
 
 void Server::Accept() {
@@ -229,7 +204,7 @@ void Server::Accept() {
           return;
         }
         protocol::Input input;
-        World* land = LandOf(*id);
+        World* land = WorldOf(*id);
         if (land != nullptr && input.ParseFromString(bytes)) {
           land->SetInput(*id, input.x(), input.z(), input.run(),
                          input.attack());
@@ -264,7 +239,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   const absl::StatusOr<uint32_t> id =
       hello.ParseFromString(bytes) ? tokens_.Redeem(hello.token())
                                    : absl::InvalidArgumentError("not a hello");
-  if (!id.ok() || LandOf(*id) != nullptr) {
+  if (!id.ok() || WorldOf(*id) != nullptr) {
     std::cout << "refused a client: unknown token, or already playing"
               << std::endl;
     session.Close();
@@ -277,7 +252,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
     session.Close();
     return 0;
   }
-  lands_[player->land].Join(*id, *player);
+  copies_.Join(*id, *player);
   // Names, kinds and NPCs go out once a second, so the next broadcast is a
   // full one, and a player who's just joined, say from another instance,
   // gets them in their first world.
@@ -292,9 +267,8 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
 }
 
 void Server::Leave(uint32_t id) {
-  World* land = LandOf(id);
-  std::cout << land->players().at(id).name << " left" << std::endl;
-  land->Leave(id);
+  std::cout << WorldOf(id)->players().at(id).name << " left" << std::endl;
+  copies_.Leave(id);
   saved_.erase(id);
   sessions_.erase(id);
   chat_limits_.erase(id);
@@ -317,13 +291,13 @@ void Server::Say(uint32_t id, const std::string& text) {
   }
   metrics_.AddChatLine("said");
   protocol::Chat* line = chat_.add_chat();
-  line->set_name(LandOf(id)->players().at(id).name);
+  line->set_name(WorldOf(id)->players().at(id).name);
   line->set_text(*clean);
   std::cout << line->name() << ": " << line->text() << std::endl;
 }
 
 void Server::Talk(uint32_t id, const protocol::Talk& talk) {
-  const World& land = *LandOf(id);
+  const World& land = *WorldOf(id);
   const Player& player = land.players().at(id);
   // Each land counts its NPCs from one, so we look in the player's land.
   const auto found = land.npcs().find(talk.npc());
@@ -386,7 +360,7 @@ void Server::Talk(uint32_t id, const protocol::Talk& talk) {
 }
 
 void Server::Learn(uint32_t id, const protocol::Learn& learn) {
-  World& land = *LandOf(id);
+  World& land = *WorldOf(id);
   const absl::Status learned = land.Learn(id, learn.npc(), learn.skill());
   if (!learned.ok()) {
     Notify(id, std::string(learned.message()));
@@ -451,12 +425,13 @@ void Server::Tick() {
     return;
   }
   const auto start = std::chrono::steady_clock::now();
-  for (World& land : lands_) {
-    land.Step(interval_);
+  copies_.Step(interval_);
+  std::array<std::size_t, kLands.size()> in_land{};
+  for (const auto& [id, copy] : copies_.all()) {
+    in_land[copy.land] += copy.world.players().size();
   }
-  Travel();
-  for (std::size_t index = 0; index < lands_.size(); ++index) {
-    metrics_.SetPlayers(kLands[index].name, lands_[index].players().size());
+  for (std::size_t land = 0; land < kLands.size(); ++land) {
+    metrics_.SetPlayers(kLands[land].name, in_land[land]);
   }
   SaveChanged();
   Broadcast();
@@ -469,36 +444,12 @@ void Server::Tick() {
   timer_.async_wait([this](std::error_code) { Tick(); });
 }
 
-void Server::Travel() {
-  for (std::size_t from = 0; from < lands_.size(); ++from) {
-    const Land& here = kLands[from];
-    // Leaving changes the map we go through, so first we note who's going.
-    std::vector<uint32_t> travellers;
-    for (const auto& [id, player] : lands_[from].players()) {
-      if (InGate(here, player.x, player.z)) {
-        travellers.push_back(id);
-      }
-    }
-    for (const uint32_t id : travellers) {
-      Player player = lands_[from].players().at(id);
-      lands_[from].Leave(id);
-      const Land& there = kLands[here.to];
-      const Place arrival = Arrival(there, player.yaw);
-      player.x = arrival.x;
-      player.z = arrival.z;
-      player.land = here.to;
-      std::cout << player.name << " went to the " << there.name << std::endl;
-      lands_[here.to].Join(id, std::move(player));
-    }
-  }
-}
-
 void Server::SaveChanged() {
   ZoneScoped;
   const auto start = std::chrono::steady_clock::now();
   std::map<uint32_t, Progress> changed;
-  for (const World& land : lands_) {
-    for (const auto& [id, player] : land.players()) {
+  for (const auto& [copy_id, copy] : copies_.all()) {
+    for (const auto& [id, player] : copy.world.players()) {
       const Progress progress = ProgressOf(player);
       if (progress != saved_[id]) {
         changed[id] = progress;
@@ -524,13 +475,13 @@ void Server::Broadcast() {
   // clients keep them in between.
   const bool full = broadcasts_ == 0;
   broadcasts_ = (broadcasts_ + 1) % kFullEvery;
-  for (std::size_t index = 0; index < lands_.size(); ++index) {
-    BroadcastLand(index, full);
+  for (const auto& [id, copy] : copies_.all()) {
+    BroadcastCopy(copy, full);
   }
 }
 
-void Server::BroadcastLand(std::size_t index, bool full) {
-  const World& land = lands_[index];
+void Server::BroadcastCopy(const Copy& copy, bool full) {
+  const World& land = copy.world;
   // Each player and monster is serialized once a tick, and what each cell
   // gets is put together from those pieces.
   std::map<uint32_t, std::string> players;
@@ -565,7 +516,7 @@ void Server::BroadcastLand(std::size_t index, bool full) {
   }
   const int64_t sent = NowMicros();
   for (const auto& [cell, view] :
-       Views(land.players(), land.monsters(), npc_cells_[index])) {
+       Views(land.players(), land.monsters(), copy.npc_cells)) {
     std::vector<std::string_view> pieces;
     pieces.reserve(view.players.size() + view.monsters.size() +
                    (full ? view.npcs.size() : 0));
@@ -600,8 +551,8 @@ void Server::BroadcastLand(std::size_t index, bool full) {
                 .count());
       }
       you.mutable_skills()->Add(player.skills.begin(), player.skills.end());
-      you.set_seed(seed_ + kLands[index].seed);
-      you.set_land(static_cast<uint32_t>(index));
+      you.set_seed(seed_ + kLands[copy.land].seed);
+      you.set_land(static_cast<uint32_t>(copy.land));
       std::string own = you.SerializeAsString();
       const auto udp = udp_clients_.find(id);
       if (udp != udp_clients_.end()) {

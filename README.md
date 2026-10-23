@@ -982,8 +982,7 @@ port 7777 of the host they're given, so they play in Ember (`server` in Compose)
 ## Lands
 
 Each world has two lands, each an island of its own: the Meadows, where players start, and the
-Ashlands, where ash and charred trees stand around lava, under a red haze. The world server runs both
-in its one tick loop, each as a `World`, with its own players and monsters. `terrain/lands.h` lists
+Ashlands, where ash and charred trees stand around lava, under a red haze. `terrain/lands.h` lists
 them for the server, the client and the bots, in one order, as the server tells a client which land
 it's in by its place in the list:
 
@@ -991,6 +990,10 @@ it's in by its place in the list:
 |---|---|---|
 | Meadows | the world's seed | 10 metres north of the middle, to the Ashlands |
 | Ashlands | the world's seed + 1000 | 10 metres north of the middle, to the Meadows |
+
+The world server runs its lands as copies, in its one tick loop, each a `World` with its own players
+and monsters (`server/copies.h`). Each land has one copy, which everyone in the world shares. Each
+copy has an id, so that a land can have more than one.
 
 - Players wade into the Meadows' sea up to their knees, and not into the Ashlands' lava: each land
   says how deep its sea can be waded, and its `Terrain` takes that.
@@ -1007,7 +1010,7 @@ it's in by its place in the list:
 - The players-online metric has a `land` label, and the dashboard shows each world's lands apart.
 - The bots go into their land's gate on one trip in five, so they spread over both lands.
 
-Running a world's lands in one process makes a trip through a gate a move from one `World` to
+Running a world's copies in one process makes a trip through a gate a move from one `World` to
 another, within a tick. With a server for each land, each land could have a machine of its own, and
 a trip would hand the player over from one server to the other, with a save and a token, like a
 login.
