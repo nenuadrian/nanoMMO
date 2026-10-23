@@ -102,6 +102,28 @@ jobs:
           docker run --rm nanommo-fuzz build/bin/stories_fuzzer -max_total_time=60
           docker run --rm nanommo-fuzz build/bin/world_fuzzer -max_total_time=60
 
+  deploy:
+    # A repository with a runner on its server says so in its NANOMMO_DEPLOY
+    # variable. Elsewhere, the job would wait for a runner that never comes.
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      vars.NANOMMO_DEPLOY == 'true'
+    needs: [build, sanitize, fuzz]
+    runs-on: [self-hosted, nanommo]
+    # One deploy at a time: a push while one runs waits for it, and a newer
+    # push takes the place of one that's waiting.
+    concurrency: deploy
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Deploy this commit to the server
+        run: |
+          cd ~
+          rm -rf nanommo.next
+          mkdir nanommo.next
+          git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C nanommo.next
+          nanommo.next/release.sh
+
   docs:
     if: github.ref == 'refs/heads/main' && !github.event.repository.private
     needs: build

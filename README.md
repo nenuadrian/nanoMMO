@@ -1325,3 +1325,17 @@ ssh debian@203.0.113.7 "nanommo/runner/start.sh https://github.com/nenuadrian/na
 
 The repository's settings list it under Actions, Runners. A change to its image makes a new
 container, which registers again, with a new token: the same two commands. CI builds its image too.
+
+The `deploy` job in `.github/workflows/ci.yml` runs on it, for a push to `main`, once the build,
+the sanitizers and the fuzzers pass. A job waits for a runner with its labels, for a day, so it runs
+only in a repository whose `NANOMMO_DEPLOY` variable is `true`, which leaves it out of forks
+without a runner:
+
+```bash
+gh variable set NANOMMO_DEPLOY --body true --repo nenuadrian/nanoMMO
+```
+
+The job unpacks the commit into `nanommo.next`, as `deploy.sh` does, and starts it with
+`release.sh`, which keeps the running release's `.env` and certificates. Deploys go one at a time:
+a push while one runs waits for it, and a newer push takes the place of one that's waiting, so the
+newest commit is deployed, and no deploy stops halfway.
