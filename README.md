@@ -1001,6 +1001,9 @@ monsters, so that nobody else is in it:
 - A dungeon's copy that has nobody in it stops: its monsters stand where they are, and don't come
   back to life. It waits five minutes for its player, so that someone who steps out finds it as they
   left it, and then it goes.
+- The players in a dungeon are saved outside it, three metres out of its gate in the land it leads
+  to, as its copy may be gone by the time they're back. After a deploy it is, as it ran in the
+  instance before: a player in a dungeon comes out of it, in the next instance, where they went in.
 - A copy that has nobody in it gets nothing broadcast.
 - The `nanommo_copies` metric counts each land's copies.
 

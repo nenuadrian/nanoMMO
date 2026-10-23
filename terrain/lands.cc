@@ -36,6 +36,10 @@ const Gate& Twin(const Gate& gate) {
   });
 }
 
+const Gate& WayOut(int dungeon) {
+  return *std::ranges::find(kGates, dungeon, &Gate::land);
+}
+
 Place Arrival(const Gate& gate, float yaw) {
   const Place& twin = Twin(gate).place;
   return {.x = twin.x + kArrival * std::sin(yaw),

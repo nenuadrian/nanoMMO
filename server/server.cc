@@ -62,21 +62,29 @@ protocol::Motion ToProtocol(Motion motion) {
 }
 
 Progress ProgressOf(const Player& player) {
+  Progress progress{.x = player.x,
+                    .z = player.z,
+                    .experience = player.experience,
+                    .health = player.health,
+                    .land = player.land,
+                    .weapon = player.weapon,
+                    .skills = player.skills};
   // The dead come back in the middle, at full health, so that's what we keep.
   if (player.motion == Motion::kDead) {
-    return {.experience = player.experience,
-            .health = MaxHealth(LevelFor(player.experience).number),
-            .land = player.land,
-            .weapon = player.weapon,
-            .skills = player.skills};
+    progress.x = 0.0f;
+    progress.z = 0.0f;
+    progress.health = MaxHealth(LevelFor(player.experience).number);
   }
-  return {.x = player.x,
-          .z = player.z,
-          .experience = player.experience,
-          .health = player.health,
-          .land = player.land,
-          .weapon = player.weapon,
-          .skills = player.skills};
+  // A dungeon's copy may be gone by the time they're back, and after a deploy
+  // it is, as it ran in the instance before, so we keep them outside it.
+  if (kLands[player.land].dungeon) {
+    const Gate& out = WayOut(player.land);
+    const Place outside = Arrival(out, 0.0f);
+    progress.x = outside.x;
+    progress.z = outside.z;
+    progress.land = out.to;
+  }
+  return progress;
 }
 
 protocol::Player ToProtocol(uint32_t id, const Player& player) {
@@ -394,7 +402,8 @@ void Server::Receive() {
 
 int Server::HandOver(const std::string& host, uint16_t port) {
   // The next instance loads each player from Redis, so they go in now, and
-  // nothing changes them here afterwards.
+  // nothing changes them here afterwards. Those in a dungeon come out of it
+  // there, as its copy stays here.
   handing_over_ = true;
   std::error_code ignored;
   acceptor_.close(ignored);

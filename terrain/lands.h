@@ -93,6 +93,9 @@ bool InGate(const Gate& gate, float x, float z);
 /// The gate in the land this one takes you to, which leads back.
 const Gate& Twin(const Gate& gate);
 
+/// The dungeon's way out: its first gate.
+const Gate& WayOut(int dungeon);
+
 /// Where a player who goes through the gate comes out: past the middle of its
 /// twin, the way they were facing, so that they walk on out of it.
 Place Arrival(const Gate& gate, float yaw);

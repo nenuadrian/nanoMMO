@@ -23,6 +23,7 @@
 #include "gtest/gtest.h"
 #include "server/accounts.h"
 #include "server/test_services.h"
+#include "terrain/lands.h"
 
 namespace {
 
@@ -251,4 +252,43 @@ TEST_F(ServerTest, AnAccountPlaysOnceAtATime) {
   ASSERT_TRUE(RunUntil([&] { return server_->players() == 0; }));
   TestPlayer later(io_, *client_tls_, server_->port(), Token(alice_));
   EXPECT_TRUE(RunUntil([&] { return later.Sees(alice_); }));
+}
+
+TEST_F(ServerTest, KeepsAPlayerInADungeonOutsideIt) {
+  // Alice left the game standing in the Meadows' gate to the Crypt.
+  constexpr int kCrypt = 2;
+  const nanommo::Gate& gate =
+      *std::ranges::find(nanommo::kGates, kCrypt, &nanommo::Gate::to);
+  const std::string key = absl::StrCat("player:", world_, ":", alice_);
+  ASSERT_TRUE(
+      redis_
+          ->Pipeline({{"HSET", key, "x", absl::StrCat(gate.place.x), "z",
+                       absl::StrCat(gate.place.z), "experience", "0", "health",
+                       "", "land", "Meadows", "weapon", "", "skills", ""}})
+          .ok());
+
+  // She comes back in it, and goes through, into the Crypt, while what's kept
+  // of her is outside it.
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.world().land() == kCrypt; }));
+  const nanommo::Place outside = nanommo::Arrival(nanommo::Twin(gate), 0.0f);
+  const absl::StatusOr<std::vector<std::vector<std::string>>> kept =
+      redis_->Pipeline({{"HMGET", key, "land", "x", "z"}});
+  ASSERT_TRUE(kept.ok()) << kept.status();
+  EXPECT_EQ(kept->front(),
+            (std::vector<std::string>{"Meadows", absl::StrCat(outside.x),
+                                      absl::StrCat(outside.z)}));
+
+  // So when she plays again, she's in the Meadows, out of the gate.
+  alice.Leave();
+  ASSERT_TRUE(RunUntil([&] { return server_->players() == 0; }));
+  TestPlayer later(io_, *client_tls_, server_->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return later.Sees(alice_); }));
+  EXPECT_EQ(later.world().land(), 0);
+  for (const nanommo::protocol::Player& player : later.world().players()) {
+    if (player.id() == alice_) {
+      EXPECT_FLOAT_EQ(player.x(), outside.x);
+      EXPECT_FLOAT_EQ(player.z(), outside.z);
+    }
+  }
 }
