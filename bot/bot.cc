@@ -180,6 +180,10 @@ void Bot::Receive(std::string_view bytes) {
     move_ = world.move();
     return;
   }
+  // Our bag comes on its own too, with nothing of the world in it.
+  if (world.has_inventory()) {
+    return;
+  }
   const uint32_t parts = std::max(world.parts(), 1u);
   newest_.resize(parts);
   if (world.part() < parts) {

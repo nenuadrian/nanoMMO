@@ -17,6 +17,33 @@ message Learn {
   uint32 skill = 2;
 }
 
+// Where an item is: in a slot of the bag, from zero, or worn.
+message Place {
+  oneof where {
+    uint32 bag = 1;
+    items.Slot worn = 2;
+  }
+}
+
+// Some of what's at one place, to another: how many, or all of them given
+// none.
+message ItemMove {
+  Place from = 1;
+  Place to = 2;
+  uint32 count = 3;
+}
+
+// Something a player does with an item.
+message ItemAction {
+  oneof action {
+    ItemMove move = 1;
+    // Use one of what's in this slot of the bag.
+    uint32 use = 2;
+    // Throw away all of what's there.
+    Place destroy = 3;
+  }
+}
+
 message Input {
   float x = 1;
   float z = 2;
@@ -28,6 +55,8 @@ message Input {
   // as its key goes down.
   uint32 skill = 7;
   Learn learn = 8;
+  // Sent once, like a skill.
+  ItemAction item = 9;
 }
 
 enum Motion {
@@ -84,14 +113,6 @@ message Npc {
   uint32 kind = 9;
 }
 
-// Where an item is: in a slot of the bag, from zero, or worn.
-message Place {
-  oneof where {
-    uint32 bag = 1;
-    items.Slot worn = 2;
-  }
-}
-
 // What a player carries and wears. Each change takes it to its next
 // revision, so whoever keeps a copy can tell it's changed by the number alone,
 // and a player with no revision has never had any.
@@ -136,6 +157,9 @@ message World {
   // The skills you know, by their ids.
   repeated uint32 skills = 14;
   Move move = 15;
+  // Your bag, which comes on its own, over TCP, as you join and as it
+  // changes.
+  Inventory inventory = 16;
 }
 
 message LoginRequest {

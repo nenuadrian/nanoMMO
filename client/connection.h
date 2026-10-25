@@ -46,6 +46,9 @@ class Connection {
   /// Where the world's instance told us to go, once it hands its players over.
   const std::optional<protocol::Move>& move() const { return move_; }
 
+  /// What we carry and wear, as the server last sent it.
+  const protocol::Inventory& inventory() const { return inventory_; }
+
  private:
   Connection(asio::ssl::context& tls, const std::string& token);
 
@@ -69,6 +72,7 @@ class Connection {
   protocol::World world_;
   std::deque<protocol::Chat> chat_;
   std::optional<protocol::Move> move_;
+  protocol::Inventory inventory_;
   bool udp_worlds_ = false;
   bool connected_ = true;
 };

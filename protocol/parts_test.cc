@@ -117,6 +117,10 @@ TEST(Parts, KeepsNamesAndLevelsBetweenTheTicksThatSendThem) {
   EXPECT_EQ(result.players(0).level(), 4u);
   EXPECT_EQ(result.players(0).weapon(), 1u);
   EXPECT_EQ(result.players(0).x(), 1.5f);
+
+  // A world with their name and no weapon: they've put it away.
+  assembled.Add(MakeWorld(3, 3));
+  EXPECT_EQ(assembled.world().players(0).weapon(), 0u);
 }
 
 TEST(Parts, KeepsYourCooldownsAndSkills) {

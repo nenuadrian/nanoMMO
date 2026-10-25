@@ -22,6 +22,8 @@
 #include "asio/write.hpp"
 #include "gtest/gtest.h"
 #include "server/accounts.h"
+#include "server/inventory.h"
+#include "server/test_content.h"
 #include "server/test_services.h"
 #include "terrain/lands.h"
 
@@ -61,6 +63,18 @@ class TestPlayer {
 
   const nanommo::protocol::World& world() const { return world_; }
 
+  /// What the player carries and wears, as the server last sent it.
+  const nanommo::protocol::Inventory& bag() const { return bag_; }
+
+  /// What the server told the player, which nobody said.
+  const std::vector<std::string>& notices() const { return notices_; }
+
+  void Send(const nanommo::protocol::Input& input) {
+    auto bytes = std::make_shared<const std::string>(nanommo::Frame(input));
+    asio::async_write(stream_, asio::buffer(*bytes),
+                      [bytes](std::error_code, std::size_t) {});
+  }
+
   bool closed() const { return closed_; }
 
   void Leave() {
@@ -92,8 +106,20 @@ class TestPlayer {
           reader_.Append({buffer_.data(), size});
           while (std::optional<std::string> message = reader_.Next()) {
             nanommo::protocol::World world;
-            // Chat comes in worlds of its own, with nobody in them.
-            if (world.ParseFromString(*message) && world.chat().empty()) {
+            // Chat and the bag come in worlds of their own, with nobody in
+            // them.
+            if (!world.ParseFromString(*message)) {
+              continue;
+            }
+            if (world.has_inventory()) {
+              bag_ = world.inventory();
+            } else if (!world.chat().empty()) {
+              for (const nanommo::protocol::Chat& line : world.chat()) {
+                if (line.name().empty()) {
+                  notices_.push_back(line.text());
+                }
+              }
+            } else {
               world_ = std::move(world);
             }
           }
@@ -106,6 +132,8 @@ class TestPlayer {
   std::array<char, 4096> buffer_;
   nanommo::FrameReader reader_;
   nanommo::protocol::World world_;
+  nanommo::protocol::Inventory bag_;
+  std::vector<std::string> notices_;
   bool closed_ = false;
 };
 
@@ -141,9 +169,11 @@ class ServerTest : public ::testing::Test {
     for (const uint32_t id : accounts_) {
       const std::string key = absl::StrCat("player:", world_, ":", id);
       // The server saved the player in Redis, for the saver to take to MySQL.
-      EXPECT_TRUE(
-          redis_->Pipeline({{"DEL", key}, {"SREM", "players:unsaved", key}})
-              .ok());
+      EXPECT_TRUE(redis_
+                      ->Pipeline({{"DEL", key},
+                                  {"SREM", "players:unsaved", key},
+                                  {"SREM", "items:unsaved", key}})
+                      .ok());
       EXPECT_TRUE(
           database_
               ->Run("DELETE FROM accounts WHERE id = ?", {absl::StrCat(id)})
@@ -291,4 +321,46 @@ TEST_F(ServerTest, KeepsAPlayerInADungeonOutsideIt) {
       EXPECT_FLOAT_EQ(player.z(), outside.z);
     }
   }
+}
+
+TEST_F(ServerTest, SendsEachPlayerTheirBagAsItChanges) {
+  const nanommo::Content gear{.items = nanommo::testing::Gear()};
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> armed =
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1, gear,
+                              metrics_, *tokens_, *players_, *storyteller_);
+  ASSERT_TRUE(armed.ok()) << armed.status();
+  TestPlayer alice(io_, *client_tls_, (*armed)->port(), Token(alice_));
+
+  // She joins with the kit: the sword in hand, and three potions.
+  ASSERT_TRUE(RunUntil([&] { return alice.bag().revision() > 0; }));
+  EXPECT_EQ(alice.bag().worn().at(nanommo::items::SLOT_MAIN_HAND).item(), 1u);
+  EXPECT_EQ(alice.bag().bag().at(0).count(), 3u);
+
+  // She moves two of the potions to another slot, and the bag comes again.
+  nanommo::protocol::Input move;
+  nanommo::protocol::ItemMove* potions = move.mutable_item()->mutable_move();
+  *potions->mutable_from() = nanommo::InBag(0);
+  *potions->mutable_to() = nanommo::InBag(4);
+  potions->set_count(2);
+  alice.Send(move);
+  ASSERT_TRUE(RunUntil([&] { return alice.bag().bag().contains(4); }));
+  EXPECT_EQ(alice.bag().bag().at(4).count(), 2u);
+  EXPECT_EQ(alice.bag().bag().at(0).count(), 1u);
+
+  // What she can't do comes back as a line from nobody.
+  nanommo::protocol::Input drink;
+  drink.mutable_item()->set_use(4);
+  alice.Send(drink);
+  ASSERT_TRUE(RunUntil([&] { return !alice.notices().empty(); }));
+  EXPECT_EQ(alice.notices().back(), "You're at full health already.");
+
+  // And Redis has the bag she has.
+  const absl::StatusOr<std::vector<std::vector<std::string>>> kept =
+      redis_->Pipeline(
+          {{"HGET", absl::StrCat("player:", world_, ":", alice_), "items"}});
+  ASSERT_TRUE(kept.ok()) << kept.status();
+  nanommo::protocol::Inventory saved;
+  ASSERT_TRUE(saved.ParseFromString(kept->front().front()));
+  EXPECT_EQ(saved.revision(), alice.bag().revision());
 }

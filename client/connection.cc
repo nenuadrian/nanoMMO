@@ -108,10 +108,12 @@ void Connection::Read() {
                                 connected_ = false;
                                 return;
                               }
-                              // Chat and moves come on their own, with nothing
-                              // of the world in them.
+                              // Chat, moves and our bag come on their own,
+                              // with nothing of the world in them.
                               if (world.has_move()) {
                                 move_ = world.move();
+                              } else if (world.has_inventory()) {
+                                inventory_ = world.inventory();
                               } else if (world.chat().empty()) {
                                 Receive(world);
                               } else {

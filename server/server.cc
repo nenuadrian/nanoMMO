@@ -43,6 +43,11 @@ constexpr std::chrono::seconds kChatRefill{2};
 constexpr int kStoryBurst = 1;
 constexpr std::chrono::seconds kStoryRefill{10};
 
+// A drag in the bag is a move, so a player can make a few at once, and then
+// ten a second.
+constexpr int kItemBurst = 10;
+constexpr std::chrono::milliseconds kItemRefill{100};
+
 protocol::Motion ToProtocol(Motion motion) {
   switch (motion) {
     case Motion::kWalk:
@@ -229,6 +234,9 @@ void Server::Accept() {
           if (input.has_learn()) {
             Learn(*id, input.learn());
           }
+          if (input.has_item()) {
+            Item(*id, input.item());
+          }
         }
       };
       const auto on_close = [this, id] {
@@ -270,6 +278,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   sessions_[*id] = session.shared_from_this();
   chat_limits_.emplace(*id, TokenBucket(kChatBurst, kChatRefill));
   story_limits_.emplace(*id, TokenBucket(kStoryBurst, kStoryRefill));
+  item_limits_.emplace(*id, TokenBucket(kItemBurst, kItemRefill));
   udp_tokens_[hello.token()] = *id;
   std::cout << player->name << " joined, as player " << *id << std::endl;
   return *id;
@@ -282,6 +291,8 @@ void Server::Leave(uint32_t id) {
   sessions_.erase(id);
   chat_limits_.erase(id);
   story_limits_.erase(id);
+  item_limits_.erase(id);
+  sent_bags_.erase(id);
   std::erase_if(udp_tokens_,
                 [id](const auto& token) { return token.second == id; });
   udp_clients_.erase(id);
@@ -379,6 +390,37 @@ void Server::Learn(uint32_t id, const protocol::Learn& learn) {
             << std::endl;
 }
 
+void Server::Item(uint32_t id, const protocol::ItemAction& action) {
+  // The next instance loads the bag as it was last saved, so nothing changes
+  // it here after that.
+  if (handing_over_) {
+    return;
+  }
+  if (!item_limits_.at(id).Take(std::chrono::steady_clock::now())) {
+    Notify(id, "You're moving things too fast.");
+    return;
+  }
+  World& land = *WorldOf(id);
+  absl::Status done;
+  switch (action.action_case()) {
+    case protocol::ItemAction::kMove:
+      done = land.MoveItem(id, action.move().from(), action.move().to(),
+                           action.move().count());
+      break;
+    case protocol::ItemAction::kUse:
+      done = land.UseItem(id, action.use());
+      break;
+    case protocol::ItemAction::kDestroy:
+      done = land.DestroyItem(id, action.destroy());
+      break;
+    case protocol::ItemAction::ACTION_NOT_SET:
+      return;
+  }
+  if (!done.ok()) {
+    Notify(id, std::string(done.message()));
+  }
+}
+
 void Server::Notify(uint32_t id, const std::string& text) {
   protocol::World notice;
   notice.add_chat()->set_text(text);
@@ -449,6 +491,7 @@ void Server::Tick() {
   SaveChanged();
   Broadcast();
   SendChat();
+  SendBags();
   metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
   TracyPlot("players", static_cast<int64_t>(players()));
   FrameMark;
@@ -619,6 +662,26 @@ void Server::SendChat() {
     session->Send(bytes, {});
   }
   chat_.Clear();
+}
+
+void Server::SendBags() {
+  for (const auto& [copy_id, copy] : copies_.all()) {
+    for (const auto& [id, player] : copy.world.players()) {
+      const uint32_t revision = player.inventory.revision();
+      const auto session = sessions_.find(id);
+      // A bag changes now and then, and has to arrive, so it goes on its own,
+      // over TCP, only when it has.
+      if (session == sessions_.end() || sent_bags_[id] == revision) {
+        continue;
+      }
+      protocol::World bag;
+      *bag.mutable_inventory() = player.inventory.items();
+      std::string frame = Frame(bag);
+      metrics_.AddBytesSent(frame.size());
+      session->second->Send(std::move(frame));
+      sent_bags_[id] = revision;
+    }
+  }
 }
 
 void Server::SendTo(const asio::ip::udp::endpoint& client,
