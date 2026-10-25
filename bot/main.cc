@@ -63,7 +63,7 @@ class Swarm {
   Swarm(asio::io_context& io, asio::ssl::context& tls, std::string login,
         std::string host, asio::ip::tcp::resolver::results_type server,
         int count, std::chrono::milliseconds ramp, int first, bool udp,
-        nanommo::BotMetrics& metrics, const nanommo::NpcTable& npcs)
+        nanommo::BotMetrics& metrics, const nanommo::Content& content)
       : io_(io),
         tls_(tls),
         login_(std::move(login)),
@@ -74,7 +74,7 @@ class Swarm {
         udp_(udp),
         gap_(count > 0 ? ramp / count : ramp),
         metrics_(metrics),
-        npcs_(npcs),
+        content_(content),
         timer_(io),
         report_(io),
         frame_(io) {
@@ -91,7 +91,7 @@ class Swarm {
     }
     const int number = first_ + static_cast<int>(bots_.size());
     auto bot = std::make_unique<nanommo::Bot>(
-        io_, tls_, static_cast<uint32_t>(number), udp_, npcs_);
+        io_, tls_, static_cast<uint32_t>(number), udp_, content_);
     const absl::StatusOr<std::string> token = LogIn(login_, tls_, number);
     if (token.ok()) {
       bot->Start(server_, *token);
@@ -134,7 +134,7 @@ class Swarm {
       bots_[i]->Leave();
       left_.push_back(std::move(bots_[i]));
       bots_[i] = std::make_unique<nanommo::Bot>(
-          io_, tls_, static_cast<uint32_t>(number), udp_, npcs_);
+          io_, tls_, static_cast<uint32_t>(number), udp_, content_);
       bots_[i]->Start(next, token);
       ++moved;
     }
@@ -194,7 +194,7 @@ class Swarm {
   bool udp_;
   std::chrono::milliseconds gap_;
   nanommo::BotMetrics& metrics_;
-  const nanommo::NpcTable& npcs_;
+  const nanommo::Content& content_;
   asio::steady_timer timer_;
   asio::steady_timer report_;
   asio::steady_timer frame_;
@@ -254,7 +254,7 @@ int main(int argc, char* argv[]) {
             << " s, from bot" << first << ", worlds over " << transport
             << std::endl;
   Swarm swarm(io, *tls, login, host, server, count, ramp, first,
-              transport == "udp", metrics, content->npcs);
+              transport == "udp", metrics, *content);
 
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });

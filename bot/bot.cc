@@ -18,6 +18,7 @@
 #include "asio/ssl/host_name_verification.hpp"
 #include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
+#include "bot/bag.h"
 #include "protocol/nanommo.pb.h"
 #include "terrain/lands.h"
 
@@ -48,6 +49,9 @@ constexpr double kAskForAStory = 0.125;
 // direction in four, as players do in a fight.
 constexpr double kUseASkill = 0.25;
 
+// A potion's cooldown, so that a bot doesn't ask for one the server refuses.
+constexpr std::chrono::seconds kDrinkEvery{10};
+
 std::string RandomWords(std::mt19937& random) {
   std::vector<const char*> words;
   std::ranges::sample(kWords, std::back_inserter(words), 3, random);
@@ -57,14 +61,14 @@ std::string RandomWords(std::mt19937& random) {
 }  // namespace
 
 Bot::Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp,
-         const NpcTable& npcs)
+         const Content& content)
     : stream_(io, tls),
       udp_socket_(io),
       timer_(io),
       hello_timer_(io),
       random_(seed),
       udp_(udp),
-      npcs_(npcs) {}
+      content_(content) {}
 
 void Bot::Start(const asio::ip::tcp::resolver::results_type& server,
                 const std::string& token) {
@@ -182,6 +186,7 @@ void Bot::Receive(std::string_view bytes) {
   }
   // Our bag comes on its own too, with nothing of the world in it.
   if (world.has_inventory()) {
+    bag_ = world.inventory();
     return;
   }
   const uint32_t parts = std::max(world.parts(), 1u);
@@ -193,6 +198,11 @@ void Bot::Receive(std::string_view bytes) {
     if (player.id() == world.you()) {
       x_ = player.x();
       z_ = player.z();
+      health_ = static_cast<int>(player.health());
+      // The most comes once a second, with the names.
+      if (player.max_health() != 0) {
+        max_health_ = static_cast<int>(player.max_health());
+      }
     }
   }
   skills_ = {world.skills().begin(), world.skills().end()};
@@ -204,8 +214,8 @@ void Bot::Receive(std::string_view bytes) {
     asking_ = false;
   }
   for (const protocol::Npc& npc : world.npcs()) {
-    const auto kind = npcs_.kinds.find(npc.kind());
-    if (kind != npcs_.kinds.end() && kind->second.talks()) {
+    const auto kind = content_.npcs.kinds.find(npc.kind());
+    if (kind != content_.npcs.kinds.end() && kind->second.talks()) {
       storyteller_ = npc;
     }
   }
@@ -247,6 +257,17 @@ void Bot::Wander() {
     if (!skills_.empty() && std::bernoulli_distribution(kUseASkill)(random_)) {
       input->set_skill(skills_[std::uniform_int_distribution<std::size_t>(
           0, skills_.size() - 1)(random_)]);
+    }
+  }
+  // As a player would, a bot drinks a potion when it's hurt, and wears what
+  // it finds, which keeps the servers saving and sending bags.
+  const auto now = std::chrono::steady_clock::now();
+  if (const std::optional<protocol::ItemAction> item =
+          Tend(content_.items, bag_, health_, max_health_,
+               now - drank_ >= kDrinkEvery)) {
+    *input->mutable_item() = *item;
+    if (item->has_use()) {
+      drank_ = now;
     }
   }
   input->set_say(say);

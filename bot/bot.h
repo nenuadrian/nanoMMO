@@ -2,6 +2,7 @@
 #define NANOMMO_BOT_BOT_H_
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <optional>
 #include <random>
@@ -15,7 +16,7 @@
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
 #include "bot/wander.h"
-#include "content/npcs.h"
+#include "content/content.h"
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
 #include "protocol/tls.h"
@@ -24,9 +25,10 @@ namespace nanommo {
 
 class Bot {
  public:
-  /// Finds the NPCs that talk through their kinds in the table.
+  /// Finds the NPCs that talk through their kinds in the content, and what
+  /// its items do through the items.
   Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp,
-      const NpcTable& npcs);
+      const Content& content);
 
   Bot(const Bot&) = delete;
   Bot& operator=(const Bot&) = delete;
@@ -59,7 +61,7 @@ class Bot {
   asio::steady_timer hello_timer_;
   std::mt19937 random_;
   bool udp_;
-  const NpcTable& npcs_;
+  const Content& content_;
   std::string token_;
   std::array<char, 65536> buffer_;
   std::array<char, 2048> datagram_;
@@ -79,6 +81,11 @@ class Bot {
   bool asking_ = false;
   /// The skills the bot knows, from its world.
   std::vector<uint32_t> skills_;
+  int health_ = 0;
+  int max_health_ = 0;
+  protocol::Inventory bag_;
+  /// When it last drank something, which it does once its cooldown's over.
+  std::chrono::steady_clock::time_point drank_;
   std::optional<protocol::Move> move_;
 };
 
