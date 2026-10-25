@@ -11,7 +11,6 @@
 
 #include "absl/log/absl_check.h"
 #include "content/content.h"
-#include "server/levels.h"
 #include "server/monsters.h"
 #include "server/npcs.h"
 #include "terrain/terrain.h"
@@ -41,9 +40,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
       case 0:
         // Up to level four, where the last skill is.
         if (!playing) {
-          world.Join(id, {.name = "bot",
-                          .experience = input.ConsumeIntegralInRange(0u, 999u),
-                          .weapon = 1});
+          world.Join(id,
+                     {.name = "bot",
+                      .experience = input.ConsumeIntegralInRange(0u, 999u)});
         }
         break;
       case 1:
@@ -72,9 +71,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
   for (const auto& [id, player] : world.players()) {
     ABSL_CHECK(std::isfinite(player.x) && std::isfinite(player.z));
     ABSL_CHECK_GE(player.health, 0);
-    ABSL_CHECK_LE(
-        player.health,
-        nanommo::MaxHealth(nanommo::LevelFor(player.experience).number));
+    ABSL_CHECK_LE(player.health, nanommo::MaxHealthOf(player));
   }
   return 0;
 }

@@ -21,6 +21,8 @@ struct Progress {
   uint32_t experience = 0;
   int health = 0;
   int land = 0;
+  /// What's in their main hand, which servers from before bags read, and the
+  /// website might.
   uint32_t weapon = 0;
   std::set<uint32_t> skills;
 

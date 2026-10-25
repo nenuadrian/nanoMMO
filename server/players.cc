@@ -29,7 +29,7 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
   const absl::StatusOr<Result> result = database_.Run(
       "SELECT accounts.username, COALESCE(players.x, 0), "
       "COALESCE(players.z, 0), COALESCE(players.experience, 0), "
-      "players.health, COALESCE(players.land, 'Meadows'), players.weapon "
+      "players.health, COALESCE(players.land, 'Meadows') "
       "FROM accounts "
       "LEFT JOIN players ON players.account_id = accounts.id "
       "AND players.world = ? "
@@ -59,7 +59,7 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
 
   const absl::StatusOr<std::vector<std::vector<std::string>>> newer =
       redis_.Pipeline({{"HMGET", Key(world, account_id), "x", "z", "experience",
-                        "health", "land", "weapon", "skills"}});
+                        "health", "land", "skills"}});
   if (!newer.ok()) {
     return newer.status();
   }
@@ -75,12 +75,8 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
     return absl::InternalError("a saved health that isn't a number");
   }
   player.land = LandNamed(saved[4]);
-  // None saved, which the world takes as the starting weapon.
-  if (!saved[5].empty() && !absl::SimpleAtoi(saved[5], &player.weapon)) {
-    return absl::InternalError("a saved weapon that isn't a number");
-  }
   for (const std::string_view skill :
-       absl::StrSplit(saved[6], ',', absl::SkipEmpty())) {
+       absl::StrSplit(saved[5], ',', absl::SkipEmpty())) {
     uint32_t id = 0;
     if (!absl::SimpleAtoi(skill, &id)) {
       return absl::InternalError("a saved skill that isn't a number");

@@ -83,9 +83,6 @@ absl::StatusOr<ItemTable> ParseItems(std::string_view text) {
           absl::StrCat("a new player starts with ", CountOf(stack), " of the ",
                        item->second.name(), ", which don't fit in a slot"));
     }
-    if (table.starting_weapon == 0 && item->second.has_weapon()) {
-      table.starting_weapon = item->first;
-    }
   }
   return table;
 }

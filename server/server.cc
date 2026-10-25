@@ -67,13 +67,13 @@ Progress ProgressOf(const Player& player) {
                     .experience = player.experience,
                     .health = player.health,
                     .land = player.land,
-                    .weapon = player.weapon,
+                    .weapon = MainHandOf(player),
                     .skills = player.skills};
   // The dead come back in the middle, at full health, so that's what we keep.
   if (player.motion == Motion::kDead) {
     progress.x = 0.0f;
     progress.z = 0.0f;
-    progress.health = MaxHealth(LevelFor(player.experience).number);
+    progress.health = MaxHealthOf(player);
   }
   // A dungeon's copy may be gone by the time they're back, and after a deploy
   // it is, as it ran in the instance before, so we keep them outside it.
@@ -98,8 +98,8 @@ protocol::Player ToProtocol(uint32_t id, const Player& player) {
   const int level = LevelFor(player.experience).number;
   sent.set_level(level);
   sent.set_health(player.health);
-  sent.set_max_health(MaxHealth(level));
-  sent.set_weapon(player.weapon);
+  sent.set_max_health(MaxHealthOf(player));
+  sent.set_weapon(MainHandOf(player));
   if (player.motion == Motion::kSkill) {
     sent.set_skill(player.skill);
   }

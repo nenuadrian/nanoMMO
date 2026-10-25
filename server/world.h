@@ -11,11 +11,23 @@
 
 #include "absl/status/status.h"
 #include "content/content.h"
+#include "protocol/nanommo.pb.h"
+#include "server/inventory.h"
 #include "terrain/terrain.h"
 
 namespace nanommo {
 
 enum class Motion { kIdle, kWalk, kRun, kAttack, kDead, kSkill };
+
+/// What a player's worn items add up to, worked out as what they wear
+/// changes, so that a fight doesn't add it up for each blow.
+struct Stats {
+  int damage = 0;
+  int health = 0;
+  int armour = 0;
+  /// The weapon in the player's main hand, from the content, or nullptr.
+  const items::Weapon* weapon = nullptr;
+};
 
 struct Player {
   std::string name;
@@ -28,8 +40,9 @@ struct Player {
   int health = 0;
   /// Which of the world's lands, by its place in kLands.
   int land = 0;
-  /// What the player holds, by its id in the items file.
-  uint32_t weapon = 0;
+  /// What the player carries and wears.
+  Inventory inventory;
+  Stats stats;
   /// The skills the player knows, by their ids in the skills file.
   std::set<uint32_t> skills;
   uint32_t target = 0;
@@ -96,6 +109,14 @@ struct Npc {
   std::set<uint32_t> teaches;
 };
 
+/// The most health the player can have: their level's, and what they wear
+/// adds.
+int MaxHealthOf(const Player& player);
+
+/// What the player holds in their main hand, by its id in the items file, or
+/// zero.
+uint32_t MainHandOf(const Player& player);
+
 /// Moves to the place, or if the terrain's in the way there, as far as it can
 /// along x or along z alone, so that it slides along a coast.
 void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z);
@@ -133,6 +154,14 @@ class World {
   /// error says why not, in words for the player.
   absl::Status Learn(uint32_t id, uint32_t npc, uint32_t skill);
 
+  /// Moves the player's items around, as Inventory::Move does, wearing them
+  /// and taking them off, or the error says why not, in words for the player.
+  absl::Status MoveItem(uint32_t id, const protocol::Place& from,
+                        const protocol::Place& to, uint32_t count = 0);
+
+  /// Throws away all of what's at the place.
+  absl::Status DestroyItem(uint32_t id, const protocol::Place& place);
+
   uint32_t Spawn(Monster monster);
 
   /// NPCs have ids of their own, apart from the monsters'.
@@ -146,9 +175,10 @@ class World {
   const Terrain& terrain() const { return terrain_; }
 
  private:
+  /// After what the player wears has changed: works out their stats again.
+  void Dress(Player& player) const;
   void Act(uint32_t id, Player& player, std::chrono::nanoseconds time);
   void Move(Player& player, std::chrono::nanoseconds time);
-  const items::Weapon* WeaponOf(const Player& player) const;
   void Aim(Player& player, float reach);
   void Swing(Player& player, const items::Weapon& weapon);
   void Hit(uint32_t id, Player& player, const items::Weapon& weapon);

@@ -264,3 +264,137 @@ TEST(World, MonstersKillPlayersWhoComeBackInTheMiddle) {
   EXPECT_EQ(player.x, 0.0f);
   EXPECT_EQ(player.health, 100);
 }
+
+namespace {
+
+constexpr uint32_t kBone = 3;
+constexpr uint32_t kCap = 4;
+constexpr uint32_t kBlade = 5;
+
+nanommo::items::Stack One(uint32_t item) {
+  nanommo::items::Stack stack;
+  stack.set_item(item);
+  stack.set_count(1);
+  return stack;
+}
+
+// A player who's had a bag, with the item in it, or worn.
+nanommo::Player With(uint32_t item, bool worn = false) {
+  const nanommo::ItemTable gear = nanommo::testing::Gear();
+  nanommo::Player player;
+  if (worn) {
+    player.inventory.Wear(gear, One(item));
+  } else {
+    player.inventory.Add(gear, One(item));
+  }
+  return player;
+}
+
+}  // namespace
+
+TEST(World, GivesEachNewPlayerTheKitOnce) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Gear()));
+  world.Join(1, {});
+  const nanommo::Player& player = world.players().at(1);
+  EXPECT_EQ(nanommo::MainHandOf(player), 1u);
+  ASSERT_NE(player.inventory.At(nanommo::InBag(0)), nullptr);
+  EXPECT_EQ(player.inventory.At(nanommo::InBag(0))->count(), 3u);
+
+  // A trip through a gate joins them to another copy, with what they had, and
+  // someone who's thrown it all away doesn't get another.
+  nanommo::Player through = world.players().at(1);
+  world.Leave(1);
+  world.Join(1, through);
+  EXPECT_EQ(world.players().at(1).inventory.items().bag_size(), 1);
+  ASSERT_TRUE(world.DestroyItem(1, nanommo::InBag(0)).ok());
+  ASSERT_TRUE(
+      world.DestroyItem(1, nanommo::Worn(nanommo::items::SLOT_MAIN_HAND)).ok());
+  through = world.players().at(1);
+  world.Leave(1);
+  world.Join(1, through);
+  EXPECT_EQ(world.players().at(1).inventory.items().bag_size(), 0);
+  EXPECT_EQ(nanommo::MainHandOf(world.players().at(1)), 0u);
+}
+
+TEST(World, FightsWithWhatTheyWear) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Gear()));
+  // The blade does twenty, one more for being worn, and this one rolled three
+  // more.
+  nanommo::items::Stack blade = One(kBlade);
+  nanommo::items::Modifier* roll = blade.add_rolls();
+  roll->set_stat(nanommo::items::STAT_DAMAGE);
+  roll->set_amount(3);
+  nanommo::Player alice;
+  alice.inventory.Add(nanommo::testing::Gear(), blade);
+  world.Join(1, alice);
+  ASSERT_TRUE(world
+                  .MoveItem(1, nanommo::InBag(0),
+                            nanommo::Worn(nanommo::items::SLOT_MAIN_HAND))
+                  .ok());
+  const uint32_t skeleton =
+      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 1.0f, 0.0f));
+
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  RunOneSecond(world);
+  EXPECT_EQ(world.monsters().at(skeleton).health, 50 - 24);
+}
+
+TEST(World, SwingsOnlyWithAWeaponInHand) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Gear()));
+  world.Join(1, With(kBone));
+  world.Join(2, {.z = 0.5f});
+  const uint32_t skeleton =
+      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 1.0f, 0.0f));
+
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  world.SetInput(2, 0.0f, 0.0f, false, true);
+  world.Step(kTick);
+  EXPECT_NE(world.players().at(1).motion, nanommo::Motion::kAttack);
+  EXPECT_EQ(world.players().at(2).motion, nanommo::Motion::kAttack);
+
+  // Putting the sword away ends the swing, before it lands.
+  ASSERT_TRUE(world
+                  .MoveItem(2, nanommo::Worn(nanommo::items::SLOT_MAIN_HAND),
+                            nanommo::InBag(5))
+                  .ok());
+  EXPECT_NE(world.players().at(2).motion, nanommo::Motion::kAttack);
+  RunOneSecond(world);
+  EXPECT_EQ(world.monsters().at(skeleton).health, 50);
+}
+
+TEST(World, ArmourTakesTheBlowsAndHealthComesWithIt) {
+  // Two worlds that go the same way, but for the cap.
+  const auto fight = [](nanommo::Player player) {
+    nanommo::World world(1, nanommo::Terrain(),
+                         nanommo::testing::With(nanommo::testing::Gear()));
+    player.x = 2.0f;
+    world.Join(1, player);
+    world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 3.0f, 0.0f));
+    for (int second = 0; second < 4; ++second) {
+      RunOneSecond(world);
+    }
+    return world.players().at(1).health;
+  };
+  // The cap adds ten health and two armour, which takes the skeleton's five
+  // down to three.
+  const int capped = fight(With(kCap, true));
+  const int bare = fight(With(kBone));
+  EXPECT_LT(capped, 110);
+  EXPECT_EQ((110 - capped) % 3, 0);
+  EXPECT_EQ((110 - capped) / 3, (100 - bare) / 5);
+
+  // Taking it off takes its health with it.
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Gear()));
+  world.Join(1, With(kCap, true));
+  EXPECT_EQ(world.players().at(1).health, 110);
+  EXPECT_EQ(nanommo::MaxHealthOf(world.players().at(1)), 110);
+  ASSERT_TRUE(world
+                  .MoveItem(1, nanommo::Worn(nanommo::items::SLOT_HEAD),
+                            nanommo::InBag(1))
+                  .ok());
+  EXPECT_EQ(world.players().at(1).health, 100);
+}

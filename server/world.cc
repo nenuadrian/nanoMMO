@@ -20,7 +20,32 @@ float Distance(const Player& player, const Monster& monster) {
   return std::hypot(monster.x - player.x, monster.z - player.z);
 }
 
+void Add(Stats& stats, const items::Modifier& modifier) {
+  switch (modifier.stat()) {
+    case items::STAT_DAMAGE:
+      stats.damage += modifier.amount();
+      break;
+    case items::STAT_HEALTH:
+      stats.health += modifier.amount();
+      break;
+    case items::STAT_ARMOUR:
+      stats.armour += modifier.amount();
+      break;
+    default:
+      break;
+  }
+}
+
 }  // namespace
+
+int MaxHealthOf(const Player& player) {
+  return MaxHealth(LevelFor(player.experience).number) + player.stats.health;
+}
+
+uint32_t MainHandOf(const Player& player) {
+  const items::Stack* held = player.inventory.At(Worn(items::SLOT_MAIN_HAND));
+  return held != nullptr ? held->item() : 0;
+}
 
 void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z) {
   if (terrain.Walkable(to_x, to_z)) {
@@ -45,13 +70,21 @@ void World::Join(uint32_t id, Player player) {
     player.x = 0.0f;
     player.z = 0.0f;
   }
+  // A bag that's never had a revision has never been anyone's: a new player,
+  // or one from before bags, gets the kit, once, which a trip through a gate
+  // doesn't give them again.
+  const ItemTable& items = content_->items;
+  if (player.inventory.revision() == 0) {
+    for (const items::Stack& stack : items.starting) {
+      if (!player.inventory.Wear(items, stack)) {
+        player.inventory.Add(items, stack);
+      }
+    }
+  }
+  Dress(player);
   // Zero when none was saved, as for a player from before we kept health.
   if (player.health <= 0) {
-    player.health = MaxHealth(LevelFor(player.experience).number);
-  }
-  // No weapon, or one that isn't in the items file: the starting weapon.
-  if (!content_->items.by_id.contains(player.weapon)) {
-    player.weapon = content_->items.starting_weapon;
+    player.health = MaxHealthOf(player);
   }
   player.skills.insert(content_->skills.starting.begin(),
                        content_->skills.starting.end());
@@ -59,6 +92,60 @@ void World::Join(uint32_t id, Player player) {
 }
 
 void World::Leave(uint32_t id) { players_.erase(id); }
+
+absl::Status World::MoveItem(uint32_t id, const protocol::Place& from,
+                             const protocol::Place& to, uint32_t count) {
+  const auto found = players_.find(id);
+  if (found == players_.end()) {
+    return absl::NotFoundError("There's nobody to move it.");
+  }
+  Player& player = found->second;
+  const absl::Status moved =
+      player.inventory.Move(content_->items, from, to, count);
+  if (moved.ok() && (from.has_worn() || to.has_worn())) {
+    Dress(player);
+  }
+  return moved;
+}
+
+absl::Status World::DestroyItem(uint32_t id, const protocol::Place& place) {
+  const auto found = players_.find(id);
+  if (found == players_.end()) {
+    return absl::NotFoundError("There's nobody to throw it away.");
+  }
+  Player& player = found->second;
+  const absl::Status destroyed = player.inventory.Destroy(place);
+  if (destroyed.ok() && place.has_worn()) {
+    Dress(player);
+  }
+  return destroyed;
+}
+
+void World::Dress(Player& player) const {
+  const items::Weapon* before = player.stats.weapon;
+  player.stats = {};
+  for (const auto& [slot, stack] : player.inventory.items().worn()) {
+    const auto item = content_->items.by_id.find(stack.item());
+    if (item == content_->items.by_id.end()) {
+      continue;
+    }
+    for (const items::Modifier& modifier : item->second.equip().modifiers()) {
+      Add(player.stats, modifier);
+    }
+    for (const items::Modifier& roll : stack.rolls()) {
+      Add(player.stats, roll);
+    }
+    if (slot == items::SLOT_MAIN_HAND && item->second.has_weapon()) {
+      player.stats.weapon = &item->second.weapon();
+    }
+  }
+  // Less to wear can mean less health to have, and a swing with a weapon
+  // that's been put away is over.
+  player.health = std::min(player.health, MaxHealthOf(player));
+  if (player.motion == Motion::kAttack && player.stats.weapon != before) {
+    player.motion = Motion::kIdle;
+  }
+}
 
 uint32_t World::Spawn(Monster monster) {
   monster.home_x = monster.x;
@@ -155,7 +242,7 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
       player.x = 0.0f;
       player.z = 0.0f;
       player.motion = Motion::kIdle;
-      player.health = MaxHealth(LevelFor(player.experience).number);
+      player.health = MaxHealthOf(player);
     }
     return;
   }
@@ -172,8 +259,8 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
     }
     player.motion = Motion::kIdle;
   }
-  const items::Weapon* weapon = WeaponOf(player);
-  if (player.motion == Motion::kAttack) {
+  const items::Weapon* weapon = player.stats.weapon;
+  if (player.motion == Motion::kAttack && weapon != nullptr) {
     const auto before = player.swing;
     player.swing += time;
     const std::chrono::milliseconds hit(weapon->hit_ms());
@@ -220,14 +307,6 @@ void World::Move(Player& player, std::chrono::nanoseconds time) {
   player.z = z;
 }
 
-const items::Weapon* World::WeaponOf(const Player& player) const {
-  const auto found = content_->items.by_id.find(player.weapon);
-  if (found == content_->items.by_id.end() || !found->second.has_weapon()) {
-    return nullptr;
-  }
-  return &found->second.weapon();
-}
-
 // Picks the nearest monster in reach, and turns the player towards it.
 void World::Aim(Player& player, float reach) {
   player.target = 0;
@@ -263,7 +342,8 @@ void World::Hit(uint32_t id, Player& player, const items::Weapon& weapon) {
   }
   const int level = LevelFor(player.experience).number;
   Hurt(id, player, monster,
-       static_cast<int>(weapon.damage()) + ExtraDamage(level));
+       static_cast<int>(weapon.damage()) + ExtraDamage(level) +
+           player.stats.damage);
 }
 
 const skills::Skill* World::Usable(const Player& player, uint32_t id) const {
@@ -287,11 +367,12 @@ void World::Land(uint32_t id, Player& player, const skills::Skill& skill) {
   const skills::Effect& effect = skill.effect();
   const int level = LevelFor(player.experience).number;
   player.health = std::min(player.health + static_cast<int>(effect.heal()),
-                           MaxHealth(level));
+                           MaxHealthOf(player));
   if (effect.damage() == 0) {
     return;
   }
-  const int damage = static_cast<int>(effect.damage()) + ExtraDamage(level);
+  const int damage = static_cast<int>(effect.damage()) + ExtraDamage(level) +
+                     player.stats.damage;
   for (auto& [monster_id, monster] : monsters_) {
     if ((effect.all() || monster_id == player.target) &&
         monster.motion != Motion::kDead &&
@@ -326,9 +407,8 @@ void World::Hurt(uint32_t id, Player& player, Monster& monster, int damage) {
   monster.motion = Motion::kDead;
   monster.respawn = kRespawnTime;
   player.experience += monster.experience;
-  const int now = LevelFor(player.experience).number;
-  if (now > level) {
-    player.health = MaxHealth(now);
+  if (LevelFor(player.experience).number > level) {
+    player.health = MaxHealthOf(player);
   }
 }
 
@@ -361,7 +441,9 @@ void World::Hit(Monster& monster) {
       Distance(player, monster) > monster.reach) {
     return;
   }
-  player.health = std::max(player.health - monster.damage, 0);
+  // What the player wears takes the blow, down to one.
+  const int damage = std::max(monster.damage - player.stats.armour, 1);
+  player.health = std::max(player.health - damage, 0);
   if (player.health > 0) {
     return;
   }

@@ -16,9 +16,6 @@ struct ItemTable {
   std::map<uint32_t, items::Item> by_id;
   /// What each new player starts with.
   std::vector<items::Stack> starting;
-  /// The first weapon in the kit, which each player holds until they have a
-  /// bag to keep the rest in.
-  uint32_t starting_weapon = 0;
 };
 
 /// The items in text format, or what's wrong with them: a field items.proto

@@ -86,7 +86,6 @@ TEST_F(PlayersTest, LoadsWhereThePlayerWasSavedInThatWorld) {
   EXPECT_EQ(player->experience, 40u);
   EXPECT_EQ(player->health, 35);
   EXPECT_EQ(player->land, 1);
-  EXPECT_EQ(player->weapon, 1u);
   EXPECT_EQ(player->skills, (std::set<uint32_t>{1, 3}));
 
   const absl::StatusOr<nanommo::Player> elsewhere = players.Load("Frost", id_);
