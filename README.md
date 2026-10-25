@@ -58,16 +58,17 @@ middle, each a coloured ball with its name over it (see [NPCs](#npcs)). Click th
 purple one, to ask it for a story (see [The storyteller](#the-storyteller)), and the trainer, the
 silver one, to learn skills (see [Learning skills](#learning-skills)). W, A, S and D, or the arrow
 keys, move yours, whose name is in gold, Shift makes it run, Space swings the sword, and 1 to 4 use
-your skills, from the bar along the bottom (see [Skills](#skills)).
+your skills, from the bar along the bottom (see [Skills](#skills)). I, or View, Bag, opens your bag,
+where a new player has three health potions (see [Items](#items)).
 The camera follows you: Q and E, or dragging with the right mouse button, turn it around you,
 dragging up and down tilts it, and the mouse wheel zooms in and out. W always walks away from the camera. The frame in the top left
 corner shows your health, and your experience towards the next level. Enter opens the chat, in the
 bottom left corner, where Enter again says what you typed to everyone in your world (see
 [Chat](#chat)).
 Press C, or choose View, Character, to open your character screen. It shows your name, level,
-health, experience and position, next to an idle preview of your character facing the camera. The
-client renders that preview into a texture with a camera of its own, then ImGui draws the texture in
-the window. View, Settings changes the sound, and the sky, which is the colour of the fog too, and Game, Log out
+health, experience and position, next to an idle preview of your character facing the camera, and
+what you wear. The client renders that preview into a texture with a camera of its own, then ImGui
+draws the texture in the window. View, Settings changes the sound, and the sky, which is the colour of the fog too, and Game, Log out
 takes you back to the login screen. Next time you log in to that world, you're where you left off.
 
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
@@ -181,7 +182,8 @@ Each player holds the weapon in their main hand (see [Items](#items)), so far Qu
 downloaded, in `assets/weapons`. The client scales it to its length in the file, a metre, holds it
 where the file says, a sixth of the way up, and, each frame, puts it where the right hand's bone is
 in the pose: along the knuckles, with the blade out past the index finger. glTF colours are linear,
-so the client turns the sword's into sRGB, as our shader writes colours out as they are.
+so the client turns the sword's into sRGB, as our shader writes colours out as they are. An item's
+tint goes over them, so the Ash Blade is the sword in another colour.
 
 The server decides which way each player faces, and whether it stands, walks or runs. It moves them
 at 1.8 and 3.1 metres a second, the speeds of the walk and the run, so that the feet don't slide.
@@ -469,14 +471,24 @@ What you wear adds to you: its damage to each blow you land, with a weapon or a 
 the most you can have, and its armour comes off each blow a monster lands, down to one. The weapon in
 your main hand is the one you swing. The server adds it all up as what you wear changes, not as you
 fight. Some items roll modifiers of their own as they're made, such as an Ash Blade's damage, which
-stay with that one. A health potion heals forty, one every ten seconds, and takes one off its stack.
+stay with that one.
 
-The world moves a player's items, with `server/inventory.h`, or says why not, in words for the
-player. Each change takes the bag to its next revision, so telling whether a bag has changed takes a
-number, not the bag, and the server saves a bag only when its revision moves (see
-[Saving players](#saving-players)). An item that's gone from the items file stays in the bag, where
-it can be moved but not worn or used, so taking one out of the file by mistake loses nobody's.
-Nothing in the client shows the bag yet.
+Press I, or choose View, Bag, to open the bag. What you wear is in the character window (C). Each
+slot shows its item's icon, in the item's tint, and how many are in it, and over it a tooltip says
+what it is, where it's worn, what it adds, what it rolled, what using one does and how many stack.
+Drag an item onto another slot, in either window, to move it, stack it, swap it, wear it or take it
+off, with Shift for half the stack. Double-click it to drink it, wear it or take it off, and
+right-click it to throw it away. A health potion heals forty, one every ten seconds.
+
+The server decides it all, as it does a swing. The client sends what you do with an item in
+`Input`'s `item`, once, and the world moves the items, with `server/inventory.h`, or says why not,
+in a line in the chat from nobody. A player can do ten things with items at once, then ten a
+second. Each change takes the bag to its next revision, so telling whether a bag has changed takes a
+number, not the bag: the server sends a player their bag, alone, over TCP, as `World`'s `inventory`,
+as they join and when its revision moves, which is now and then. Nobody else gets it: others see
+what's in your main hand once a second, as your weapon. An item that's gone from the items file
+stays in the bag, where it can be moved but not worn or used, so taking one out of the file by
+mistake loses nobody's.
 
 ## Accounts and logins
 
