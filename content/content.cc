@@ -95,12 +95,11 @@ absl::Status CheckContent(const Content& content) {
 
 uint64_t ClientHash(const Content& content) {
   uint64_t hash = kOffsetBasis;
-  // A copy of each with what the clients read, by id.
+  // A copy of each with what the clients read, by id. They show all of an
+  // item but how its weapon fights.
   for (const auto& [id, item] : content.items.by_id) {
-    items::Item seen;
-    seen.set_id(id);
-    seen.set_name(item.name());
-    *seen.mutable_look() = item.look();
+    items::Item seen = item;
+    seen.clear_weapon();
     Add(hash, seen);
   }
   for (const auto& [id, kind] : content.monsters.kinds) {

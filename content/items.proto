@@ -2,6 +2,32 @@ syntax = "proto3";
 
 package nanommo.items;
 
+// Where on a player an item's worn. Each player wears one item in each.
+enum Slot {
+  SLOT_NONE = 0;
+  SLOT_MAIN_HAND = 1;
+  SLOT_OFF_HAND = 2;
+  SLOT_HEAD = 3;
+  SLOT_BODY = 4;
+  SLOT_FEET = 5;
+}
+
+// What an item can add to, while a player wears it.
+enum Stat {
+  STAT_NONE = 0;
+  // To each blow the player lands, with a weapon or a skill.
+  STAT_DAMAGE = 1;
+  // To the most health the player can have.
+  STAT_HEALTH = 2;
+  // Off each blow a monster lands on the player, down to one.
+  STAT_ARMOUR = 3;
+}
+
+message Modifier {
+  Stat stat = 1;
+  int32 amount = 2;
+}
+
 // How a weapon fights: the server's part.
 message Weapon {
   // In metres.
@@ -12,26 +38,73 @@ message Weapon {
   uint32 damage = 4;
 }
 
+// Where an item's worn, and what it adds while it is.
+message Equip {
+  Slot slot = 1;
+  repeated Modifier modifiers = 2;
+}
+
+// A modifier that each one of an item gets as it's made, from min to max.
+message Roll {
+  Stat stat = 1;
+  int32 min = 2;
+  int32 max = 3;
+}
+
+// What using one does. Each use uses one up.
+message Use {
+  uint32 heal = 1;
+  // How long until the player can use another of the item.
+  uint32 cooldown_ms = 2;
+}
+
 // How an item looks: the client's part.
 message Look {
-  // A glTF file in the client's weapons folder.
+  // A glTF file in the client's weapons folder, for what's held in the hand.
   string model = 1;
   // In metres, from end to end.
   float length = 2;
   // Where the hand holds it, as a share of its length from the bottom.
   float grip = 3;
+  // A Font Awesome icon, by its code point, for the bag.
+  uint32 icon = 4;
+  // As 0xRRGGBBAA, over the model's own colours and the icon's.
+  optional uint32 tint = 5;
 }
 
+// An item is the parts it has: the server and the client each go by those,
+// and not by a type.
 message Item {
   // From one, and an item keeps its id for good.
   uint32 id = 1;
   string name = 2;
   Weapon weapon = 3;
   Look look = 4;
+  // How many go in one slot of a bag. Without one, one.
+  uint32 stack = 5;
+  Equip equip = 6;
+  Use use = 7;
+  repeated Roll rolls = 8;
+}
+
+// One of an item, or a stack of them: the item, by its id, how many, and what
+// this one rolled.
+message Stack {
+  uint32 item = 1;
+  // Without one, one.
+  uint32 count = 2;
+  repeated Modifier rolls = 3;
 }
 
 message Items {
-  // What a new player holds, by its id.
-  uint32 starting_weapon = 1;
+  // What each new player held, before they had a bag. The kit has it now.
+  reserved 1;
+  reserved "starting_weapon";
   repeated Item items = 2;
+  // What each new player starts with: worn, if it's worn and the slot's free,
+  // and in their bag if not.
+  repeated Stack starting = 3;
+  // The ids of items that are gone, which no item can take again, as players
+  // may still have them.
+  repeated uint32 retired = 4;
 }

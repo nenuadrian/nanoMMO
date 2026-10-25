@@ -15,10 +15,11 @@ namespace nanommo::testing {
 
 inline ItemTable Sword() {
   return *ParseItems(R"pb(
-    starting_weapon: 1
+    starting { item: 1 }
     items {
       id: 1
       weapon { reach: 1.6 swing_ms: 2000 hit_ms: 900 damage: 15 }
+      equip { slot: SLOT_MAIN_HAND }
     }
   )pb");
 }

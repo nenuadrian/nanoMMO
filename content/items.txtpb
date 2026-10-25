@@ -1,7 +1,9 @@
 # proto-file: content/items.proto
 # proto-message: nanommo.items.Items
 
-starting_weapon: 1
+# A new player has the sword in hand, and three potions in the bag.
+starting { item: 1 }
+starting { item: 2 count: 3 }
 
 items {
   id: 1
@@ -12,9 +14,90 @@ items {
     hit_ms: 900
     damage: 15
   }
+  equip { slot: SLOT_MAIN_HAND }
   look {
     model: "sword.glb"
     length: 1
     grip: 0.1667
+    icon: 0xF715
+  }
+}
+items {
+  id: 2
+  name: "Health Potion"
+  stack: 10
+  use {
+    heal: 40
+    cooldown_ms: 10000
+  }
+  look {
+    icon: 0xF0C3
+    tint: 0xE04848FF
+  }
+}
+items {
+  id: 3
+  name: "Bone"
+  stack: 50
+  look {
+    icon: 0xF5D7
+    tint: 0xE8E0C8FF
+  }
+}
+items {
+  id: 4
+  name: "Leather Cap"
+  equip {
+    slot: SLOT_HEAD
+    modifiers { stat: STAT_ARMOUR amount: 1 }
+  }
+  look {
+    icon: 0xF8C0
+    tint: 0xA0703CFF
+  }
+}
+items {
+  id: 5
+  name: "Leather Tunic"
+  equip {
+    slot: SLOT_BODY
+    modifiers { stat: STAT_ARMOUR amount: 1 }
+    modifiers { stat: STAT_HEALTH amount: 10 }
+  }
+  look {
+    icon: 0xF553
+    tint: 0xA0703CFF
+  }
+}
+items {
+  id: 6
+  name: "Ash Blade"
+  weapon {
+    reach: 1.8
+    swing_ms: 2000
+    hit_ms: 900
+    damage: 20
+  }
+  equip { slot: SLOT_MAIN_HAND }
+  rolls { stat: STAT_DAMAGE min: 0 max: 5 }
+  look {
+    model: "sword.glb"
+    length: 1.2
+    grip: 0.1667
+    icon: 0xF715
+    tint: 0xF07838FF
+  }
+}
+items {
+  id: 7
+  name: "Ash Buckler"
+  equip {
+    slot: SLOT_OFF_HAND
+    modifiers { stat: STAT_ARMOUR amount: 1 }
+  }
+  rolls { stat: STAT_ARMOUR min: 0 max: 2 }
+  look {
+    icon: 0xF3ED
+    tint: 0xF07838FF
   }
 }
