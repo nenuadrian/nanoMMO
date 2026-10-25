@@ -8,6 +8,7 @@
 #include <random>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "content/content.h"
@@ -112,6 +113,13 @@ struct Npc {
   std::set<uint32_t> teaches;
 };
 
+/// A line the world has for one of its players, such as what a monster
+/// they killed dropped, for the server to send them.
+struct Notice {
+  uint32_t player = 0;
+  std::string text;
+};
+
 /// The most health the player can have: their level's, and what they wear
 /// adds.
 int MaxHealthOf(const Player& player);
@@ -176,6 +184,9 @@ class World {
 
   void Step(std::chrono::nanoseconds time);
 
+  /// The lines for players since the last time, which it hands over.
+  std::vector<Notice> TakeNotices();
+
   const std::map<uint32_t, Player>& players() const { return players_; }
   const std::map<uint32_t, Monster>& monsters() const { return monsters_; }
   const std::map<uint32_t, Npc>& npcs() const { return npcs_; }
@@ -194,6 +205,8 @@ class World {
   void Land(uint32_t id, Player& player, const skills::Skill& skill);
   void Push(const Player& player, Monster& monster, float metres);
   void Hurt(uint32_t id, Player& player, Monster& monster, int damage);
+  /// What the monster the player's just killed drops, into their bag.
+  void Loot(uint32_t id, Player& player, const Monster& monster);
   void Act(Monster& monster, std::chrono::nanoseconds time);
   void Hit(Monster& monster);
 
@@ -205,6 +218,7 @@ class World {
   std::map<uint32_t, Npc> npcs_;
   uint32_t next_npc_ = 1;
   std::mt19937 random_;
+  std::vector<Notice> notices_;
 };
 
 }  // namespace nanommo

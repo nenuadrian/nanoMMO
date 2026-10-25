@@ -76,11 +76,15 @@ inline ItemTable Gear() {
   )pb");
 }
 
-/// Content with these items and skills, and nothing else, for a World.
+/// Content with these items, skills and monsters, and nothing else, for a
+/// World.
 inline std::shared_ptr<const Content> With(ItemTable items,
-                                           SkillTable skills = {}) {
+                                           SkillTable skills = {},
+                                           MonsterTable monsters = {}) {
   return std::make_shared<const Content>(
-      Content{.items = std::move(items), .skills = std::move(skills)});
+      Content{.items = std::move(items),
+              .monsters = std::move(monsters),
+              .skills = std::move(skills)});
 }
 
 inline monsters::Kind Skeleton() {

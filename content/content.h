@@ -24,8 +24,9 @@ struct Content {
 /// Reads each file in the folder, or says which file is wrong, and where.
 absl::StatusOr<Content> ReadContent(const std::string& folder);
 
-/// What the whole folder can tell is wrong, and no single file can: a trainer
-/// that teaches a skill the skills file doesn't have.
+/// What the whole folder can tell is wrong, and no single file can: a monster
+/// that drops an item the items file doesn't have, or a trainer that teaches
+/// a skill the skills file doesn't have.
 absl::Status CheckContent(const Content& content);
 
 /// A fingerprint of what the clients read, so that a client can tell whether

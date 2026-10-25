@@ -1,5 +1,6 @@
 #include "server/copies.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <iostream>
@@ -45,6 +46,14 @@ void Copies::Leave(uint32_t id) {
 Copy* Copies::Of(uint32_t id) {
   const auto where = where_.find(id);
   return where != where_.end() ? &copies_.at(where->second) : nullptr;
+}
+
+std::vector<Notice> Copies::TakeNotices() {
+  std::vector<Notice> notices;
+  for (auto& [id, copy] : copies_) {
+    std::ranges::move(copy.world.TakeNotices(), std::back_inserter(notices));
+  }
+  return notices;
 }
 
 int Copies::players() const {

@@ -75,12 +75,21 @@ absl::StatusOr<Content> ReadContent(const std::string& folder) {
   const absl::Status checked = CheckContent(content);
   if (!checked.ok()) {
     return absl::InvalidArgumentError(
-        absl::StrCat(folder, "/npcs.txtpb, ", checked.message()));
+        absl::StrCat(folder, ", ", checked.message()));
   }
   return content;
 }
 
 absl::Status CheckContent(const Content& content) {
+  for (const auto& [id, kind] : content.monsters.kinds) {
+    for (const monsters::Drop& drop : kind.loot()) {
+      if (!content.items.by_id.contains(drop.item())) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("the ", kind.name(), " drops an item ", drop.item(),
+                         " that isn't in the items file"));
+      }
+    }
+  }
   for (const auto& [id, kind] : content.npcs.kinds) {
     for (const uint32_t skill : kind.teaches()) {
       if (!content.skills.by_id.contains(skill)) {

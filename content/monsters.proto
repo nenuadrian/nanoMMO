@@ -28,6 +28,17 @@ message Look {
   optional uint32 tint = 3;
 }
 
+// What a kind of monster can drop, which goes into its killer's bag: the
+// item, by its id in the items file, the chance of it, from nothing to one,
+// and how many, from min to max.
+message Drop {
+  uint32 item = 1;
+  float chance = 2;
+  // Without them, one.
+  uint32 min = 3;
+  uint32 max = 4;
+}
+
 message Kind {
   // From one, and a kind keeps its id for good.
   uint32 id = 1;
@@ -38,6 +49,7 @@ message Kind {
   uint32 experience = 5;
   Fight fight = 6;
   Look look = 7;
+  repeated Drop loot = 8;
 }
 
 // A monster that always has its home in the same place, in metres from the

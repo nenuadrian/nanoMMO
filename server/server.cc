@@ -478,6 +478,11 @@ void Server::Tick() {
   }
   const auto start = std::chrono::steady_clock::now();
   copies_.Step(interval_);
+  for (const Notice& notice : copies_.TakeNotices()) {
+    if (sessions_.contains(notice.player)) {
+      Notify(notice.player, notice.text);
+    }
+  }
   std::array<std::size_t, kLands.size()> in_land{};
   std::array<std::size_t, kLands.size()> copies_of{};
   for (const auto& [id, copy] : copies_.all()) {

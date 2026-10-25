@@ -135,6 +135,39 @@ TEST(Content, RefusesMonstersThatDontAddUp) {
           .ok());
 }
 
+TEST(Content, RefusesLootThatDoesntAddUp) {
+  EXPECT_TRUE(
+      nanommo::ParseMonsters("kinds { id: 1 name: \"Skeleton\" "
+                             "loot { item: 3 chance: 0.5 min: 1 max: 3 } }")
+          .ok());
+  EXPECT_EQ(nanommo::ParseMonsters("kinds { id: 1 name: \"Skeleton\" "
+                                   "loot { item: 3 } }")
+                .status()
+                .message(),
+            "the Skeleton drops item 3 with a chance of 0, which has to be "
+            "more than 0 and at most 1");
+  EXPECT_FALSE(nanommo::ParseMonsters("kinds { id: 1 name: \"Skeleton\" "
+                                      "loot { item: 3 chance: 1.5 } }")
+                   .ok());
+  EXPECT_EQ(
+      nanommo::ParseMonsters("kinds { id: 1 name: \"Skeleton\" "
+                             "loot { item: 3 chance: 0.5 min: 3 max: 1 } }")
+          .status()
+          .message(),
+      "the Skeleton drops from 3 to 1 of item 3");
+
+  // What a monster drops has to be in the items file.
+  nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  EXPECT_TRUE(std::ranges::any_of(content.monsters.kinds, [](const auto& kind) {
+    return !kind.second.loot().empty();
+  }));
+  nanommo::monsters::Drop* drop = content.monsters.kinds.at(1).add_loot();
+  drop->set_item(99);
+  drop->set_chance(0.5f);
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "the Skeleton drops an item 99 that isn't in the items file");
+}
+
 TEST(Content, RefusesNpcsThatDontAddUp) {
   EXPECT_FALSE(nanommo::ParseNpcs("kinds { id: 1 } "
                                   "spawns { kind: 2 land: \"Meadows\" }")

@@ -2,11 +2,15 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <iterator>
 #include <map>
 #include <memory>
+#include <random>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "server/levels.h"
@@ -44,6 +48,30 @@ void Add(Stats& stats, const items::Modifier& modifier) {
     default:
       break;
   }
+}
+
+// "a Bone", "an Ash Blade", or "3 Bones".
+std::string Some(const items::Item& item, uint32_t count) {
+  if (count > 1) {
+    return absl::StrCat(count, " ", item.name(), "s");
+  }
+  const bool vowel = !item.name().empty() &&
+                     std::string_view("AEIOU").find(item.name().front()) !=
+                         std::string_view::npos;
+  return absl::StrCat(vowel ? "an " : "a ", item.name());
+}
+
+// "A", "A and B", or "A, B and C".
+std::string List(const std::vector<std::string>& things) {
+  std::string list;
+  for (std::size_t i = 0; i < things.size(); ++i) {
+    absl::StrAppend(&list,
+                    i == 0                   ? ""
+                    : i + 1 == things.size() ? " and "
+                                             : ", ",
+                    things[i]);
+  }
+  return list;
 }
 
 }  // namespace
@@ -459,7 +487,61 @@ void World::Hurt(uint32_t id, Player& player, Monster& monster, int damage) {
   if (LevelFor(player.experience).number > level) {
     player.health = MaxHealthOf(player);
   }
+  Loot(id, player, monster);
 }
+
+void World::Loot(uint32_t id, Player& player, const Monster& monster) {
+  const auto kind = content_->monsters.kinds.find(monster.kind);
+  if (kind == content_->monsters.kinds.end()) {
+    return;
+  }
+  std::vector<std::string> kept;
+  std::vector<std::string> left;
+  for (const monsters::Drop& drop : kind->second.loot()) {
+    const auto item = content_->items.by_id.find(drop.item());
+    if (item == content_->items.by_id.end() ||
+        !std::bernoulli_distribution(drop.chance())(random_)) {
+      continue;
+    }
+    const uint32_t least = std::max(drop.min(), 1u);
+    const uint32_t count = std::uniform_int_distribution(
+        least, std::max(drop.max(), least))(random_);
+    // What stacks drops as one stack, and what doesn't one at a time, each
+    // with rolls of its own.
+    const uint32_t each = StackSize(item->second) > 1 ? count : 1;
+    uint32_t fitted = 0;
+    for (uint32_t made = 0; made < count; made += each) {
+      items::Stack stack;
+      stack.set_item(drop.item());
+      stack.set_count(each);
+      for (const items::Roll& roll : item->second.rolls()) {
+        items::Modifier* rolled = stack.add_rolls();
+        rolled->set_stat(roll.stat());
+        rolled->set_amount(
+            std::uniform_int_distribution(roll.min(), roll.max())(random_));
+      }
+      fitted += each - player.inventory.Add(content_->items, stack);
+    }
+    if (fitted > 0) {
+      kept.push_back(Some(item->second, fitted));
+    }
+    if (fitted < count) {
+      left.push_back(Some(item->second, count - fitted));
+    }
+  }
+  if (!kept.empty()) {
+    notices_.push_back({.player = id,
+                        .text = absl::StrCat("The ", kind->second.name(),
+                                             " dropped ", List(kept), ".")});
+  }
+  if (!left.empty()) {
+    notices_.push_back({.player = id,
+                        .text = absl::StrCat("Your bag is full, so you left ",
+                                             List(left), " behind.")});
+  }
+}
+
+std::vector<Notice> World::TakeNotices() { return std::exchange(notices_, {}); }
 
 void World::Act(Monster& monster, std::chrono::nanoseconds time) {
   if (monster.motion == Motion::kDead) {

@@ -22,6 +22,21 @@ absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text) {
   if (!kinds.ok()) {
     return kinds.status();
   }
+  for (const auto& [id, kind] : *kinds) {
+    for (const monsters::Drop& drop : kind.loot()) {
+      if (drop.chance() <= 0.0f || drop.chance() > 1.0f) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("the ", kind.name(), " drops item ", drop.item(),
+                         " with a chance of ", drop.chance(),
+                         ", which has to be more than 0 and at most 1"));
+      }
+      if (drop.max() != 0 && drop.max() < drop.min()) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("the ", kind.name(), " drops from ", drop.min(),
+                         " to ", drop.max(), " of item ", drop.item()));
+      }
+    }
+  }
   MonsterTable table{.kinds = *std::move(kinds),
                      .spawns = {file.spawns().begin(), file.spawns().end()},
                      .camps = {file.camps().begin(), file.camps().end()}};

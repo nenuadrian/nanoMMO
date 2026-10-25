@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <numbers>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "server/monsters.h"
@@ -427,4 +428,81 @@ TEST(World, UsesWhatsInTheBagOnceItsCooledDown) {
 
   EXPECT_EQ(world.UseItem(1, 5).message(), "There's nothing there.");
   EXPECT_EQ(world.UseItem(2, 0).message(), "You can't use the Bone.");
+}
+
+namespace {
+
+// A skeleton that always drops two bones and a blade, and whose health one
+// swing takes.
+nanommo::MonsterTable Looted() {
+  nanommo::monsters::Kind kind = nanommo::testing::Skeleton();
+  kind.set_max_health(10);
+  nanommo::monsters::Drop* bones = kind.add_loot();
+  bones->set_item(kBone);
+  bones->set_chance(1.0f);
+  bones->set_min(2);
+  bones->set_max(2);
+  nanommo::monsters::Drop* blade = kind.add_loot();
+  blade->set_item(kBlade);
+  blade->set_chance(1.0f);
+  return {.kinds = {{1, kind}}};
+}
+
+// Kills the looted skeleton in front of the player.
+void Kill(nanommo::World& world, uint32_t id) {
+  nanommo::monsters::Kind kind = Looted().kinds.at(1);
+  world.Spawn(nanommo::MonsterOf(kind, 1.0f, 0.0f));
+  world.SetInput(id, 0.0f, 0.0f, false, true);
+  RunOneSecond(world);
+  world.SetInput(id, 0.0f, 0.0f, false);
+}
+
+}  // namespace
+
+TEST(World, PutsWhatAMonsterDropsInItsKillersBag) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Gear(), {}, Looted()));
+  world.Join(1, {});
+  Kill(world, 1);
+
+  // The kit's potions are in the first slot, so the loot's in the next two.
+  const nanommo::Inventory& bag = world.players().at(1).inventory;
+  ASSERT_NE(bag.At(nanommo::InBag(1)), nullptr);
+  EXPECT_EQ(bag.At(nanommo::InBag(1))->item(), kBone);
+  EXPECT_EQ(bag.At(nanommo::InBag(1))->count(), 2u);
+  const nanommo::items::Stack* blade = bag.At(nanommo::InBag(2));
+  ASSERT_NE(blade, nullptr);
+  EXPECT_EQ(blade->item(), kBlade);
+  // It rolled its damage, from two to four.
+  ASSERT_EQ(blade->rolls_size(), 1);
+  EXPECT_EQ(blade->rolls(0).stat(), nanommo::items::STAT_DAMAGE);
+  EXPECT_GE(blade->rolls(0).amount(), 2);
+  EXPECT_LE(blade->rolls(0).amount(), 4);
+
+  const std::vector<nanommo::Notice> notices = world.TakeNotices();
+  ASSERT_EQ(notices.size(), 1u);
+  EXPECT_EQ(notices[0].player, 1u);
+  EXPECT_EQ(notices[0].text, "The Skeleton dropped 2 Bones and a Blade.");
+  EXPECT_TRUE(world.TakeNotices().empty());
+}
+
+TEST(World, LeavesWhatDoesntFitInTheBag) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Gear(), {}, Looted()));
+  // A sword in hand, and a cap in each slot of the bag.
+  nanommo::Player alice = With(1, true);
+  for (uint32_t slot = 0; slot < nanommo::kBagSlots; ++slot) {
+    alice.inventory.Add(nanommo::testing::Gear(), One(kCap));
+  }
+  world.Join(1, alice);
+  Kill(world, 1);
+
+  EXPECT_EQ(world.players().at(1).inventory.items().bag_size(),
+            static_cast<int>(nanommo::kBagSlots));
+  const std::vector<nanommo::Notice> notices = world.TakeNotices();
+  ASSERT_EQ(notices.size(), 1u);
+  EXPECT_EQ(notices[0].text,
+            "Your bag is full, so you left 2 Bones and a Blade behind.");
 }

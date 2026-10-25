@@ -19,7 +19,8 @@ struct MonsterTable {
 };
 
 /// The monsters in text format, or what's wrong with them: a field
-/// monsters.proto doesn't have, a kind with no id or with another's, a spawn
+/// monsters.proto doesn't have, a kind with no id or with another's, loot
+/// with a chance of nothing or more than one, or from more to fewer, a spawn
 /// or camps of a kind or in a land that isn't there, or a spawn whose leash
 /// reaches the middle of its land.
 absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text);
