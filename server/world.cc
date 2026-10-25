@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -32,10 +33,10 @@ void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z) {
   }
 }
 
-World::World(uint32_t seed, Terrain terrain, ItemTable items, SkillTable skills)
+World::World(uint32_t seed, Terrain terrain,
+             std::shared_ptr<const Content> content)
     : terrain_(std::move(terrain)),
-      items_(std::move(items)),
-      skills_(std::move(skills)),
+      content_(std::move(content)),
       random_(seed) {}
 
 void World::Join(uint32_t id, Player player) {
@@ -49,10 +50,11 @@ void World::Join(uint32_t id, Player player) {
     player.health = MaxHealth(LevelFor(player.experience).number);
   }
   // No weapon, or one that isn't in the items file: the starting weapon.
-  if (!items_.by_id.contains(player.weapon)) {
-    player.weapon = items_.starting_weapon;
+  if (!content_->items.by_id.contains(player.weapon)) {
+    player.weapon = content_->items.starting_weapon;
   }
-  player.skills.insert(skills_.starting.begin(), skills_.starting.end());
+  player.skills.insert(content_->skills.starting.begin(),
+                       content_->skills.starting.end());
   players_[id] = std::move(player);
 }
 
@@ -103,10 +105,10 @@ void World::UseSkill(uint32_t id, uint32_t skill) {
 absl::Status World::Learn(uint32_t id, uint32_t npc, uint32_t skill) {
   const auto player = players_.find(id);
   const auto trainer = npcs_.find(npc);
-  const auto taught = skills_.by_id.find(skill);
+  const auto taught = content_->skills.by_id.find(skill);
   if (player == players_.end() || trainer == npcs_.end() ||
       !trainer->second.teaches.contains(skill) ||
-      taught == skills_.by_id.end()) {
+      taught == content_->skills.by_id.end()) {
     return absl::NotFoundError("Nobody here teaches that.");
   }
   if (std::hypot(trainer->second.x - player->second.x,
@@ -158,7 +160,7 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
     return;
   }
   if (player.motion == Motion::kSkill) {
-    const skills::Skill& skill = skills_.by_id.at(player.skill);
+    const skills::Skill& skill = content_->skills.by_id.at(player.skill);
     const auto before = player.cast;
     player.cast += time;
     const std::chrono::milliseconds hit(skill.effect().hit_ms());
@@ -219,8 +221,8 @@ void World::Move(Player& player, std::chrono::nanoseconds time) {
 }
 
 const items::Weapon* World::WeaponOf(const Player& player) const {
-  const auto found = items_.by_id.find(player.weapon);
-  if (found == items_.by_id.end() || !found->second.has_weapon()) {
+  const auto found = content_->items.by_id.find(player.weapon);
+  if (found == content_->items.by_id.end() || !found->second.has_weapon()) {
     return nullptr;
   }
   return &found->second.weapon();
@@ -265,8 +267,8 @@ void World::Hit(uint32_t id, Player& player, const items::Weapon& weapon) {
 }
 
 const skills::Skill* World::Usable(const Player& player, uint32_t id) const {
-  const auto found = skills_.by_id.find(id);
-  if (found == skills_.by_id.end() || !player.skills.contains(id) ||
+  const auto found = content_->skills.by_id.find(id);
+  if (found == content_->skills.by_id.end() || !player.skills.contains(id) ||
       player.cooldowns.contains(id)) {
     return nullptr;
   }

@@ -1,6 +1,10 @@
 #ifndef NANOMMO_SERVER_TEST_CONTENT_H_
 #define NANOMMO_SERVER_TEST_CONTENT_H_
 
+#include <memory>
+#include <utility>
+
+#include "content/content.h"
 #include "content/items.h"
 #include "content/monsters.h"
 #include "content/skills.h"
@@ -29,6 +33,13 @@ inline SkillTable Kick() {
       effect { cast_ms: 1000 hit_ms: 500 reach: 1.4 damage: 10 push: 3 }
     }
   )pb");
+}
+
+/// Content with these items and skills, and nothing else, for a World.
+inline std::shared_ptr<const Content> With(ItemTable items,
+                                           SkillTable skills = {}) {
+  return std::make_shared<const Content>(
+      Content{.items = std::move(items), .skills = std::move(skills)});
 }
 
 inline monsters::Kind Skeleton() {

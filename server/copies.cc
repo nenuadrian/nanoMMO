@@ -15,7 +15,8 @@
 
 namespace nanommo {
 
-Copies::Copies(uint32_t seed, Content content) : content_(std::move(content)) {
+Copies::Copies(uint32_t seed, Content content)
+    : content_(std::make_shared<const Content>(std::move(content))) {
   for (const Land& land : kLands) {
     terrains_.emplace_back(seed + land.seed, land.wading);
   }
@@ -85,14 +86,13 @@ uint32_t Copies::For(int land, uint32_t id) {
   const uint32_t made = next_++;
   Copy& copy =
       copies_
-          .emplace(made,
-                   Copy{.land = land,
-                        .world = World(std::random_device()(), terrains_[land],
-                                       content_.items, content_.skills),
-                        .owner = owner})
+          .emplace(made, Copy{.land = land,
+                              .world = World(std::random_device()(),
+                                             terrains_[land], content_),
+                              .owner = owner})
           .first->second;
-  SpawnMonsters(copy.world, land, content_.monsters);
-  SpawnNpcs(copy.world, land, content_.npcs);
+  SpawnMonsters(copy.world, land, content_->monsters);
+  SpawnNpcs(copy.world, land, content_->npcs);
   copy.npc_cells = CellsOf(copy.world.npcs());
   if (owner != 0) {
     std::cout << "made player " << owner << " a copy of the "

@@ -4,13 +4,13 @@
 #include <chrono>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <random>
 #include <set>
 #include <string>
 
 #include "absl/status/status.h"
-#include "content/items.h"
-#include "content/skills.h"
+#include "content/content.h"
 #include "terrain/terrain.h"
 
 namespace nanommo {
@@ -112,11 +112,12 @@ class World {
   /// In metres, from the middle of an NPC, as you'd talk to someone.
   static constexpr float kTalkReach = 4.0f;
 
-  /// Players fight with the items' weapons and the skills, so in a world
-  /// without items, nobody can.
-  explicit World(uint32_t seed = std::mt19937::default_seed,
-                 Terrain terrain = Terrain(), ItemTable items = {},
-                 SkillTable skills = {});
+  /// Players fight with the content's weapons and skills, so in a world
+  /// without content, nobody can. Content doesn't change as the game runs, so
+  /// the world's copies of its lands share one.
+  explicit World(
+      uint32_t seed = std::mt19937::default_seed, Terrain terrain = Terrain(),
+      std::shared_ptr<const Content> content = std::make_shared<Content>());
 
   void Join(uint32_t id, Player player);
 
@@ -160,8 +161,7 @@ class World {
   void Hit(Monster& monster);
 
   Terrain terrain_;
-  ItemTable items_;
-  SkillTable skills_;
+  std::shared_ptr<const Content> content_;
   std::map<uint32_t, Player> players_;
   std::map<uint32_t, Monster> monsters_;
   uint32_t next_monster_ = 1;

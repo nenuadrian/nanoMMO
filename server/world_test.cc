@@ -138,7 +138,8 @@ TEST(World, SpawnsMonstersWithIdsOfTheirOwn) {
 }
 
 TEST(World, SwingsAtTheNearestMonsterInReach) {
-  nanommo::World world(1, nanommo::Terrain(), nanommo::testing::Sword());
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword()));
   world.Join(1, {});
   const uint32_t near =
       world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 1.0f, 0.0f));
@@ -157,7 +158,8 @@ TEST(World, SwingsAtTheNearestMonsterInReach) {
 }
 
 TEST(World, KillsMonstersForTheirExperienceAndTheyComeBack) {
-  nanommo::World world(1, nanommo::Terrain(), nanommo::testing::Sword());
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword()));
   world.Join(1, {.experience = 60});
   nanommo::Monster weak =
       nanommo::MonsterOf(nanommo::testing::Skeleton(), 1.0f, 0.0f);
@@ -181,8 +183,9 @@ TEST(World, KillsMonstersForTheirExperienceAndTheyComeBack) {
 }
 
 TEST(World, UsesTheSkillsTheyKnowOnceTheyreReady) {
-  nanommo::World world(1, nanommo::Terrain(), nanommo::testing::Sword(),
-                       nanommo::testing::Kick());
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword(),
+                                              nanommo::testing::Kick()));
   world.Join(1, {});
   world.Join(2, {.experience = 100, .skills = {1}});
   const uint32_t skeleton =
@@ -218,8 +221,9 @@ TEST(World, UsesTheSkillsTheyKnowOnceTheyreReady) {
 }
 
 TEST(World, LearnsSkillsFromATrainerFromTheirLevel) {
-  nanommo::World world(1, nanommo::Terrain(), nanommo::testing::Sword(),
-                       nanommo::testing::Kick());
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword(),
+                                              nanommo::testing::Kick()));
   const uint32_t trainer =
       world.Spawn(nanommo::Npc{.name = "Trainer", .x = 3.0f, .teaches = {1}});
   world.Join(1, {.experience = 100});

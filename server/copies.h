@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "content/content.h"
@@ -63,7 +64,8 @@ class Copies {
   uint32_t For(int land, uint32_t id);
   void Travel();
 
-  Content content_;
+  /// One copy, which each copy of each land shares.
+  std::shared_ptr<const Content> content_;
   /// Each land's, made once, which each of its copies copies.
   std::vector<Terrain> terrains_;
   std::map<uint32_t, Copy> copies_;

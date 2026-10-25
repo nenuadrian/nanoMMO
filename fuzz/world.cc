@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 #include "absl/log/absl_check.h"
 #include "content/content.h"
@@ -20,12 +21,11 @@
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
   // Making the island takes a while, so each input plays on a copy of one.
   static const nanommo::World* const island = [] {
-    const nanommo::Content content =
-        *nanommo::ReadContent(NANOMMO_CONTENT_FOLDER);
-    auto* world = new nanommo::World(1, nanommo::Terrain(1), content.items,
-                                     content.skills);
-    nanommo::SpawnMonsters(*world, 0, content.monsters);
-    nanommo::SpawnNpcs(*world, 0, content.npcs);
+    const auto content = std::make_shared<const nanommo::Content>(
+        *nanommo::ReadContent(NANOMMO_CONTENT_FOLDER));
+    auto* world = new nanommo::World(1, nanommo::Terrain(1), content);
+    nanommo::SpawnMonsters(*world, 0, content->monsters);
+    nanommo::SpawnNpcs(*world, 0, content->npcs);
     return world;
   }();
   FuzzedDataProvider input(data, size);
