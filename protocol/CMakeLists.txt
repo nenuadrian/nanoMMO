@@ -9,7 +9,7 @@ set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/nanommo.pb.cc
 )
 target_include_directories(nanommo_protocol PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
 target_link_libraries(nanommo_protocol PUBLIC
-  protobuf::libprotobuf absl::status absl::statusor absl::strings
+  nanommo_content protobuf::libprotobuf absl::status absl::statusor absl::strings
   asio OpenSSL::SSL
 )
 

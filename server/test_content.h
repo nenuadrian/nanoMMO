@@ -36,6 +36,46 @@ inline SkillTable Kick() {
   )pb");
 }
 
+// What a player might carry: what stacks, what's worn, and what rolls.
+inline ItemTable Gear() {
+  return *ParseItems(R"pb(
+    starting { item: 1 }
+    starting { item: 2 count: 3 }
+    items {
+      id: 1
+      name: "Sword"
+      weapon { reach: 1.6 swing_ms: 2000 hit_ms: 900 damage: 15 }
+      equip { slot: SLOT_MAIN_HAND }
+    }
+    items {
+      id: 2
+      name: "Potion"
+      stack: 10
+      use { heal: 40 cooldown_ms: 10000 }
+    }
+    items { id: 3 name: "Bone" stack: 50 }
+    items {
+      id: 4
+      name: "Cap"
+      equip {
+        slot: SLOT_HEAD
+        modifiers { stat: STAT_ARMOUR amount: 2 }
+        modifiers { stat: STAT_HEALTH amount: 10 }
+      }
+    }
+    items {
+      id: 5
+      name: "Blade"
+      weapon { reach: 1.6 swing_ms: 2000 hit_ms: 900 damage: 20 }
+      equip {
+        slot: SLOT_MAIN_HAND
+        modifiers { stat: STAT_DAMAGE amount: 1 }
+      }
+      rolls { stat: STAT_DAMAGE min: 2 max: 4 }
+    }
+  )pb");
+}
+
 /// Content with these items and skills, and nothing else, for a World.
 inline std::shared_ptr<const Content> With(ItemTable items,
                                            SkillTable skills = {}) {

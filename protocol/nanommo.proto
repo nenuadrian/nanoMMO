@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package nanommo.protocol;
 
+// Items, their slots and their stacks are the items file's.
+import "content/items.proto";
+
 // What a player says to an NPC that talks, by the NPC's id.
 message Talk {
   uint32 npc = 1;
@@ -79,6 +82,25 @@ message Npc {
   float z = 4;
   float yaw = 5;
   uint32 kind = 9;
+}
+
+// Where an item is: in a slot of the bag, from zero, or worn.
+message Place {
+  oneof where {
+    uint32 bag = 1;
+    items.Slot worn = 2;
+  }
+}
+
+// What a player carries and wears. Each change takes it to its next
+// revision, so whoever keeps a copy can tell it's changed by the number alone,
+// and a player with no revision has never had any.
+message Inventory {
+  // By slot.
+  map<uint32, items.Stack> bag = 1;
+  // By items.Slot, which can't be a map's key itself.
+  map<uint32, items.Stack> worn = 2;
+  uint32 revision = 3;
 }
 
 message Chat {
