@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -101,8 +102,9 @@ absl::StatusOr<Result> Database::Run(std::string_view sql,
                                      const std::vector<std::string>& values) {
   absl::StatusOr<Statement> prepared = Prepare(mysql_, sql);
   // MySQL drops a connection that sits idle for eight hours, and a restart
-  // drops them all. Nothing has run yet, so we connect again and retry.
-  if (absl::IsUnavailable(prepared.status())) {
+  // drops them all. Nothing has run yet, so we connect again and retry,
+  // unless we're in a transaction, which went with the connection.
+  if (absl::IsUnavailable(prepared.status()) && !in_transaction_) {
     const absl::Status connected = Connect();
     if (!connected.ok()) {
       return connected;
@@ -165,6 +167,33 @@ absl::StatusOr<Result> Database::Run(std::string_view sql,
     return StatementError(statement.get());
   }
   return result;
+}
+
+absl::Status Database::Transaction(
+    const std::function<absl::Status()>& statements) {
+  // Turning autocommit off is the first thing to reach MySQL, so a connection
+  // that's gone stale fails there, before anything has run, and we connect
+  // again.
+  if (mysql_autocommit(mysql_, false) != 0) {
+    const absl::Status connected = Connect();
+    if (!connected.ok()) {
+      return connected;
+    }
+    if (mysql_autocommit(mysql_, false) != 0) {
+      return Error(mysql_errno(mysql_), mysql_error(mysql_));
+    }
+  }
+  in_transaction_ = true;
+  absl::Status status = statements();
+  in_transaction_ = false;
+  if (status.ok() && mysql_commit(mysql_) != 0) {
+    status = Error(mysql_errno(mysql_), mysql_error(mysql_));
+  }
+  if (!status.ok()) {
+    mysql_rollback(mysql_);
+  }
+  mysql_autocommit(mysql_, true);
+  return status;
 }
 
 }  // namespace nanommo

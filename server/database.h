@@ -4,6 +4,7 @@
 #include <mysql.h>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -37,6 +38,12 @@ class Database {
   absl::StatusOr<Result> Run(std::string_view sql,
                              const std::vector<std::string>& values = {});
 
+  /// Runs the statements as one transaction, so that either all of them
+  /// happen, or none does: none if one of them fails, or if the connection
+  /// goes. A lost connection isn't tried again inside a transaction, as what
+  /// ran before it on that connection is gone.
+  absl::Status Transaction(const std::function<absl::Status()>& statements);
+
  private:
   Database(std::string host, std::string user, std::string password,
            std::string name)
@@ -52,6 +59,7 @@ class Database {
   std::string password_;
   std::string name_;
   MYSQL* mysql_ = nullptr;
+  bool in_transaction_ = false;
 };
 
 }  // namespace nanommo

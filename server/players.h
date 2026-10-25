@@ -1,6 +1,7 @@
 #ifndef NANOMMO_SERVER_PLAYERS_H_
 #define NANOMMO_SERVER_PLAYERS_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <set>
@@ -8,6 +9,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "protocol/nanommo.pb.h"
 #include "server/database.h"
 #include "server/redis.h"
 #include "server/world.h"
@@ -25,6 +27,9 @@ struct Progress {
   /// website might.
   uint32_t weapon = 0;
   std::set<uint32_t> skills;
+  /// Their bag's revision, which goes up with each change to it, so that
+  /// telling whether it needs saving takes a number, not the bag.
+  uint32_t items_revision = 0;
 
   bool operator==(const Progress&) const = default;
 };
@@ -32,6 +37,8 @@ struct Progress {
 class Players {
  public:
   static constexpr int kBatch = 500;
+  /// The most rows of the bags that go in one statement.
+  static constexpr std::size_t kItemRows = 1000;
 
   Players(Database& database, Redis& redis)
       : database_(database), redis_(redis) {}
@@ -40,12 +47,15 @@ class Players {
   /// top, as that's newer.
   absl::StatusOr<Player> Load(const std::string& world, uint32_t account_id);
 
-  /// Into Redis, all of them in a single round trip, and marked unsaved.
+  /// Into Redis, all of them in a single round trip, and marked unsaved, with
+  /// the bags of those whose bags changed, which are marked unsaved apart.
   absl::Status Save(const std::string& world,
-                    const std::map<uint32_t, Progress>& changed);
+                    const std::map<uint32_t, Progress>& changed,
+                    const std::map<uint32_t, protocol::Inventory>& bags = {});
 
   /// Takes the unsaved players of all the worlds from Redis to MySQL, a batch
-  /// at a time, and returns how many it saved.
+  /// at a time, each in a transaction with the bags that changed, and returns
+  /// how many it saved.
   absl::StatusOr<int> Flush();
 
  private:

@@ -68,7 +68,8 @@ Progress ProgressOf(const Player& player) {
                     .health = player.health,
                     .land = player.land,
                     .weapon = MainHandOf(player),
-                    .skills = player.skills};
+                    .skills = player.skills,
+                    .items_revision = player.inventory.revision()};
   // The dead come back in the middle, at full health, so that's what we keep.
   if (player.motion == Motion::kDead) {
     progress.x = 0.0f;
@@ -460,15 +461,20 @@ void Server::SaveChanged() {
   ZoneScoped;
   const auto start = std::chrono::steady_clock::now();
   std::map<uint32_t, Progress> changed;
+  std::map<uint32_t, protocol::Inventory> bags;
   for (const auto& [copy_id, copy] : copies_.all()) {
     for (const auto& [id, player] : copy.world.players()) {
       const Progress progress = ProgressOf(player);
       if (progress != saved_[id]) {
+        // The bag goes too only when its revision has moved.
+        if (progress.items_revision != saved_[id].items_revision) {
+          bags[id] = player.inventory.items();
+        }
         changed[id] = progress;
       }
     }
   }
-  const absl::Status status = players_.Save(name_, changed);
+  const absl::Status status = players_.Save(name_, changed, bags);
   if (status.ok()) {
     for (const auto& [id, progress] : changed) {
       saved_[id] = progress;

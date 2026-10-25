@@ -24,7 +24,7 @@ target_link_libraries(nanommo_saver PRIVATE nanommo_server_core absl::time)
 add_executable(nanommo_server_tests
   tick_test.cc inventory_test.cc world_test.cc copies_test.cc monsters_test.cc interest_test.cc
   levels_test.cc metrics_test.cc password_test.cc
-  accounts_test.cc players_test.cc tokens_test.cc
+  database_test.cc accounts_test.cc players_test.cc tokens_test.cc
   login_server_test.cc consul_test.cc token_bucket_test.cc stories_test.cc
   server_test.cc
 )

@@ -1,0 +1,3 @@
+ALTER TABLE players
+  ADD COLUMN items_revision INT UNSIGNED NULL,
+  ALGORITHM = INSTANT;
