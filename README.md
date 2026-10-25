@@ -176,7 +176,7 @@ slash and the death keep their motion, so a player falls back as it dies. The bu
 `assets/characters` next to the client, which loads them from there. Without them, the players are
 cubes, and the client's character tests skip themselves.
 
-Each player holds a weapon from the items file (see [Content](#content)), so far Quaternius's sword, from
+Each player holds the weapon in their main hand (see [Items](#items)), so far Quaternius's sword, from
 [Poly Pizza](https://poly.pizza/m/ajOJ2NLz5m), which is public domain and in the repo, as it was
 downloaded, in `assets/weapons`. The client scales it to its length in the file, a metre, holds it
 where the file says, a sixth of the way up, and, each frame, puts it where the right hand's bone is
@@ -376,7 +376,8 @@ Space swings your weapon at the nearest monster within its reach, and turns you 
 sword's numbers are in the items file: it reaches 1.6 metres, and a swing takes two seconds, the
 length of the slash animation, and you stand still until it's over. The sword hits 0.9 seconds in, as
 it comes across the front, if the monster is still alive and in reach, for fifteen health, and each
-level after the first adds five to whatever you hold. Holding Space down swings again and again. All
+level after the first adds five to whatever you hold, and what you wear adds its damage. With no
+weapon in your main hand, Space does nothing, and putting the weapon away ends a swing. Holding Space down swings again and again. All
 of it happens on the server: the client only says that Space is down, in `Input`.
 
 A monster goes for the nearest living player within its kind's sight, three metres for a skeleton, if that player is within
@@ -385,7 +386,7 @@ instead, seen or not, while they're within its leash, so that a kick that knocks
 doesn't make it forget them. The content's checks keep each fixed home further than that from the middle of the
 island, so the middle, where players start and come back, is safe. A monster runs at them at the
 players' running speed, and swings once it's within 1.2 metres. The skeleton's swing takes 0.9 seconds, its attack animation, and hits for five,
-0.65 seconds in. An Ash Skeleton, in the Ashlands, is level two, and hits for eight. Run, or die, and it gives up and wanders back.
+0.65 seconds in, less the armour you wear, down to one. An Ash Skeleton, in the Ashlands, is level two, and hits for eight. Run, or die, and it gives up and wanders back.
 
 A monster with no health left dies, and whoever killed it gets its experience, fifty for a skeleton, and ninety for an Ash Skeleton.
 Going up a level fills your health, to the new level's most. A player with no health left dies. The
@@ -396,7 +397,7 @@ Players and monsters have a level and health, which everyone sees. A player's ex
 the server works out its level, and sends its experience into the level, and what the next level
 takes, to its client alone, in the message with its id that goes after the world, or with each part
 over UDP. Each level takes a hundred more experience than the one before, and a player has a hundred
-health at level one, and twenty more for each level after it.
+health at level one, and twenty more for each level after it, and what they wear adds its health.
 
 Experience and health are saved with where you are (see [Saving players](#saving-players)), so you
 come back with the health you left with. If you leave dead, you come back as the respawn would bring
@@ -459,18 +460,23 @@ player knows go to them with their cooldowns, after the world, by id.
 
 ## Items
 
-A player's bag is an `Inventory`, in `server/inventory.h`: 24 slots, and a slot of each kind for
-what's worn, the main hand, the off hand, the head, the body and the feet, kept as the protocol's
-`Inventory` message, as that's what's saved and sent. `Add` puts items onto stacks of the item that
-have room, then into the first empty slots, and says how many didn't fit. `Move` takes some or all
-of a stack from one place to another, into an empty one, onto a stack of the same item, or swapping
-with what's there, as long as what ends up worn is worn in that slot. Each change takes the bag to
-its next revision, so that telling whether a bag has changed takes a number, not the bag, and a bag
-at revision zero has never been anyone's. An item that's gone from the items file stays in the bag,
-where it can be moved but not worn or stacked, so taking one out of the file by mistake loses
-nobody's. A property test makes thousands of random moves, and checks that no item is made or lost,
-that no stack holds more than its size, and that what's worn is worn in its slot. Players don't
-carry a bag yet.
+Each player carries a bag of 24 slots, and wears an item in each of five slots: the main hand, the
+off hand, the head, the body and the feet. A new player starts with the kit from the items file
+(see [Content](#content)), the sword in hand and three health potions in the bag. They get it once:
+a trip through a gate doesn't give them another, and neither does emptying the bag.
+
+What you wear adds to you: its damage to each blow you land, with a weapon or a skill, its health to
+the most you can have, and its armour comes off each blow a monster lands, down to one. The weapon in
+your main hand is the one you swing. The server adds it all up as what you wear changes, not as you
+fight. Some items roll modifiers of their own as they're made, such as an Ash Blade's damage, which
+stay with that one. A health potion heals forty, one every ten seconds, and takes one off its stack.
+
+The world moves a player's items, with `server/inventory.h`, or says why not, in words for the
+player. Each change takes the bag to its next revision, so telling whether a bag has changed takes a
+number, not the bag, and the server saves a bag only when its revision moves (see
+[Saving players](#saving-players)). An item that's gone from the items file stays in the bag, where
+it can be moved but not worn or used, so taking one out of the file by mistake loses nobody's.
+Nothing in the client shows the bag yet.
 
 ## Accounts and logins
 
@@ -572,8 +578,10 @@ openssl s_client -connect localhost:7778 -CAfile tls/ca.crt < /dev/null
 
 After each tick, the game server saves the players whose position, experience or health changed, into
 Redis: a hash for each player in each world, `player:<world>:<account id>`, with `world`, `account`,
-`x`, `z`, `experience`, `health`, `land`, `weapon` and `skills`, the ids of the skills they know with
-commas between them, and its key in a set, `players:unsaved` (see [Worlds](#worlds)). It sends all of it in one round trip, as a pipeline, so saving takes a few
+`x`, `z`, `experience`, `health`, `land`, `weapon`, what's in their main hand, and `skills`, the ids
+of the skills they know with commas between them, and its key in a set, `players:unsaved` (see
+[Worlds](#worlds)). A player whose bag's revision has moved gets `items` too, the bag's `Inventory`
+message in protobuf's bytes, and their key goes into `items:unsaved` as well. It sends all of it in one round trip, as a pipeline, so saving takes a few
 milliseconds a tick with hundreds of players, and the server keeps up with as many players as it did
 without saving. Writing each change to MySQL instead, one statement at a time, takes the tick past
 its 50 ms at around 50 players: each save is two round trips, to prepare the statement and to run
@@ -586,17 +594,30 @@ of a player's skills each time, and `INSERT IGNORE` skips the rows MySQL has alr
 skills go with their row in `players`: deleting the account deletes both. If MySQL fails, they go
 back into the set, for the next try. A
 player whose account was deleted, or whose hash is gone, is skipped, so that one player can't hold
-back the others. It saves what's left when it stops. So the `players` table, and the website's
+back the others. It saves what's left when it stops.
+
+The saver writes a player's bag again only when it's changed, and not each time they take a step:
+it takes each player's mark off `items:unsaved` before it reads their hash, so that a bag that
+changes in between is marked again, and writes the bags it took off. The `player_items` table, from
+V7, has a row for each stack in a bag and each item worn: where it is, `bag 0` to `bag 23` or the
+slot, such as `main hand`, the item, how many, and its `state`, what that one has of its own, such
+as its rolls, as protobuf's JSON for a stack. A field a later server adds to a stack goes into the
+state with no migration. A bag's rows go, and its new rows go in, which has to happen all or not at
+all, or a failure between the two would empty it, so each batch is a transaction, with the players'
+rows, which the bags' rows need first. `players.items_revision`, from V8, keeps the bag's revision,
+so that a player who emptied their bag isn't taken for a new one, and given the kit again. So the `players` table, and the website's
 rankings, are at most about five seconds behind the game.
 
 Redis appends each change to a file, its append-only file, and writes that to disk once a second, so
 a crash loses at most about a second. If the game server crashes, Redis still has its players as of
 the last tick. When a player joins, the game server reads them from Redis first, as it's newer than
-MySQL, and from the `players` table if Redis doesn't have them.
+MySQL, and from the `players` table if Redis doesn't have them, and their bag from Redis, or from
+`player_items` when the hash has none.
 
 ```bash
 docker compose exec redis redis-cli HGETALL player:Ember:1
 docker compose exec redis redis-cli SCARD players:unsaved
+docker compose exec mysql mysql -unanommo -pnanommo nanommo -e 'SELECT * FROM player_items'
 docker compose logs saver
 ```
 
@@ -1147,10 +1168,10 @@ the skeleton and the Ash Skeleton, six kinds of NPC, and four skills (see [Skill
   content.
 - Ids start at one, and an item or a kind keeps its id for good, as they're saved and sent by id.
   Protobuf leaves a zero out, so the client takes a missing weapon or kind as one it already knows.
-- Each player holds a weapon, by its id, saved with the rest of the player (see
-  [Saving players](#saving-players)), in the `weapon` column of the `players` table from V5. A
-  player with none saved, or with one that's gone from the file, holds the kit's weapon, so the
-  database doesn't need to know which item that is.
+- Each player's bag holds its items by their ids (see [Items](#items)), saved with the rest of the
+  player (see [Saving players](#saving-players)). A player who's never had a bag gets the kit, so
+  the database doesn't need to know what's in it. What's in a player's main hand is still saved
+  in the `weapon` column of the `players` table from V5, for the servers from before bags.
 - Players' weapons, and monsters and NPCs, go to the clients by id, once a second, with the names
   and levels, and the client looks up the name and the look in its content. The fields that carried
   them before, a monster's name and an NPC's name, colour, radius and whether it talks, are reserved
@@ -1170,8 +1191,8 @@ and the client print their hash as they start.
 
 A change to the content, such as the sword's reach, is an edit to a file and a restart of the world
 servers, and a rebuild of the client when it changes what the client reads. A new item or kind is
-another entry, with the next id, as the Ash Skeleton was. Nothing gives a player another item yet,
-and until players carry bags, each holds the kit's weapon.
+another entry, with the next id, as the Ash Skeleton was. Nothing gives a player items yet but the
+kit.
 
 ## The storyteller
 
