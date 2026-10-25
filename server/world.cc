@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -18,6 +19,15 @@ namespace {
 
 float Distance(const Player& player, const Monster& monster) {
   return std::hypot(monster.x - player.x, monster.z - player.z);
+}
+
+void RunDown(std::map<uint32_t, std::chrono::nanoseconds>& cooldowns,
+             std::chrono::nanoseconds time) {
+  for (auto it = cooldowns.begin(); it != cooldowns.end();) {
+    it->second -= time;
+    it = it->second <= std::chrono::nanoseconds::zero() ? cooldowns.erase(it)
+                                                        : std::next(it);
+  }
 }
 
 void Add(Stats& stats, const items::Modifier& modifier) {
@@ -119,6 +129,49 @@ absl::Status World::DestroyItem(uint32_t id, const protocol::Place& place) {
     Dress(player);
   }
   return destroyed;
+}
+
+absl::Status World::UseItem(uint32_t id, uint32_t slot) {
+  const auto found = players_.find(id);
+  if (found == players_.end()) {
+    return absl::NotFoundError("There's nobody to use it.");
+  }
+  Player& player = found->second;
+  const protocol::Place place = InBag(slot);
+  const items::Stack* stack = player.inventory.At(place);
+  if (stack == nullptr) {
+    return absl::NotFoundError("There's nothing there.");
+  }
+  const auto item = content_->items.by_id.find(stack->item());
+  if (item == content_->items.by_id.end() || !item->second.has_use()) {
+    return absl::FailedPreconditionError(absl::StrCat(
+        "You can't use ",
+        item != content_->items.by_id.end() ? "the " + item->second.name()
+                                            : "that",
+        "."));
+  }
+  const std::string& name = item->second.name();
+  const items::Use& use = item->second.use();
+  if (player.motion == Motion::kDead) {
+    return absl::FailedPreconditionError("You can't, while you're dead.");
+  }
+  const auto cooling = player.item_cooldowns.find(item->first);
+  if (cooling != player.item_cooldowns.end()) {
+    return absl::FailedPreconditionError(absl::StrCat(
+        "You can use another ", name, " in ",
+        std::chrono::ceil<std::chrono::seconds>(cooling->second).count(),
+        " s."));
+  }
+  if (use.heal() > 0 && player.health >= MaxHealthOf(player)) {
+    return absl::FailedPreconditionError("You're at full health already.");
+  }
+  player.health = std::min(player.health + static_cast<int>(use.heal()),
+                           MaxHealthOf(player));
+  if (use.cooldown_ms() > 0) {
+    player.item_cooldowns[item->first] =
+        std::chrono::milliseconds(use.cooldown_ms());
+  }
+  return player.inventory.TakeOne(place);
 }
 
 void World::Dress(Player& player) const {
@@ -229,12 +282,8 @@ void World::Step(std::chrono::nanoseconds time) {
 
 void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
   // Cooldowns run down whatever the player's doing.
-  for (auto it = player.cooldowns.begin(); it != player.cooldowns.end();) {
-    it->second -= time;
-    it = it->second <= std::chrono::nanoseconds::zero()
-             ? player.cooldowns.erase(it)
-             : std::next(it);
-  }
+  RunDown(player.cooldowns, time);
+  RunDown(player.item_cooldowns, time);
   if (player.motion == Motion::kDead) {
     player.input_skill = 0;
     player.respawn -= time;

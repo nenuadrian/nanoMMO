@@ -53,6 +53,9 @@ struct Player {
   std::chrono::nanoseconds cast{0};
   /// How long until each skill they've used is ready again, by its id.
   std::map<uint32_t, std::chrono::nanoseconds> cooldowns;
+  /// How long until they can use each item again, by its id in the items
+  /// file.
+  std::map<uint32_t, std::chrono::nanoseconds> item_cooldowns;
   std::chrono::nanoseconds respawn{0};
   float input_x = 0.0f;
   float input_z = 0.0f;
@@ -161,6 +164,10 @@ class World {
 
   /// Throws away all of what's at the place.
   absl::Status DestroyItem(uint32_t id, const protocol::Place& place);
+
+  /// The player uses one of what's in the slot of their bag, such as drinks a
+  /// potion, or the error says why not, in words for the player.
+  absl::Status UseItem(uint32_t id, uint32_t slot);
 
   uint32_t Spawn(Monster monster);
 

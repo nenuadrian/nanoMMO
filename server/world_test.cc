@@ -398,3 +398,33 @@ TEST(World, ArmourTakesTheBlowsAndHealthComesWithIt) {
                   .ok());
   EXPECT_EQ(world.players().at(1).health, 100);
 }
+
+TEST(World, UsesWhatsInTheBagOnceItsCooledDown) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Gear()));
+  world.Join(1, {.health = 50});
+  world.Join(2, With(kBone));
+  const auto potions = [&world] {
+    return world.players().at(1).inventory.At(nanommo::InBag(0))->count();
+  };
+
+  ASSERT_TRUE(world.UseItem(1, 0).ok());
+  EXPECT_EQ(world.players().at(1).health, 90);
+  EXPECT_EQ(potions(), 2u);
+  EXPECT_EQ(world.UseItem(1, 0).message(),
+            "You can use another Potion in 10 s.");
+  for (int second = 0; second < 10; ++second) {
+    RunOneSecond(world);
+  }
+  ASSERT_TRUE(world.UseItem(1, 0).ok());
+  EXPECT_EQ(world.players().at(1).health, 100);
+  EXPECT_EQ(potions(), 1u);
+  for (int second = 0; second < 10; ++second) {
+    RunOneSecond(world);
+  }
+  EXPECT_EQ(world.UseItem(1, 0).message(), "You're at full health already.");
+  EXPECT_EQ(potions(), 1u);
+
+  EXPECT_EQ(world.UseItem(1, 5).message(), "There's nothing there.");
+  EXPECT_EQ(world.UseItem(2, 0).message(), "You can't use the Bone.");
+}
