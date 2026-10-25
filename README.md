@@ -457,6 +457,21 @@ nobody, like the storyteller's. The window stays open, and its button turns into
 server has taught you the skill. The skills a
 player knows go to them with their cooldowns, after the world, by id.
 
+## Items
+
+A player's bag is an `Inventory`, in `server/inventory.h`: 24 slots, and a slot of each kind for
+what's worn, the main hand, the off hand, the head, the body and the feet, kept as the protocol's
+`Inventory` message, as that's what's saved and sent. `Add` puts items onto stacks of the item that
+have room, then into the first empty slots, and says how many didn't fit. `Move` takes some or all
+of a stack from one place to another, into an empty one, onto a stack of the same item, or swapping
+with what's there, as long as what ends up worn is worn in that slot. Each change takes the bag to
+its next revision, so that telling whether a bag has changed takes a number, not the bag, and a bag
+at revision zero has never been anyone's. An item that's gone from the items file stays in the bag,
+where it can be moved but not worn or stacked, so taking one out of the file by mistake loses
+nobody's. A property test makes thousands of random moves, and checks that no item is made or lost,
+that no stack holds more than its size, and that what's worn is worn in its slot. Players don't
+carry a bag yet.
+
 ## Accounts and logins
 
 - The login server, `nanommo_login`, listens on TCP port 7778. It creates accounts and checks passwords,
@@ -1096,16 +1111,22 @@ monster, or in a message of its own whenever it changes.
 The game's content is data, in the `content` folder, which the world servers, the client and the
 bots read, so that there's one place to change it: `items.txtpb`, `monsters.txtpb`, `npcs.txtpb`
 and `skills.txtpb`, in protobuf's text format, each with its schema next to it, in `items.proto`,
-`monsters.proto`, `npcs.proto` and `skills.proto`. So far there's one item, the sword, which every
-player holds, two kinds of monster, the skeleton and the Ash Skeleton, six kinds of NPC, and four
-skills (see [Skills](#skills)).
+`monsters.proto`, `npcs.proto` and `skills.proto`. There are seven items: the sword, a health
+potion, a bone, a leather cap and tunic, and the Ashlands' blade and buckler, two kinds of monster,
+the skeleton and the Ash Skeleton, six kinds of NPC, and four skills (see [Skills](#skills)).
 
 - An item, or a kind of monster or NPC, has an id and a name, and parts that each side reads what it
   needs from. A weapon's `weapon` and a monster's `fight` are the server's: reach, swing and hit
   times, damage, and for a monster, its sight, its leash and how far it wanders. A `look` is the
-  client's: an item's or a monster's model, its length or height, where a weapon is held, a
-  monster's tint, and an NPC's ball, a colour and a radius. A monster's level, health and experience
-  are the server's too. `starting_weapon` names the weapon a new player holds. A skill's `effect` is
+  client's: an item's or a monster's model, its length or height, where a weapon is held, an
+  item's icon and tint, a monster's tint, and an NPC's ball, a colour and a radius. A monster's
+  level, health and experience are the server's too.
+- An item is the parts it has, and no type: `stack` says how many go in a slot of a bag, `equip`
+  where it's worn and what it adds, as `modifiers` of `STAT_DAMAGE`, `STAT_HEALTH` or
+  `STAT_ARMOUR`, `use` what using one does and how often, and `rolls` the modifiers each one gets
+  as it's made, from `min` to `max`. A new kind of item that puts parts we have together is
+  another entry, and needs no code. The kit, `starting`, is what a new player starts with, and
+  `retired` lists the ids of items that are gone, which no item can take again. A skill's `effect` is
   the server's, and its `look` the client's: its icon, its clip and its glow. The client shows a
   skill's level and cooldown too, so those are in both. `starting` names the skills every new
   player knows, and a kind of NPC's `teaches` the skills it teaches, by id.
@@ -1115,8 +1136,10 @@ skills (see [Skills](#skills)).
   editors and tools that know text protos can check it and complete its fields.
 - `content/content.h` (`nanommo_content`) reads the folder with protobuf's `TextFormat`, so a field
   the schema doesn't have, or a value of the wrong type, is an error with the file and the line it's
-  on. Then it checks what types can't: every item and kind has an id, no two share one, the starting
-  weapon is a weapon, each spawn and camps names a kind and a land we have, no monster with a
+  on. Then it checks what types can't: every item and kind has an id, no two share one, an item's
+  parts go together (a weapon is held in the main hand, what's worn has a slot, and what stacks
+  isn't worn and doesn't roll), a roll goes from less to more, the kit's items are in the file and
+  fit in a slot, no item has a retired id, each spawn and camps names a kind and a land we have, no monster with a
   fixed home has a leash that reaches the middle of its land, where players come back to life,
   each skill has a level and lands before it's over, and each starting skill is in the file. Once
   every file is read, `CheckContent` checks what no file can on its own: that each skill a trainer
@@ -1126,7 +1149,7 @@ skills (see [Skills](#skills)).
   Protobuf leaves a zero out, so the client takes a missing weapon or kind as one it already knows.
 - Each player holds a weapon, by its id, saved with the rest of the player (see
   [Saving players](#saving-players)), in the `weapon` column of the `players` table from V5. A
-  player with none saved, or with one that's gone from the file, holds the starting weapon, so the
+  player with none saved, or with one that's gone from the file, holds the kit's weapon, so the
   database doesn't need to know which item that is.
 - Players' weapons, and monsters and NPCs, go to the clients by id, once a second, with the names
   and levels, and the client looks up the name and the look in its content. The fields that carried
@@ -1138,8 +1161,8 @@ skills (see [Skills](#skills)).
   The build copies the files next to the client, which reads them from there.
 
 Each side reads its own copy, so a client and a world have to agree on what the client reads. Each
-world works out its `ClientHash`, a 64-bit FNV-1a of the ids, names and looks, the skills'
-levels and cooldowns, and what each trainer teaches, serialized deterministically, registers it with Consul, and the login server
+world works out its `ClientHash`, a 64-bit FNV-1a of the ids, names and looks, what the bag shows of
+each item, which is all of it but its weapon, the skills' levels and cooldowns, and what each trainer teaches, serialized deterministically, registers it with Consul, and the login server
 lists it with the world. The fights and the skills' effects stay out of it, so that changing a
 sword's damage or a skeleton's leash needs no new client.
 A client lists a world with other content than its own as such, and doesn't log in to it. The servers
@@ -1147,7 +1170,8 @@ and the client print their hash as they start.
 
 A change to the content, such as the sword's reach, is an edit to a file and a restart of the world
 servers, and a rebuild of the client when it changes what the client reads. A new item or kind is
-another entry, with the next id, as the Ash Skeleton was. Nothing gives a player another item yet.
+another entry, with the next id, as the Ash Skeleton was. Nothing gives a player another item yet,
+and until players carry bags, each holds the kit's weapon.
 
 ## The storyteller
 
