@@ -131,7 +131,8 @@ bytes, and libFuzzer calls it with input after input, made from the inputs that 
 others didn't, with the sanitizers on. `stories_fuzzer` hands the storyteller's lines whatever a
 model might write, and checks that each line fits in the chat, whole characters and all.
 `world_fuzzer` plays the game with whatever a client might send, and checks that each player stays
-somewhere real, with health between nothing and their most.
+somewhere real, with health between nothing and their most, and that their bag holds no stack
+bigger than it can, in a slot that's there, and wears each item in its slot.
 
 ```bash
 docker build --target fuzz -t nanommo-fuzz .
@@ -390,7 +391,8 @@ island, so the middle, where players start and come back, is safe. A monster run
 players' running speed, and swings once it's within 1.2 metres. The skeleton's swing takes 0.9 seconds, its attack animation, and hits for five,
 0.65 seconds in, less the armour you wear, down to one. An Ash Skeleton, in the Ashlands, is level two, and hits for eight. Run, or die, and it gives up and wanders back.
 
-A monster with no health left dies, and whoever killed it gets its experience, fifty for a skeleton, and ninety for an Ash Skeleton.
+A monster with no health left dies, and whoever killed it gets its experience, fifty for a skeleton, and ninety for an Ash Skeleton,
+and what it drops, into their bag (see [Items](#items)).
 Going up a level fills your health, to the new level's most. A player with no health left dies. The
 dead play their death animation, lie there for ten seconds, and come back: a monster where it
 spawned, and a player in the middle of the island, both at full health.
@@ -479,6 +481,14 @@ what it is, where it's worn, what it adds, what it rolled, what using one does a
 Drag an item onto another slot, in either window, to move it, stack it, swap it, wear it or take it
 off, with Shift for half the stack. Double-click it to drink it, wear it or take it off, and
 right-click it to throw it away. A health potion heals forty, one every ten seconds.
+
+Monsters drop items, straight into their killer's bag: each kind's `loot` in the monsters file has
+the items it can drop, the chance of each, and how many. A skeleton drops bones more often than
+not, and now and then a potion, a leather cap or a tunic, and the skeletons of the Ashlands and the
+Crypt the Ash Blade and the buckler, the Crypt's more often. What stacks drops as a stack, and what
+doesn't one at a time, each with rolls of its own, so two Ash Blades are seldom the same. A line in
+the chat says what the monster dropped, and what didn't fit, if the bag was full, which stays
+behind. The world keeps those lines as it steps, and the server sends them after the tick.
 
 The server decides it all, as it does a swing. The client sends what you do with an item in
 `Input`'s `item`, once, and the world moves the items, with `server/inventory.h`, or says why not,
@@ -730,7 +740,9 @@ again. When a bot gets where it was going, it says something, one time in four, 
 lines. Once it has seen its land's storyteller, one trip in eight goes there instead, where it asks
 for a story about three words from the game. While it wanders around somewhere, one direction in
 four uses one of the skills it knows, from its world, so that the bots' cooldowns go out with their
-worlds, as players' do. A bot that stops
+worlds, as players' do. A bot drinks a potion once it's down to half its health, one every ten
+seconds, and wears what it finds in a slot it has free, so that the servers save and send bags as
+they would players'. A bot that stops
 getting closer, at the sea or a lake, gives up on its trip. Each one logs in as bot1, bot2 and so on,
 and creates its account the first time. It takes the login server's
 host, the game server's host, how many bots, how many seconds to spread their arrival over, the
@@ -1153,7 +1165,7 @@ the skeleton and the Ash Skeleton, six kinds of NPC, and four skills (see [Skill
   times, damage, and for a monster, its sight, its leash and how far it wanders. A `look` is the
   client's: an item's or a monster's model, its length or height, where a weapon is held, an
   item's icon and tint, a monster's tint, and an NPC's ball, a colour and a radius. A monster's
-  level, health and experience are the server's too.
+  level, health, experience and loot are the server's too.
 - An item is the parts it has, and no type: `stack` says how many go in a slot of a bag, `equip`
   where it's worn and what it adds, as `modifiers` of `STAT_DAMAGE`, `STAT_HEALTH` or
   `STAT_ARMOUR`, `use` what using one does and how often, and `rolls` the modifiers each one gets
@@ -1174,9 +1186,10 @@ the skeleton and the Ash Skeleton, six kinds of NPC, and four skills (see [Skill
   isn't worn and doesn't roll), a roll goes from less to more, the kit's items are in the file and
   fit in a slot, no item has a retired id, each spawn and camps names a kind and a land we have, no monster with a
   fixed home has a leash that reaches the middle of its land, where players come back to life,
-  each skill has a level and lands before it's over, and each starting skill is in the file. Once
-  every file is read, `CheckContent` checks what no file can on its own: that each skill a trainer
-  teaches is in the skills file. The server, the client and the bots don't start without good
+  each skill has a level and lands before it's over, each starting skill is in the file, and each
+  drop has a chance from nothing to one, and goes from fewer to more. Once every file is read,
+  `CheckContent` checks what no file can on its own: that each item a monster drops is in the items
+  file, and each skill a trainer teaches is in the skills file. The server, the client and the bots don't start without good
   content.
 - Ids start at one, and an item or a kind keeps its id for good, as they're saved and sent by id.
   Protobuf leaves a zero out, so the client takes a missing weapon or kind as one it already knows.
@@ -1203,8 +1216,8 @@ and the client print their hash as they start.
 
 A change to the content, such as the sword's reach, is an edit to a file and a restart of the world
 servers, and a rebuild of the client when it changes what the client reads. A new item or kind is
-another entry, with the next id, as the Ash Skeleton was. Nothing gives a player items yet but the
-kit.
+another entry, with the next id, as the Ash Skeleton was, and a monster drops it once its kind's
+loot names it.
 
 ## The storyteller
 
