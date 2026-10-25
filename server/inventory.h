@@ -7,6 +7,7 @@
 #include "absl/status/status.h"
 #include "content/items.h"
 #include "protocol/nanommo.pb.h"
+#include "protocol/places.h"
 
 namespace nanommo {
 
@@ -17,7 +18,7 @@ namespace nanommo {
 /// the file, but they can't be worn, used or stacked.
 class Inventory {
  public:
-  static constexpr uint32_t kBagSlots = 24;
+  static constexpr uint32_t kBagSlots = nanommo::kBagSlots;
 
   Inventory() = default;
   explicit Inventory(protocol::Inventory items) : items_(std::move(items)) {}
@@ -57,10 +58,6 @@ class Inventory {
 
   protocol::Inventory items_;
 };
-
-/// A place in the bag, or a slot that's worn.
-protocol::Place InBag(uint32_t slot);
-protocol::Place Worn(items::Slot slot);
 
 }  // namespace nanommo
 

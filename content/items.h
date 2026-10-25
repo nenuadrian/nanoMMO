@@ -11,6 +11,9 @@
 
 namespace nanommo {
 
+/// How many slots each player's bag has.
+constexpr uint32_t kBagSlots = 24;
+
 /// The items in the items file, by id.
 struct ItemTable {
   std::map<uint32_t, items::Item> by_id;

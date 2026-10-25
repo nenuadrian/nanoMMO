@@ -1,5 +1,5 @@
 add_library(nanommo_protocol
-  nanommo.proto chat.cc framing.cc login_client.cc parts.cc tls.cc
+  nanommo.proto chat.cc framing.cc login_client.cc parts.cc places.cc tls.cc
 )
 protobuf_generate(TARGET nanommo_protocol
   IMPORT_DIRS ${PROJECT_SOURCE_DIR} PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}

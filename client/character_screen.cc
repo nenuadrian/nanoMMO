@@ -3,13 +3,19 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <optional>
+#include <utility>
 #include <vector>
 
+#include "client/bag_window.h"
 #include "extras/IconsFontAwesome6.h"
+#include "protocol/places.h"
 
 namespace nanommo {
 
 namespace {
+
+constexpr float kWornSlot = 44.0f;
 
 // Four metres in front of the character, level with its middle.
 constexpr Camera3D kPreviewCamera{
@@ -40,16 +46,18 @@ void CharacterScreen::Render(const Renderer& renderer) {
   preview_.RenderPreview(renderer, idle, kPreviewCamera);
 }
 
-void CharacterScreen::Build(const std::vector<Figure>& figures,
-                            const protocol::World& world, const char* land) {
+std::optional<protocol::ItemAction> CharacterScreen::Build(
+    const std::vector<Figure>& figures, const protocol::World& world,
+    const char* land, const protocol::Inventory& bag) {
   if (!visible_) {
-    return;
+    return std::nullopt;
   }
   const auto you = std::ranges::find_if(figures, &Figure::you);
   if (you == figures.end() || you->level == 0) {
-    return;
+    return std::nullopt;
   }
-  ImGui::SetNextWindowSize({600.0f, 400.0f}, ImGuiCond_FirstUseEver);
+  std::optional<protocol::ItemAction> action;
+  ImGui::SetNextWindowSize({640.0f, 400.0f}, ImGuiCond_FirstUseEver);
   if (ImGui::Begin("Character", &visible_)) {
     // OpenGL keeps the rows bottom up, so the UVs turn the picture over.
     ImGui::Image(static_cast<ImTextureID>(preview_.texture().id),
@@ -64,9 +72,23 @@ void CharacterScreen::Build(const std::vector<Figure>& figures,
                 world.next_level());
     ImGui::Text(ICON_FA_LOCATION_CROSSHAIRS " %s, at %.1f, %.1f", land,
                 you->position.x, you->position.z);
+    ImGui::Separator();
+    ImGui::TextDisabled("Worn");
+    for (const items::Slot slot :
+         {items::SLOT_MAIN_HAND, items::SLOT_OFF_HAND, items::SLOT_HEAD,
+          items::SLOT_BODY, items::SLOT_FEET}) {
+      if (slot != items::SLOT_MAIN_HAND) {
+        ImGui::SameLine();
+      }
+      if (std::optional<protocol::ItemAction> done =
+              ItemSlot(items_, bag, Worn(slot), kWornSlot)) {
+        action = std::move(done);
+      }
+    }
     ImGui::EndGroup();
   }
   ImGui::End();
+  return action;
 }
 
 }  // namespace nanommo

@@ -13,7 +13,7 @@ class Menu {
   /// the player's settings, and the atmosphere, where Reset puts back the
   /// land's own.
   bool Build(Window& window, Settings& settings, Atmosphere& atmosphere,
-             const Atmosphere& land, bool* show_character);
+             const Atmosphere& land, bool* show_character, bool* show_bag);
 
  private:
   bool show_settings_ = false;

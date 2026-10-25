@@ -189,6 +189,11 @@ void Characters::Hold(uint32_t id, const items::Look& look, Shader shader) {
     color = ColorFromNormalized({std::pow(linear.x, 1.0f / 2.2f),
                                  std::pow(linear.y, 1.0f / 2.2f),
                                  std::pow(linear.z, 1.0f / 2.2f), linear.w});
+    // A tint makes another item of the same model, such as the Ash Blade of
+    // the sword.
+    if (look.has_tint()) {
+      color = ColorTint(color, GetColor(look.tint()));
+    }
   }
   const BoundingBox box = GetModelBoundingBox(weapon);
   const float height = box.max.y - box.min.y;

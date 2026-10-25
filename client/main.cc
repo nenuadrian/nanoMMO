@@ -16,6 +16,7 @@
 #include "client/animator.h"
 #include "client/atmosphere.h"
 #include "client/audio.h"
+#include "client/bag_window.h"
 #include "client/camera.h"
 #include "client/character_screen.h"
 #include "client/chat_window.h"
@@ -156,7 +157,8 @@ int main(int argc, char* argv[]) {
   }
   nanommo::Gui gui;
   nanommo::Menu menu;
-  nanommo::CharacterScreen character_screen;
+  nanommo::CharacterScreen character_screen(content->items);
+  nanommo::BagWindow bag_window(content->items);
   nanommo::ChatWindow chat_window;
   nanommo::TalkWindow talk_window;
   nanommo::TrainerWindow trainer_window(content->skills);
@@ -276,6 +278,9 @@ int main(int argc, char* argv[]) {
       if (IsKeyPressed(KEY_C) && !nanommo::Typing()) {
         character_screen.Toggle();
       }
+      if (IsKeyPressed(KEY_I) && !nanommo::Typing()) {
+        bag_window.Toggle();
+      }
       character_screen.Render(renderer);
     }
 
@@ -321,11 +326,25 @@ int main(int argc, char* argv[]) {
         *ask.mutable_learn() = *learn;
         connection->Send(ask);
       }
-      character_screen.Build(renderer.figures(), connection->world(),
-                             nanommo::kLands[land].name);
+      // What the player does with their items, in either window, goes with
+      // what we sent last, like a line of chat.
+      std::optional<nanommo::protocol::ItemAction> item =
+          character_screen.Build(renderer.figures(), connection->world(),
+                                 nanommo::kLands[land].name,
+                                 connection->inventory());
+      if (std::optional<nanommo::protocol::ItemAction> in_bag =
+              bag_window.Build(connection->inventory())) {
+        item = std::move(in_bag);
+      }
+      if (item) {
+        nanommo::protocol::Input ask = sent;
+        *ask.mutable_item() = *item;
+        connection->Send(ask);
+      }
       if (menu.Build(*window, settings, *renderer.mutable_atmosphere(),
                      nanommo::kLooks[land].atmosphere,
-                     character_screen.mutable_visible())) {
+                     character_screen.mutable_visible(),
+                     bag_window.mutable_visible())) {
         connection.reset();
       }
     } else if (const auto request = login_screen.Build()) {

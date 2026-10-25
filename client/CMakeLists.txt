@@ -3,7 +3,8 @@ add_library(nanommo_client_core
   window.cc audio.cc jukebox.cc sound.cc settings.cc gui.cc menu.cc renderer.cc
   offscreen.cc postprocess.cc outline.cc
   camera.cc scene.cc input.cc connection.cc
-  login_screen.cc nameplates.cc player_frame.cc hotbar.cc character_screen.cc
+  login_screen.cc nameplates.cc player_frame.cc hotbar.cc bag_window.cc
+  character_screen.cc
   chat_window.cc talk_window.cc trainer_window.cc picking.cc
   animator.cc characters.cc triangles.cc ground.cc trees.cc chunks.cc
   gate.cc
@@ -55,10 +56,13 @@ add_dependencies(nanommo_client_bench nanommo_client_assets)
 
 add_executable(nanommo_client_tests
   renderer_test.cc animator_test.cc characters_test.cc picking_test.cc
-  jukebox_test.cc sound_test.cc settings_test.cc
+  jukebox_test.cc sound_test.cc settings_test.cc bag_window_test.cc
 )
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)
 add_dependencies(nanommo_client_tests nanommo_client_assets)
+target_compile_definitions(nanommo_client_tests PRIVATE
+  NANOMMO_CONTENT="${PROJECT_SOURCE_DIR}/content"
+)
 
 include(GoogleTest)
 gtest_discover_tests(nanommo_client_tests)

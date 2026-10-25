@@ -62,7 +62,7 @@ void SliderPercent(const char* label, float& value) {
 }  // namespace
 
 bool Menu::Build(Window& window, Settings& settings, Atmosphere& atmosphere,
-                 const Atmosphere& land, bool* show_character) {
+                 const Atmosphere& land, bool* show_character, bool* show_bag) {
   bool log_out = false;
   if (ImGui::BeginMainMenuBar()) {
     if (ImGui::BeginMenu("Game")) {
@@ -74,6 +74,7 @@ bool Menu::Build(Window& window, Settings& settings, Atmosphere& atmosphere,
     }
     if (ImGui::BeginMenu("View")) {
       ImGui::MenuItem(ICON_FA_CIRCLE_USER " Character", "C", show_character);
+      ImGui::MenuItem(ICON_FA_BAG_SHOPPING " Bag", "I", show_bag);
       ImGui::MenuItem(ICON_FA_GEAR " Settings", nullptr, &show_settings_);
       ImGui::MenuItem(ICON_FA_SHAPES " ImGui demo", nullptr, &show_demo_);
       ImGui::EndMenu();
