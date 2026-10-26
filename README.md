@@ -83,8 +83,13 @@ CI does.
 
 ## Checking the code
 
-The tests check what we thought to test. Four more checks look for what we didn't, and CI runs
-each of them on each push.
+The tests check what we thought to test. Four more checks look for what we didn't. In a public
+repository, where GitHub's runners are free, CI runs each of them on each push. A private one pays
+for its minutes, so a push there gets the tests, and clang-tidy, the sanitizers and the fuzzers run
+once a night, or when started by hand (`gh workflow run CI`). The coverage report, which only a
+public repository publishes, isn't made there at all. Either way, a check that passed on the same
+tree doesn't run again, as after a rebase that moves commits but not code, and a newer push to a
+branch cancels the checks still running for the one before.
 
 The sanitizers build checks into the code, which catch it doing something wrong as it runs.
 `-DNANOMMO_SANITIZE=address,undefined` builds everything, the libraries too, with AddressSanitizer,
@@ -1415,7 +1420,7 @@ The repository's settings list it under Actions, Runners. A change to its image 
 commands. CI builds its image too.
 
 The `deploy` job in `.github/workflows/ci.yml` runs on it, for a push to `main`, once the build,
-the sanitizers and the fuzzers pass. A job waits for a runner with its labels, for a day, so it runs
+clang-tidy, the sanitizers and the fuzzers pass. A job waits for a runner with its labels, for a day, so it runs
 only in a repository whose `NANOMMO_DEPLOY` variable is `true`, which leaves it out of forks
 without a runner:
 

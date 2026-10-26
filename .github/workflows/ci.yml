@@ -4,12 +4,83 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The slow checks, once a night, for main as it stands (see the gate).
+  schedule:
+    - cron: "17 3 * * *"
   workflow_dispatch:
 
 jobs:
-  build:
+  # Decides what this run checks. A private repository pays for its minutes,
+  # so its pushes get the quick checks, and the slow ones (clang-tidy, the
+  # sanitizers, the fuzzers) run at night or by hand. A public one runs them
+  # all on every push, for free. And a check that passed on this exact tree
+  # before, say after a rebase that moved commits but not code, isn't run again.
+  gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tree: ${{ steps.scope.outputs.tree }}
+      private: ${{ steps.scope.outputs.private }}
+      build: ${{ steps.scope.outputs.checks != 'none' && steps.build.outputs.cache-hit != 'true' }}
+      tidy: ${{ steps.scope.outputs.checks == 'all' && steps.tidy.outputs.cache-hit != 'true' }}
+      sanitize: ${{ steps.scope.outputs.checks == 'all' && (steps.asan.outputs.cache-hit != 'true' || steps.tsan.outputs.cache-hit != 'true') }}
+      fuzz: ${{ steps.scope.outputs.checks == 'all' && steps.fuzz.outputs.cache-hit != 'true' }}
     steps:
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          private=$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)
+          tree=$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$GITHUB_SHA" --jq .tree.sha)
+          test -n "$tree"
+          case "$GITHUB_EVENT_NAME/$private" in
+            schedule/false) checks=none ;;
+            push/true | pull_request/true) checks=quick ;;
+            *) checks=all ;;
+          esac
+          echo "private=$private" >> "$GITHUB_OUTPUT"
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+          echo "checks=$checks" >> "$GITHUB_OUTPUT"
+
+      # Each job leaves a marker in the cache when it passes, keyed by the
+      # tree. A run started by hand doesn't look, and checks everything.
+      - id: build
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v6
+        with: { path: .passed, key: "passed-build-${{ steps.scope.outputs.tree }}", lookup-only: true }
+      - id: tidy
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v6
+        with: { path: .passed, key: "passed-tidy-${{ steps.scope.outputs.tree }}", lookup-only: true }
+      - id: asan
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v6
+        with: { path: .passed, key: "passed-sanitize-address-undefined-${{ steps.scope.outputs.tree }}", lookup-only: true }
+      - id: tsan
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v6
+        with: { path: .passed, key: "passed-sanitize-thread-${{ steps.scope.outputs.tree }}", lookup-only: true }
+      - id: fuzz
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v6
+        with: { path: .passed, key: "passed-fuzz-${{ steps.scope.outputs.tree }}", lookup-only: true }
+
+  build:
+    needs: gate
+    if: needs.gate.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # A newer push to the same branch takes over from this one.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-build
+      cancel-in-progress: true
+    steps:
+      # Our images outgrow the runner's disk, so we drop toolchains we never use.
+      - name: Make room on the disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
       - uses: actions/checkout@v7
 
       - name: Check the code style
@@ -29,9 +100,6 @@ jobs:
           docker compose run --rm loki-config
           docker compose run --rm alloy-config
 
-      - name: Check the code with clang-tidy
-        run: docker build --target tidy .
-
       - name: Test the website
         run: docker build --target test web
 
@@ -49,21 +117,54 @@ jobs:
       - name: Build the runner's image
         run: docker build runner
 
+      # The API docs and the coverage report are only published from a public
+      # repository, so a private one doesn't make them.
       - name: Generate the API docs
+        if: needs.gate.outputs.private == 'false'
         run: docker build --target docs --output site .
 
       - name: Measure what the tests cover
+        if: needs.gate.outputs.private == 'false'
         run: docker compose run --rm coverage
 
-      - uses: actions/upload-pages-artifact@v5
+      - if: needs.gate.outputs.private == 'false'
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
-  sanitize:
+      - run: touch .passed
+      - uses: actions/cache/save@v6
+        with: { path: .passed, key: "passed-build-${{ needs.gate.outputs.tree }}" }
+
+  tidy:
+    needs: gate
+    if: needs.gate.outputs.tidy == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-tidy
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the code with clang-tidy
+        run: docker build --target tidy .
+
+      - run: touch .passed
+      - uses: actions/cache/save@v6
+        with: { path: .passed, key: "passed-tidy-${{ needs.gate.outputs.tree }}" }
+
+  sanitize:
+    needs: gate
+    if: needs.gate.outputs.sanitize == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
     strategy:
       matrix:
         sanitize: ["address,undefined", "thread"]
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-sanitize-${{ matrix.sanitize }}
+      cancel-in-progress: true
     env:
       SANITIZE: ${{ matrix.sanitize }}
       COMPOSE_FILE: compose.yaml:compose.sanitize.yaml
@@ -89,8 +190,22 @@ jobs:
             exit 1
           fi
 
+      # A cache key can't hold a comma.
+      - id: passed
+        run: |
+          touch .passed
+          echo "key=passed-sanitize-${SANITIZE//,/-}-${{ needs.gate.outputs.tree }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/save@v6
+        with: { path: .passed, key: "${{ steps.passed.outputs.key }}" }
+
   fuzz:
+    needs: gate
+    if: needs.gate.outputs.fuzz == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-fuzz
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
 
@@ -102,13 +217,22 @@ jobs:
           docker run --rm nanommo-fuzz build/bin/stories_fuzzer -max_total_time=60
           docker run --rm nanommo-fuzz build/bin/world_fuzzer -max_total_time=60
 
+      - run: touch .passed
+      - uses: actions/cache/save@v6
+        with: { path: .passed, key: "passed-fuzz-${{ needs.gate.outputs.tree }}" }
+
   deploy:
     # A repository with a runner on its server says so in its NANOMMO_DEPLOY
     # variable. Elsewhere, the job would wait for a runner that never comes.
+    # It deploys once the checks that ran have passed: in a private
+    # repository, the slow ones are the night's.
     if: >-
+      !cancelled() && needs.build.result == 'success' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
       github.event_name == 'push' && github.ref == 'refs/heads/main' &&
       vars.NANOMMO_DEPLOY == 'true'
-    needs: [build, sanitize, fuzz]
+    needs: [build, tidy, sanitize, fuzz]
     runs-on: [self-hosted, nanommo]
     # One deploy at a time: a push while one runs waits for it, and a newer
     # push takes the place of one that's waiting.
@@ -128,6 +252,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && !github.event.repository.private
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write
