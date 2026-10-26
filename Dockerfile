@@ -1,16 +1,24 @@
 FROM ubuntu:24.04 AS toolchain
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      build-essential cmake ninja-build ca-certificates doxygen pkg-config \
+      build-essential cmake ninja-build ccache ca-certificates doxygen pkg-config \
       xorg-dev libgl1-mesa-dev xvfb xauth libgl1-mesa-dri \
       libmysqlclient-dev libsodium-dev libssl-dev openssl curl \
  && rm -rf /var/lib/apt/lists/*
+# CMake compiles through ccache, which keeps what the compiler made in a
+# cache mount that outlives the build, so protobuf and the other libraries
+# compile once, not on every build. Each build prints how much it found there.
+ENV CCACHE_DIR=/root/.cache/ccache \
+    CMAKE_C_COMPILER_LAUNCHER=ccache CMAKE_CXX_COMPILER_LAUNCHER=ccache
 
 FROM toolchain AS build
 WORKDIR /src
 COPY . .
-RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
- && cmake --build build
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    ccache --zero-stats \
+ && cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+ && cmake --build build \
+ && ccache --show-stats
 
 FROM build AS test
 # xvfb-run gives the client's tests a virtual display to open their window on.
@@ -31,17 +39,23 @@ ARG SANITIZE=address,undefined
 ENV TSAN_OPTIONS=suppressions=/src/tsan.supp
 WORKDIR /src
 COPY . .
-RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    ccache --zero-stats \
+ && cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DNANOMMO_SANITIZE=${SANITIZE} \
  && cmake --build build \
+ && ccache --show-stats \
  && xvfb-run --auto-servernum ctest --test-dir build --output-on-failure
 
 FROM clang AS fuzz
 WORKDIR /src
 COPY . .
-RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    ccache --zero-stats \
+ && cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DNANOMMO_SANITIZE=address,undefined -DNANOMMO_FUZZ=ON \
- && cmake --build build --target stories_fuzzer world_fuzzer
+ && cmake --build build --target stories_fuzzer world_fuzzer \
+ && ccache --show-stats
 
 FROM clang AS tidy
 RUN apt-get update \
@@ -50,16 +64,22 @@ RUN apt-get update \
 WORKDIR /src
 COPY . .
 # clang-tidy reads the headers protoc writes, so those come first.
-RUN cmake -S . -B build -G Ninja -DNANOMMO_FUZZ=ON \
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    ccache --zero-stats \
+ && cmake -S . -B build -G Ninja -DNANOMMO_FUZZ=ON \
  && cmake --build build --target nanommo_protocol nanommo_content nanommo_client_core \
+ && ccache --show-stats \
  && run-clang-tidy -quiet -p build \
       '^/src/(server|bot|client|protocol|content|terrain|fuzz)/(?!.*_test\.cc)'
 
 FROM clang AS coverage
 WORKDIR /src
 COPY . .
-RUN cmake -S . -B build -G Ninja -DNANOMMO_COVERAGE=ON \
- && cmake --build build
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    ccache --zero-stats \
+ && cmake -S . -B build -G Ninja -DNANOMMO_COVERAGE=ON \
+ && cmake --build build \
+ && ccache --show-stats
 
 FROM ubuntu:24.04 AS runtime
 RUN apt-get update \
@@ -110,7 +130,8 @@ COPY bench/netem.sh /usr/local/bin/
 ENTRYPOINT ["netem.sh"]
 
 FROM build AS profile-build
-RUN cmake -S . -B build -DTRACY_ENABLE=ON \
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    cmake -S . -B build -DTRACY_ENABLE=ON \
  && cmake --build build --target nanommo_server
 
 # Ubuntu's perf wants a build for the running kernel, and Docker Desktop's

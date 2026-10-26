@@ -91,6 +91,13 @@ public repository publishes, isn't made there at all. Either way, a check that p
 tree doesn't run again, as after a rebase that moves commits but not code, and a newer push to a
 branch cancels the checks still running for the one before.
 
+Each stage of the Dockerfile that compiles does it through ccache, which keeps what the compiler
+made in a cache mount that outlives the build, so protobuf and the other libraries compile once,
+and a build after a change compiles what changed. Each build prints how much it found there
+(`ccache --show-stats`). The mount lives in Docker's build cache, so it stays on your machine;
+CI has a fresh one for each job, and moves the job's ccache in and out of GitHub's cache around
+its builds.
+
 The sanitizers build checks into the code, which catch it doing something wrong as it runs.
 `-DNANOMMO_SANITIZE=address,undefined` builds everything, the libraries too, with AddressSanitizer,
 for reads and writes out of bounds or after a free, and leaks, and UndefinedBehaviorSanitizer, for
@@ -1370,8 +1377,9 @@ release on a server comes from `deploy.sh`, which passes the server's address, a
 makes `.env` for it. The worlds start again
 through `handover.sh` (see [Deploying without downtime](#deploying-without-downtime)), so their
 players play on through a deploy. The images build on the
-server from the source, protobuf and all: about fifteen minutes on 2 vCPUs, the first time and
-each time after. To go back to the release before, which builds its images again:
+server from the source, protobuf and all: about fifteen minutes on 2 vCPUs the first time. After
+that, the server's Docker keeps ccache's cache mount (see [Checking the code](#checking-the-code)),
+so a deploy compiles what changed. To go back to the release before, which builds its images again:
 
 ```bash
 ssh debian@203.0.113.7 'rm -rf nanommo && mv nanommo.previous nanommo && cd nanommo && docker compose up -d --build --wait --force-recreate'
