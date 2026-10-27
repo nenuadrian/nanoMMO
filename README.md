@@ -263,8 +263,9 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
   halves back up from the smallest, each spread over the nine pixels around as it doubles. A quarter
   of it goes on top of the frame. raylib's example blurs the whole picture onto itself instead, which
   washes it out.
-- The lava and Second Wind's glow give off light of their own, their emission, which the world's
-  shader adds to the sun's, and which takes them past white, so they bloom. A glow adds its light to
+- The lava, the ooze and Second Wind's glow give off light of their own, their emission, which the
+  shaders add to the sun's, the lava's and the ooze's most at the tops of their waves, and which
+  takes them past white, so they bloom. A glow adds its light to
   what's behind it. The screen cuts each channel at white on its own, which turns a bright orange
   yellow, so a colour past white goes to the screen scaled down to white as a whole, by its brightest
   channel.
@@ -319,8 +320,20 @@ fails it.
 The client colours each face by its height and slope: sand on the beaches, grass, rock on steep
 slopes and the high ground, and snow on the peaks, each face a little lighter or darker than its
 neighbours. The triangles share no corners, so each has the normal of its face, and the light shades
-each face flat. The sea is one square, at sea level, the island's colour showing through it near
-the shore.
+each face flat.
+
+The sea has a shader of its own, in `client/sea.h`: a square of the ground's cells around the
+camera, 320 metres across, each cut in two the way the ground's are, which follows the camera a
+whole cell at a time. Three waves, each its own way and length, and each as fast as a wave of its
+length at sea, raise and lower its corners in the vertex shader, and the fragment shader lights each
+triangle flat, with the normal of its face, worked out from how far the world moves from one pixel
+to the next, so the sea is facets, like the ground. The vertex shader reads the ground's height
+under each corner from a texture of floats, one a corner: the waves lap at the shore, the shallows
+are lighter, and the ground shows through them, and the line where the sea meets the ground has a
+colour of its own. Past 40 metres the waves calm down, as cells a few pixels big only flicker, and
+towards the edge of the square the sea fades into the sky. Each land's look gives its sea a liquid:
+the Meadows' water, with foam at the shore and the sun's glint, the Ashlands' lava, thick and slow,
+which cools to a crust at the shore and whose crests glow, and the Crypt's green ooze.
 
 The colours are the land's look, in `client/atmosphere.h`: those of the ground, the sea and the
 trees, which go into the meshes, and an atmosphere, which the shaders read each frame. The
@@ -328,7 +341,7 @@ atmosphere is the sky, which the fog fades into, where the fog starts and where 
 which way the sun is, the light it adds to a face turned to it, and the light a face gets even when
 it's turned away. In the Meadows, a warm sun shines from the side and low, so the faces of the hills
 and trees stand apart, and the fog goes from 45 metres to 150. The shaders work out the fog for each
-pixel, from how far it is, so a face as big as the sea fades too. View, Settings changes the
+pixel, from how far it is, so the far sea fades too. View, Settings changes the
 atmosphere as you play, with presets for dusk, night, mist and ash, and Reset puts the land's back.
 
 The tree is Poly by Google's, from [Poly Pizza](https://poly.pizza/m/6pwiq7hSrHr), under
