@@ -4,13 +4,14 @@
 #include <raylib.h>
 
 #include "client/atmosphere.h"
+#include "terrain/terrain.h"
 
 namespace nanommo {
 
 /// The sea around a land, in the land's look, which moves on its own.
 class Sea {
  public:
-  explicit Sea(const Look& look);
+  Sea(const Terrain& terrain, const Look& look);
   ~Sea();
 
   Sea(const Sea&) = delete;
@@ -26,6 +27,8 @@ class Sea {
  private:
   Shader shader_;
   Model model_;
+  /// The ground's height at each corner of its cells.
+  Texture2D ground_{};
 };
 
 }  // namespace nanommo
