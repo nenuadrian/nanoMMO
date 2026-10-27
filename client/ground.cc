@@ -69,9 +69,4 @@ void AddGround(Triangles& triangles, const Terrain& terrain, const Look& look,
   }
 }
 
-Mesh SeaMesh(const Terrain& terrain) {
-  const float size = 8.0f * terrain.half_size();
-  return GenMeshPlane(size, size, 1, 1);
-}
-
 }  // namespace nanommo

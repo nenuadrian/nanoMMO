@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "client/ground.h"
 #include "client/scene.h"
 
 namespace nanommo {
@@ -246,12 +245,9 @@ Renderer::~Renderer() {
 void Renderer::set_terrain(const Terrain& terrain, const Look& look) {
   UnloadTerrain();
   atmosphere_ = look.atmosphere;
-  sea_emission_ = look.sea_emission;
-  // The ground, the trees and the sea have no bones either.
+  // The ground and the trees have no bones either.
   chunks_ = LoadChunks(terrain, look, tree_, cube_shader_);
-  sea_ = LoadModelFromMesh(SeaMesh(terrain));
-  sea_->materials[0].shader = cube_shader_;
-  sea_->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = look.sea;
+  sea_ = std::make_unique<Sea>(terrain, look);
 }
 
 void Renderer::set_cel_shading(bool on) {
@@ -270,10 +266,7 @@ void Renderer::set_cel_shading(bool on) {
 
 void Renderer::UnloadTerrain() {
   UnloadChunks(chunks_);
-  if (sea_) {
-    UnloadModel(*sea_);
-    sea_.reset();
-  }
+  sea_.reset();
 }
 
 void Renderer::DrawCounted(const Mesh& mesh, const Material& material,
@@ -310,9 +303,10 @@ void Renderer::Draw() const {
   }
   // Last, as we see the ground under it through the water.
   if (sea_) {
-    SetEmission(cube_shader_, sea_emission_);
-    DrawCounted(sea_->meshes[0], sea_->materials[0],
-                MatrixTranslate(0.0f, Terrain::kSeaLevel, 0.0f));
+    sea_->Draw(camera_, atmosphere_, cel_shading_ ? kBands : 0.0f,
+               static_cast<float>(GetTime()));
+    ++work_.draws;
+    work_.triangles += sea_->triangles();
   }
   // The glows are see-through too, around the players using a skill with one.
   // Each grows over the first quarter of a second. A glow is light, so it adds

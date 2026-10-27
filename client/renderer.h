@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <map>
 #include <memory>
-#include <optional>
 #include <utility>
 #include <vector>
 
@@ -18,6 +17,7 @@
 #include "client/chunks.h"
 #include "client/cube.h"
 #include "client/outline.h"
+#include "client/sea.h"
 #include "client/trees.h"
 #include "content/content.h"
 #include "terrain/terrain.h"
@@ -94,8 +94,7 @@ class Renderer {
   Model sphere_;
   std::vector<Face> tree_;
   std::vector<Chunk> chunks_;
-  std::optional<Model> sea_;
-  float sea_emission_ = 0.0f;
+  std::unique_ptr<Sea> sea_;
   Characters characters_;
   /// Each kind of monster, by id, as its model at its height.
   std::map<uint32_t, std::unique_ptr<Characters>> monsters_;

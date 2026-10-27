@@ -14,10 +14,6 @@ namespace nanommo {
 void AddGround(Triangles& triangles, const Terrain& terrain, const Look& look,
                int left, int top, int cells);
 
-/// A square at sea level, four times as wide as the terrain, so that the sea
-/// goes on past it.
-Mesh SeaMesh(const Terrain& terrain);
-
 }  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_GROUND_H_

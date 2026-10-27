@@ -6,7 +6,7 @@ add_library(nanommo_client_core
   login_screen.cc nameplates.cc player_frame.cc hotbar.cc bag_window.cc
   character_screen.cc
   chat_window.cc talk_window.cc trainer_window.cc picking.cc
-  animator.cc characters.cc triangles.cc ground.cc trees.cc chunks.cc
+  animator.cc characters.cc triangles.cc ground.cc trees.cc chunks.cc sea.cc
   gate.cc
 )
 protobuf_generate(TARGET nanommo_client_core
@@ -55,7 +55,7 @@ target_link_libraries(nanommo_client_bench PRIVATE nanommo_client_core)
 add_dependencies(nanommo_client_bench nanommo_client_assets)
 
 add_executable(nanommo_client_tests
-  renderer_test.cc animator_test.cc characters_test.cc picking_test.cc
+  renderer_test.cc sea_test.cc animator_test.cc characters_test.cc picking_test.cc
   jukebox_test.cc sound_test.cc settings_test.cc bag_window_test.cc
 )
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)
