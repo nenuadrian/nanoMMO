@@ -12,7 +12,7 @@ namespace nanommo {
 namespace {
 
 // Waves: three of them, each its own way and length, raise and lower each
-// corner of the sea, and their slopes there tilt its normal.
+// corner of the sea.
 constexpr const char* kVertexShader = R"(#version 330
 in vec3 vertexPosition;
 uniform mat4 matModel;
@@ -21,7 +21,6 @@ uniform mat4 matProjection;
 uniform vec3 eye;
 uniform float seconds;
 out vec3 world;
-out vec3 normal;
 out float depth;
 
 const vec2 kWays[3] = vec2[](vec2(1.0, 0.35), vec2(-0.45, 1.0),
@@ -36,26 +35,23 @@ void main() {
   // Far away, a cell is a few pixels, and waves that small only flicker.
   float calm = 1.0 - smoothstep(40.0, 100.0, distance(world.xz, eye.xz));
   float height = 0.0;
-  vec2 slope = vec2(0.0);
   for (int i = 0; i < 3; ++i) {
     vec2 way = normalize(kWays[i]);
     float k = 6.2831853 / kLengths[i];
     // Each moves as fast as a wave of its length does at sea.
     float phase = dot(way, world.xz) * k + seconds * sqrt(9.8 * k);
     height += sin(phase) / 3.0;
-    slope += way * k * cos(phase) / 3.0;
   }
   world.y += kHeight * calm * height;
-  slope *= kHeight * calm;
-  normal = vec3(-slope.x, 1.0, -slope.y);
   gl_Position = matProjection * matView * vec4(world, 1.0);
   depth = gl_Position.w;
 }
 )";
 
+// Facets: each triangle is lit flat, like the ground's, with the normal of its
+// face.
 constexpr const char* kFragmentShader = R"(#version 330
 in vec3 world;
-in vec3 normal;
 in float depth;
 uniform vec4 colDiffuse;
 uniform vec3 sun;
@@ -74,7 +70,14 @@ out vec4 pixel;
 const float kGlint = 0.6;
 
 void main() {
-  vec3 surface = normalize(normal);
+  // How far the world moves from this pixel to the next one across and the
+  // next one up. Both lie in the triangle's face, so across them is its
+  // normal, the same for each of its pixels.
+  vec3 surface = normalize(cross(dFdx(world), dFdy(world)));
+  // Turned up, whichever way round the two were.
+  if (surface.y < 0.0) {
+    surface = -surface;
+  }
   float sunlit = max(dot(surface, normalize(sun)), 0.0);
   if (bands > 0.0) {
     sunlit = min(floor(sunlit * bands), bands - 1.0) / (bands - 1.0);
