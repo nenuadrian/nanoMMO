@@ -23,19 +23,22 @@ uniform float seconds;
 uniform sampler2D ground;
 uniform float halfSize;
 uniform float cell;
+uniform float height;
+uniform float wavelength;
+uniform float pace;
 out vec3 world;
 out float depth;
 // From the ground up to the water, at each pixel.
 out float gap;
 // How deep the still sea is, at one of the triangle's corners.
 flat out float below;
+// How high up its wave that corner is, from 0 at the bottom to 1 at the top.
+flat out float crest;
 
 const vec2 kWays[3] = vec2[](vec2(1.0, 0.35), vec2(-0.45, 1.0),
                              vec2(0.6, -0.8));
-// In metres, from the top of a wave to the next.
-const float kLengths[3] = float[](10.0, 7.1, 5.3);
-// In metres, from the still sea to the top of a wave.
-const float kHeight = 0.45;
+// Each one's length, as a share of the longest's.
+const float kLengths[3] = float[](1.0, 0.71, 0.53);
 
 void main() {
   world = (matModel * vec4(vertexPosition, 1.0)).xyz;
@@ -49,15 +52,16 @@ void main() {
   float calm = 1.0 - smoothstep(40.0, 100.0, distance(world.xz, eye.xz));
   // In the shallows, waves lap at the shore.
   calm *= mix(0.25, 1.0, smoothstep(0.0, 2.5, below));
-  float height = 0.0;
+  float wave = 0.0;
   for (int i = 0; i < 3; ++i) {
     vec2 way = normalize(kWays[i]);
-    float k = 6.2831853 / kLengths[i];
-    // Each moves as fast as a wave of its length does at sea.
-    float phase = dot(way, world.xz) * k + seconds * sqrt(9.8 * k);
-    height += sin(phase) / 3.0;
+    float k = 6.2831853 / (wavelength * kLengths[i]);
+    // Each moves as fast as a wave of its length does at sea, at its pace.
+    float phase = dot(way, world.xz) * k + seconds * pace * sqrt(9.8 * k);
+    wave += sin(phase) / 3.0;
   }
-  world.y += kHeight * calm * height;
+  crest = 0.5 + 0.5 * wave;
+  world.y += height * calm * wave;
   gap = world.y - bottom;
   gl_Position = matProjection * matView * vec4(world, 1.0);
   depth = gl_Position.w;
@@ -71,7 +75,10 @@ in vec3 world;
 in float depth;
 in float gap;
 flat in float below;
-uniform vec4 colDiffuse;
+flat in float crest;
+uniform vec4 deep;
+uniform vec4 shallow;
+uniform vec4 edge;
 uniform vec3 sun;
 uniform vec3 sunlight;
 uniform vec3 ambient;
@@ -79,16 +86,11 @@ uniform vec3 fogColor;
 uniform float fogNear;
 uniform float fogFar;
 uniform float emission;
+uniform float glint;
 uniform float bands;
 uniform vec3 eye;
 uniform float reach;
 out vec4 pixel;
-
-// How much of the sun it reflects to the eye.
-const float kGlint = 0.6;
-// Where it's shallow, it's lighter, and we see more of the ground through it.
-const vec4 kShallow = vec4(0.6, 0.9, 0.85, 0.55);
-const vec4 kFoam = vec4(0.93, 0.96, 0.98, 0.95);
 
 void main() {
   // How far the world moves from this pixel to the next one across and the
@@ -103,16 +105,15 @@ void main() {
   if (bands > 0.0) {
     sunlit = min(floor(sunlit * bands), bands - 1.0) / (bands - 1.0);
   }
-  vec4 shallow = vec4(mix(colDiffuse.rgb, kShallow.rgb, 0.45),
-                      colDiffuse.a * kShallow.a);
-  vec4 color = mix(shallow, colDiffuse, smoothstep(0.2, 2.0, below));
-  // Foam, along the line where the water meets the ground.
-  color = mix(color, kFoam, 1.0 - smoothstep(0.08, 0.14, gap));
-  vec3 light = ambient + sunlight * sunlit + emission;
+  vec4 color = mix(shallow, deep, smoothstep(0.2, 2.0, below));
+  // Along the line where it meets the ground.
+  color = mix(color, edge, 1.0 - smoothstep(0.08, 0.14, gap));
+  // The tops of the waves give off the most light, and the bottoms none.
+  vec3 light = ambient + sunlight * sunlit + emission * 4.0 * crest * crest;
   // The sun, reflected off the surface, where it comes back to the eye.
   vec3 reflected = reflect(-normalize(sun), surface);
-  float glint = pow(max(dot(reflected, normalize(eye - world)), 0.0), 24.0);
-  vec3 lit = color.rgb * light + sunlight * glint * kGlint;
+  float shine = pow(max(dot(reflected, normalize(eye - world)), 0.0), 24.0);
+  vec3 lit = color.rgb * light + sunlight * shine * glint;
   float fog = clamp((depth - fogNear) / (fogFar - fogNear), 0.0, 1.0);
   // Into the sky towards the edge of the sea, wherever the fog ends.
   fog = max(fog, smoothstep(reach - 30.0, reach, distance(world.xz, eye.xz)));
@@ -125,6 +126,11 @@ constexpr float kReach = 160.0f;
 
 void Set(Shader shader, const char* name, const void* value, int type) {
   SetShaderValue(shader, GetShaderLocation(shader, name), value, type);
+}
+
+void SetColor(Shader shader, const char* name, Color color) {
+  const Vector4 normalized = ColorNormalize(color);
+  Set(shader, name, &normalized, SHADER_UNIFORM_VEC4);
 }
 
 }  // namespace
@@ -148,9 +154,17 @@ Sea::Sea(const Terrain& terrain, const Look& look)
   }
   model_ = LoadModelFromMesh(grid.Upload());
   model_.materials[0].shader = shader_;
-  model_.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = look.sea;
-  Set(shader_, "emission", &look.sea_emission, SHADER_UNIFORM_FLOAT);
   Set(shader_, "reach", &kReach, SHADER_UNIFORM_FLOAT);
+
+  const Liquid& liquid = look.sea;
+  SetColor(shader_, "deep", liquid.deep);
+  SetColor(shader_, "shallow", liquid.shallow);
+  SetColor(shader_, "edge", liquid.edge);
+  Set(shader_, "height", &liquid.height, SHADER_UNIFORM_FLOAT);
+  Set(shader_, "wavelength", &liquid.wavelength, SHADER_UNIFORM_FLOAT);
+  Set(shader_, "pace", &liquid.pace, SHADER_UNIFORM_FLOAT);
+  Set(shader_, "glint", &liquid.glint, SHADER_UNIFORM_FLOAT);
+  Set(shader_, "emission", &liquid.emission, SHADER_UNIFORM_FLOAT);
 
   // The ground's heights, one float a corner, as a texture the vertex shader
   // can read.
