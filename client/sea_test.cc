@@ -7,7 +7,6 @@
 #include "client/atmosphere.h"
 #include "client/window.h"
 #include "gtest/gtest.h"
-#include "terrain/terrain.h"
 
 namespace {
 
@@ -52,7 +51,7 @@ TEST(Sea, MovesWithTheTime) {
       nanommo::Window::Create("test", 64, 64,
                               nanommo::Window::Visibility::kHidden);
   ASSERT_TRUE(window.ok());
-  const nanommo::Sea sea(nanommo::Terrain(1), nanommo::kMeadows);
+  const nanommo::Sea sea(nanommo::kMeadows);
 
   const std::vector<Color> now = Picture(sea, 10.0f);
 

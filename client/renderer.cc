@@ -247,7 +247,7 @@ void Renderer::set_terrain(const Terrain& terrain, const Look& look) {
   atmosphere_ = look.atmosphere;
   // The ground and the trees have no bones either.
   chunks_ = LoadChunks(terrain, look, tree_, cube_shader_);
-  sea_ = std::make_unique<Sea>(terrain, look);
+  sea_ = std::make_unique<Sea>(look);
 }
 
 void Renderer::set_cel_shading(bool on) {

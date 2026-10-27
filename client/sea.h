@@ -4,14 +4,13 @@
 #include <raylib.h>
 
 #include "client/atmosphere.h"
-#include "terrain/terrain.h"
 
 namespace nanommo {
 
 /// The sea around a land, in the land's look, which moves on its own.
 class Sea {
  public:
-  Sea(const Terrain& terrain, const Look& look);
+  explicit Sea(const Look& look);
   ~Sea();
 
   Sea(const Sea&) = delete;
