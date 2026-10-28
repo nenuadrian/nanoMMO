@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package nanommo.figures;
+
+// Along a figure's own axes, as it stands in the pose its rig was made in, in
+// metres: x to its left, y up and z forward.
+message Offset {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+// A shape that moves with one of a figure's bones, as part of its body or of
+// something it wears. Lengths are in metres, for a figure 1.8 metres tall.
+message Part {
+  enum Shape {
+    SHAPE_NONE = 0;
+    // A stick with round ends, which can be thicker at one end.
+    SHAPE_LIMB = 1;
+    // A ball, or an egg when its radii differ.
+    SHAPE_BALL = 2;
+  }
+  Shape shape = 1;
+  // The bone it moves with, by its name in Mixamo's rig, such as "LeftArm".
+  string bone = 2;
+  // Where it starts: at this bone's joint, or at its own bone's when it's
+  // empty, moved by the offset. A ball's middle is there.
+  string from = 3;
+  Offset from_offset = 4;
+  // Where a limb ends: at this bone's joint, moved by the offset.
+  string to = 5;
+  Offset to_offset = 6;
+  // A limb's radius at each end.
+  float start_radius = 7;
+  float end_radius = 8;
+  // How thick a limb is from front to back, or from top to bottom when it
+  // lies along the ground, as a share of how wide it is. Without one, it's
+  // round.
+  float flatten = 9;
+  // A ball's radii.
+  Offset size = 10;
+  // As 0xRRGGBBAA. A white part takes on the colour it's drawn in: the
+  // skin's, on the body, and the hair's, on the hair.
+  uint32 color = 11;
+  // On the left, and the same again on the right.
+  bool mirrored = 12;
+}
+
+// A way to wear the hair, over the head, in white, which takes on the hair's
+// colour. One with no parts is bald.
+message Hair {
+  repeated Part parts = 1;
+}
+
+message Figures {
+  // A player's body, under what they wear.
+  repeated Part body = 1;
+  // As 0xRRGGBBAA. Each player has one skin, one hair colour and one way to
+  // wear their hair from these, which their id picks.
+  repeated uint32 skins = 2;
+  repeated uint32 hair_colors = 3;
+  repeated Hair hairs = 4;
+}

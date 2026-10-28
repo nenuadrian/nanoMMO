@@ -5,6 +5,7 @@
 #include <string>
 
 #include "absl/status/statusor.h"
+#include "content/figures.h"
 #include "content/items.h"
 #include "content/monsters.h"
 #include "content/npcs.h"
@@ -15,6 +16,7 @@ namespace nanommo {
 /// What the game is made of, which the world servers and the clients both
 /// read from the content folder.
 struct Content {
+  figures::Figures figures;
   ItemTable items;
   MonsterTable monsters;
   NpcTable npcs;

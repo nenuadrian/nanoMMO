@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <set>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "gtest/gtest.h"
@@ -28,6 +30,7 @@ TEST(Content, ReadsTheGamesContent) {
   EXPECT_TRUE(std::ranges::any_of(content->items.by_id, [](const auto& item) {
     return !item.second.rolls().empty();
   }));
+  EXPECT_FALSE(content->figures.body().empty());
   const nanommo::monsters::Kind& skeleton = content->monsters.kinds.at(1);
   EXPECT_EQ(skeleton.name(), "Skeleton");
   EXPECT_FALSE(content->monsters.spawns.empty());
@@ -58,6 +61,82 @@ TEST(Content, HashesWhatTheClientsRead) {
   stronger.items.by_id.at(4).mutable_equip()->mutable_modifiers(0)->set_amount(
       9);
   EXPECT_NE(nanommo::ClientHash(stronger), hash);
+}
+
+TEST(Content, RefusesFiguresThatDontAddUp) {
+  constexpr char kArm[] =
+      "body { shape: SHAPE_LIMB bone: \"LeftArm\" to: \"LeftForeArm\" "
+      "start_radius: 0.06 end_radius: 0.05 }";
+  EXPECT_TRUE(nanommo::ParseFigures(kArm).ok());
+  EXPECT_EQ(nanommo::ParseFigures("body { shape: SHAPE_LIMB to: \"Head\" }")
+                .status()
+                .message(),
+            "a part has no bone to move with");
+  EXPECT_EQ(nanommo::ParseFigures("body { bone: \"Head\" }").status().message(),
+            "a part on the Head has no shape");
+  EXPECT_EQ(nanommo::ParseFigures("body { shape: SHAPE_LIMB bone: \"LeftArm\" "
+                                  "to: \"LeftForeArm\" start_radius: 0.06 }")
+                .status()
+                .message(),
+            "a limb on the LeftArm needs an end, and a radius at each");
+  EXPECT_TRUE(nanommo::ParseFigures("body { shape: SHAPE_BALL bone: \"Head\" "
+                                    "size { x: 0.2 y: 0.2 z: 0.2 } }")
+                  .ok());
+  EXPECT_EQ(nanommo::ParseFigures("body { shape: SHAPE_BALL bone: \"Head\" "
+                                  "size { x: 0.2 y: 0.2 } }")
+                .status()
+                .message(),
+            "a ball on the Head needs a size each way");
+  EXPECT_TRUE(nanommo::ParseFigures("hairs { parts { shape: SHAPE_BALL "
+                                    "bone: \"Head\" size { x: 0.2 y: 0.1 "
+                                    "z: 0.2 } } }")
+                  .ok());
+  EXPECT_EQ(nanommo::ParseFigures("hairs { parts { shape: SHAPE_BALL "
+                                  "bone: \"Head\" size { x: 0.2 y: 0.1 } } }")
+                .status()
+                .message(),
+            "a way to wear the hair: a ball on the Head needs a size each way");
+}
+
+TEST(Content, PicksEachPlayersFeaturesFromTheFigures) {
+  const nanommo::figures::Figures figures = *nanommo::ParseFigures(
+      "skins: 0xF1C49CFF skins: 0x80543AFF hair_colors: 0x1C181AFF "
+      "hairs {} hairs {} hairs {}");
+
+  // Over the first few players, each skin and each way to wear the hair,
+  // and the one hair colour.
+  std::set<uint32_t> skins;
+  std::set<int> hairs;
+  for (uint32_t id = 1; id <= 8; ++id) {
+    const nanommo::Features features = nanommo::FeaturesOf(figures, id);
+    skins.insert(features.skin);
+    hairs.insert(features.hair);
+    EXPECT_EQ(features.hair_color, 0x1C181AFFu);
+  }
+  EXPECT_EQ(skins, (std::set<uint32_t>{0xF1C49CFF, 0x80543AFF}));
+  EXPECT_EQ(hairs, (std::set<int>{0, 1, 2}));
+
+  // With none to pick from, white, and no hair.
+  const nanommo::Features none = nanommo::FeaturesOf({}, 1);
+  EXPECT_EQ(none.skin, 0xFFFFFFFFu);
+  EXPECT_EQ(none.hair, -1);
+}
+
+TEST(Content, UnfoldsMirroredPartsOntoTheRight) {
+  const nanommo::figures::Figures figures = *nanommo::ParseFigures(
+      "body { shape: SHAPE_BALL bone: \"LeftHand\" from_offset { x: 0.04 } "
+      "size { x: 0.07 y: 0.07 z: 0.07 } mirrored: true } "
+      "body { shape: SHAPE_BALL bone: \"Head\" "
+      "size { x: 0.2 y: 0.2 z: 0.2 } }");
+
+  const std::vector<nanommo::figures::Part> parts =
+      nanommo::Unfold(figures.body());
+
+  ASSERT_EQ(parts.size(), 3u);
+  EXPECT_EQ(parts[0].bone(), "LeftHand");
+  EXPECT_EQ(parts[1].bone(), "RightHand");
+  EXPECT_FLOAT_EQ(parts[1].from_offset().x(), -0.04f);
+  EXPECT_EQ(parts[2].bone(), "Head");
 }
 
 TEST(Content, RefusesItemsThatDontAddUp) {

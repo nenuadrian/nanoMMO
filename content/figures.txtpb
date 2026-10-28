@@ -1,0 +1,228 @@
+# proto-file: content/figures.proto
+# proto-message: nanommo.figures.Figures
+
+# A player is a person under what they wear: a limb for each bone of the arms
+# and the legs, a flat one for each foot, a ball for each hand, the chest, the
+# belly, the hips and the neck, and a ball for the head, with two eyes. Each
+# part is placed on Mixamo's rig as it stands in its T-pose, arms out to the
+# sides. Every part but the eyes is white, which takes on the player's skin.
+
+# The arm, from the shoulder to the elbow, then to the wrist, a little thinner
+# at each, and the hand, a little past the wrist along the arm.
+body {
+  shape: SHAPE_LIMB
+  bone: "LeftArm"
+  to: "LeftForeArm"
+  start_radius: 0.058
+  end_radius: 0.05
+  color: 0xFFFFFFFF
+  mirrored: true
+}
+body {
+  shape: SHAPE_LIMB
+  bone: "LeftForeArm"
+  to: "LeftHand"
+  start_radius: 0.05
+  end_radius: 0.043
+  color: 0xFFFFFFFF
+  mirrored: true
+}
+body {
+  shape: SHAPE_BALL
+  bone: "LeftHand"
+  from_offset { x: 0.05 }
+  size { x: 0.062 y: 0.062 z: 0.062 }
+  color: 0xFFFFFFFF
+  mirrored: true
+}
+
+# The leg, from the hip to the knee, then to the ankle, and the foot, from
+# the heel to the ball of the foot, flat underneath.
+body {
+  shape: SHAPE_LIMB
+  bone: "LeftUpLeg"
+  to: "LeftLeg"
+  start_radius: 0.08
+  end_radius: 0.064
+  color: 0xFFFFFFFF
+  mirrored: true
+}
+body {
+  shape: SHAPE_LIMB
+  bone: "LeftLeg"
+  to: "LeftFoot"
+  start_radius: 0.064
+  end_radius: 0.054
+  color: 0xFFFFFFFF
+  mirrored: true
+}
+body {
+  shape: SHAPE_LIMB
+  bone: "LeftFoot"
+  from_offset { y: -0.02 z: -0.03 }
+  to: "LeftToeBase"
+  to_offset { y: 0.04 z: 0.03 }
+  start_radius: 0.056
+  end_radius: 0.05
+  flatten: 0.7
+  color: 0xFFFFFFFF
+  mirrored: true
+}
+
+# The chest, from the middle of the spine to below the neck, widest at the
+# shoulders, and the belly, from the hips up, both flatter front to back than
+# across, then the hips, and the neck.
+body {
+  shape: SHAPE_LIMB
+  bone: "Spine2"
+  from: "Spine1"
+  from_offset { y: 0.02 }
+  to: "Neck"
+  to_offset { y: -0.1 }
+  start_radius: 0.12
+  end_radius: 0.14
+  flatten: 0.68
+  color: 0xFFFFFFFF
+}
+body {
+  shape: SHAPE_LIMB
+  bone: "Spine"
+  from: "Hips"
+  from_offset { y: 0.04 }
+  to: "Spine1"
+  start_radius: 0.115
+  end_radius: 0.12
+  flatten: 0.72
+  color: 0xFFFFFFFF
+}
+body {
+  shape: SHAPE_BALL
+  bone: "Hips"
+  from_offset { y: 0.005 }
+  size { x: 0.125 y: 0.085 z: 0.085 }
+  color: 0xFFFFFFFF
+}
+body {
+  shape: SHAPE_LIMB
+  bone: "Neck"
+  to: "Head"
+  start_radius: 0.05
+  end_radius: 0.05
+  color: 0xFFFFFFFF
+}
+
+# The head, above the neck, and its eyes, at the front.
+body {
+  shape: SHAPE_BALL
+  bone: "Head"
+  from_offset { y: 0.115 z: 0.025 }
+  size { x: 0.175 y: 0.175 z: 0.175 }
+  color: 0xFFFFFFFF
+}
+body {
+  shape: SHAPE_BALL
+  bone: "Head"
+  from_offset { x: 0.058 y: 0.115 z: 0.172 }
+  size { x: 0.026 y: 0.038 z: 0.02 }
+  color: 0x1C1A24FF
+  mirrored: true
+}
+
+# From pale to dark.
+skins: 0xFAD6B4FF
+skins: 0xF1C49CFF
+skins: 0xDEAA80FF
+skins: 0xC48A62FF
+skins: 0xA06C4CFF
+skins: 0x80543AFF
+
+# Black, brown, red, fair and grey.
+hair_colors: 0x1C181AFF
+hair_colors: 0x5C3822FF
+hair_colors: 0x964224FF
+hair_colors: 0xE2BA5CFF
+hair_colors: 0x969696FF
+
+# Short, over the top and the back of the head.
+hairs {
+  parts {
+    shape: SHAPE_BALL
+    bone: "Head"
+    from_offset { y: 0.168 z: -0.005 }
+    size { x: 0.184 y: 0.13 z: 0.188 }
+    color: 0xFFFFFFFF
+  }
+}
+# Long, down the back of the neck as well.
+hairs {
+  parts {
+    shape: SHAPE_BALL
+    bone: "Head"
+    from_offset { y: 0.168 z: -0.005 }
+    size { x: 0.184 y: 0.13 z: 0.188 }
+    color: 0xFFFFFFFF
+  }
+  parts {
+    shape: SHAPE_BALL
+    bone: "Head"
+    from_offset { y: 0.06 z: -0.065 }
+    size { x: 0.178 y: 0.2 z: 0.14 }
+    color: 0xFFFFFFFF
+  }
+}
+# Short, with a tail tied at the back, which hangs down.
+hairs {
+  parts {
+    shape: SHAPE_BALL
+    bone: "Head"
+    from_offset { y: 0.168 z: -0.005 }
+    size { x: 0.184 y: 0.13 z: 0.188 }
+    color: 0xFFFFFFFF
+  }
+  parts {
+    shape: SHAPE_BALL
+    bone: "Head"
+    from_offset { y: 0.17 z: -0.19 }
+    size { x: 0.065 y: 0.065 z: 0.065 }
+    color: 0xFFFFFFFF
+  }
+  parts {
+    shape: SHAPE_LIMB
+    bone: "Head"
+    from_offset { y: 0.15 z: -0.215 }
+    to: "Head"
+    to_offset { y: -0.05 z: -0.24 }
+    start_radius: 0.055
+    end_radius: 0.03
+    color: 0xFFFFFFFF
+  }
+}
+# Short, with a beard along the jaw and the chin.
+hairs {
+  parts {
+    shape: SHAPE_BALL
+    bone: "Head"
+    from_offset { y: 0.168 z: -0.005 }
+    size { x: 0.184 y: 0.13 z: 0.188 }
+    color: 0xFFFFFFFF
+  }
+  parts {
+    shape: SHAPE_BALL
+    bone: "Head"
+    from_offset { z: 0.06 }
+    size { x: 0.14 y: 0.07 z: 0.125 }
+    color: 0xFFFFFFFF
+  }
+}
+# Bald, with a beard.
+hairs {
+  parts {
+    shape: SHAPE_BALL
+    bone: "Head"
+    from_offset { z: 0.06 }
+    size { x: 0.14 y: 0.07 z: 0.125 }
+    color: 0xFFFFFFFF
+  }
+}
+# Bald.
+hairs {}

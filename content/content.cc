@@ -59,7 +59,11 @@ void Add(uint64_t& hash, const google::protobuf::Message& message) {
 
 absl::StatusOr<Content> ReadContent(const std::string& folder) {
   Content content;
-  absl::Status read = Read(folder, "items.txtpb", ParseItems, content.items);
+  absl::Status read =
+      Read(folder, "figures.txtpb", ParseFigures, content.figures);
+  if (read.ok()) {
+    read = Read(folder, "items.txtpb", ParseItems, content.items);
+  }
   if (read.ok()) {
     read = Read(folder, "monsters.txtpb", ParseMonsters, content.monsters);
   }
@@ -104,6 +108,8 @@ absl::Status CheckContent(const Content& content) {
 
 uint64_t ClientHash(const Content& content) {
   uint64_t hash = kOffsetBasis;
+  // The clients draw the players from the figures.
+  Add(hash, content.figures);
   // A copy of each with what the clients read, by id. They show all of an
   // item but how its weapon fights.
   for (const auto& [id, item] : content.items.by_id) {
