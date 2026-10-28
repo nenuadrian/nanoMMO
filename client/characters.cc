@@ -164,19 +164,28 @@ Characters::Characters(const std::string& folder,
     // Sized by the model's own mesh, so a figure is as tall as the model.
     const BoundingBox box = GetModelBoundingBox(character.model);
     character.scale = height / (box.max.y - box.min.y);
+    character.hull = character.model;
     if (!figures.body().empty()) {
       const float metre = 1.0f / character.scale;
-      Dress(character.model, Unfold(figures.body()), metre);
+      const std::vector<figures::Part> body = Unfold(figures.body());
+      Dress(character.model, body, metre);
+      // The hull shares the model's bones, so the clips pose it too.
+      character.hull = character.model;
+      character.hull.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
+      character.hull.meshes[0] = Hull(character.model, body, metre);
       for (int i = 0; i < figures.hairs_size(); ++i) {
         if (figures.hairs(i).parts().empty()) {
           continue;
         }
-        // A copy of the model, with the hair for its mesh, so it moves with
-        // the model's bones.
-        Garment hair{.model = character.model};
+        // Copies of the model, with the hair for their meshes, so they move
+        // with its bones.
+        const std::vector<figures::Part> parts =
+            Unfold(figures.hairs(i).parts());
+        Garment hair{.model = character.model, .hull = character.model};
         hair.model.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
-        hair.model.meshes[0] =
-            Parts(character.model, Unfold(figures.hairs(i).parts()), metre);
+        hair.model.meshes[0] = Parts(character.model, parts, metre);
+        hair.hull.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
+        hair.hull.meshes[0] = Hull(character.model, parts, metre);
         character.hairs[i] = hair;
       }
       character.dressed = true;
@@ -190,6 +199,12 @@ Characters::~Characters() {
     for (auto& [i, hair] : character.hairs) {
       UnloadMesh(hair.model.meshes[0]);
       MemFree(hair.model.meshes);
+      UnloadMesh(hair.hull.meshes[0]);
+      MemFree(hair.hull.meshes);
+    }
+    if (character.dressed) {
+      UnloadMesh(character.hull.meshes[0]);
+      MemFree(character.hull.meshes);
     }
     UnloadModelAnimations(character.clips, character.clip_count);
     UnloadWithBones(character.model);
@@ -288,21 +303,22 @@ void Characters::Draw(const Figure& figure, Color color,
       MatrixTranslate(figure.position.x, figure.position.y, figure.position.z));
   // Each with its outline first, at the figure's place, its turn and its
   // scale.
-  auto draw = [&](const Model& model, Color tint) {
+  auto draw = [&](const Model& model, const Model& hull, Color tint) {
     if (outline != nullptr) {
-      DrawOutline(model, placed, outline->skinned);
+      DrawOutline(hull, placed, outline->skinned);
     }
     DrawModelEx(model, figure.position, {0.0f, 1.0f, 0.0f},
                 figure.yaw * RAD2DEG, {scale, scale, scale}, tint);
   };
   if (!character.dressed) {
-    draw(character.model, color);
+    draw(character.model, character.hull, color);
   } else {
     const Features features = FeaturesOf(figures_, figure.id);
-    draw(character.model, GetColor(features.skin));
+    draw(character.model, character.hull, GetColor(features.skin));
     const auto hair = character.hairs.find(features.hair);
     if (hair != character.hairs.end()) {
-      draw(hair->second.model, GetColor(features.hair_color));
+      draw(hair->second.model, hair->second.hull,
+           GetColor(features.hair_color));
     }
   }
 

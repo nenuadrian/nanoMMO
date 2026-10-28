@@ -53,13 +53,18 @@ class Characters {
   void Draw(const Figure& figure, Color color, const Outline* outline) const;
 
  private:
-  /// Something over the figure, as a model that shares the character's bones.
+  /// Something over the figure, as a model and its hull, which share the
+  /// character's bones.
   struct Garment {
     Model model;
+    Model hull;
   };
 
   struct Character {
     Model model;
+    /// What the outline draws: the model, or a figure's hull, on the
+    /// model's bones.
+    Model hull;
     bool dressed = false;
     /// Each way to wear the hair, by its place in the figures' list, but
     /// bald.

@@ -44,6 +44,9 @@ message Part {
   uint32 color = 11;
   // On the left, and the same again on the right.
   bool mirrored = 12;
+  // In a bigger part's surface, such as an eye in the head, so the outline
+  // leaves it out, as its own would ring it on the bigger part.
+  bool flush = 13;
 }
 
 // A way to wear the hair, over the head, in white, which takes on the hair's

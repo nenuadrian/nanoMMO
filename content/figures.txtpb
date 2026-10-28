@@ -126,6 +126,7 @@ body {
   size { x: 0.026 y: 0.038 z: 0.02 }
   color: 0x1C1A24FF
   mirrored: true
+  flush: true
 }
 
 # From pale to dark.

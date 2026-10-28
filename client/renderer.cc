@@ -150,8 +150,9 @@ void main() {
 }
 )";
 
-// In metres, so that an outline is thinner the further away it is.
-constexpr float kOutlineThickness = 0.05f;
+// In metres, so that an outline is thinner the further away it is. A
+// figure's arms are about 12 centimetres across, so it's a third of that.
+constexpr float kOutlineThickness = 0.04f;
 
 constexpr std::array<float, 3> kPreviewBackground = {0.12f, 0.14f, 0.19f};
 

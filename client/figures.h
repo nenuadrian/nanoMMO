@@ -20,6 +20,12 @@ void Dress(Model& model, const std::vector<figures::Part>& parts, float metre);
 Mesh Parts(const Model& model, const std::vector<figures::Part>& parts,
            float metre);
 
+/// The same parts for the outline, which pushes each corner out along its
+/// normal: each corner has its shape's smooth normal, so the corners where
+/// faces meet move out together, where with each face's own they'd come apart.
+Mesh Hull(const Model& model, const std::vector<figures::Part>& parts,
+          float metre);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_FIGURES_H_

@@ -33,9 +33,12 @@ T* Copy(const std::vector<T>& values) {
 }
 
 // Triangles that share no corners, like the ground's, so each is lit flat,
-// with each corner bound to one bone.
+// with each corner bound to one bone. For the outline, each corner has the
+// shape's smooth normal instead.
 class Builder {
  public:
+  explicit Builder(bool smooth) : smooth_(smooth) {}
+
   // The shape's smooth normal at each corner says which side is outside, so
   // the corners can come in either order.
   void Add(Vector3 a, Vector3 b, Vector3 c, Vector3 na, Vector3 nb, Vector3 nc,
@@ -43,11 +46,15 @@ class Builder {
     Vector3 face = FaceNormal(a, b, c);
     if (Vector3DotProduct(face, Vector3Add(Vector3Add(na, nb), nc)) < 0.0f) {
       std::swap(b, c);
+      std::swap(nb, nc);
       face = Vector3Negate(face);
     }
-    for (const Vector3& corner : {a, b, c}) {
+    const std::array<std::pair<Vector3, Vector3>, 3> corners = {
+        {{a, na}, {b, nb}, {c, nc}}};
+    for (const auto& [corner, smooth] : corners) {
+      const Vector3 normal = smooth_ ? Vector3Normalize(smooth) : face;
       positions_.insert(positions_.end(), {corner.x, corner.y, corner.z});
-      normals_.insert(normals_.end(), {face.x, face.y, face.z});
+      normals_.insert(normals_.end(), {normal.x, normal.y, normal.z});
       colors_.insert(colors_.end(), {color.r, color.g, color.b, color.a});
       // Up to four bones can move a corner, each by its weight, and each of
       // ours moves with one, all the way.
@@ -70,6 +77,7 @@ class Builder {
   }
 
  private:
+  bool smooth_;
   std::vector<float> positions_;
   std::vector<float> normals_;
   std::vector<unsigned char> colors_;
@@ -210,17 +218,17 @@ Vector3 Metres(const figures::Offset& offset, float metre) {
   return {offset.x() * metre, offset.y() * metre, offset.z() * metre};
 }
 
-// The parts' triangles.
+// The parts' triangles, with faces' normals, or for the outline, smooth ones.
 Mesh Build(const Model& model, const std::vector<figures::Part>& parts,
-           float metre) {
-  Builder out;
+           float metre, bool smooth) {
+  Builder out(smooth);
   // The bind pose is where each bone rests, in the model's own space.
   const Transform* rest = model.skeleton.bindPose;
   for (const figures::Part& part : parts) {
     const int bone = BoneNamed(model, part.bone());
     const int from = part.from().empty() ? bone : BoneNamed(model, part.from());
     const int to = BoneNamed(model, part.to());
-    if (bone < 0 || from < 0) {
+    if (bone < 0 || from < 0 || (smooth && part.flush())) {
       continue;
     }
     const Color color = GetColor(part.color());
@@ -242,7 +250,7 @@ Mesh Build(const Model& model, const std::vector<figures::Part>& parts,
 }  // namespace
 
 void Dress(Model& model, const std::vector<figures::Part>& parts, float metre) {
-  const Mesh mesh = Build(model, parts, metre);
+  const Mesh mesh = Build(model, parts, metre, false);
   for (int i = 0; i < model.meshCount; ++i) {
     UnloadMesh(model.meshes[i]);
   }
@@ -258,7 +266,12 @@ void Dress(Model& model, const std::vector<figures::Part>& parts, float metre) {
 
 Mesh Parts(const Model& model, const std::vector<figures::Part>& parts,
            float metre) {
-  return Build(model, parts, metre);
+  return Build(model, parts, metre, false);
+}
+
+Mesh Hull(const Model& model, const std::vector<figures::Part>& parts,
+          float metre) {
+  return Build(model, parts, metre, true);
 }
 
 }  // namespace nanommo
