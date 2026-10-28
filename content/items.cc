@@ -113,6 +113,8 @@ std::string_view SlotName(items::Slot slot) {
       return "head";
     case items::SLOT_BODY:
       return "body";
+    case items::SLOT_LEGS:
+      return "legs";
     case items::SLOT_FEET:
       return "feet";
     default:

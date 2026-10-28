@@ -88,6 +88,8 @@ uint32_t SlotIcon(items::Slot slot) {
       return 0xF8C0;  // hat-cowboy
     case items::SLOT_BODY:
       return 0xF553;  // shirt
+    case items::SLOT_LEGS:
+      return 0xF554;  // person-walking
     case items::SLOT_FEET:
       return 0xF696;  // socks
     default:

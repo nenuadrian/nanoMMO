@@ -87,8 +87,9 @@ uint32_t MainHandOf(const Player& player) {
 
 std::vector<uint32_t> WornOf(const Player& player) {
   std::vector<uint32_t> worn;
-  for (const items::Slot slot : {items::SLOT_OFF_HAND, items::SLOT_HEAD,
-                                 items::SLOT_BODY, items::SLOT_FEET}) {
+  for (const items::Slot slot :
+       {items::SLOT_OFF_HAND, items::SLOT_HEAD, items::SLOT_BODY,
+        items::SLOT_LEGS, items::SLOT_FEET}) {
     if (const items::Stack* item = player.inventory.At(Worn(slot))) {
       worn.push_back(item->item());
     }

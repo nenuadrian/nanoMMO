@@ -53,7 +53,7 @@ class Characters {
 
   /// Draws the figure, posed, with what it wears and its weapon, and with an
   /// outline, when it's given one: a model in the colour, and a player's
-  /// figure in their skin, with their hair.
+  /// figure in their skin, with their hair, and what's dyed in the colour.
   void Draw(const Figure& figure, Color color, const Outline* outline) const;
 
  private:
@@ -62,6 +62,8 @@ class Characters {
   struct Garment {
     Model model;
     Model hull;
+    /// Drawn in the player's colour, rather than its own.
+    bool dyed = false;
   };
 
   struct Character {

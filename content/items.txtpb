@@ -1,8 +1,12 @@
 # proto-file: content/items.proto
 # proto-message: nanommo.items.Items
 
-# A new player has the sword in hand, and three potions in the bag.
+# A new player has the sword in hand, a shirt, trousers and shoes on, and
+# three potions in the bag.
 starting { item: 1 }
+starting { item: 8 }
+starting { item: 9 }
+starting { item: 10 }
 starting { item: 2 count: 3 }
 
 items {
@@ -177,5 +181,136 @@ items {
   look {
     icon: 0xF3ED
     tint: 0xF07838FF
+  }
+}
+items {
+  id: 8
+  name: "Linen Shirt"
+  equip { slot: SLOT_BODY }
+  look {
+    icon: 0xF553
+    tint: 0xE8E0D0FF
+    dyed: true
+    # Over the chest and the belly, a little bigger than them, with long
+    # sleeves down to the wrists, all white, which takes on the colour of
+    # whoever wears it.
+    parts {
+      shape: SHAPE_LIMB
+      bone: "Spine2"
+      from: "Spine1"
+      from_offset { y: 0.02 }
+      to: "Neck"
+      to_offset { y: -0.1 }
+      start_radius: 0.13
+      end_radius: 0.152
+      flatten: 0.68
+      color: 0xFFFFFFFF
+    }
+    parts {
+      shape: SHAPE_LIMB
+      bone: "Spine"
+      from: "Hips"
+      from_offset { y: 0.04 }
+      to: "Spine1"
+      start_radius: 0.125
+      end_radius: 0.13
+      flatten: 0.72
+      color: 0xFFFFFFFF
+    }
+    parts {
+      shape: SHAPE_LIMB
+      bone: "LeftArm"
+      to: "LeftForeArm"
+      start_radius: 0.066
+      end_radius: 0.058
+      color: 0xFFFFFFFF
+      mirrored: true
+    }
+    parts {
+      shape: SHAPE_LIMB
+      bone: "LeftForeArm"
+      to: "LeftHand"
+      start_radius: 0.058
+      end_radius: 0.05
+      color: 0xFFFFFFFF
+      mirrored: true
+    }
+  }
+}
+items {
+  id: 9
+  name: "Cloth Trousers"
+  equip { slot: SLOT_LEGS }
+  look {
+    icon: 0xF554
+    tint: 0xA07A58FF
+    # Over the hips, and down each leg to the ankle, a little bigger than
+    # them, with a belt at the waist, over the shirt.
+    parts {
+      shape: SHAPE_BALL
+      bone: "Hips"
+      from_offset { y: -0.005 }
+      size { x: 0.15 y: 0.1 z: 0.11 }
+      color: 0x604A3AFF
+    }
+    parts {
+      shape: SHAPE_LIMB
+      bone: "LeftUpLeg"
+      to: "LeftLeg"
+      start_radius: 0.088
+      end_radius: 0.072
+      color: 0x604A3AFF
+      mirrored: true
+    }
+    parts {
+      shape: SHAPE_LIMB
+      bone: "LeftLeg"
+      to: "LeftFoot"
+      start_radius: 0.072
+      end_radius: 0.062
+      color: 0x604A3AFF
+      mirrored: true
+    }
+    parts {
+      shape: SHAPE_BALL
+      bone: "Hips"
+      from_offset { y: 0.06 }
+      size { x: 0.145 y: 0.032 z: 0.108 }
+      color: 0x3A281EFF
+    }
+  }
+}
+items {
+  id: 10
+  name: "Plain Shoes"
+  equip { slot: SLOT_FEET }
+  look {
+    icon: 0xF54B
+    tint: 0x9A94A8FF
+    # Round the ankle, which moves with the foot, and round the foot, from
+    # the heel to the toes, flat underneath.
+    parts {
+      shape: SHAPE_LIMB
+      bone: "LeftFoot"
+      from_offset { y: 0.08 z: -0.01 }
+      to: "LeftFoot"
+      to_offset { z: -0.01 }
+      start_radius: 0.068
+      end_radius: 0.068
+      color: 0x2A2630FF
+      mirrored: true
+    }
+    parts {
+      shape: SHAPE_LIMB
+      bone: "LeftFoot"
+      from_offset { y: -0.025 z: -0.04 }
+      to: "LeftToe_End"
+      to_offset { y: 0.04 z: -0.01 }
+      start_radius: 0.07
+      end_radius: 0.064
+      flatten: 0.62
+      color: 0x2A2630FF
+      mirrored: true
+    }
   }
 }

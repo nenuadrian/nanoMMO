@@ -138,6 +138,20 @@ TEST(Characters, DrawsWhatAPlayerWearsOverTheirFigure) {
         }
       }
     }
+    items {
+      id: 8
+      name: "Shirt"
+      equip { slot: SLOT_BODY }
+      look {
+        dyed: true
+        parts {
+          shape: SHAPE_BALL
+          bone: "Spine2"
+          size { x: 0.25 y: 0.25 z: 0.25 }
+          color: 0xFFFFFFFF
+        }
+      }
+    }
   )pb");
   nanommo::Renderer renderer(content);
   renderer.set_background({0.0f, 0.0f, 0.0f});
@@ -154,4 +168,17 @@ TEST(Characters, DrawsWhatAPlayerWearsOverTheirFigure) {
   target.Render(renderer);
   const nanommo::Pixel dressed = target.ReadPixel(chest.x, chest.y);
   EXPECT_GT(dressed.b, dressed.g);
+
+  // The shirt is dyed, so it's in the colour of whoever wears it: player
+  // one's is orange, and player two's is blue.
+  renderer.set_figures({{.id = 1, .wearing = {8}}});
+  target.Render(renderer);
+  const nanommo::Pixel orange = target.ReadPixel(chest.x, chest.y);
+  EXPECT_GT(orange.r, orange.g);
+  EXPECT_GT(orange.g, orange.b);
+  renderer.set_figures({{.id = 2, .wearing = {8}}});
+  target.Render(renderer);
+  const nanommo::Pixel blue = target.ReadPixel(chest.x, chest.y);
+  EXPECT_GT(blue.b, blue.g);
+  EXPECT_GT(blue.g, blue.r);
 }

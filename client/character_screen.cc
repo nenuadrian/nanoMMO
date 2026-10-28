@@ -57,7 +57,8 @@ std::optional<protocol::ItemAction> CharacterScreen::Build(
     return std::nullopt;
   }
   std::optional<protocol::ItemAction> action;
-  ImGui::SetNextWindowSize({640.0f, 400.0f}, ImGuiCond_FirstUseEver);
+  // Wide enough for the preview and a row of six worn slots beside it.
+  ImGui::SetNextWindowSize({720.0f, 400.0f}, ImGuiCond_FirstUseEver);
   if (ImGui::Begin("Character", &visible_)) {
     // OpenGL keeps the rows bottom up, so the UVs turn the picture over.
     ImGui::Image(static_cast<ImTextureID>(preview_.texture().id),
@@ -76,7 +77,7 @@ std::optional<protocol::ItemAction> CharacterScreen::Build(
     ImGui::TextDisabled("Worn");
     for (const items::Slot slot :
          {items::SLOT_MAIN_HAND, items::SLOT_OFF_HAND, items::SLOT_HEAD,
-          items::SLOT_BODY, items::SLOT_FEET}) {
+          items::SLOT_BODY, items::SLOT_LEGS, items::SLOT_FEET}) {
       if (slot != items::SLOT_MAIN_HAND) {
         ImGui::SameLine();
       }

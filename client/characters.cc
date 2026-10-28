@@ -267,7 +267,9 @@ void Characters::Wear(uint32_t id, const items::Look& look) {
     const float metre = 1.0f / character.scale;
     // Copies of the model, with the item's parts for meshes, so they move
     // with its bones.
-    Garment garment{.model = character.model, .hull = character.model};
+    Garment garment{.model = character.model,
+                    .hull = character.model,
+                    .dyed = look.dyed()};
     garment.model.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
     garment.model.meshes[0] = Parts(character.model, parts, metre);
     garment.hull.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
@@ -345,11 +347,13 @@ void Characters::Draw(const Figure& figure, Color color,
            GetColor(features.hair_color));
     }
   }
-  // What it wears has colours of its own, over the figure's.
+  // What it wears has colours of its own, over the figure's, or takes on
+  // the colour it's given.
   for (const uint32_t item : figure.wearing) {
     const auto worn = character.garments.find(item);
     if (worn != character.garments.end()) {
-      draw(worn->second.model, worn->second.hull, WHITE);
+      draw(worn->second.model, worn->second.hull,
+           worn->second.dyed ? color : WHITE);
     }
   }
 
