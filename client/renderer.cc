@@ -204,7 +204,7 @@ Renderer::Renderer(const Content& content)
       cube_(LoadModelFromMesh(GenMeshCube(1.0f, 1.0f, 1.0f))),
       sphere_(LoadModelFromMesh(GenMeshSphere(1.0f, 16, 16))),
       characters_(CharactersFolder(), {"x_bot.glb", "y_bot.glb"}, 1.8f,
-                  character_shader_) {
+                  character_shader_, content.figures) {
   cube_.materials[0].shader = cube_shader_;
   sphere_.materials[0].shader = cube_shader_;
   for (const Shader& shader : {outline_.still, outline_.skinned}) {

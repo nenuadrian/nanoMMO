@@ -12,6 +12,7 @@
 
 #include "client/animator.h"
 #include "client/outline.h"
+#include "content/figures.pb.h"
 #include "content/items.pb.h"
 #include "content/skills.pb.h"
 
@@ -27,8 +28,11 @@ std::string ContentFolder();
 
 class Characters {
  public:
+  /// With the figures, each model is dressed in their body in place of its
+  /// mesh, and each player is drawn in their own skin and hair.
   Characters(const std::string& folder, const std::vector<std::string>& files,
-             float height, Shader shader);
+             float height, Shader shader,
+             const figures::Figures& figures = {});
   ~Characters();
 
   Characters(const Characters&) = delete;
@@ -44,12 +48,22 @@ class Characters {
   void Learn(uint32_t skill, const skills::Look& look);
 
   /// Draws the figure, posed, with its weapon, and with an outline, when it's
-  /// given one.
+  /// given one: a model in the colour, and a player's figure in their skin,
+  /// with their hair.
   void Draw(const Figure& figure, Color color, const Outline* outline) const;
 
  private:
+  /// Something over the figure, as a model that shares the character's bones.
+  struct Garment {
+    Model model;
+  };
+
   struct Character {
     Model model;
+    bool dressed = false;
+    /// Each way to wear the hair, by its place in the figures' list, but
+    /// bald.
+    std::map<int, Garment> hairs;
     ModelAnimation* clips = nullptr;
     int clip_count = 0;
     std::array<int, 5> clip_for{};
@@ -73,6 +87,7 @@ class Characters {
     Matrix grip;
   };
 
+  figures::Figures figures_;
   std::vector<Character> characters_;
   std::map<uint32_t, Weapon> weapons_;
 };

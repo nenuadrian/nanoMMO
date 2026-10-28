@@ -12,6 +12,8 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "client/figures.h"
+#include "content/figures.h"
 
 namespace nanommo {
 
@@ -115,7 +117,8 @@ std::string ContentFolder() {
 
 Characters::Characters(const std::string& folder,
                        const std::vector<std::string>& files, float height,
-                       Shader shader) {
+                       Shader shader, const figures::Figures& figures)
+    : figures_(figures) {
   for (const std::string& file : files) {
     const std::string path = absl::StrCat(folder, "/", file);
     if (!FileExists(path.c_str())) {
@@ -158,14 +161,36 @@ Characters::Characters(const std::string& folder,
         character.hand = i;
       }
     }
+    // Sized by the model's own mesh, so a figure is as tall as the model.
     const BoundingBox box = GetModelBoundingBox(character.model);
     character.scale = height / (box.max.y - box.min.y);
+    if (!figures.body().empty()) {
+      const float metre = 1.0f / character.scale;
+      Dress(character.model, Unfold(figures.body()), metre);
+      for (int i = 0; i < figures.hairs_size(); ++i) {
+        if (figures.hairs(i).parts().empty()) {
+          continue;
+        }
+        // A copy of the model, with the hair for its mesh, so it moves with
+        // the model's bones.
+        Garment hair{.model = character.model};
+        hair.model.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
+        hair.model.meshes[0] =
+            Parts(character.model, Unfold(figures.hairs(i).parts()), metre);
+        character.hairs[i] = hair;
+      }
+      character.dressed = true;
+    }
     characters_.push_back(character);
   }
 }
 
 Characters::~Characters() {
   for (Character& character : characters_) {
+    for (auto& [i, hair] : character.hairs) {
+      UnloadMesh(hair.model.meshes[0]);
+      MemFree(hair.model.meshes);
+    }
     UnloadModelAnimations(character.clips, character.clip_count);
     UnloadWithBones(character.model);
   }
@@ -261,11 +286,25 @@ void Characters::Draw(const Figure& figure, Color color,
       MatrixMultiply(MatrixScale(scale, scale, scale),
                      MatrixRotateY(figure.yaw)),
       MatrixTranslate(figure.position.x, figure.position.y, figure.position.z));
-  if (outline != nullptr) {
-    DrawOutline(character.model, placed, outline->skinned);
+  // Each with its outline first, at the figure's place, its turn and its
+  // scale.
+  auto draw = [&](const Model& model, Color tint) {
+    if (outline != nullptr) {
+      DrawOutline(model, placed, outline->skinned);
+    }
+    DrawModelEx(model, figure.position, {0.0f, 1.0f, 0.0f},
+                figure.yaw * RAD2DEG, {scale, scale, scale}, tint);
+  };
+  if (!character.dressed) {
+    draw(character.model, color);
+  } else {
+    const Features features = FeaturesOf(figures_, figure.id);
+    draw(character.model, GetColor(features.skin));
+    const auto hair = character.hairs.find(features.hair);
+    if (hair != character.hairs.end()) {
+      draw(hair->second.model, GetColor(features.hair_color));
+    }
   }
-  DrawModelEx(character.model, figure.position, {0.0f, 1.0f, 0.0f},
-              figure.yaw * RAD2DEG, {scale, scale, scale}, color);
 
   const auto held = weapons_.find(figure.weapon);
   if (held == weapons_.end() || character.hand < 0) {
