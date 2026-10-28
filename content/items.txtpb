@@ -181,6 +181,22 @@ items {
   look {
     icon: 0xF3ED
     tint: 0xF07838FF
+    # A round shield on the back of the left forearm, over the sleeve, of
+    # dark iron, with an ember at its middle.
+    parts {
+      shape: SHAPE_BALL
+      bone: "LeftForeArm"
+      from_offset { x: 0.14 y: 0.08 }
+      size { x: 0.15 y: 0.022 z: 0.15 }
+      color: 0x5A524CFF
+    }
+    parts {
+      shape: SHAPE_BALL
+      bone: "LeftForeArm"
+      from_offset { x: 0.14 y: 0.105 }
+      size { x: 0.045 y: 0.03 z: 0.045 }
+      color: 0xF07838FF
+    }
   }
 }
 items {
@@ -310,6 +326,53 @@ items {
       end_radius: 0.064
       flatten: 0.62
       color: 0x2A2630FF
+      mirrored: true
+    }
+  }
+}
+items {
+  id: 11
+  name: "Leather Boots"
+  equip {
+    slot: SLOT_FEET
+    modifiers { stat: STAT_ARMOUR amount: 1 }
+  }
+  look {
+    icon: 0xF54B
+    tint: 0xA0703CFF
+    # Up the shin from the ankle, over the trousers, with a cuff at the top,
+    # which move with the shin, and round the foot, from the heel to the
+    # toe, which moves with the foot.
+    parts {
+      shape: SHAPE_LIMB
+      bone: "LeftLeg"
+      from: "LeftFoot"
+      from_offset { y: 0.17 }
+      to: "LeftFoot"
+      start_radius: 0.08
+      end_radius: 0.078
+      color: 0x6E4426FF
+      mirrored: true
+    }
+    parts {
+      shape: SHAPE_BALL
+      bone: "LeftLeg"
+      from: "LeftFoot"
+      from_offset { y: 0.175 }
+      size { x: 0.09 y: 0.03 z: 0.09 }
+      color: 0x8C5A32FF
+      mirrored: true
+    }
+    parts {
+      shape: SHAPE_LIMB
+      bone: "LeftFoot"
+      from_offset { y: -0.025 z: -0.04 }
+      to: "LeftToe_End"
+      to_offset { y: 0.04 z: -0.005 }
+      start_radius: 0.08
+      end_radius: 0.074
+      flatten: 0.68
+      color: 0x6E4426FF
       mirrored: true
     }
   }

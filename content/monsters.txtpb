@@ -24,6 +24,7 @@ kinds {
   loot { item: 2 chance: 0.2 }
   loot { item: 4 chance: 0.1 }
   loot { item: 5 chance: 0.1 }
+  loot { item: 11 chance: 0.1 }
 }
 kinds {
   id: 2
