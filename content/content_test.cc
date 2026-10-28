@@ -160,6 +160,17 @@ TEST(Content, RefusesItemsThatDontAddUp) {
                 .message(),
             "the Cap is worn, but has no slot to be worn in");
 
+  // What it looks like on a player.
+  EXPECT_TRUE(nanommo::ParseItems("items { id: 1 name: \"Cap\" look { parts { "
+                                  "shape: SHAPE_BALL bone: \"Head\" "
+                                  "size { x: 0.2 y: 0.1 z: 0.2 } } } }")
+                  .ok());
+  EXPECT_EQ(nanommo::ParseItems("items { id: 1 name: \"Cap\" look { parts { "
+                                "shape: SHAPE_BALL bone: \"Head\" } } }")
+                .status()
+                .message(),
+            "the Cap's look: a ball on the Head needs a size each way");
+
   // Stacks, and the rolls of what doesn't stack.
   EXPECT_TRUE(
       nanommo::ParseItems("items { id: 1 name: \"Bone\" stack: 50 }").ok());

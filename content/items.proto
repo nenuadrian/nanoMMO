@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package nanommo.items;
 
+import "content/figures.proto";
+
 // Where on a player an item's worn. Each player wears one item in each.
 enum Slot {
   SLOT_NONE = 0;
@@ -70,6 +72,9 @@ message Look {
   uint32 icon = 4;
   // As 0xRRGGBBAA, over the model's own colours and the icon's.
   optional uint32 tint = 5;
+  // What it looks like on a player who wears it: parts over the figure's
+  // body, which move with its bones.
+  repeated figures.Part parts = 6;
 }
 
 // An item is the parts it has: the server and the client each go by those,

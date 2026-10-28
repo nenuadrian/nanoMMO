@@ -98,3 +98,60 @@ TEST(Characters, DrawsAPlayerStandingInTheMiddle) {
   EXPECT_GT(body.r, body.g);
   EXPECT_GT(body.g, body.b);
 }
+
+TEST(Characters, DrawsWhatAPlayerWearsOverTheirFigure) {
+  if (!HaveCharacters()) {
+    GTEST_SKIP() << "no characters: see assets/mixamo/README.md";
+  }
+  const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
+      nanommo::Window::Create("test", 64, 64,
+                              nanommo::Window::Visibility::kHidden);
+  ASSERT_TRUE(window.ok());
+  nanommo::Offscreen target(256, 256);
+  // A figure that's just a body, thick enough to cover a few pixels from the
+  // game's camera, in a green skin, and a blue tunic, a ball round the
+  // chest.
+  nanommo::Content content;
+  content.figures = *nanommo::ParseFigures(R"pb(
+    body {
+      shape: SHAPE_LIMB
+      bone: "Spine"
+      from: "Hips"
+      to: "Neck"
+      start_radius: 0.15
+      end_radius: 0.15
+      color: 0xFFFFFFFF
+    }
+    skins: 0x40C040FF
+  )pb");
+  content.items = *nanommo::ParseItems(R"pb(
+    items {
+      id: 5
+      name: "Tunic"
+      equip { slot: SLOT_BODY }
+      look {
+        parts {
+          shape: SHAPE_BALL
+          bone: "Spine2"
+          size { x: 0.25 y: 0.25 z: 0.25 }
+          color: 0x2040E0FF
+        }
+      }
+    }
+  )pb");
+  nanommo::Renderer renderer(content);
+  renderer.set_background({0.0f, 0.0f, 0.0f});
+  const Vector2 chest =
+      GetWorldToScreenEx({0.0f, 1.3f, 0.0f}, nanommo::GameCamera(), 256, 256);
+
+  // Player one is green, in their skin, and in the tunic, they're blue at
+  // the chest.
+  renderer.set_figures({{.id = 1}});
+  target.Render(renderer);
+  const nanommo::Pixel bare = target.ReadPixel(chest.x, chest.y);
+  EXPECT_GT(bare.g, bare.b);
+  renderer.set_figures({{.id = 1, .wearing = {5}}});
+  target.Render(renderer);
+  const nanommo::Pixel dressed = target.ReadPixel(chest.x, chest.y);
+  EXPECT_GT(dressed.b, dressed.g);
+}

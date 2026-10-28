@@ -54,6 +54,22 @@ items {
   look {
     icon: 0xF8C0
     tint: 0xA0703CFF
+    # A cap over the top of the head and the hair, wider than them, and a
+    # peak at the front, above the eyes.
+    parts {
+      shape: SHAPE_BALL
+      bone: "Head"
+      from_offset { y: 0.2 z: 0.005 }
+      size { x: 0.198 y: 0.12 z: 0.21 }
+      color: 0x8C5A32FF
+    }
+    parts {
+      shape: SHAPE_BALL
+      bone: "Head"
+      from_offset { y: 0.2 z: 0.17 }
+      size { x: 0.14 y: 0.022 z: 0.1 }
+      color: 0x6E4426FF
+    }
   }
 }
 items {
@@ -67,6 +83,68 @@ items {
   look {
     icon: 0xF553
     tint: 0xA0703CFF
+    # Over the body, a little bigger than it: the chest, the belly and a hem
+    # over the tops of the legs, and short sleeves.
+    parts {
+      shape: SHAPE_LIMB
+      bone: "Spine2"
+      from: "Spine1"
+      from_offset { y: 0.02 }
+      to: "Neck"
+      to_offset { y: -0.1 }
+      start_radius: 0.135
+      end_radius: 0.158
+      flatten: 0.7
+      color: 0x9A6238FF
+    }
+    parts {
+      shape: SHAPE_LIMB
+      bone: "Spine"
+      from: "Hips"
+      from_offset { y: 0.04 }
+      to: "Spine1"
+      start_radius: 0.13
+      end_radius: 0.135
+      flatten: 0.74
+      color: 0x9A6238FF
+    }
+    parts {
+      shape: SHAPE_LIMB
+      bone: "Hips"
+      to: "Hips"
+      to_offset { y: -0.12 }
+      start_radius: 0.15
+      end_radius: 0.165
+      flatten: 0.75
+      color: 0x9A6238FF
+    }
+    parts {
+      shape: SHAPE_LIMB
+      bone: "LeftArm"
+      from_offset { x: -0.03 }
+      to: "LeftForeArm"
+      to_offset { x: -0.13 }
+      start_radius: 0.075
+      end_radius: 0.068
+      color: 0x9A6238FF
+      mirrored: true
+    }
+    # A belt round the waist, with a buckle at the front.
+    parts {
+      shape: SHAPE_BALL
+      bone: "Hips"
+      from_offset { y: 0.06 }
+      size { x: 0.148 y: 0.03 z: 0.112 }
+      color: 0x4A3020FF
+    }
+    parts {
+      shape: SHAPE_BALL
+      bone: "Hips"
+      from_offset { y: 0.06 z: 0.108 }
+      size { x: 0.028 y: 0.024 z: 0.012 }
+      color: 0xD8B04AFF
+      flush: true
+    }
   }
 }
 items {

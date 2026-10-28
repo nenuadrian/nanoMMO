@@ -196,6 +196,12 @@ Characters::Characters(const std::string& folder,
 
 Characters::~Characters() {
   for (Character& character : characters_) {
+    for (auto& [id, garment] : character.garments) {
+      UnloadMesh(garment.model.meshes[0]);
+      MemFree(garment.model.meshes);
+      UnloadMesh(garment.hull.meshes[0]);
+      MemFree(garment.hull.meshes);
+    }
     for (auto& [i, hair] : character.hairs) {
       UnloadMesh(hair.model.meshes[0]);
       MemFree(hair.model.meshes);
@@ -250,6 +256,24 @@ void Characters::Hold(uint32_t id, const items::Look& look, Shader shader) {
   const Matrix in_hand = MatrixMultiply(MatrixMultiply(along, out),
                                         MatrixTranslate(0.0f, kPalm, 0.0f));
   weapons_[id] = {.model = weapon, .grip = MatrixMultiply(sized, in_hand)};
+}
+
+void Characters::Wear(uint32_t id, const items::Look& look) {
+  if (look.parts().empty()) {
+    return;
+  }
+  const std::vector<figures::Part> parts = Unfold(look.parts());
+  for (Character& character : characters_) {
+    const float metre = 1.0f / character.scale;
+    // Copies of the model, with the item's parts for meshes, so they move
+    // with its bones.
+    Garment garment{.model = character.model, .hull = character.model};
+    garment.model.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
+    garment.model.meshes[0] = Parts(character.model, parts, metre);
+    garment.hull.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
+    garment.hull.meshes[0] = Hull(character.model, parts, metre);
+    character.garments[id] = garment;
+  }
 }
 
 void Characters::Learn(uint32_t skill, const skills::Look& look) {
@@ -319,6 +343,13 @@ void Characters::Draw(const Figure& figure, Color color,
     if (hair != character.hairs.end()) {
       draw(hair->second.model, hair->second.hull,
            GetColor(features.hair_color));
+    }
+  }
+  // What it wears has colours of its own, over the figure's.
+  for (const uint32_t item : figure.wearing) {
+    const auto worn = character.garments.find(item);
+    if (worn != character.garments.end()) {
+      draw(worn->second.model, worn->second.hull, WHITE);
     }
   }
 

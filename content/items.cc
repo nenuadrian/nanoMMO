@@ -9,6 +9,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "content/checks.h"
+#include "content/figures.h"
 #include "content/text.h"
 
 namespace nanommo {
@@ -36,6 +37,13 @@ absl::Status CheckParts(const items::Item& item) {
     if (modifier.stat() == items::STAT_NONE) {
       return absl::InvalidArgumentError(
           absl::StrCat("the ", name, " adds to no stat"));
+    }
+  }
+  for (const figures::Part& part : item.look().parts()) {
+    const absl::Status checked = CheckPart(part);
+    if (!checked.ok()) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("the ", name, "'s look: ", checked.message()));
     }
   }
   for (const items::Roll& roll : item.rolls()) {

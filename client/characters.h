@@ -44,17 +44,21 @@ class Characters {
   /// the item.
   void Hold(uint32_t id, const items::Look& look, Shader shader);
 
+  /// Makes the item's parts, for each character to draw on the players who
+  /// wear it.
+  void Wear(uint32_t id, const items::Look& look);
+
   /// Finds the skill's clip, by its name, in each character that has it.
   void Learn(uint32_t skill, const skills::Look& look);
 
-  /// Draws the figure, posed, with its weapon, and with an outline, when it's
-  /// given one: a model in the colour, and a player's figure in their skin,
-  /// with their hair.
+  /// Draws the figure, posed, with what it wears and its weapon, and with an
+  /// outline, when it's given one: a model in the colour, and a player's
+  /// figure in their skin, with their hair.
   void Draw(const Figure& figure, Color color, const Outline* outline) const;
 
  private:
-  /// Something over the figure, as a model and its hull, which share the
-  /// character's bones.
+  /// Something over the figure, such as the hair or what it wears, as a model
+  /// and its hull, which share the character's bones.
   struct Garment {
     Model model;
     Model hull;
@@ -69,6 +73,8 @@ class Characters {
     /// Each way to wear the hair, by its place in the figures' list, but
     /// bald.
     std::map<int, Garment> hairs;
+    /// What it can wear, by the item's id.
+    std::map<uint32_t, Garment> garments;
     ModelAnimation* clips = nullptr;
     int clip_count = 0;
     std::array<int, 5> clip_for{};

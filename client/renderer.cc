@@ -215,6 +215,7 @@ Renderer::Renderer(const Content& content)
   // Weapons have no bones, so they're drawn with the cube's shader.
   for (const auto& [id, item] : content.items.by_id) {
     characters_.Hold(id, item.look(), cube_shader_);
+    characters_.Wear(id, item.look());
   }
   for (const auto& [id, skill] : content.skills.by_id) {
     characters_.Learn(id, skill.look());
