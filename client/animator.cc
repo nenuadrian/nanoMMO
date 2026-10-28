@@ -98,6 +98,7 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
     figure.name = player.name();
     figure.you = player.id() == world.you();
     figure.weapon = player.weapon();
+    figure.wearing = {player.wearing().begin(), player.wearing().end()};
     players[player.id()] = figure;
     figures.push_back(std::move(figure));
   }

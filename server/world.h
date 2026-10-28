@@ -128,6 +128,10 @@ int MaxHealthOf(const Player& player);
 /// zero.
 uint32_t MainHandOf(const Player& player);
 
+/// What else the player wears, in each slot from the off hand to the feet that
+/// has something in it, by its ids in the items file.
+std::vector<uint32_t> WornOf(const Player& player);
+
 /// Moves to the place, or if the terrain's in the way there, as far as it can
 /// along x or along z alone, so that it slides along a coast.
 void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z);

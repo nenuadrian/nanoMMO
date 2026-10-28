@@ -36,6 +36,8 @@ struct Figure {
   int max_health = 0;
   /// What a player holds, by its id in the items file.
   uint32_t weapon = 0;
+  /// What else a player wears, by its ids in the items file.
+  std::vector<uint32_t> wearing;
   Vector3 position{0.0f, 0.0f, 0.0f};
   float yaw = 0.0f;
   protocol::Motion from = protocol::MOTION_IDLE;

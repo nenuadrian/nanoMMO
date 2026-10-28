@@ -82,6 +82,9 @@ message Player {
   uint32 weapon = 10;
   // While its motion is a skill's, which skill, by its id in the skills file.
   uint32 skill = 11;
+  // What else the player wears, from the off hand to the feet, by its ids in
+  // the items file, so that everyone sees them in it.
+  repeated uint32 wearing = 12;
 }
 
 message Monster {

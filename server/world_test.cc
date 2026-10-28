@@ -318,6 +318,25 @@ TEST(World, GivesEachNewPlayerTheKitOnce) {
   EXPECT_EQ(nanommo::MainHandOf(world.players().at(1)), 0u);
 }
 
+TEST(World, SaysWhatEachPlayerWears) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Gear()));
+  world.Join(1, With(kCap, true));
+  world.Join(2, With(kCap));
+
+  // One wears the cap, and the other has it in their bag, until they put it
+  // on.
+  EXPECT_EQ(nanommo::WornOf(world.players().at(1)),
+            std::vector<uint32_t>{kCap});
+  EXPECT_TRUE(nanommo::WornOf(world.players().at(2)).empty());
+  ASSERT_TRUE(world
+                  .MoveItem(2, nanommo::InBag(0),
+                            nanommo::Worn(nanommo::items::SLOT_HEAD))
+                  .ok());
+  EXPECT_EQ(nanommo::WornOf(world.players().at(2)),
+            std::vector<uint32_t>{kCap});
+}
+
 TEST(World, FightsWithWhatTheyWear) {
   nanommo::World world(1, nanommo::Terrain(),
                        nanommo::testing::With(nanommo::testing::Gear()));

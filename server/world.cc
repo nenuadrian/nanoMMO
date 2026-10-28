@@ -85,6 +85,17 @@ uint32_t MainHandOf(const Player& player) {
   return held != nullptr ? held->item() : 0;
 }
 
+std::vector<uint32_t> WornOf(const Player& player) {
+  std::vector<uint32_t> worn;
+  for (const items::Slot slot : {items::SLOT_OFF_HAND, items::SLOT_HEAD,
+                                 items::SLOT_BODY, items::SLOT_FEET}) {
+    if (const items::Stack* item = player.inventory.At(Worn(slot))) {
+      worn.push_back(item->item());
+    }
+  }
+  return worn;
+}
+
 void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z) {
   if (terrain.Walkable(to_x, to_z)) {
     x = to_x;

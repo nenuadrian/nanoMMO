@@ -106,6 +106,9 @@ protocol::Player ToProtocol(uint32_t id, const Player& player) {
   sent.set_health(player.health);
   sent.set_max_health(MaxHealthOf(player));
   sent.set_weapon(MainHandOf(player));
+  for (const uint32_t item : WornOf(player)) {
+    sent.add_wearing(item);
+  }
   if (player.motion == Motion::kSkill) {
     sent.set_skill(player.skill);
   }
