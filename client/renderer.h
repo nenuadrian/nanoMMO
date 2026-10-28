@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -95,6 +96,8 @@ class Renderer {
   std::vector<Face> tree_;
   std::vector<Chunk> chunks_;
   std::unique_ptr<Sea> sea_;
+  /// The land, for the shadows to lie on.
+  std::optional<Terrain> terrain_;
   Characters characters_;
   /// Each kind of monster, by id, as its model at its height.
   std::map<uint32_t, std::unique_ptr<Characters>> monsters_;

@@ -4,6 +4,7 @@
 #include <rlgl.h>
 
 #include <array>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -165,6 +166,41 @@ constexpr float kGlowEmission = 0.5f;
 // The sun's light in three bands: in shadow, half lit and lit.
 constexpr float kBands = 3.0f;
 
+// A shadow reaches out from a figure's middle about as far as its shoulders
+// are wide, in metres, and it's black, at about a third of the way to opaque.
+constexpr float kShadowRadius = 0.42f;
+constexpr unsigned char kShadowDarkness = 82;
+
+// Nothing casts a shadow, so each figure gets a soft dark patch under it,
+// dark in the middle and fading out at the edge, with each corner on the
+// ground, so it lies on a slope.
+void DrawShadow(const Terrain& terrain, Vector3 at, float radius) {
+  constexpr int kSides = 16;
+  auto corner = [&](float distance, int i, unsigned char alpha) {
+    const float turn = 2.0f * PI * i / kSides;
+    const float x = at.x + distance * std::cos(turn);
+    const float z = at.z + distance * std::sin(turn);
+    rlColor4ub(0, 0, 0, alpha);
+    // A little above it, so the ground doesn't cover it.
+    rlVertex3f(x, terrain.Height(x, z) + 0.03f, z);
+  };
+  const float inner = 0.6f * radius;
+  rlBegin(RL_TRIANGLES);
+  for (int i = 0; i < kSides; ++i) {
+    // The middle, as dark all over, then a ring that fades out.
+    corner(0.0f, i, kShadowDarkness);
+    corner(inner, i + 1, kShadowDarkness);
+    corner(inner, i, kShadowDarkness);
+    corner(inner, i, kShadowDarkness);
+    corner(inner, i + 1, kShadowDarkness);
+    corner(radius, i + 1, 0);
+    corner(inner, i, kShadowDarkness);
+    corner(radius, i + 1, 0);
+    corner(radius, i, 0);
+  }
+  rlEnd();
+}
+
 // The light what's drawn next gives off of its own, which takes it past white,
 // so that it blooms.
 void SetEmission(Shader shader, float emission) {
@@ -246,6 +282,7 @@ Renderer::~Renderer() {
 
 void Renderer::set_terrain(const Terrain& terrain, const Look& look) {
   UnloadTerrain();
+  terrain_ = terrain;
   atmosphere_ = look.atmosphere;
   // The ground and the trees have no bones either.
   chunks_ = LoadChunks(terrain, look, tree_, cube_shader_);
@@ -302,6 +339,18 @@ void Renderer::Draw() const {
   }
   for (const Figure& figure : figures_) {
     DrawFigure(figure);
+  }
+  // The shadows are see-through, and lie on the ground, so they go after
+  // what's solid, without hiding what's behind them from what comes next.
+  if (terrain_) {
+    rlDisableDepthMask();
+    BeginBlendMode(BLEND_ALPHA);
+    for (const Figure& figure : figures_) {
+      DrawShadow(*terrain_, figure.position,
+                 figure.npc ? 1.2f * figure.radius : kShadowRadius);
+    }
+    EndBlendMode();
+    rlEnableDepthMask();
   }
   // Last, as we see the ground under it through the water.
   if (sea_) {
