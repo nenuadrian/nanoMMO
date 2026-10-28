@@ -51,15 +51,17 @@ password, and Create account the first time, and Log in after that. The client a
 server on `localhost`, or on the host you give it (`./build/bin/nanommo_client 192.168.1.20`), and
 connects to the world at the host and port that world registered. It gets the world over UDP, unless you put `tcp` after the
 host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP](#packet-loss-tcp-and-udp).
-Each player is an animated character with a sword, on an island of hills, woods and beaches, with
-its level, name and health over it, or a cube until you've made the characters (see below).
+Each player is an animated person, in their own skin and hair, and in a shirt of their own colour,
+with a sword, on an island of hills, woods and beaches, with its level, name and health over it, or
+a cube until you've made the characters (see below).
 Skeletons wander around the middle, and in camps around the island, and a few NPCs stand near the
 middle, each a coloured ball with its name over it (see [NPCs](#npcs)). Click the storyteller, the
 purple one, to ask it for a story (see [The storyteller](#the-storyteller)), and the trainer, the
 silver one, to learn skills (see [Learning skills](#learning-skills)). W, A, S and D, or the arrow
 keys, move yours, whose name is in gold, Shift makes it run, Space swings the sword, and 1 to 4 use
 your skills, from the bar along the bottom (see [Skills](#skills)). I, or View, Bag, opens your bag,
-where a new player has three health potions (see [Items](#items)).
+where a new player has three health potions, and wears a shirt, trousers and shoes (see
+[Items](#items)).
 The camera follows you: Q and E, or dragging with the right mouse button, turn it around you,
 dragging up and down tilts it, and the mouse wheel zooms in and out. W always walks away from the camera. The frame in the top left
 corner shows your health, and your experience towards the next level. Enter opens the chat, in the
@@ -173,8 +175,8 @@ ThreadSanitizer found.
 
 ## Characters
 
-The players are Mixamo's X Bot and Y Bot, with an idle, a walk, a run, a sword slash and a death,
-and a clip for each skill that has one: a thrust, a kick and a spin.
+The players are people, posed by Mixamo's X Bot and Y Bot, with an idle, a walk, a run, a sword
+slash and a death, and a clip for each skill that has one: a thrust, a kick and a spin.
 Mixamo's terms don't let us share its files, so they're not in the repo:
 [assets/mixamo/README.md](assets/mixamo/README.md) lists what to download from mixamo.com. Then make
 the characters:
@@ -189,6 +191,21 @@ that raylib can load: one skeleton, the walk and the run in place, and a tenth o
 slash and the death keep their motion, so a player falls back as it dies. The build copies
 `assets/characters` next to the client, which loads them from there. Without them, the players are
 cubes, and the client's character tests skip themselves.
+
+The client draws neither bot's mesh. A player's figure is made of parts, in
+[content/figures.txtpb](content/figures.txtpb): limbs with round ends, from one joint of the rig to
+another, and low-poly balls at a joint, each in metres, along the figure's own axes as it stands in
+the rig's T-pose. A part on the left can be mirrored onto the right. The client builds the parts'
+triangles where the bones rest, and binds each corner to its part's bone alone, so the clips pose the
+parts as they posed the mesh, rigidly, like a jointed doll. The body's parts are white, which takes
+on the player's skin, with dark eyes. The file lists the skins, the hair colours and the ways to wear
+the hair, and each player's id picks one of each, the same on every client. An item's look can have
+parts too, which a player who wears it has over their figure, in their own colours, or for a dyed
+one, such as the Linen Shirt, in the player's colour (see [Items](#items)). Each player in the
+world's message says what they wear, so everyone sees each other in it. With cel shading on, the
+outline is drawn with each figure's hull, the same parts with smooth normals, so it stays whole
+around the parts, but for those flush with a bigger one, such as the eyes. Nothing casts a shadow,
+so each figure has a soft dark patch under it, on the ground.
 
 Each player holds the weapon in their main hand (see [Items](#items)), so far Quaternius's sword, from
 [Poly Pizza](https://poly.pizza/m/ajOJ2NLz5m), which is public domain and in the repo, as it was
@@ -275,7 +292,7 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
   The light is worked out for each pixel, from the normal the vertex shaders hand on, so that the
   bands follow the surface.
 - Cel shading's outlines, the way raylib's example draws them: each figure is drawn a second time
-  first, inside out, five centimetres bigger along its normals, in a dark colour that fades into the
+  first, inside out, four centimetres bigger along its normals, in a dark colour that fades into the
   fog, so that its back shows around the figure's edges. Our characters are posed on the GPU, so
   their outline has a shader with bones of its own. The ground and its trees have none.
 - The frame has one sample to a pixel, so the world's edges are smoothed with FXAA, Timothy Lottes'
@@ -489,10 +506,11 @@ player knows go to them with their cooldowns, after the world, by id.
 
 ## Items
 
-Each player carries a bag of 24 slots, and wears an item in each of five slots: the main hand, the
-off hand, the head, the body and the feet. A new player starts with the kit from the items file
-(see [Content](#content)), the sword in hand and three health potions in the bag. They get it once:
-a trip through a gate doesn't give them another, and neither does emptying the bag.
+Each player carries a bag of 24 slots, and wears an item in each of six slots: the main hand, the
+off hand, the head, the body, the legs and the feet. A new player starts with the kit from the items
+file (see [Content](#content)), the sword in hand, a linen shirt, cloth trousers and plain shoes on,
+and three health potions in the bag. They get it once: a trip through a gate doesn't give them
+another, and neither does emptying the bag, so a player from before the clothes has none.
 
 What you wear adds to you: its damage to each blow you land, with a weapon or a skill, its health to
 the most you can have, and its armour comes off each blow a monster lands, down to one. The weapon in
@@ -509,7 +527,7 @@ right-click it to throw it away. A health potion heals forty, one every ten seco
 
 Monsters drop items, straight into their killer's bag: each kind's `loot` in the monsters file has
 the items it can drop, the chance of each, and how many. A skeleton drops bones more often than
-not, and now and then a potion, a leather cap or a tunic, and the skeletons of the Ashlands and the
+not, and now and then a potion, a leather cap, a tunic or boots, and the skeletons of the Ashlands and the
 Crypt the Ash Blade and the buckler, the Crypt's more often. What stacks drops as a stack, and what
 doesn't one at a time, each with rolls of its own, so two Ash Blades are seldom the same. A line in
 the chat says what the monster dropped, and what didn't fit, if the bag was full, which stays
@@ -1179,11 +1197,14 @@ monster, or in a message of its own whenever it changes.
 ## Content
 
 The game's content is data, in the `content` folder, which the world servers, the client and the
-bots read, so that there's one place to change it: `items.txtpb`, `monsters.txtpb`, `npcs.txtpb`
-and `skills.txtpb`, in protobuf's text format, each with its schema next to it, in `items.proto`,
-`monsters.proto`, `npcs.proto` and `skills.proto`. There are seven items: the sword, a health
-potion, a bone, a leather cap and tunic, and the Ashlands' blade and buckler, two kinds of monster,
-the skeleton and the Ash Skeleton, six kinds of NPC, and four skills (see [Skills](#skills)).
+bots read, so that there's one place to change it: `figures.txtpb`, `items.txtpb`,
+`monsters.txtpb`, `npcs.txtpb` and `skills.txtpb`, in protobuf's text format, each with its schema
+next to it, in `figures.proto`, `items.proto`, `monsters.proto`, `npcs.proto` and `skills.proto`.
+The figures are the players' bodies and hair (see [Characters](#characters)). There are eleven
+items: the sword, a health potion, a bone, a leather cap and tunic, the Ashlands' blade and buckler,
+the clothes a new player starts in, a linen shirt, cloth trousers and plain shoes, and leather
+boots, two kinds of monster, the skeleton and the Ash Skeleton, six kinds of NPC, and four skills
+(see [Skills](#skills)).
 
 - An item, or a kind of monster or NPC, has an id and a name, and parts that each side reads what it
   needs from. A weapon's `weapon` and a monster's `fight` are the server's: reach, swing and hit
