@@ -83,13 +83,15 @@ int MaxHealthOf(const Player& player) {
 namespace {
 
 // Adds to the player's experience, and heals them fully as they reach a new
-// level.
-void Gain(Player& player, uint32_t experience) {
+// level. Returns whether they did.
+bool Gain(Player& player, uint32_t experience) {
   const int level = LevelFor(player.experience).number;
   player.experience += experience;
   if (LevelFor(player.experience).number > level) {
     player.health = MaxHealthOf(player);
+    return true;
   }
+  return false;
 }
 
 }  // namespace
@@ -225,6 +227,9 @@ absl::Status World::UseItem(uint32_t id, uint32_t slot) {
     player.item_cooldowns[item->first] =
         std::chrono::milliseconds(use.cooldown_ms());
   }
+  Event& used = Record(Event::Kind::kUse, player);
+  used.item = item->first;
+  used.count = 1;
   return player.inventory.TakeOne(place);
 }
 
@@ -348,6 +353,7 @@ absl::Status World::TakeQuest(uint32_t id, uint32_t npc, uint32_t quest) {
   }
   player->second.quests[quest] = 0;
   ++player->second.quests_revision;
+  Record(Event::Kind::kTake, player->second).quest = quest;
   return absl::OkStatus();
 }
 
@@ -391,7 +397,17 @@ absl::Status World::TurnIn(uint32_t id, uint32_t npc, uint32_t quest) {
     prizes.push_back(Some(item->second, prize.count()));
   }
   player->second.inventory = std::move(bag);
-  Gain(player->second, done.experience());
+  Record(Event::Kind::kTurnIn, player->second).quest = quest;
+  for (const quests::Prize& prize : done.prizes()) {
+    Event& given = Record(Event::Kind::kPrize, player->second);
+    given.quest = quest;
+    given.item = prize.item();
+    given.count = prize.count();
+  }
+  if (Gain(player->second, done.experience())) {
+    Record(Event::Kind::kLevel, player->second).level =
+        static_cast<uint32_t>(LevelFor(player->second.experience).number);
+  }
   player->second.quests.erase(on);
   player->second.quests_done.insert(quest);
   ++player->second.quests_revision;
@@ -586,7 +602,11 @@ void World::Hurt(uint32_t id, Player& player, Monster& monster, int damage) {
   }
   monster.motion = Motion::kDead;
   monster.respawn = kRespawnTime;
-  Gain(player, monster.experience);
+  Record(Event::Kind::kKill, player).monster = monster.kind;
+  if (Gain(player, monster.experience)) {
+    Record(Event::Kind::kLevel, player).level =
+        static_cast<uint32_t>(LevelFor(player.experience).number);
+  }
   Loot(id, player, monster);
   Count(id, player, monster);
 }
@@ -610,6 +630,10 @@ void World::Loot(uint32_t id, Player& player, const Monster& monster) {
     const uint32_t fitted = Give(player.inventory, drop.item(), count);
     if (fitted > 0) {
       kept.push_back(Some(item->second, fitted));
+      Event& looted = Record(Event::Kind::kLoot, player);
+      looted.monster = monster.kind;
+      looted.item = drop.item();
+      looted.count = fitted;
     }
     if (fitted < count) {
       left.push_back(Some(item->second, count - fitted));
@@ -678,6 +702,16 @@ uint32_t World::Give(Inventory& bag, uint32_t item, uint32_t count) {
 
 std::vector<Notice> World::TakeNotices() { return std::exchange(notices_, {}); }
 
+std::vector<Event> World::TakeEvents() { return std::exchange(events_, {}); }
+
+Event& World::Record(Event::Kind kind, const Player& player) {
+  return events_.emplace_back(Event{.kind = kind,
+                                    .player = player.name,
+                                    .land = player.land,
+                                    .x = player.x,
+                                    .z = player.z});
+}
+
 void World::Act(Monster& monster, std::chrono::nanoseconds time) {
   if (monster.motion == Motion::kDead) {
     Revive(monster, time, random_);
@@ -715,6 +749,7 @@ void World::Hit(Monster& monster) {
   }
   player.motion = Motion::kDead;
   player.respawn = kRespawnTime;
+  Record(Event::Kind::kDeath, player).monster = monster.kind;
 }
 
 }  // namespace nanommo

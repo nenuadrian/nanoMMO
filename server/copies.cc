@@ -56,6 +56,14 @@ std::vector<Notice> Copies::TakeNotices() {
   return notices;
 }
 
+std::vector<Event> Copies::TakeEvents() {
+  std::vector<Event> events;
+  for (auto& [id, copy] : copies_) {
+    std::ranges::move(copy.world.TakeEvents(), std::back_inserter(events));
+  }
+  return events;
+}
+
 int Copies::players() const {
   int count = 0;
   for (const auto& [id, copy] : copies_) {

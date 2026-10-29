@@ -58,6 +58,9 @@ class Copies {
   /// The lines each copy has for its players since the last time.
   std::vector<Notice> TakeNotices();
 
+  /// What's happened in all of them since the last time.
+  std::vector<Event> TakeEvents();
+
   /// In all the copies.
   int players() const;
 

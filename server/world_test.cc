@@ -657,3 +657,36 @@ TEST(World, KeepsAQuestWhosePrizesDontFit) {
   EXPECT_EQ(world.players().at(1).quests.at(1), 3u);
   EXPECT_FALSE(world.players().at(1).quests_done.contains(1));
 }
+
+TEST(World, RecordsWhatPlayersDoForTheAnalytics) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Gear(), {}, Looted(),
+                             nanommo::testing::Bones()));
+  const uint32_t guard =
+      world.Spawn(nanommo::Npc{.name = "Guard", .kind = 1, .x = 3.0f});
+  world.Join(1, {.name = "alice", .land = 1});
+  ASSERT_TRUE(world.TakeQuest(1, guard, 1).ok());
+  Kill(world, 1);
+
+  // The quest, the kill and the two drops, each with who and where, and
+  // what about. Whether the kill took alice to a new level isn't the point.
+  std::vector<nanommo::Event> events = world.TakeEvents();
+  std::erase_if(events, [](const nanommo::Event& event) {
+    return event.kind == nanommo::Event::Kind::kLevel;
+  });
+  ASSERT_EQ(events.size(), 4u);
+  EXPECT_EQ(events[0].kind, nanommo::Event::Kind::kTake);
+  EXPECT_EQ(events[0].quest, 1u);
+  EXPECT_EQ(events[0].player, "alice");
+  EXPECT_EQ(events[0].land, 1);
+  EXPECT_EQ(events[1].kind, nanommo::Event::Kind::kKill);
+  EXPECT_EQ(events[1].monster, 1u);
+  EXPECT_EQ(events[2].kind, nanommo::Event::Kind::kLoot);
+  EXPECT_EQ(events[2].item, kBone);
+  EXPECT_EQ(events[2].count, 2u);
+  EXPECT_EQ(events[3].kind, nanommo::Event::Kind::kLoot);
+  EXPECT_EQ(events[3].item, kBlade);
+  // Each goes once.
+  EXPECT_TRUE(world.TakeEvents().empty());
+}

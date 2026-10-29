@@ -128,6 +128,36 @@ struct Notice {
   std::string text;
 };
 
+/// Something a player did, or that happened to them, for the game's
+/// analytics: what, who and where, and what it was about, by its ids in the
+/// content.
+struct Event {
+  enum class Kind {
+    kKill,
+    kDeath,
+    kLoot,
+    kPrize,
+    kLevel,
+    kTake,
+    kTurnIn,
+    kUse
+  };
+  Kind kind = Kind::kKill;
+  std::string player;
+  /// By its place in kLands.
+  int land = 0;
+  float x = 0.0f;
+  float z = 0.0f;
+  /// The monster killed, or that killed the player.
+  uint32_t monster = 0;
+  /// An item dropped, given for a quest, or used, and how many.
+  uint32_t item = 0;
+  uint32_t count = 0;
+  uint32_t quest = 0;
+  /// The level a player's reached.
+  uint32_t level = 0;
+};
+
 /// The most health the player can have: their level's, and what they wear
 /// adds.
 int MaxHealthOf(const Player& player);
@@ -208,6 +238,9 @@ class World {
   /// The lines for players since the last time, which it hands over.
   std::vector<Notice> TakeNotices();
 
+  /// What's happened since the last time, which it hands over.
+  std::vector<Event> TakeEvents();
+
   const std::map<uint32_t, Player>& players() const { return players_; }
   const std::map<uint32_t, Monster>& monsters() const { return monsters_; }
   const std::map<uint32_t, Npc>& npcs() const { return npcs_; }
@@ -236,6 +269,8 @@ class World {
   void Count(uint32_t id, Player& player, const Monster& monster);
   void Act(Monster& monster, std::chrono::nanoseconds time);
   void Hit(Monster& monster);
+  /// An event of the kind, for the player, where they are.
+  Event& Record(Event::Kind kind, const Player& player);
 
   Terrain terrain_;
   std::shared_ptr<const Content> content_;
@@ -246,6 +281,7 @@ class World {
   uint32_t next_npc_ = 1;
   std::mt19937 random_;
   std::vector<Notice> notices_;
+  std::vector<Event> events_;
 };
 
 }  // namespace nanommo
