@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <iostream>
 #include <iterator>
@@ -51,6 +52,11 @@ constexpr double kUseASkill = 0.25;
 
 // A potion's cooldown, so that a bot doesn't ask for one the server refuses.
 constexpr std::chrono::seconds kDrinkEvery{10};
+
+// How close a bot gets for an errand, in metres: well within a sword's reach
+// of a monster, and the four metres an NPC hears you from.
+constexpr float kSwing = 1.2f;
+constexpr float kTalk = 3.0f;
 
 std::string RandomWords(std::mt19937& random) {
   std::vector<const char*> words;
@@ -189,6 +195,11 @@ void Bot::Receive(std::string_view bytes) {
     bag_ = world.inventory();
     return;
   }
+  if (world.has_quests()) {
+    quests_ = world.quests();
+    return;
+  }
+  parts_.Add(world);
   const uint32_t parts = std::max(world.parts(), 1u);
   newest_.resize(parts);
   if (world.part() < parts) {
@@ -212,6 +223,7 @@ void Bot::Receive(std::string_view bytes) {
     trip_.reset();
     storyteller_.reset();
     asking_ = false;
+    errand_.reset();
   }
   for (const protocol::Npc& npc : world.npcs()) {
     const auto kind = content_.npcs.kinds.find(npc.kind());
@@ -222,9 +234,20 @@ void Bot::Receive(std::string_view bytes) {
 }
 
 void Bot::Wander() {
-  // Like players, a bot goes somewhere on the island, and stays around there
-  // for a while. One trip in eight goes to the storyteller, once the bot has
-  // seen it, for a story.
+  // Quests come first: a bot hunts what they ask for, and takes and turns them
+  // in, as players do, whenever its world has some of that around it.
+  if (!trip_ && stay_ == 0) {
+    errand_ = NextErrand(content_, quests_, parts_.world(), x_, z_);
+    if (errand_) {
+      trip_ =
+          Trip{.to_x = errand_->x,
+               .to_z = errand_->z,
+               .there = errand_->kind == Errand::Kind::kHunt ? kSwing : kTalk};
+    }
+  }
+  // Otherwise, like players, a bot goes somewhere on the island, and stays
+  // around there for a while. One trip in eight goes to the storyteller, once
+  // the bot has seen it, for a story.
   if (!trip_ && stay_ == 0) {
     asking_ =
         storyteller_ && std::bernoulli_distribution(kAskForAStory)(random_);
@@ -237,7 +260,25 @@ void Bot::Wander() {
   std::optional<protocol::Talk> talk;
   if (trip_) {
     input = Travel(*trip_, x_, z_);
-    if (!input) {
+    if (!input && errand_) {
+      // There, unless it stopped getting closer, at the sea or a lake, when it
+      // wanders around for a while instead. The next errand goes after
+      // whatever's nearest then, as monsters move.
+      if (std::hypot(trip_->to_x - x_, trip_->to_z - z_) < trip_->there) {
+        input.emplace();
+        if (errand_->kind == Errand::Kind::kHunt) {
+          input->set_attack(true);
+        } else if (errand_->kind == Errand::Kind::kTake) {
+          *input->mutable_take() = errand_->quest;
+        } else {
+          *input->mutable_turn_in() = errand_->quest;
+        }
+      } else {
+        stay_ = std::uniform_int_distribution<int>(5, 15)(random_);
+      }
+      trip_.reset();
+      errand_.reset();
+    } else if (!input) {
       trip_.reset();
       stay_ = std::uniform_int_distribution<int>(5, 15)(random_);
       if (asking_ && storyteller_) {

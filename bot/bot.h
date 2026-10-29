@@ -15,10 +15,12 @@
 #include "asio/ip/udp.hpp"
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
+#include "bot/quests.h"
 #include "bot/wander.h"
 #include "content/content.h"
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
+#include "protocol/parts.h"
 #include "protocol/tls.h"
 
 namespace nanommo {
@@ -86,6 +88,12 @@ class Bot {
   protocol::Inventory bag_;
   /// When it last drank something, which it does once its cooldown's over.
   std::chrono::steady_clock::time_point drank_;
+  /// The world around the bot, put together from its parts as a client does,
+  /// for the monsters and NPCs in it.
+  Parts parts_;
+  protocol::Quests quests_;
+  /// What the trip's for, if it's for a quest.
+  std::optional<Errand> errand_;
   std::optional<protocol::Move> move_;
 };
 
