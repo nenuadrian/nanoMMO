@@ -30,8 +30,12 @@ TEST(Picking, PicksTheNearestNpcThatTalksOrTeaches) {
   EXPECT_EQ(nanommo::PickNpc(figures, ahead)->id, 3u);
   EXPECT_EQ(nanommo::PickNpc(figures, beside), nullptr);
 
-  // A trainer is picked too, though it doesn't talk.
+  // A trainer is picked too, though it doesn't talk, and so is an NPC who
+  // gives quests.
   figures.push_back(Npc(4, -6.0f, false));
   figures.back().teaches = {2};
   EXPECT_EQ(nanommo::PickNpc(figures, ahead)->id, 4u);
+  figures.push_back(Npc(5, -5.5f, false));
+  figures.back().quests = {1};
+  EXPECT_EQ(nanommo::PickNpc(figures, ahead)->id, 5u);
 }

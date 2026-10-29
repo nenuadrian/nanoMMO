@@ -63,7 +63,8 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
 // NPCs stand still, so each is where the server says, and only its clip's time
 // goes on.
 Figure Stand(const std::map<uint32_t, Figure>& figures,
-             const protocol::Npc& npc, const NpcTable& table, float seconds) {
+             const protocol::Npc& npc, const Content& content, float seconds) {
+  const NpcTable& table = content.npcs;
   const auto found = figures.find(npc.id());
   Figure figure = found != figures.end() ? found->second : Figure{};
   figure.id = npc.id();
@@ -83,6 +84,12 @@ Figure Stand(const std::map<uint32_t, Figure>& figures,
     figure.talks = kind->second.talks();
     figure.teaches = {kind->second.teaches().begin(),
                       kind->second.teaches().end()};
+  }
+  figure.quests.clear();
+  for (const auto& [id, quest] : content.quests) {
+    if (quest.giver() == npc.kind()) {
+      figure.quests.push_back(id);
+    }
   }
   figure.position = {npc.x(), 0.0f, npc.z()};
   figure.yaw = npc.yaw();
@@ -121,7 +128,7 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
     figures.push_back(std::move(figure));
   }
   for (const protocol::Npc& npc : world.npcs()) {
-    Figure figure = Stand(npcs_, npc, content_.npcs, seconds);
+    Figure figure = Stand(npcs_, npc, content_, seconds);
     npcs[npc.id()] = figure;
     figures.push_back(std::move(figure));
   }

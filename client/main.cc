@@ -32,6 +32,7 @@
 #include "client/picking.h"
 #include "client/player_frame.h"
 #include "client/postprocess.h"
+#include "client/quest_window.h"
 #include "client/renderer.h"
 #include "client/settings.h"
 #include "client/sound.h"
@@ -162,6 +163,7 @@ int main(int argc, char* argv[]) {
   nanommo::ChatWindow chat_window;
   nanommo::TalkWindow talk_window;
   nanommo::TrainerWindow trainer_window(content->skills);
+  nanommo::QuestWindow quest_window(*content);
   nanommo::Hotbar hotbar(content->skills);
   nanommo::LoginScreen login_screen(content_hash);
   nanommo::Renderer renderer(*content);
@@ -270,6 +272,8 @@ int main(int argc, char* argv[]) {
                 nanommo::PickNpc(renderer.figures(), ray)) {
           if (npc->talks) {
             talk_window.Open(npc->id, npc->name);
+          } else if (!npc->quests.empty()) {
+            quest_window.Open(npc->id, npc->name, npc->quests);
           } else {
             trainer_window.Open(npc->id, npc->name, npc->teaches);
           }
@@ -301,6 +305,7 @@ int main(int argc, char* argv[]) {
     if (connection) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera());
       nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
+      nanommo::DrawQuestTracker(*content, connection->quests());
       if (const std::optional<uint32_t> skill =
               hotbar.Build(renderer.figures(), connection->world())) {
         nanommo::protocol::Input use = sent;
@@ -324,6 +329,12 @@ int main(int argc, char* argv[]) {
               trainer_window.Build(renderer.figures(), connection->world())) {
         nanommo::protocol::Input ask = sent;
         *ask.mutable_learn() = *learn;
+        connection->Send(ask);
+      }
+      if (const std::optional<nanommo::protocol::Quest> take =
+              quest_window.Build(connection->quests())) {
+        nanommo::protocol::Input ask = sent;
+        *ask.mutable_take() = *take;
         connection->Send(ask);
       }
       // What the player does with their items, in either window, goes with

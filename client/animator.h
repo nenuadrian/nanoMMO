@@ -33,6 +33,8 @@ struct Figure {
   bool talks = false;
   /// The skills an NPC teaches, by their ids, when it's a trainer.
   std::vector<uint32_t> teaches;
+  /// The quests an NPC gives, by their ids in the quests file.
+  std::vector<uint32_t> quests;
   int level = 1;
   int health = 0;
   int max_health = 0;

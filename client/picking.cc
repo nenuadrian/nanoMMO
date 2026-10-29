@@ -17,7 +17,8 @@ const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray) {
   const Figure* picked = nullptr;
   float nearest = std::numeric_limits<float>::infinity();
   for (const Figure& figure : figures) {
-    if (!figure.npc || (!figure.talks && figure.teaches.empty())) {
+    if (!figure.npc ||
+        (!figure.talks && figure.teaches.empty() && figure.quests.empty())) {
       continue;
     }
     const Vector3& at = figure.position;

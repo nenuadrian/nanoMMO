@@ -115,3 +115,27 @@ TEST(Animator, DressesAnNpcAsItsKind) {
   EXPECT_EQ(figures[0].weapon, 1u);
   EXPECT_EQ(figures[0].wearing, (std::vector<uint32_t>{4, 5}));
 }
+
+TEST(Animator, KnowsWhichQuestsAnNpcGives) {
+  nanommo::protocol::World world;
+  nanommo::protocol::Npc* npc = world.add_npcs();
+  npc->set_id(1);
+  npc->set_kind(4);
+  nanommo::Content content;
+  content.quests = *nanommo::ParseQuests(R"pb(
+    quests {
+      id: 1
+      giver: 1
+      kill { monster: 1 count: 3 }
+    }
+    quests {
+      id: 2
+      giver: 4
+      kill { monster: 2 count: 5 }
+    }
+  )pb");
+
+  const auto figures = nanommo::Animator(content).Update(world, 0.1f);
+  ASSERT_EQ(figures.size(), 1u);
+  EXPECT_EQ(figures[0].quests, (std::vector<uint32_t>{2}));
+}

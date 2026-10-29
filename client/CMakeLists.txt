@@ -5,7 +5,7 @@ add_library(nanommo_client_core
   camera.cc scene.cc input.cc connection.cc
   login_screen.cc nameplates.cc player_frame.cc hotbar.cc bag_window.cc
   character_screen.cc
-  chat_window.cc talk_window.cc trainer_window.cc picking.cc
+  chat_window.cc talk_window.cc trainer_window.cc quest_window.cc picking.cc
   animator.cc characters.cc figures.cc triangles.cc ground.cc trees.cc chunks.cc
   sea.cc
   gate.cc
