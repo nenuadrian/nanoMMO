@@ -58,6 +58,9 @@ services:
       - "127.0.0.1:8123:8123"
     restart: unless-stopped
 
+  recorder:
+    restart: unless-stopped
+
   web:
     environment:
       APP_KEY: ${NANOMMO_APP_KEY:?set it in .env}

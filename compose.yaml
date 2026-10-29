@@ -198,6 +198,19 @@ services:
       redis:
         condition: service_healthy
 
+  recorder:
+    build:
+      context: .
+      target: recorder
+    environment:
+      NANOMMO_REDIS_HOST: redis
+      NANOMMO_CLICKHOUSE_HOST: clickhouse
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   web:
     build: web
     environment:

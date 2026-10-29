@@ -103,6 +103,49 @@ absl::StatusOr<std::string> Redis::Command(
   }
 }
 
+absl::StatusOr<std::vector<Redis::Entry>> Redis::Read(
+    const std::vector<std::string>& words) {
+  const absl::Status connected = ReconnectIfLost(context_);
+  if (!connected.ok()) {
+    return connected;
+  }
+  Append(context_, words);
+  const absl::StatusOr<Reply> reply = NextReply(context_);
+  if (!reply.ok()) {
+    return reply.status();
+  }
+  if ((*reply)->type == REDIS_REPLY_ERROR) {
+    return absl::InternalError(absl::StrCat("Redis: ", Text(**reply)));
+  }
+  // Nil when it timed out, or else a list of streams, each a list of its name
+  // and its entries, each a list of its id and its fields.
+  std::vector<Entry> entries;
+  if ((*reply)->type != REDIS_REPLY_ARRAY || (*reply)->elements == 0) {
+    return entries;
+  }
+  const redisReply& stream = *(*reply)->element[0];
+  if (stream.type != REDIS_REPLY_ARRAY || stream.elements < 2 ||
+      stream.element[1]->type != REDIS_REPLY_ARRAY) {
+    return absl::InternalError("Redis: a stream we can't read");
+  }
+  const redisReply& read = *stream.element[1];
+  for (std::size_t i = 0; i < read.elements; ++i) {
+    const redisReply& entry = *read.element[i];
+    if (entry.type != REDIS_REPLY_ARRAY || entry.elements < 2) {
+      continue;
+    }
+    Entry& added = entries.emplace_back();
+    added.id = Text(*entry.element[0]);
+    // An entry trimmed away since it was read has nil for its fields.
+    const redisReply& fields = *entry.element[1];
+    for (std::size_t j = 0;
+         fields.type == REDIS_REPLY_ARRAY && j < fields.elements; ++j) {
+      added.fields.push_back(Text(*fields.element[j]));
+    }
+  }
+  return entries;
+}
+
 absl::StatusOr<std::vector<std::vector<std::string>>> Redis::Pipeline(
     const std::vector<std::vector<std::string>>& commands) {
   const absl::Status connected = ReconnectIfLost(context_);

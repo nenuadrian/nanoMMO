@@ -30,6 +30,18 @@ class Redis {
   absl::StatusOr<std::vector<std::vector<std::string>>> Pipeline(
       const std::vector<std::vector<std::string>>& commands);
 
+  /// An entry of a stream: its id, and its fields and values, one after the
+  /// other.
+  struct Entry {
+    std::string id;
+    std::vector<std::string> fields;
+  };
+
+  /// Reads a stream, with XREAD or XREADGROUP on a single stream: its entries,
+  /// or none when the command waited and nothing came.
+  absl::StatusOr<std::vector<Entry>> Read(
+      const std::vector<std::string>& words);
+
  private:
   explicit Redis(redisContext* context) : context_(context) {}
 

@@ -2,7 +2,7 @@ add_library(nanommo_server_core
   tick.cc listen.cc inventory.cc world.cc copies.cc monsters.cc npcs.cc levels.cc session.cc interest.cc
   server.cc metrics.cc password.cc database.cc events.cc
   accounts.cc players.cc redis.cc tokens.cc
-  login_server.cc consul.cc token_bucket.cc stories.cc storyteller.cc
+  login_server.cc consul.cc token_bucket.cc stories.cc storyteller.cc recorder.cc
 )
 target_include_directories(nanommo_server_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_server_core PUBLIC
@@ -21,12 +21,15 @@ target_link_libraries(nanommo_login PRIVATE nanommo_server_core)
 add_executable(nanommo_saver saver_main.cc)
 target_link_libraries(nanommo_saver PRIVATE nanommo_server_core absl::time)
 
+add_executable(nanommo_recorder recorder_main.cc)
+target_link_libraries(nanommo_recorder PRIVATE nanommo_server_core)
+
 add_executable(nanommo_server_tests
   tick_test.cc inventory_test.cc world_test.cc copies_test.cc monsters_test.cc interest_test.cc
   levels_test.cc metrics_test.cc password_test.cc
   database_test.cc accounts_test.cc players_test.cc tokens_test.cc
   login_server_test.cc consul_test.cc token_bucket_test.cc stories_test.cc
-  events_test.cc
+  events_test.cc recorder_test.cc
   server_test.cc
 )
 target_link_libraries(nanommo_server_tests PRIVATE nanommo_server_core GTest::gtest_main)

@@ -105,6 +105,11 @@ COPY --from=test /src/build/bin/nanommo_saver /usr/local/bin/
 USER ubuntu
 ENTRYPOINT ["nanommo_saver"]
 
+FROM runtime AS recorder
+COPY --from=test /src/build/bin/nanommo_recorder /usr/local/bin/
+USER ubuntu
+ENTRYPOINT ["nanommo_recorder"]
+
 FROM ubuntu:24.04 AS bot
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libssl3t64 \
