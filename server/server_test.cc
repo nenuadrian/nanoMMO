@@ -66,6 +66,11 @@ class TestPlayer {
   /// What the player carries and wears, as the server last sent it.
   const nanommo::protocol::Inventory& bag() const { return bag_; }
 
+  /// The quests the player's on, as the server last sent them, once it has.
+  const std::optional<nanommo::protocol::Quests>& quests() const {
+    return quests_;
+  }
+
   /// What the server told the player, which nobody said.
   const std::vector<std::string>& notices() const { return notices_; }
 
@@ -106,13 +111,15 @@ class TestPlayer {
           reader_.Append({buffer_.data(), size});
           while (std::optional<std::string> message = reader_.Next()) {
             nanommo::protocol::World world;
-            // Chat and the bag come in worlds of their own, with nobody in
-            // them.
+            // Chat, the bag and the quests come in worlds of their own, with
+            // nobody in them.
             if (!world.ParseFromString(*message)) {
               continue;
             }
             if (world.has_inventory()) {
               bag_ = world.inventory();
+            } else if (world.has_quests()) {
+              quests_ = world.quests();
             } else if (!world.chat().empty()) {
               for (const nanommo::protocol::Chat& line : world.chat()) {
                 if (line.name().empty()) {
@@ -133,6 +140,7 @@ class TestPlayer {
   nanommo::FrameReader reader_;
   nanommo::protocol::World world_;
   nanommo::protocol::Inventory bag_;
+  std::optional<nanommo::protocol::Quests> quests_;
   std::vector<std::string> notices_;
   bool closed_ = false;
 };
@@ -363,4 +371,41 @@ TEST_F(ServerTest, SendsEachPlayerTheirBagAsItChanges) {
   nanommo::protocol::Inventory saved;
   ASSERT_TRUE(saved.ParseFromString(kept->front().front()));
   EXPECT_EQ(saved.revision(), alice.bag().revision());
+}
+
+TEST_F(ServerTest, SendsEachPlayerTheirQuestsAsTheyChange) {
+  // A guard where new players start, who asks for bones.
+  nanommo::Content content{.items = nanommo::testing::Gear(),
+                           .quests = nanommo::testing::Bones()};
+  content.npcs = *nanommo::ParseNpcs(R"pb(
+    kinds {
+      id: 1
+      name: "Guard"
+      look { skin: 0xF1C49CFF }
+    }
+    spawns { kind: 1 land: "Meadows" x: 1 z: 0 }
+  )pb");
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> guarded =
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1, content,
+                              metrics_, *tokens_, *players_, *storyteller_);
+  ASSERT_TRUE(guarded.ok()) << guarded.status();
+  TestPlayer alice(io_, *client_tls_, (*guarded)->port(), Token(alice_));
+
+  // Her quests come as she joins, on none.
+  ASSERT_TRUE(RunUntil([&] { return alice.quests().has_value(); }));
+  EXPECT_TRUE(alice.quests()->on().empty());
+
+  // She takes the guard's, and they come again.
+  nanommo::protocol::Input take;
+  take.mutable_take()->set_npc(1);
+  take.mutable_take()->set_quest(1);
+  alice.Send(take);
+  ASSERT_TRUE(RunUntil([&] { return alice.quests()->on().contains(1); }));
+  EXPECT_EQ(alice.quests()->on().at(1), 0u);
+
+  // What she can't do comes back as a line from nobody.
+  alice.Send(take);
+  ASSERT_TRUE(RunUntil([&] { return !alice.notices().empty(); }));
+  EXPECT_EQ(alice.notices().back(), "You're on Bones already.");
 }

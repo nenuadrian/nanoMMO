@@ -70,6 +70,7 @@ class Server {
   void Say(uint32_t id, const std::string& text);
   void Talk(uint32_t id, const protocol::Talk& talk);
   void Learn(uint32_t id, const protocol::Learn& learn);
+  void TakeQuest(uint32_t id, const protocol::Quest& quest);
   void Item(uint32_t id, const protocol::ItemAction& action);
   /// Sends the player a line from the server, which has no name.
   void Notify(uint32_t id, const std::string& text);
@@ -81,6 +82,8 @@ class Server {
   void SendChat();
   /// To each player whose bag has changed since we last sent it.
   void SendBags();
+  /// To each player as they join, and as their quests change.
+  void SendQuests();
   void SendTo(const asio::ip::udp::endpoint& client,
               std::shared_ptr<const std::string> part, std::string own);
 
@@ -111,6 +114,8 @@ class Server {
   std::map<uint32_t, TokenBucket> item_limits_;
   /// The revision of each player's bag we sent them last.
   std::map<uint32_t, uint32_t> sent_bags_;
+  /// And of their quests.
+  std::map<uint32_t, uint32_t> sent_quests_;
 };
 
 }  // namespace nanommo

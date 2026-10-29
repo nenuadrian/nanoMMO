@@ -48,6 +48,7 @@ class Connection {
 
   /// What we carry and wear, as the server last sent it.
   const protocol::Inventory& inventory() const { return inventory_; }
+  const protocol::Quests& quests() const { return quests_; }
 
  private:
   Connection(asio::ssl::context& tls, const std::string& token);
@@ -73,6 +74,7 @@ class Connection {
   std::deque<protocol::Chat> chat_;
   std::optional<protocol::Move> move_;
   protocol::Inventory inventory_;
+  protocol::Quests quests_;
   bool udp_worlds_ = false;
   bool connected_ = true;
 };

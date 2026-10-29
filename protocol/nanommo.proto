@@ -17,6 +17,12 @@ message Learn {
   uint32 skill = 2;
 }
 
+// A quest an NPC gives, by the NPC's id and the quest's in the quests file.
+message Quest {
+  uint32 npc = 1;
+  uint32 quest = 2;
+}
+
 // Where an item is: in a slot of the bag, from zero, or worn.
 message Place {
   oneof where {
@@ -57,6 +63,8 @@ message Input {
   Learn learn = 8;
   // Sent once, like a skill.
   ItemAction item = 9;
+  // A quest to take, sent once.
+  Quest take = 10;
 }
 
 enum Motion {
@@ -127,6 +135,13 @@ message Inventory {
   uint32 revision = 3;
 }
 
+// The quests a player is on, by their ids, with how many they've killed for
+// each. Each change takes them to their next revision, as a bag's.
+message Quests {
+  map<uint32, uint32> on = 1;
+  uint32 revision = 2;
+}
+
 message Chat {
   string name = 1;
   string text = 2;
@@ -163,6 +178,8 @@ message World {
   // Your bag, which comes on its own, over TCP, as you join and as it
   // changes.
   Inventory inventory = 16;
+  // Your quests, which come the same way.
+  Quests quests = 17;
 }
 
 message LoginRequest {

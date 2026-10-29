@@ -525,3 +525,63 @@ TEST(World, LeavesWhatDoesntFitInTheBag) {
   EXPECT_EQ(notices[0].text,
             "Your bag is full, so you left 2 Bones and a Blade behind.");
 }
+
+namespace {
+
+// Kills a skeleton, and waits for the swing to end, so the next one is
+// killed by a swing of its own.
+void KillAndRest(nanommo::World& world, uint32_t id) {
+  Kill(world, id);
+  RunOneSecond(world);
+}
+
+// The lines for quests among the notices, without the loot's.
+std::vector<std::string> QuestLines(nanommo::World& world) {
+  std::vector<std::string> lines;
+  for (const nanommo::Notice& notice : world.TakeNotices()) {
+    if (!notice.text.starts_with("The ")) {
+      lines.push_back(notice.text);
+    }
+  }
+  return lines;
+}
+
+}  // namespace
+
+TEST(World, CountsTheKillsForAQuestFromItsGiver) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Gear(), {}, Looted(),
+                             nanommo::testing::Bones()));
+  const uint32_t guard =
+      world.Spawn(nanommo::Npc{.name = "Guard", .kind = 1, .x = 3.0f});
+  const uint32_t healer =
+      world.Spawn(nanommo::Npc{.name = "Healer", .kind = 3, .x = -3.0f});
+  world.Join(1, {});
+  world.Join(2, {.x = -2.0f});
+
+  EXPECT_EQ(world.TakeQuest(1, healer, 1).message(),
+            "Nobody here gives that quest.");
+  EXPECT_EQ(world.TakeQuest(2, guard, 1).message(),
+            "You're too far away to talk to the Guard.");
+  EXPECT_EQ(world.TakeQuest(1, guard, 2).message(),
+            "Nobody here gives that quest.");
+  ASSERT_TRUE(world.TakeQuest(1, guard, 1).ok());
+  EXPECT_EQ(world.TakeQuest(1, guard, 1).message(), "You're on Bones already.");
+  EXPECT_EQ(world.players().at(1).quests.at(1), 0u);
+
+  KillAndRest(world, 1);
+  EXPECT_EQ(world.players().at(1).quests.at(1), 1u);
+  EXPECT_EQ(QuestLines(world),
+            std::vector<std::string>{"Bones: 1 of 3 Skeletons killed."});
+  KillAndRest(world, 1);
+  KillAndRest(world, 1);
+  EXPECT_EQ(world.players().at(1).quests.at(1), 3u);
+  EXPECT_EQ(QuestLines(world),
+            (std::vector<std::string>{"Bones: 2 of 3 Skeletons killed.",
+                                      "Bones: 3 of 3 Skeletons killed."}));
+  // Three is all it asks for.
+  KillAndRest(world, 1);
+  EXPECT_EQ(world.players().at(1).quests.at(1), 3u);
+  EXPECT_TRUE(QuestLines(world).empty());
+}

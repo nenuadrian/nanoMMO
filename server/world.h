@@ -46,6 +46,12 @@ struct Player {
   Stats stats;
   /// The skills the player knows, by their ids in the skills file.
   std::set<uint32_t> skills;
+  /// The quests the player's on, by their ids in the quests file, with how
+  /// many they've killed for each.
+  std::map<uint32_t, uint32_t> quests;
+  /// Each change to their quests takes this to the next, as a bag's revision
+  /// does, so the server can tell when to send them.
+  uint32_t quests_revision = 0;
   uint32_t target = 0;
   std::chrono::nanoseconds swing{0};
   /// The skill the player's using, by its id in the skills file, and how far
@@ -169,6 +175,10 @@ class World {
   /// error says why not, in words for the player.
   absl::Status Learn(uint32_t id, uint32_t npc, uint32_t skill);
 
+  /// The player takes the quest from the NPC, who gives it, in this land, or
+  /// the error says why not, in words for the player.
+  absl::Status TakeQuest(uint32_t id, uint32_t npc, uint32_t quest);
+
   /// Moves the player's items around, as Inventory::Move does, wearing them
   /// and taking them off, or the error says why not, in words for the player.
   absl::Status MoveItem(uint32_t id, const protocol::Place& from,
@@ -211,6 +221,9 @@ class World {
   void Hurt(uint32_t id, Player& player, Monster& monster, int damage);
   /// What the monster the player's just killed drops, into their bag.
   void Loot(uint32_t id, Player& player, const Monster& monster);
+  /// The monster the player's just killed, for each of their quests that
+  /// asks for its kind, until they've killed as many as it asks.
+  void Count(uint32_t id, Player& player, const Monster& monster);
   void Act(Monster& monster, std::chrono::nanoseconds time);
   void Hit(Monster& monster);
 

@@ -1,12 +1,15 @@
 #ifndef NANOMMO_SERVER_TEST_CONTENT_H_
 #define NANOMMO_SERVER_TEST_CONTENT_H_
 
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <utility>
 
 #include "content/content.h"
 #include "content/items.h"
 #include "content/monsters.h"
+#include "content/quests.h"
 #include "content/skills.h"
 
 namespace nanommo::testing {
@@ -76,15 +79,31 @@ inline ItemTable Gear() {
   )pb");
 }
 
-/// Content with these items, skills and monsters, and nothing else, for a
-/// World.
-inline std::shared_ptr<const Content> With(ItemTable items,
-                                           SkillTable skills = {},
-                                           MonsterTable monsters = {}) {
+/// Content with these items, skills, monsters and quests, and nothing else,
+/// for a World.
+inline std::shared_ptr<const Content> With(
+    ItemTable items, SkillTable skills = {}, MonsterTable monsters = {},
+    std::map<uint32_t, quests::Quest> quests = {}) {
   return std::make_shared<const Content>(
       Content{.items = std::move(items),
               .monsters = std::move(monsters),
+              .quests = std::move(quests),
               .skills = std::move(skills)});
+}
+
+/// The first kind of NPC asks for three of the first kind of monster, for
+/// experience and two of the second item.
+inline std::map<uint32_t, quests::Quest> Bones() {
+  return *ParseQuests(R"pb(
+    quests {
+      id: 1
+      name: "Bones"
+      giver: 1
+      kill { monster: 1 count: 3 }
+      experience: 100
+      prizes { item: 2 count: 2 }
+    }
+  )pb");
 }
 
 inline monsters::Kind Skeleton() {

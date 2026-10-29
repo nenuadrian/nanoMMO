@@ -237,6 +237,9 @@ void Server::Accept() {
           if (input.has_learn()) {
             Learn(*id, input.learn());
           }
+          if (input.has_take()) {
+            TakeQuest(*id, input.take());
+          }
           if (input.has_item()) {
             Item(*id, input.item());
           }
@@ -296,6 +299,7 @@ void Server::Leave(uint32_t id) {
   story_limits_.erase(id);
   item_limits_.erase(id);
   sent_bags_.erase(id);
+  sent_quests_.erase(id);
   std::erase_if(udp_tokens_,
                 [id](const auto& token) { return token.second == id; });
   udp_clients_.erase(id);
@@ -390,6 +394,17 @@ void Server::Learn(uint32_t id, const protocol::Learn& learn) {
     return;
   }
   std::cout << land.players().at(id).name << " learned skill " << learn.skill()
+            << std::endl;
+}
+
+void Server::TakeQuest(uint32_t id, const protocol::Quest& quest) {
+  World& land = *WorldOf(id);
+  const absl::Status taken = land.TakeQuest(id, quest.npc(), quest.quest());
+  if (!taken.ok()) {
+    Notify(id, std::string(taken.message()));
+    return;
+  }
+  std::cout << land.players().at(id).name << " took quest " << quest.quest()
             << std::endl;
 }
 
@@ -500,6 +515,7 @@ void Server::Tick() {
   Broadcast();
   SendChat();
   SendBags();
+  SendQuests();
   metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
   TracyPlot("players", static_cast<int64_t>(players()));
   FrameMark;
@@ -688,6 +704,30 @@ void Server::SendBags() {
       metrics_.AddBytesSent(frame.size());
       session->second->Send(std::move(frame));
       sent_bags_[id] = revision;
+    }
+  }
+}
+
+void Server::SendQuests() {
+  for (const auto& [copy_id, copy] : copies_.all()) {
+    for (const auto& [id, player] : copy.world.players()) {
+      const auto session = sessions_.find(id);
+      const auto sent = sent_quests_.find(id);
+      // Like a bag, but each player gets theirs as they join, none included,
+      // as a quest's revision starts again from zero with each login.
+      if (session == sessions_.end() ||
+          (sent != sent_quests_.end() &&
+           sent->second == player.quests_revision)) {
+        continue;
+      }
+      protocol::World quests;
+      protocol::Quests* on = quests.mutable_quests();
+      on->mutable_on()->insert(player.quests.begin(), player.quests.end());
+      on->set_revision(player.quests_revision);
+      std::string frame = Frame(quests);
+      metrics_.AddBytesSent(frame.size());
+      session->second->Send(std::move(frame));
+      sent_quests_[id] = player.quests_revision;
     }
   }
 }

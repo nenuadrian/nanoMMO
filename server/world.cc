@@ -310,6 +310,29 @@ absl::Status World::Learn(uint32_t id, uint32_t npc, uint32_t skill) {
   return absl::OkStatus();
 }
 
+absl::Status World::TakeQuest(uint32_t id, uint32_t npc, uint32_t quest) {
+  const auto player = players_.find(id);
+  const auto giver = npcs_.find(npc);
+  const auto given = content_->quests.find(quest);
+  if (player == players_.end() || giver == npcs_.end() ||
+      given == content_->quests.end() ||
+      given->second.giver() != giver->second.kind) {
+    return absl::NotFoundError("Nobody here gives that quest.");
+  }
+  if (std::hypot(giver->second.x - player->second.x,
+                 giver->second.z - player->second.z) > kTalkReach) {
+    return absl::OutOfRangeError(absl::StrCat(
+        "You're too far away to talk to the ", giver->second.name, "."));
+  }
+  if (player->second.quests.contains(quest)) {
+    return absl::AlreadyExistsError(
+        absl::StrCat("You're on ", given->second.name(), " already."));
+  }
+  player->second.quests[quest] = 0;
+  ++player->second.quests_revision;
+  return absl::OkStatus();
+}
+
 void World::Step(std::chrono::nanoseconds time) {
   ZoneScoped;
   for (auto& [id, player] : players_) {
@@ -500,6 +523,7 @@ void World::Hurt(uint32_t id, Player& player, Monster& monster, int damage) {
     player.health = MaxHealthOf(player);
   }
   Loot(id, player, monster);
+  Count(id, player, monster);
 }
 
 void World::Loot(uint32_t id, Player& player, const Monster& monster) {
@@ -550,6 +574,28 @@ void World::Loot(uint32_t id, Player& player, const Monster& monster) {
     notices_.push_back({.player = id,
                         .text = absl::StrCat("Your bag is full, so you left ",
                                              List(left), " behind.")});
+  }
+}
+
+void World::Count(uint32_t id, Player& player, const Monster& monster) {
+  const auto kind = content_->monsters.kinds.find(monster.kind);
+  for (auto& [quest, kills] : player.quests) {
+    const auto found = content_->quests.find(quest);
+    if (found == content_->quests.end() ||
+        kind == content_->monsters.kinds.end()) {
+      continue;
+    }
+    const quests::Kill& kill = found->second.kill();
+    if (kill.monster() != monster.kind || kills >= kill.count()) {
+      continue;
+    }
+    ++kills;
+    ++player.quests_revision;
+    notices_.push_back(
+        {.player = id,
+         .text = absl::StrCat(found->second.name(), ": ", kills, " of ",
+                              kill.count(), " ", kind->second.name(),
+                              "s killed.")});
   }
 }
 
