@@ -817,6 +817,7 @@ docker compose up -d --build
 
 - Grafana: http://localhost:3000, which opens on the nanoMMO server dashboard.
 - Prometheus: http://localhost:9090.
+- Pyroscope: http://localhost:4040 (see [Benchmarking and profiling](#benchmarking-and-profiling)).
 
 `nanommo_bot` connects a swarm of bots that play like players. Each one runs to a random place on the
 island, within 170 metres of the middle, or on one trip in five into its land's gate, and wanders around there like a player at the keys, running a
@@ -827,7 +828,11 @@ for a story about three words from the game. While it wanders around somewhere, 
 four uses one of the skills it knows, from its world, so that the bots' cooldowns go out with their
 worlds, as players' do. A bot drinks a potion once it's down to half its health, one every ten
 seconds, and wears what it finds in a slot it has free, so that the servers save and send bags as
-they would players'. A bot that stops
+they would players'. Quests come first: between trips, a bot looks at what's around it, put
+together from the world's parts as the client does, and turns in a quest it's done if its giver is
+there, or goes after the nearest monster a quest it's on asks for, or takes a quest it hasn't done
+from an NPC there who gives it. It runs there, and swings, or takes or turns in the quest, so that
+the servers count kills and save quests as they would players'. A bot that stops
 getting closer, at the sea or a lake, gives up on its trip. Each one logs in as bot1, bot2 and so on,
 and creates its account the first time. It takes the login server's
 host, the game server's host, how many bots, how many seconds to spread their arrival over, the
@@ -975,6 +980,21 @@ base. Without it, `docker compose up -d bots` would start the server from `compo
 
 That samples the server for ten seconds and writes `profile/before.svg`, a flame graph to open in a
 browser, along with the collapsed stacks it's drawn from.
+
+[Pyroscope](https://github.com/grafana/pyroscope), Grafana's store for profiles, keeps the servers'
+profiles all the time, the way Prometheus keeps their metrics, so there's no image to swap and no
+moment to catch. Alloy samples the processes of our servers' containers from the kernel, with eBPF,
+and sends Pyroscope what was running, as stacks, each fifteen seconds, with C++'s names demangled
+(`monitoring/config.alloy`). The servers' code doesn't change. Loading the program into the kernel,
+and reading the other containers' processes, takes privileges, so Alloy runs privileged, in the
+host's process namespace; on a Mac, the kernel is Docker's Linux VM's. Grafana has Pyroscope as a
+data source, and the server dashboard ends on a flame graph of where the worlds spend their CPU over
+its time range, under their metrics and logs. Pyroscope's own page is at http://localhost:4040.
+
+When the bots run on the same machine as the server, part of what the flame graph shows is the bots'
+cost: sending a datagram over Docker's network, the kernel delivers it to the bot's socket in the
+server's own system call, under `udp_sendmsg`. Players on other machines cost the server only the
+sending.
 
 [Tracy](https://github.com/wolfpld/tracy) shows each tick as a frame, with the time spent in the
 step, the broadcast, and each client's serialize and send. Its client is in the profile image only,
