@@ -44,7 +44,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
   while (input.remaining_bytes() > 0) {
     const uint32_t id = input.ConsumeIntegralInRange<uint32_t>(1, 3);
     const bool playing = world.players().contains(id);
-    switch (input.ConsumeIntegralInRange(0, 8)) {
+    switch (input.ConsumeIntegralInRange(0, 10)) {
       case 0:
         // Up to level four, where the last skill is.
         if (!playing) {
@@ -82,6 +82,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
       case 7:
         world.DestroyItem(id, any_place()).IgnoreError();
         break;
+      case 8:
+        world
+            .TakeQuest(id, input.ConsumeIntegralInRange<uint32_t>(0, 9),
+                       input.ConsumeIntegralInRange<uint32_t>(0, 4))
+            .IgnoreError();
+        break;
+      case 9:
+        world
+            .TurnIn(id, input.ConsumeIntegralInRange<uint32_t>(0, 9),
+                    input.ConsumeIntegralInRange<uint32_t>(0, 4))
+            .IgnoreError();
+        break;
       default:
         if (playing) {
           world.Leave(id);
@@ -105,6 +117,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
       ABSL_CHECK_EQ(stack.count(), 1u);
       ABSL_CHECK_EQ(content->items.by_id.at(stack.item()).equip().slot(),
                     static_cast<nanommo::items::Slot>(slot));
+    }
+    // Each quest they're on is one we have, with no more kills than it asks
+    // for, and not one they've done.
+    for (const auto& [quest, kills] : player.quests) {
+      ABSL_CHECK_LE(kills, content->quests.at(quest).kill().count());
+      ABSL_CHECK(!player.quests_done.contains(quest));
     }
   }
   return 0;
