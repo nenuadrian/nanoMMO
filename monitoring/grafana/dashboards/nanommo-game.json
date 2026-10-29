@@ -1,0 +1,189 @@
+{
+  "uid": "nanommo-game",
+  "title": "nanoMMO game",
+  "schemaVersion": 41,
+  "version": 1,
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "refresh": "10s",
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Players who did something",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT uniq(player) AS players FROM events WHERE $__timeFilter(time)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Kills a minute",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 18,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "rawSql": "SELECT toStartOfMinute(time) AS time, what, count() AS kills\nFROM events\nWHERE $__timeFilter(time) AND kind = 'kill'\nGROUP BY time, what\nORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "barchart",
+      "title": "Quests taken and done",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT what AS quest, countIf(kind = 'take') AS taken, countIf(kind = 'turn_in') AS done\nFROM events\nWHERE $__timeFilter(time) AND kind IN ('take', 'turn_in')\nGROUP BY quest\nORDER BY quest"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "barchart",
+      "title": "Items in and out",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT what AS item, sumIf(count, kind IN ('loot', 'prize')) AS came_in, sumIf(count, kind = 'use') AS used\nFROM events\nWHERE $__timeFilter(time) AND kind IN ('loot', 'prize', 'use')\nGROUP BY item\nORDER BY came_in DESC"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "xychart",
+      "title": "Where players die in the Meadows",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": -180,
+          "max": 180,
+          "custom": {
+            "show": "points",
+            "pointSize": {
+              "fixed": 8
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "mapping": "auto",
+        "series": [
+          {}
+        ],
+        "legend": {
+          "showLegend": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT x, z FROM events WHERE $__timeFilter(time) AND kind = 'death' AND land = 'Meadows'"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "Levels reached",
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT toString(level) AS level, count() AS players\nFROM events\nWHERE $__timeFilter(time) AND kind = 'level'\nGROUP BY level\nORDER BY toUInt32(level)"
+        }
+      ]
+    }
+  ]
+}

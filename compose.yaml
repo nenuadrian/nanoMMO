@@ -299,6 +299,8 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/nanommo-server.json
+      # Installed as Grafana starts, before it reads the data sources.
+      GF_PLUGINS_PREINSTALL_SYNC: grafana-clickhouse-datasource@4.23.2
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
