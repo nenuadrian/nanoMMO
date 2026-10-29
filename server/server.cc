@@ -74,7 +74,9 @@ Progress ProgressOf(const Player& player) {
                     .land = player.land,
                     .weapon = MainHandOf(player),
                     .skills = player.skills,
-                    .items_revision = player.inventory.revision()};
+                    .items_revision = player.inventory.revision(),
+                    .quests = player.quests,
+                    .quests_done = player.quests_done};
   // The dead come back in the middle, at full health, so that's what we keep.
   if (player.motion == Motion::kDead) {
     progress.x = 0.0f;

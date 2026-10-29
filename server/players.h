@@ -30,6 +30,10 @@ struct Progress {
   /// Their bag's revision, which goes up with each change to it, so that
   /// telling whether it needs saving takes a number, not the bag.
   uint32_t items_revision = 0;
+  /// The quests they're on, with how many they've killed for each, and the
+  /// ones they've done, by their ids.
+  std::map<uint32_t, uint32_t> quests;
+  std::set<uint32_t> quests_done;
 
   bool operator==(const Progress&) const = default;
 };

@@ -65,6 +65,16 @@ std::string StateOf(const items::Stack& stack) {
   return json;
 }
 
+// A player's quests as one message, which Redis keeps the bytes of, and
+// MySQL the JSON.
+protocol::Quests QuestsOf(const Progress& progress) {
+  protocol::Quests quests;
+  quests.mutable_on()->insert(progress.quests.begin(), progress.quests.end());
+  quests.mutable_done()->Add(progress.quests_done.begin(),
+                             progress.quests_done.end());
+  return quests;
+}
+
 // The bag from its rows: place, item, count and state. What an earlier
 // server doesn't know of a later one's state, it leaves out.
 absl::StatusOr<protocol::Inventory> BagOf(const Result& rows,
@@ -111,7 +121,7 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
       "SELECT accounts.username, COALESCE(players.x, 0), "
       "COALESCE(players.z, 0), COALESCE(players.experience, 0), "
       "players.health, COALESCE(players.land, 'Meadows'), "
-      "players.items_revision "
+      "players.items_revision, players.quests "
       "FROM accounts "
       "LEFT JOIN players ON players.account_id = accounts.id "
       "AND players.world = ? "
@@ -125,7 +135,8 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
   }
   const std::vector<std::string>& row = result->rows.front();
   Player player{.name = row[0]};
-  std::vector<std::string> saved(row.begin() + 1, row.end() - 1);
+  // Where they are, their experience, health and land, and next their skills.
+  std::vector<std::string> saved(row.begin() + 1, row.begin() + 6);
   // A row for each skill, which we join the way Redis keeps them.
   const absl::StatusOr<Result> skills = database_.Run(
       "SELECT skill FROM player_skills WHERE account_id = ? AND world = ?",
@@ -146,27 +157,42 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
   if (!items.ok()) {
     return items.status();
   }
-  absl::StatusOr<protocol::Inventory> bag = BagOf(*items, row.back());
+  absl::StatusOr<protocol::Inventory> bag = BagOf(*items, row[6]);
   if (!bag.ok()) {
     return bag.status();
+  }
+  // And the quests, from their JSON.
+  protocol::Quests quests;
+  google::protobuf::util::JsonParseOptions options;
+  options.ignore_unknown_fields = true;
+  if (!row[7].empty() &&
+      !google::protobuf::util::JsonStringToMessage(row[7], &quests, options)
+           .ok()) {
+    return absl::InternalError("saved quests that aren't any");
   }
 
   const absl::StatusOr<std::vector<std::vector<std::string>>> newer =
       redis_.Pipeline({{"HMGET", Key(world, account_id), "x", "z", "experience",
-                        "health", "land", "skills", "items"}});
+                        "health", "land", "skills", "items", "quests"}});
   if (!newer.ok()) {
     return newer.status();
   }
   const std::vector<std::string>& hash = newer->front();
   if (!hash[0].empty()) {
-    saved.assign(hash.begin(), hash.end() - 1);
+    saved.assign(hash.begin(), hash.begin() + 6);
   }
   // Redis has the bag from when it last changed, and a hash from a server
   // from before bags, or one written since the bag came from MySQL, has none,
   // so MySQL's is the newest.
-  if (!hash.back().empty() && !bag->ParseFromString(hash.back())) {
+  if (!hash[6].empty() && !bag->ParseFromString(hash[6])) {
     return absl::InternalError("a saved bag that isn't one");
   }
+  // The same goes for the quests, from a server from before them.
+  if (!hash[7].empty() && !quests.ParseFromString(hash[7])) {
+    return absl::InternalError("saved quests that aren't any");
+  }
+  player.quests = {quests.on().begin(), quests.on().end()};
+  player.quests_done = {quests.done().begin(), quests.done().end()};
   player.inventory = Inventory(*std::move(bag));
   if (!absl::SimpleAtof(saved[0], &player.x) ||
       !absl::SimpleAtof(saved[1], &player.z) ||
@@ -209,7 +235,8 @@ absl::Status Players::Save(
             "health",     absl::StrCat(progress.health),
             "land",       kLands[progress.land].name,
             "weapon",     absl::StrCat(progress.weapon),
-            "skills",     absl::StrJoin(progress.skills, ",")});
+            "skills",     absl::StrJoin(progress.skills, ","),
+            "quests",     QuestsOf(progress).SerializeAsString()});
     unsaved.push_back(Key(world, id));
     // The bag goes as its message, in protobuf's bytes, which Redis keeps as
     // they are.
@@ -260,7 +287,7 @@ absl::StatusOr<int> Players::Flush() {
       if (key.starts_with("player:")) {
         reads.push_back({"HMGET", key, "world", "account", "x", "z",
                          "experience", "health", "land", "weapon", "skills",
-                         "items"});
+                         "items", "quests"});
       } else {
         reads.push_back({"HMGET", absl::StrCat("player:", key), "x", "z",
                          "experience", "health", "land", "weapon"});
@@ -276,7 +303,7 @@ absl::StatusOr<int> Players::Flush() {
     // row MySQL refuses doesn't hold back the batch on each flush.
     std::string sql =
         "INSERT IGNORE INTO players (world, account_id, x, z, experience, "
-        "health, land, weapon, items_revision) VALUES ";
+        "health, land, weapon, items_revision, quests) VALUES ";
     std::vector<std::string> values;
     int rows = 0;
     std::string skills_sql =
@@ -302,13 +329,13 @@ absl::StatusOr<int> Players::Flush() {
       absl::StrAppend(&sql, rows == 0 ? "" : ", ",
                       "(?, ?, ?, ?, ?, NULLIF(?, ''), "
                       "COALESCE(NULLIF(?, ''), 'Meadows'), NULLIF(?, ''), "
-                      "NULLIF(?, ''))");
+                      "NULLIF(?, ''), NULLIF(?, ''))");
       ++rows;
       if (!keys[i].starts_with("player:")) {
         values.push_back("Ember");
         values.push_back(keys[i]);
         values.insert(values.end(), hash.begin(), hash.end());
-        values.push_back("");
+        values.insert(values.end(), {"", ""});
         continue;
       }
       const std::string& world = hash[0];
@@ -336,6 +363,15 @@ absl::StatusOr<int> Players::Flush() {
           add(Worn(static_cast<items::Slot>(slot)), stack);
         }
       }
+      // The quests go with the row, as JSON, and a hash with none, from before
+      // quests or of a player on none, leaves MySQL's.
+      protocol::Quests quests;
+      std::string json;
+      if (!hash[10].empty() && quests.ParseFromString(hash[10])) {
+        google::protobuf::util::MessageToJsonString(quests, &json)
+            .IgnoreError();
+      }
+      values.push_back(json);
       // The skills go into a table of their own, a row each.
       for (const std::string_view skill :
            absl::StrSplit(hash[8], ',', absl::SkipEmpty())) {
@@ -353,7 +389,8 @@ absl::StatusOr<int> Players::Flush() {
                     "z = saved.z, experience = saved.experience, "
                     "health = saved.health, land = saved.land, "
                     "weapon = saved.weapon, items_revision = "
-                    "COALESCE(saved.items_revision, players.items_revision)");
+                    "COALESCE(saved.items_revision, players.items_revision), "
+                    "quests = COALESCE(saved.quests, players.quests)");
     absl::StrAppend(&gone_sql, ")");
     // A bag's rows can't go without the rows that take their place, or a
     // failure between the two would empty it, so the batch is a transaction.

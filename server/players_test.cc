@@ -291,3 +291,30 @@ TEST_F(PlayersTest, FlushesMoreRowsOfBagsThanAStatementTakes) {
   }
   EXPECT_TRUE(redis_->Command(keys).ok());
 }
+
+TEST_F(PlayersTest, KeepsTheQuestsTheyreOnAndHaveDone) {
+  nanommo::Players players(*database_, *redis_);
+  const std::string id = std::to_string(id_);
+  const nanommo::Progress progress = {.quests = {{2, 3}}, .quests_done = {1}};
+  ASSERT_TRUE(players.Save("Ember", {{id_, progress}}).ok());
+  absl::StatusOr<nanommo::Player> player = players.Load("Ember", id_);
+  ASSERT_TRUE(player.ok());
+  EXPECT_EQ(player->quests, (std::map<uint32_t, uint32_t>{{2, 3}}));
+  EXPECT_EQ(player->quests_done, (std::set<uint32_t>{1}));
+
+  // MySQL keeps them as JSON, with the player's row.
+  ASSERT_TRUE(players.Flush().ok());
+  const absl::StatusOr<nanommo::Result> rows = database_->Run(
+      "SELECT quests FROM players WHERE account_id = ? AND world = 'Ember'",
+      {id});
+  ASSERT_TRUE(rows.ok());
+  EXPECT_EQ(rows->rows, (std::vector<std::vector<std::string>>{
+                            {R"({"on": {"2": 3}, "done": [1]})"}}));
+
+  // So with Redis's copy gone, they come back from there.
+  ASSERT_TRUE(redis_->Command({"DEL", "player:Ember:" + id}).ok());
+  player = players.Load("Ember", id_);
+  ASSERT_TRUE(player.ok());
+  EXPECT_EQ(player->quests, (std::map<uint32_t, uint32_t>{{2, 3}}));
+  EXPECT_EQ(player->quests_done, (std::set<uint32_t>{1}));
+}
