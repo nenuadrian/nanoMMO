@@ -44,6 +44,25 @@ services:
       interval: 2s
       retries: 30
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.8.36.3
+    environment:
+      CLICKHOUSE_DB: nanommo
+      CLICKHOUSE_USER: nanommo
+      CLICKHOUSE_PASSWORD: nanommo
+    volumes:
+      - clickhouse:/var/lib/clickhouse
+      # Run once, as ClickHouse starts on an empty volume.
+      - ./analytics:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "8123:8123"
+    ulimits:
+      nofile: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "nanommo", "--password", "nanommo", "--query", "SELECT 1"]
+      interval: 2s
+      retries: 30
+
   consul:
     image: hashicorp/consul:2.0.4
     command: ["agent", "-dev", "-client=0.0.0.0", "-log-level=warn"]
@@ -364,5 +383,6 @@ services:
 volumes:
   mysql:
   redis:
+  clickhouse:
   huggingface:
   loki:
