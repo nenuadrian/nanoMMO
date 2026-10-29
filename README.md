@@ -55,9 +55,10 @@ Each player is an animated person, in their own skin and hair, and in a shirt of
 with a sword, on an island of hills, woods and beaches, with its level, name and health over it, or
 a cube until you've made the characters (see below).
 Skeletons wander around the middle, and in camps around the island, and a few NPCs stand near the
-middle, each a coloured ball with its name over it (see [NPCs](#npcs)). Click the storyteller, the
-purple one, to ask it for a story (see [The storyteller](#the-storyteller)), and the trainer, the
-silver one, to learn skills (see [Learning skills](#learning-skills)). W, A, S and D, or the arrow
+middle, each a person with its name over it (see [NPCs](#npcs)). Click the storyteller, in purple,
+to ask it for a story (see [The storyteller](#the-storyteller)), the trainer, in grey, to learn
+skills (see [Learning skills](#learning-skills)), and the guard, with a gold mark over its name, for
+a quest (see [Quests](#quests)). W, A, S and D, or the arrow
 keys, move yours, whose name is in gold, Shift makes it run, Space swings the sword, and 1 to 4 use
 your skills, from the bar along the bottom (see [Skills](#skills)). I, or View, Bag, opens your bag,
 where a new player has three health potions, and wears a shirt, trousers and shoes (see
@@ -145,8 +146,9 @@ bytes, and libFuzzer calls it with input after input, made from the inputs that 
 others didn't, with the sanitizers on. `stories_fuzzer` hands the storyteller's lines whatever a
 model might write, and checks that each line fits in the chat, whole characters and all.
 `world_fuzzer` plays the game with whatever a client might send, and checks that each player stays
-somewhere real, with health between nothing and their most, and that their bag holds no stack
-bigger than it can, in a slot that's there, and wears each item in its slot.
+somewhere real, with health between nothing and their most, that their bag holds no stack
+bigger than it can, in a slot that's there, and wears each item in its slot, and that each quest
+they're on is one the content has, with no more kills than it asks for, and not one they've done.
 
 ```bash
 docker build --target fuzz -t nanommo-fuzz .
@@ -202,7 +204,9 @@ on the player's skin, with dark eyes. The file lists the skins, the hair colours
 the hair, and each player's id picks one of each, the same on every client. An item's look can have
 parts too, which a player who wears it has over their figure, in their own colours, or for a dyed
 one, such as the Linen Shirt, in the player's colour (see [Items](#items)). Each player in the
-world's message says what they wear, so everyone sees each other in it. With cel shading on, the
+world's message says what they wear, so everyone sees each other in it. NPCs are people too, but
+their kind in the NPCs file says their skin, hair and clothes, which a player's id doesn't pick, and
+which of the two bots they're on (see [NPCs](#npcs)). With cel shading on, the
 outline is drawn with each figure's hull, the same parts with smooth normals, so it stays whole
 around the parts, but for those flush with a bigger one, such as the eyes. Nothing casts a shadow,
 so each figure has a soft dark patch under it, on the ground.
@@ -543,6 +547,38 @@ what's in your main hand once a second, as your weapon. An item that's gone from
 stays in the bag, where it can be moved but not worn or used, so taking one out of the file by
 mistake loses nobody's.
 
+## Quests
+
+Some NPCs give quests, which ask you to kill a number of one kind of monster. In the Meadows, the
+guard asks for three skeletons from around the gate, for 150 experience and two health potions. In
+the Ashlands, the ash warden asks for five Ash Skeletons, for 400 experience and the Ash Buckler.
+The healers, in both lands, ask for four from the Crypt. Each quest is in `content/quests.txtpb`: its name, its giver's
+kind of NPC, what they say giving it, what it asks you to kill and how many, and the experience and
+prizes it gives (see [Content](#content)). A new quest of the same sort is another entry, and needs
+no code.
+
+An NPC with a quest for you has a gold mark over its name: `!` for one you can take, or `?` for one
+you've done, to turn in. Click it to open its quests: what it says, what each asks for and gives,
+and a button to take it, how many you've killed for it, a button to turn it in once you've killed
+them all, or Done. The quests you're on are in the top right corner, each with how many you've
+killed for it, with a tick once that's all of them.
+
+- The server decides it all, as it does a skill a trainer teaches. The client sends `Input`'s
+  `take` or `turn_in`, once, with the NPC's id and the quest's, and the world checks that the NPC
+  is of the quest's giver's kind, in the same land, within talking reach, and that you can take or
+  turn it in, or says why not, in a line in the chat from nobody.
+- A kill counts for each quest you're on that asks for its kind, up to as many as it asks for, with
+  a line in the chat, such as "Bones by the Gate: 2 of 3 Skeletons killed.", and the last one says
+  who to go back to. Only the killing blow counts, as with experience and loot.
+- Turning a quest in gives its experience, which heals you at a new level, as a kill's does, and its
+  prizes into your bag, rolled as loot is. They go into a copy of the bag first, so a bag without
+  room for all of them gets none, and the quest waits until there's room. A quest turned in is
+  done, and can't be taken again.
+- Your quests go to you like your bag: alone, over TCP, as `World`'s `quests`, the ones you're on
+  with your kills for each, and the ones you've done, as you join and when they change, which takes
+  them to their next revision. Nobody else gets them.
+- They're saved with the rest of you (see [Saving players](#saving-players)).
+
 ## Accounts and logins
 
 - The login server, `nanommo_login`, listens on TCP port 7778. It creates accounts and checks passwords,
@@ -646,7 +682,9 @@ Redis: a hash for each player in each world, `player:<world>:<account id>`, with
 `x`, `z`, `experience`, `health`, `land`, `weapon`, what's in their main hand, and `skills`, the ids
 of the skills they know with commas between them, and its key in a set, `players:unsaved` (see
 [Worlds](#worlds)). A player whose bag's revision has moved gets `items` too, the bag's `Inventory`
-message in protobuf's bytes, and their key goes into `items:unsaved` as well. It sends all of it in one round trip, as a pipeline, so saving takes a few
+message in protobuf's bytes, and their key goes into `items:unsaved` as well. Their quests go in
+`quests`, a `Quests` message in protobuf's bytes, the same the client gets. It sends all of it in
+one round trip, as a pipeline, so saving takes a few
 milliseconds a tick with hundreds of players, and the server keeps up with as many players as it did
 without saving. Writing each change to MySQL instead, one statement at a time, takes the tick past
 its 50 ms at around 50 players: each save is two round trips, to prepare the statement and to run
@@ -670,7 +708,11 @@ as its rolls, as protobuf's JSON for a stack. A field a later server adds to a s
 state with no migration. A bag's rows go, and its new rows go in, which has to happen all or not at
 all, or a failure between the two would empty it, so each batch is a transaction, with the players'
 rows, which the bags' rows need first. `players.items_revision`, from V8, keeps the bag's revision,
-so that a player who emptied their bag isn't taken for a new one, and given the kit again. So the `players` table, and the website's
+so that a player who emptied their bag isn't taken for a new one, and given the kit again.
+`players.quests`, from V9, keeps their quests, as protobuf's JSON for the `Quests` message: they're a
+few numbers, read and written whole with the player, and never looked up by quest, so they go with
+the player's row, with no table of their own. A hash with no quests, from before them or of a player
+on none, leaves the ones MySQL has. So the `players` table, and the website's
 rankings, are at most about five seconds behind the game.
 
 Redis appends each change to a file, its append-only file, and writes that to disk once a second, so
@@ -1163,10 +1205,11 @@ line to far fewer.
 Each land has a few NPCs near its middle, where players start. In the Meadows, a guard and a
 storyteller stand on either side of the road to the gate, and a merchant and a healer face each
 other across it. The Ashlands have an ash warden and a storyteller, a merchant and a healer. Each
-land has a trainer too, the silver ball a few steps from where players start. The storytellers
-tell stories (see [The storyteller](#the-storyteller)), the trainers teach skills (see
-[Learning skills](#learning-skills)), and the others don't do anything yet. Until they have models, each one is a ball of its own colour and size, with its name over it in
-green.
+land has a trainer too, a few steps from where players start. The storytellers tell stories (see
+[The storyteller](#the-storyteller)), the trainers teach skills (see
+[Learning skills](#learning-skills)), the guard, the ash warden and the healers give quests (see
+[Quests](#quests)), and the merchants don't do anything yet. Each one is a person, like the
+players, with its name over it in green.
 
 Kinds of NPC, and where each NPC stands, are in `content/npcs.txtpb` (see [Content](#content)).
 The server leaves out an NPC whose ground isn't walkable, which another world's seed could do.
@@ -1185,8 +1228,9 @@ server starts.
   (`kNpcTimeout`, in `protocol/parts.h`), so one lost datagram, or two, doesn't make them blink out
   over UDP. It drops one that's been gone for longer, such as when you walk away from it, and a new
   land starts with none.
-- The client draws every NPC with one sphere mesh, scaled to its radius and tinted its colour,
-  resting on the ground, so a model can take the ball's place later, as data.
+- The client draws every NPC as a person, on the players' characters, in what its kind wears, with
+  its own skin and hair (see [Characters](#characters)), and picks one with a box around where a
+  person stands. Until episode forty-five, each was a ball of its kind's colour and size.
 
 By kind, the Meadows' four NPCs take 74 bytes in each world they go in, half of what their names and
 looks took.
@@ -1198,20 +1242,22 @@ monster, or in a message of its own whenever it changes.
 
 The game's content is data, in the `content` folder, which the world servers, the client and the
 bots read, so that there's one place to change it: `figures.txtpb`, `items.txtpb`,
-`monsters.txtpb`, `npcs.txtpb` and `skills.txtpb`, in protobuf's text format, each with its schema
-next to it, in `figures.proto`, `items.proto`, `monsters.proto`, `npcs.proto` and `skills.proto`.
-The figures are the players' bodies and hair (see [Characters](#characters)). There are eleven
-items: the sword, a health potion, a bone, a leather cap and tunic, the Ashlands' blade and buckler,
-the clothes a new player starts in, a linen shirt, cloth trousers and plain shoes, and leather
-boots, two kinds of monster, the skeleton and the Ash Skeleton, six kinds of NPC, and four skills
-(see [Skills](#skills)).
+`monsters.txtpb`, `npcs.txtpb`, `quests.txtpb` and `skills.txtpb`, in protobuf's text format, each
+with its schema next to it, in `figures.proto`, `items.proto`, `monsters.proto`, `npcs.proto`,
+`quests.proto` and `skills.proto`. The figures are the players' bodies and hair (see
+[Characters](#characters)). There are eleven items: the sword, a health potion, a bone, a leather
+cap and tunic, the Ashlands' blade and buckler, the clothes a new player starts in, a linen shirt,
+cloth trousers and plain shoes, and leather boots, three kinds of monster, the skeleton, the Ash
+Skeleton and the Crypt Skeleton, six kinds of NPC, three quests (see [Quests](#quests)) and four
+skills (see [Skills](#skills)).
 
 - An item, or a kind of monster or NPC, has an id and a name, and parts that each side reads what it
   needs from. A weapon's `weapon` and a monster's `fight` are the server's: reach, swing and hit
   times, damage, and for a monster, its sight, its leash and how far it wanders. A `look` is the
   client's: an item's or a monster's model, its length or height, where a weapon is held, an
-  item's icon and tint, a monster's tint, and an NPC's ball, a colour and a radius. A monster's
-  level, health, experience and loot are the server's too.
+  item's icon and tint, a monster's tint, and an NPC's skin, hair colour, way to wear its hair,
+  weapon and clothes, and the colour of what it wears that's dyed. A monster's level, health,
+  experience and loot are the server's too.
 - An item is the parts it has, and no type: `stack` says how many go in a slot of a bag, `equip`
   where it's worn and what it adds, as `modifiers` of `STAT_DAMAGE`, `STAT_HEALTH` or
   `STAT_ARMOUR`, `use` what using one does and how often, and `rolls` the modifiers each one gets
@@ -1222,7 +1268,7 @@ boots, two kinds of monster, the skeleton and the Ash Skeleton, six kinds of NPC
   skill's level and cooldown too, so those are in both. `starting` names the skills every new
   player knows, and a kind of NPC's `teaches` the skills it teaches, by id.
 - Monsters with a fixed home, camps of monsters and NPCs name their kind by id, and their land by
-  name.
+  name. A quest names its giver's kind of NPC, the kind of monster it asks for and its prizes by id.
 - Each file's first two lines, `# proto-file:` and `# proto-message:`, name its schema, so that
   editors and tools that know text protos can check it and complete its fields.
 - `content/content.h` (`nanommo_content`) reads the folder with protobuf's `TextFormat`, so a field
@@ -1233,10 +1279,12 @@ boots, two kinds of monster, the skeleton and the Ash Skeleton, six kinds of NPC
   fit in a slot, no item has a retired id, each spawn and camps names a kind and a land we have, no monster with a
   fixed home has a leash that reaches the middle of its land, where players come back to life,
   each skill has a level and lands before it's over, each starting skill is in the file, and each
-  drop has a chance from nothing to one, and goes from fewer to more. Once every file is read,
-  `CheckContent` checks what no file can on its own: that each item a monster drops is in the items
-  file, and each skill a trainer teaches is in the skills file. The server, the client and the bots don't start without good
-  content.
+  drop has a chance from nothing to one, and goes from fewer to more, each kind of NPC has a skin,
+  and each quest has a giver, asks for some kills, and gives some of each of its prizes. Once every
+  file is read, `CheckContent` checks what no file can on its own: that each item a monster drops is
+  in the items file, each skill a trainer teaches is in the skills file, each NPC's hair is in the
+  figures file and its clothes in the items file, and each quest's giver, monster and prizes are in
+  theirs. The server, the client and the bots don't start without good content.
 - Ids start at one, and an item or a kind keeps its id for good, as they're saved and sent by id.
   Protobuf leaves a zero out, so the client takes a missing weapon or kind as one it already knows.
 - Each player's bag holds its items by their ids (see [Items](#items)), saved with the rest of the
@@ -1254,7 +1302,8 @@ boots, two kinds of monster, the skeleton and the Ash Skeleton, six kinds of NPC
 
 Each side reads its own copy, so a client and a world have to agree on what the client reads. Each
 world works out its `ClientHash`, a 64-bit FNV-1a of the ids, names and looks, what the bag shows of
-each item, which is all of it but its weapon, the skills' levels and cooldowns, and what each trainer teaches, serialized deterministically, registers it with Consul, and the login server
+each item, which is all of it but its weapon, the skills' levels and cooldowns, what each trainer
+teaches, and all of each quest, serialized deterministically, registers it with Consul, and the login server
 lists it with the world. The fights and the skills' effects stay out of it, so that changing a
 sword's damage or a skeleton's leash needs no new client.
 A client lists a world with other content than its own as such, and doesn't log in to it. The servers
@@ -1267,8 +1316,8 @@ loot names it.
 
 ## The storyteller
 
-The storyteller is an NPC that tells you a story about a few words you give it. Click it, the purple
-ball across the road from the guard, or from the ash warden, type a few words, such as
+The storyteller is an NPC that tells you a story about a few words you give it. Click it, in purple
+across the road from the guard, or from the ash warden, type a few words, such as
 `dragon castle gold`, and press Enter, or Tell me a story. The story comes back in the chat, under
 the storyteller's name, to you and nobody else.
 
@@ -1287,8 +1336,9 @@ curl localhost:8000/v1/completions -H 'Content-Type: application/json' \
 ```
 
 - A click on the world makes a ray from the camera through the mouse (raylib's
-  `GetScreenToWorldRay`), and the client picks the nearest NPC that talks along it, as a ball
-  (`GetRayCollisionSphere`, in `client/picking.h`). Each NPC says whether it talks, from its kind.
+  `GetScreenToWorldRay`), and the client picks the nearest NPC that talks along it, by a box around
+  where a person stands (`GetRayCollisionBox`, in `client/picking.h`). Each NPC says whether it
+  talks, from its kind.
 - The words go to the server with your input, as `talk`, with the NPC's id. The server checks that
   the NPC is in your land and talks, and that you're within four metres of it, and cleans the words
   like a line of chat (see [Chat](#chat)).
