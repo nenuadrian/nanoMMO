@@ -80,6 +80,20 @@ int MaxHealthOf(const Player& player) {
   return MaxHealth(LevelFor(player.experience).number) + player.stats.health;
 }
 
+namespace {
+
+// Adds to the player's experience, and heals them fully as they reach a new
+// level.
+void Gain(Player& player, uint32_t experience) {
+  const int level = LevelFor(player.experience).number;
+  player.experience += experience;
+  if (LevelFor(player.experience).number > level) {
+    player.health = MaxHealthOf(player);
+  }
+}
+
+}  // namespace
+
 uint32_t MainHandOf(const Player& player) {
   const items::Stack* held = player.inventory.At(Worn(items::SLOT_MAIN_HAND));
   return held != nullptr ? held->item() : 0;
@@ -328,8 +342,63 @@ absl::Status World::TakeQuest(uint32_t id, uint32_t npc, uint32_t quest) {
     return absl::AlreadyExistsError(
         absl::StrCat("You're on ", given->second.name(), " already."));
   }
+  if (player->second.quests_done.contains(quest)) {
+    return absl::AlreadyExistsError(
+        absl::StrCat("You've done ", given->second.name(), " already."));
+  }
   player->second.quests[quest] = 0;
   ++player->second.quests_revision;
+  return absl::OkStatus();
+}
+
+absl::Status World::TurnIn(uint32_t id, uint32_t npc, uint32_t quest) {
+  const auto player = players_.find(id);
+  const auto giver = npcs_.find(npc);
+  const auto given = content_->quests.find(quest);
+  if (player == players_.end() || giver == npcs_.end() ||
+      given == content_->quests.end() ||
+      given->second.giver() != giver->second.kind) {
+    return absl::NotFoundError("Nobody here takes that quest.");
+  }
+  if (std::hypot(giver->second.x - player->second.x,
+                 giver->second.z - player->second.z) > kTalkReach) {
+    return absl::OutOfRangeError(absl::StrCat(
+        "You're too far away to talk to the ", giver->second.name, "."));
+  }
+  const quests::Quest& done = given->second;
+  const auto on = player->second.quests.find(quest);
+  if (on == player->second.quests.end()) {
+    return absl::NotFoundError(
+        absl::StrCat("You're not on ", done.name(), "."));
+  }
+  if (on->second < done.kill().count()) {
+    return absl::FailedPreconditionError(
+        absl::StrCat(done.name(), " asks for ", done.kill().count(),
+                     ", and you've killed ", on->second, "."));
+  }
+  // The prizes go into a copy of the bag, so that it's all of them or none.
+  Inventory bag = player->second.inventory;
+  std::vector<std::string> prizes;
+  for (const quests::Prize& prize : done.prizes()) {
+    const auto item = content_->items.by_id.find(prize.item());
+    if (item == content_->items.by_id.end()) {
+      continue;
+    }
+    if (Give(bag, prize.item(), prize.count()) < prize.count()) {
+      return absl::ResourceExhaustedError(
+          "Your bag is full. Make room for the prizes first.");
+    }
+    prizes.push_back(Some(item->second, prize.count()));
+  }
+  player->second.inventory = std::move(bag);
+  Gain(player->second, done.experience());
+  player->second.quests.erase(on);
+  player->second.quests_done.insert(quest);
+  ++player->second.quests_revision;
+  prizes.insert(prizes.begin(), absl::StrCat(done.experience(), " experience"));
+  notices_.push_back({.player = id,
+                      .text = absl::StrCat("You've done ", done.name(),
+                                           ", for ", List(prizes), ".")});
   return absl::OkStatus();
 }
 
@@ -510,7 +579,6 @@ void World::Push(const Player& player, Monster& monster, float metres) {
 }
 
 void World::Hurt(uint32_t id, Player& player, Monster& monster, int damage) {
-  const int level = LevelFor(player.experience).number;
   monster.attacker = id;
   monster.health = std::max(monster.health - damage, 0);
   if (monster.health > 0) {
@@ -518,10 +586,7 @@ void World::Hurt(uint32_t id, Player& player, Monster& monster, int damage) {
   }
   monster.motion = Motion::kDead;
   monster.respawn = kRespawnTime;
-  player.experience += monster.experience;
-  if (LevelFor(player.experience).number > level) {
-    player.health = MaxHealthOf(player);
-  }
+  Gain(player, monster.experience);
   Loot(id, player, monster);
   Count(id, player, monster);
 }
@@ -542,22 +607,7 @@ void World::Loot(uint32_t id, Player& player, const Monster& monster) {
     const uint32_t least = std::max(drop.min(), 1u);
     const uint32_t count = std::uniform_int_distribution(
         least, std::max(drop.max(), least))(random_);
-    // What stacks drops as one stack, and what doesn't one at a time, each
-    // with rolls of its own.
-    const uint32_t each = StackSize(item->second) > 1 ? count : 1;
-    uint32_t fitted = 0;
-    for (uint32_t made = 0; made < count; made += each) {
-      items::Stack stack;
-      stack.set_item(drop.item());
-      stack.set_count(each);
-      for (const items::Roll& roll : item->second.rolls()) {
-        items::Modifier* rolled = stack.add_rolls();
-        rolled->set_stat(roll.stat());
-        rolled->set_amount(
-            std::uniform_int_distribution(roll.min(), roll.max())(random_));
-      }
-      fitted += each - player.inventory.Add(content_->items, stack);
-    }
+    const uint32_t fitted = Give(player.inventory, drop.item(), count);
     if (fitted > 0) {
       kept.push_back(Some(item->second, fitted));
     }
@@ -591,12 +641,39 @@ void World::Count(uint32_t id, Player& player, const Monster& monster) {
     }
     ++kills;
     ++player.quests_revision;
-    notices_.push_back(
-        {.player = id,
-         .text = absl::StrCat(found->second.name(), ": ", kills, " of ",
-                              kill.count(), " ", kind->second.name(),
-                              "s killed.")});
+    std::string text =
+        absl::StrCat(found->second.name(), ": ", kills, " of ", kill.count(),
+                     " ", kind->second.name(), "s killed.");
+    const auto giver = content_->npcs.kinds.find(found->second.giver());
+    if (kills == kill.count() && giver != content_->npcs.kinds.end()) {
+      absl::StrAppend(&text, " Go back to the ", giver->second.name(), ".");
+    }
+    notices_.push_back({.player = id, .text = std::move(text)});
   }
+}
+
+uint32_t World::Give(Inventory& bag, uint32_t item, uint32_t count) {
+  const auto found = content_->items.by_id.find(item);
+  if (found == content_->items.by_id.end()) {
+    return 0;
+  }
+  // What stacks goes as one stack, and what doesn't one at a time, each with
+  // rolls of its own.
+  const uint32_t each = StackSize(found->second) > 1 ? count : 1;
+  uint32_t fitted = 0;
+  for (uint32_t made = 0; made < count; made += each) {
+    items::Stack stack;
+    stack.set_item(item);
+    stack.set_count(each);
+    for (const items::Roll& roll : found->second.rolls()) {
+      items::Modifier* rolled = stack.add_rolls();
+      rolled->set_stat(roll.stat());
+      rolled->set_amount(
+          std::uniform_int_distribution(roll.min(), roll.max())(random_));
+    }
+    fitted += each - bag.Add(content_->items, stack);
+  }
+  return fitted;
 }
 
 std::vector<Notice> World::TakeNotices() { return std::exchange(notices_, {}); }

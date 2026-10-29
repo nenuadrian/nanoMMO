@@ -65,6 +65,8 @@ message Input {
   ItemAction item = 9;
   // A quest to take, sent once.
   Quest take = 10;
+  // A quest to turn in, done, to the NPC who gave it.
+  Quest turn_in = 11;
 }
 
 enum Motion {
@@ -136,10 +138,12 @@ message Inventory {
 }
 
 // The quests a player is on, by their ids, with how many they've killed for
-// each. Each change takes them to their next revision, as a bag's.
+// each, and the ones they've done. Each change takes them to their next
+// revision, as a bag's.
 message Quests {
   map<uint32, uint32> on = 1;
   uint32 revision = 2;
+  repeated uint32 done = 3;
 }
 
 message Chat {

@@ -3,7 +3,10 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <numbers>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -584,4 +587,73 @@ TEST(World, CountsTheKillsForAQuestFromItsGiver) {
   KillAndRest(world, 1);
   EXPECT_EQ(world.players().at(1).quests.at(1), 3u);
   EXPECT_TRUE(QuestLines(world).empty());
+}
+
+TEST(World, TurnsAQuestInForItsExperienceAndPrizes) {
+  nanommo::Content content = *nanommo::testing::With(
+      nanommo::testing::Gear(), {}, Looted(), nanommo::testing::Bones());
+  content.npcs = *nanommo::ParseNpcs(R"pb(kinds {
+                                            id: 1
+                                            name: "Guard"
+                                            look { skin: 0xF1C49CFF }
+                                          })pb");
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      std::make_shared<const nanommo::Content>(std::move(content)));
+  const uint32_t guard =
+      world.Spawn(nanommo::Npc{.name = "Guard", .kind = 1, .x = 3.0f});
+  world.Join(1, {});
+  const auto potions = [&] {
+    const nanommo::items::Stack* kit =
+        world.players().at(1).inventory.At(nanommo::InBag(0));
+    return kit != nullptr ? kit->count() : 0u;
+  };
+
+  EXPECT_EQ(world.TurnIn(1, guard, 1).message(), "You're not on Bones.");
+  ASSERT_TRUE(world.TakeQuest(1, guard, 1).ok());
+  KillAndRest(world, 1);
+  EXPECT_EQ(world.TurnIn(1, guard, 1).message(),
+            "Bones asks for 3, and you've killed 1.");
+  world.TakeNotices();
+  KillAndRest(world, 1);
+  KillAndRest(world, 1);
+  // The last one says who to go back to.
+  EXPECT_EQ(QuestLines(world),
+            (std::vector<std::string>{
+                "Bones: 2 of 3 Skeletons killed.",
+                "Bones: 3 of 3 Skeletons killed. Go back to the Guard."}));
+  const uint32_t experience = world.players().at(1).experience;
+
+  // Two potions, onto the kit's three.
+  ASSERT_TRUE(world.TurnIn(1, guard, 1).ok());
+  EXPECT_EQ(world.players().at(1).experience, experience + 100);
+  EXPECT_EQ(potions(), 5u);
+  EXPECT_FALSE(world.players().at(1).quests.contains(1));
+  EXPECT_TRUE(world.players().at(1).quests_done.contains(1));
+  EXPECT_EQ(QuestLines(world),
+            std::vector<std::string>{
+                "You've done Bones, for 100 experience and 2 Potions."});
+  EXPECT_EQ(world.TakeQuest(1, guard, 1).message(),
+            "You've done Bones already.");
+}
+
+TEST(World, KeepsAQuestWhosePrizesDontFit) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Gear(), {}, Looted(),
+                             nanommo::testing::Bones()));
+  const uint32_t guard =
+      world.Spawn(nanommo::Npc{.name = "Guard", .kind = 1, .x = 3.0f});
+  // A sword in hand, and a cap in each slot of the bag, with the quest done.
+  nanommo::Player alice = With(1, true);
+  for (uint32_t slot = 0; slot < nanommo::kBagSlots; ++slot) {
+    alice.inventory.Add(nanommo::testing::Gear(), One(kCap));
+  }
+  alice.quests[1] = 3;
+  world.Join(1, alice);
+
+  EXPECT_EQ(world.TurnIn(1, guard, 1).message(),
+            "Your bag is full. Make room for the prizes first.");
+  EXPECT_EQ(world.players().at(1).quests.at(1), 3u);
+  EXPECT_FALSE(world.players().at(1).quests_done.contains(1));
 }

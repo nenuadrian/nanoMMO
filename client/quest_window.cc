@@ -2,6 +2,7 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -17,6 +18,7 @@ namespace nanommo {
 namespace {
 
 constexpr ImVec4 kTitle{1.0f, 0.82f, 0.3f, 1.0f};
+constexpr ImVec4 kDone{0.45f, 0.85f, 0.45f, 1.0f};
 
 // "3 Skeletons", by the monster's kind.
 std::string Monsters(const Content& content, const quests::Kill& kill) {
@@ -35,7 +37,7 @@ void QuestWindow::Open(uint32_t npc, std::string name,
   quests_ = std::move(quests);
 }
 
-std::optional<protocol::Quest> QuestWindow::Build(
+std::optional<protocol::Input> QuestWindow::Build(
     const protocol::Quests& yours) {
   if (!npc_) {
     return std::nullopt;
@@ -47,7 +49,7 @@ std::optional<protocol::Quest> QuestWindow::Build(
   bool open = true;
   ImGui::Begin(name_.c_str(), &open,
                ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
-  std::optional<protocol::Quest> take;
+  std::optional<protocol::Input> ask;
   for (const uint32_t id : quests_) {
     const quests::Quest& quest = content_.quests.at(id);
     ImGui::PushID(static_cast<int>(id));
@@ -64,12 +66,20 @@ std::optional<protocol::Quest> QuestWindow::Build(
     }
     ImGui::Spacing();
     const auto on = yours.on().find(id);
-    if (on != yours.on().end()) {
+    if (std::ranges::find(yours.done(), id) != yours.done().end()) {
+      ImGui::TextDisabled("Done");
+    } else if (on == yours.on().end()) {
+      if (ImGui::Button("Take")) {
+        ask.emplace();
+        ask->mutable_take()->set_npc(*npc_);
+        ask->mutable_take()->set_quest(id);
+      }
+    } else if (on->second < quest.kill().count()) {
       ImGui::TextDisabled("%u of %u killed", on->second, quest.kill().count());
-    } else if (ImGui::Button("Take")) {
-      take.emplace();
-      take->set_npc(*npc_);
-      take->set_quest(id);
+    } else if (ImGui::Button("Turn in")) {
+      ask.emplace();
+      ask->mutable_turn_in()->set_npc(*npc_);
+      ask->mutable_turn_in()->set_quest(id);
     }
     ImGui::PopID();
     ImGui::Separator();
@@ -78,7 +88,7 @@ std::optional<protocol::Quest> QuestWindow::Build(
   if (!open) {
     npc_.reset();
   }
-  return take;
+  return ask;
 }
 
 void DrawQuestTracker(const Content& content, const protocol::Quests& yours) {
@@ -104,8 +114,14 @@ void DrawQuestTracker(const Content& content, const protocol::Quests& yours) {
       continue;
     }
     ImGui::TextColored(kTitle, "%s", quest->second.name().c_str());
-    ImGui::Text("  %u / %s", kills,
-                Monsters(content, quest->second.kill()).c_str());
+    const std::string wanted = Monsters(content, quest->second.kill());
+    // Done, it says so, until it's turned in.
+    if (kills >= quest->second.kill().count()) {
+      ImGui::TextColored(kDone, "  %s  %u / %s", ICON_FA_CHECK, kills,
+                         wanted.c_str());
+    } else {
+      ImGui::Text("  %u / %s", kills, wanted.c_str());
+    }
   }
   ImGui::End();
 }

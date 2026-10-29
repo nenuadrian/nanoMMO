@@ -71,6 +71,7 @@ class Server {
   void Talk(uint32_t id, const protocol::Talk& talk);
   void Learn(uint32_t id, const protocol::Learn& learn);
   void TakeQuest(uint32_t id, const protocol::Quest& quest);
+  void TurnIn(uint32_t id, const protocol::Quest& quest);
   void Item(uint32_t id, const protocol::ItemAction& action);
   /// Sends the player a line from the server, which has no name.
   void Notify(uint32_t id, const std::string& text);

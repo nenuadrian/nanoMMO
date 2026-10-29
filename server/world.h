@@ -49,6 +49,8 @@ struct Player {
   /// The quests the player's on, by their ids in the quests file, with how
   /// many they've killed for each.
   std::map<uint32_t, uint32_t> quests;
+  /// The quests they've turned in, which they can't take again.
+  std::set<uint32_t> quests_done;
   /// Each change to their quests takes this to the next, as a bag's revision
   /// does, so the server can tell when to send them.
   uint32_t quests_revision = 0;
@@ -179,6 +181,11 @@ class World {
   /// the error says why not, in words for the player.
   absl::Status TakeQuest(uint32_t id, uint32_t npc, uint32_t quest);
 
+  /// The player turns the quest in to the NPC, who gave it, once they've
+  /// killed as many as it asks for, for its experience, and its prizes in
+  /// their bag, or the error says why not, in words for the player.
+  absl::Status TurnIn(uint32_t id, uint32_t npc, uint32_t quest);
+
   /// Moves the player's items around, as Inventory::Move does, wearing them
   /// and taking them off, or the error says why not, in words for the player.
   absl::Status MoveItem(uint32_t id, const protocol::Place& from,
@@ -221,6 +228,9 @@ class World {
   void Hurt(uint32_t id, Player& player, Monster& monster, int damage);
   /// What the monster the player's just killed drops, into their bag.
   void Loot(uint32_t id, Player& player, const Monster& monster);
+  /// Puts count of the item into the bag, each with rolls of its own, and
+  /// returns how many fitted.
+  uint32_t Give(Inventory& bag, uint32_t item, uint32_t count);
   /// The monster the player's just killed, for each of their quests that
   /// asks for its kind, until they've killed as many as it asks.
   void Count(uint32_t id, Player& player, const Monster& monster);

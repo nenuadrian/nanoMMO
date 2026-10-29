@@ -240,6 +240,9 @@ void Server::Accept() {
           if (input.has_take()) {
             TakeQuest(*id, input.take());
           }
+          if (input.has_turn_in()) {
+            TurnIn(*id, input.turn_in());
+          }
           if (input.has_item()) {
             Item(*id, input.item());
           }
@@ -406,6 +409,17 @@ void Server::TakeQuest(uint32_t id, const protocol::Quest& quest) {
   }
   std::cout << land.players().at(id).name << " took quest " << quest.quest()
             << std::endl;
+}
+
+void Server::TurnIn(uint32_t id, const protocol::Quest& quest) {
+  World& land = *WorldOf(id);
+  const absl::Status turned = land.TurnIn(id, quest.npc(), quest.quest());
+  if (!turned.ok()) {
+    Notify(id, std::string(turned.message()));
+    return;
+  }
+  std::cout << land.players().at(id).name << " turned in quest "
+            << quest.quest() << std::endl;
 }
 
 void Server::Item(uint32_t id, const protocol::ItemAction& action) {
@@ -723,6 +737,8 @@ void Server::SendQuests() {
       protocol::World quests;
       protocol::Quests* on = quests.mutable_quests();
       on->mutable_on()->insert(player.quests.begin(), player.quests.end());
+      on->mutable_done()->Add(player.quests_done.begin(),
+                              player.quests_done.end());
       on->set_revision(player.quests_revision);
       std::string frame = Frame(quests);
       metrics_.AddBytesSent(frame.size());

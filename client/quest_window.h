@@ -21,9 +21,10 @@ class QuestWindow {
   void Open(uint32_t npc, std::string name, std::vector<uint32_t> quests);
 
   /// Draws the window, while it's open: what the NPC says giving each quest,
-  /// what it asks for and what it gives, with a button to take it, or how far
-  /// the player is with it. Returns the quest the player takes.
-  std::optional<protocol::Quest> Build(const protocol::Quests& yours);
+  /// what it asks for and what it gives, with a button to take it, how far
+  /// the player is with it, or a button to turn it in once it's done. Returns
+  /// what the player asks for, as an input with the quest to take or turn in.
+  std::optional<protocol::Input> Build(const protocol::Quests& yours);
 
  private:
   Content content_;

@@ -331,10 +331,10 @@ int main(int argc, char* argv[]) {
         *ask.mutable_learn() = *learn;
         connection->Send(ask);
       }
-      if (const std::optional<nanommo::protocol::Quest> take =
+      if (const std::optional<nanommo::protocol::Input> quest =
               quest_window.Build(connection->quests())) {
         nanommo::protocol::Input ask = sent;
-        *ask.mutable_take() = *take;
+        ask.MergeFrom(*quest);
         connection->Send(ask);
       }
       // What the player does with their items, in either window, goes with
