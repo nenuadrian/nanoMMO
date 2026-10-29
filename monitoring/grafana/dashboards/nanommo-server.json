@@ -553,6 +553,30 @@
           "expr": "{service=~\"server|frost|server-next|frost-next|login|saver\"}"
         }
       ]
+    },
+    {
+      "id": 13,
+      "type": "flamegraph",
+      "title": "Where the worlds spend their CPU",
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 57,
+        "w": 24,
+        "h": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "profile",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "labelSelector": "{service_name=~\"server|frost|server-next|frost-next\"}",
+          "groupBy": []
+        }
+      ]
     }
   ]
 }

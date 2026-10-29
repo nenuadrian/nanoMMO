@@ -242,14 +242,24 @@ services:
     ports:
       - "3100:3100"
 
+  pyroscope:
+    image: grafana/pyroscope:2.4.2
+    ports:
+      - "4040:4040"
+
   alloy:
     image: grafana/alloy:v1.20.1
     command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    # Profiling the servers loads an eBPF program into the kernel, and reads
+    # the processes of the other containers.
+    privileged: true
+    pid: host
     volumes:
       - ./monitoring/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - loki
+      - pyroscope
 
   grafana:
     image: grafana/grafana:13.2.3

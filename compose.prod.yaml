@@ -83,6 +83,11 @@ services:
       - "127.0.0.1:3100:3100"
     restart: unless-stopped
 
+  pyroscope:
+    ports: !override
+      - "127.0.0.1:4040:4040"
+    restart: unless-stopped
+
   alloy:
     restart: unless-stopped
 

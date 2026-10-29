@@ -52,3 +52,38 @@ loki.write "loki" {
     url = "http://loki:3100/loki/api/v1/push"
   }
 }
+
+// Our servers' processes, sampled from the kernel, with no change to their
+// code: where their CPU goes, as flame graphs in Pyroscope.
+discovery.relabel "servers" {
+  targets = discovery.relabel.containers.output
+
+  rule {
+    source_labels = ["service"]
+    regex         = "server|frost|server-next|frost-next|login|saver"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["service"]
+    target_label  = "service_name"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_id"]
+    target_label  = "__container_id__"
+  }
+}
+
+pyroscope.ebpf "servers" {
+  targets    = discovery.relabel.servers.output
+  forward_to = [pyroscope.write.pyroscope.receiver]
+  // nanommo::Server::Tick, rather than _ZN7nanommo6Server4TickEv.
+  demangle   = "simplified"
+}
+
+pyroscope.write "pyroscope" {
+  endpoint {
+    url = "http://pyroscope:4040"
+  }
+}
