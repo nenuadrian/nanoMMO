@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package nanommo.quests;
+
+// What a quest asks for: a number of monsters of one kind, killed.
+message Kill {
+  // By its id in the monsters file.
+  uint32 monster = 1;
+  uint32 count = 2;
+}
+
+// Some of an item, for a quest done.
+message Prize {
+  // By its id in the items file.
+  uint32 item = 1;
+  uint32 count = 2;
+}
+
+message Quest {
+  // From one, and a quest keeps its id for good, as the players' progress is
+  // saved by it.
+  uint32 id = 1;
+  string name = 2;
+  // Who gives it, and takes it back once it's done, by their kind's id in the
+  // NPCs file.
+  uint32 giver = 3;
+  // What the giver says, giving it.
+  string text = 4;
+  Kill kill = 5;
+  uint32 experience = 6;
+  repeated Prize prizes = 7;
+}
+
+message Quests {
+  repeated Quest quests = 1;
+}

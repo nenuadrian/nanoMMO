@@ -1,0 +1,36 @@
+# proto-file: content/quests.proto
+# proto-message: nanommo.quests.Quests
+
+# Givers are NPC kinds: 1 the Guard, 3 the Healer, 4 the Ash Warden. Monsters
+# by kind: 1 the Skeleton, 2 the Ash Skeleton, 3 the Crypt Skeleton. Prizes
+# are items: 2 the Health Potion, 7 the Ash Buckler, 11 the Leather Boots.
+
+quests {
+  id: 1
+  name: "Bones by the Gate"
+  giver: 1
+  text: "Skeletons climb out of the ground around the gate, and they don't stay down for long. Put three of them back, and I'll see you're paid for it."
+  kill { monster: 1 count: 3 }
+  experience: 150
+  prizes { item: 2 count: 2 }
+}
+
+quests {
+  id: 2
+  name: "Ash and Bone"
+  giver: 4
+  text: "The lava keeps something burning in the bones out here. Five Ash Skeletons, and the Ashlands owe you a shield."
+  kill { monster: 2 count: 5 }
+  experience: 400
+  prizes { item: 7 count: 1 }
+}
+
+quests {
+  id: 3
+  name: "Rest for the Crypt"
+  giver: 3
+  text: "Whoever was buried in the Crypt deserves to rest. Four of its skeletons, and I'll make sure you have something to drink on the way back."
+  kill { monster: 3 count: 4 }
+  experience: 600
+  prizes { item: 2 count: 3 }
+}

@@ -72,6 +72,9 @@ absl::StatusOr<Content> ReadContent(const std::string& folder) {
     read = Read(folder, "npcs.txtpb", ParseNpcs, content.npcs);
   }
   if (read.ok()) {
+    read = Read(folder, "quests.txtpb", ParseQuests, content.quests);
+  }
+  if (read.ok()) {
     read = Read(folder, "skills.txtpb", ParseSkills, content.skills);
   }
   if (!read.ok()) {
@@ -122,6 +125,25 @@ absl::Status CheckContent(const Content& content) {
       }
     }
   }
+  for (const auto& [id, quest] : content.quests) {
+    if (!content.npcs.kinds.contains(quest.giver())) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("the ", quest.name(), " has a giver ", quest.giver(),
+                       " that isn't in the NPCs file"));
+    }
+    if (!content.monsters.kinds.contains(quest.kill().monster())) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "the ", quest.name(), " asks for a monster ", quest.kill().monster(),
+          " that isn't in the monsters file"));
+    }
+    for (const quests::Prize& prize : quest.prizes()) {
+      if (!content.items.by_id.contains(prize.item())) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("the ", quest.name(), " gives an item ", prize.item(),
+                         " that isn't in the items file"));
+      }
+    }
+  }
   return absl::OkStatus();
 }
 
@@ -151,6 +173,10 @@ uint64_t ClientHash(const Content& content) {
     *seen.mutable_look() = kind.look();
     *seen.mutable_teaches() = kind.teaches();
     Add(hash, seen);
+  }
+  // The clients show all of a quest.
+  for (const auto& [id, quest] : content.quests) {
+    Add(hash, quest);
   }
   // The clients show each skill's level and cooldown, and the effect is the
   // server's alone.

@@ -44,6 +44,10 @@ TEST(Content, ReadsTheGamesContent) {
   EXPECT_TRUE(std::ranges::any_of(content->npcs.kinds, [](const auto& kind) {
     return !kind.second.teaches().empty();
   }));
+  const nanommo::quests::Quest& bones = content->quests.at(1);
+  EXPECT_EQ(content->npcs.kinds.at(bones.giver()).name(), "Guard");
+  EXPECT_EQ(bones.kill().monster(), 1u);
+  EXPECT_GT(bones.kill().count(), 0u);
 }
 
 TEST(Content, HashesWhatTheClientsRead) {
@@ -61,6 +65,11 @@ TEST(Content, HashesWhatTheClientsRead) {
   stronger.items.by_id.at(4).mutable_equip()->mutable_modifiers(0)->set_amount(
       9);
   EXPECT_NE(nanommo::ClientHash(stronger), hash);
+
+  // The quest window shows all of a quest.
+  nanommo::Content quests = *nanommo::ReadContent(NANOMMO_CONTENT);
+  quests.quests.at(1).set_experience(1000);
+  EXPECT_NE(nanommo::ClientHash(quests), hash);
 }
 
 TEST(Content, RefusesFiguresThatDontAddUp) {
@@ -282,6 +291,60 @@ TEST(Content, RefusesNpcsThatDontAddUp) {
   content.npcs.kinds.at(1).add_teaches(99);
   EXPECT_EQ(nanommo::CheckContent(content).message(),
             "the Guard teaches a skill 99 that isn't in the skills file");
+}
+
+TEST(Content, RefusesQuestsThatDontAddUp) {
+  EXPECT_TRUE(nanommo::ParseQuests(R"pb(quests {
+                                          id: 1
+                                          name: "Bones"
+                                          giver: 1
+                                          kill { monster: 1 count: 3 }
+                                          prizes { item: 2 count: 2 }
+                                        })pb")
+                  .ok());
+  EXPECT_EQ(nanommo::ParseQuests(R"pb(quests {
+                                        id: 1
+                                        name: "Bones"
+                                        kill { monster: 1 count: 3 }
+                                      })pb")
+                .status()
+                .message(),
+            "the Bones has no giver");
+  EXPECT_EQ(nanommo::ParseQuests(R"pb(quests {
+                                        id: 1
+                                        name: "Bones"
+                                        giver: 1
+                                        kill { monster: 1 }
+                                      })pb")
+                .status()
+                .message(),
+            "the Bones asks for no kills");
+  EXPECT_EQ(nanommo::ParseQuests(R"pb(quests {
+                                        id: 1
+                                        name: "Bones"
+                                        giver: 1
+                                        kill { monster: 1 count: 3 }
+                                        prizes { item: 2 }
+                                      })pb")
+                .status()
+                .message(),
+            "the Bones gives none of item 2");
+
+  nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  content.quests.at(1).set_giver(99);
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "the Bones by the Gate has a giver 99 that isn't in the NPCs file");
+  content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  content.quests.at(1).mutable_kill()->set_monster(99);
+  EXPECT_EQ(
+      nanommo::CheckContent(content).message(),
+      "the Bones by the Gate asks for a monster 99 that isn't in the monsters "
+      "file");
+  content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  content.quests.at(1).mutable_prizes(0)->set_item(99);
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "the Bones by the Gate gives an item 99 that isn't in the items "
+            "file");
 }
 
 TEST(Content, RefusesSkillsThatDontAddUp) {
