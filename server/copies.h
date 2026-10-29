@@ -55,6 +55,9 @@ class Copies {
   /// By their ids.
   const std::map<uint32_t, Copy>& all() const { return copies_; }
 
+  /// What all of them are made of, which doesn't change as the game runs.
+  const Content& content() const { return *content_; }
+
   /// The lines each copy has for its players since the last time.
   std::vector<Notice> TakeNotices();
 

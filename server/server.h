@@ -20,6 +20,7 @@
 #include "content/content.h"
 #include "protocol/nanommo.pb.h"
 #include "server/copies.h"
+#include "server/events.h"
 #include "server/interest.h"
 #include "server/metrics.h"
 #include "server/players.h"
@@ -41,7 +42,7 @@ class Server {
       asio::io_context& io, uint16_t port, asio::ssl::context& tls,
       std::chrono::nanoseconds interval, std::string name, uint32_t seed,
       const Content& content, Metrics& metrics, Tokens& tokens,
-      Players& players, Storyteller& storyteller);
+      Players& players, Events& events, Storyteller& storyteller);
 
   /// In all its lands.
   int players() const;
@@ -59,7 +60,7 @@ class Server {
   Server(asio::io_context& io, asio::ssl::context& tls,
          std::chrono::nanoseconds interval, std::string name, uint32_t seed,
          const Content& content, Metrics& metrics, Tokens& tokens,
-         Players& players, Storyteller& storyteller);
+         Players& players, Events& events, Storyteller& storyteller);
 
   absl::Status Start(uint16_t port);
   /// The World of the copy the player's in, or nullptr.
@@ -78,6 +79,8 @@ class Server {
   void Receive();
   void Tick();
   void SaveChanged();
+  /// What happened in the worlds this tick, into the events stream.
+  void RecordEvents();
   void Broadcast();
   void BroadcastCopy(const Copy& copy, bool full);
   void SendChat();
@@ -101,6 +104,7 @@ class Server {
   Metrics& metrics_;
   Tokens& tokens_;
   Players& players_;
+  Events& events_;
   Storyteller& storyteller_;
   std::map<uint32_t, std::shared_ptr<Session>> sessions_;
   std::map<std::string, uint32_t> udp_tokens_;

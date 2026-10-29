@@ -13,6 +13,8 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "asio/buffer.hpp"
 #include "asio/socket_base.hpp"
 #include "protocol/chat.h"
@@ -147,10 +149,10 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
     asio::io_context& io, uint16_t port, asio::ssl::context& tls,
     std::chrono::nanoseconds interval, std::string name, uint32_t seed,
     const Content& content, Metrics& metrics, Tokens& tokens, Players& players,
-    Storyteller& storyteller) {
+    Events& events, Storyteller& storyteller) {
   std::unique_ptr<Server> server = absl::WrapUnique(
       new Server(io, tls, interval, std::move(name), seed, content, metrics,
-                 tokens, players, storyteller));
+                 tokens, players, events, storyteller));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -161,7 +163,8 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
 Server::Server(asio::io_context& io, asio::ssl::context& tls,
                std::chrono::nanoseconds interval, std::string name,
                uint32_t seed, const Content& content, Metrics& metrics,
-               Tokens& tokens, Players& players, Storyteller& storyteller)
+               Tokens& tokens, Players& players, Events& events,
+               Storyteller& storyteller)
     : acceptor_(io),
       tls_(tls),
       udp_(io),
@@ -173,6 +176,7 @@ Server::Server(asio::io_context& io, asio::ssl::context& tls,
       metrics_(metrics),
       tokens_(tokens),
       players_(players),
+      events_(events),
       storyteller_(storyteller) {}
 
 int Server::players() const { return copies_.players(); }
@@ -517,6 +521,7 @@ void Server::Tick() {
       Notify(notice.player, notice.text);
     }
   }
+  RecordEvents();
   std::array<std::size_t, kLands.size()> in_land{};
   std::array<std::size_t, kLands.size()> copies_of{};
   for (const auto& [id, copy] : copies_.all()) {
@@ -567,6 +572,26 @@ void Server::SaveChanged() {
               << "\n";
   }
   metrics_.ObserveSave(std::chrono::steady_clock::now() - start);
+}
+
+void Server::RecordEvents() {
+  ZoneScoped;
+  const std::vector<Event> happened = copies_.TakeEvents();
+  if (happened.empty()) {
+    return;
+  }
+  const absl::Time now = absl::Now();
+  std::vector<std::string> rows;
+  rows.reserve(happened.size());
+  for (const Event& event : happened) {
+    rows.push_back(Row(event, copies_.content(), name_, now));
+  }
+  // The game goes on without its analytics.
+  const absl::Status added = events_.Add(rows);
+  if (!added.ok()) {
+    std::cerr << "couldn't record " << rows.size() << " events: " << added
+              << "\n";
+  }
 }
 
 void Server::Broadcast() {

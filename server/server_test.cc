@@ -158,6 +158,7 @@ class ServerTest : public ::testing::Test {
     bob_ = NewAccount();
     tokens_ = std::make_unique<nanommo::Tokens>(*redis_);
     players_ = std::make_unique<nanommo::Players>(*database_, *redis_);
+    events_ = std::make_unique<nanommo::Events>(*redis_);
     // Nobody asks it for a story, as the world has no NPCs.
     storyteller_ = std::make_unique<nanommo::Storyteller>(io_, "127.0.0.1");
     server_tls_ = nanommo::ServerTls(absl::StrCat(kTls, "server.crt"),
@@ -168,7 +169,7 @@ class ServerTest : public ::testing::Test {
     absl::StatusOr<std::unique_ptr<nanommo::Server>> server =
         nanommo::Server::Create(
             io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1,
-            content_, metrics_, *tokens_, *players_, *storyteller_);
+            content_, metrics_, *tokens_, *players_, *events_, *storyteller_);
     ASSERT_TRUE(server.ok()) << server.status();
     server_ = *std::move(server);
   }
@@ -227,6 +228,7 @@ class ServerTest : public ::testing::Test {
   uint32_t bob_ = 0;
   std::unique_ptr<nanommo::Tokens> tokens_;
   std::unique_ptr<nanommo::Players> players_;
+  std::unique_ptr<nanommo::Events> events_;
   std::unique_ptr<nanommo::Storyteller> storyteller_;
   const std::string world_ = nanommo::testing::TestName();
   // No items, monsters or NPCs: nothing in the world but the players.
@@ -259,7 +261,7 @@ TEST_F(ServerTest, HandsItsPlayersOverToTheNextInstance) {
   absl::StatusOr<std::unique_ptr<nanommo::Server>> next =
       nanommo::Server::Create(
           io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1,
-          content_, metrics_, *tokens_, *players_, *storyteller_);
+          content_, metrics_, *tokens_, *players_, *events_, *storyteller_);
   ASSERT_TRUE(next.ok()) << next.status();
   TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
   ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
@@ -334,9 +336,9 @@ TEST_F(ServerTest, KeepsAPlayerInADungeonOutsideIt) {
 TEST_F(ServerTest, SendsEachPlayerTheirBagAsItChanges) {
   const nanommo::Content gear{.items = nanommo::testing::Gear()};
   absl::StatusOr<std::unique_ptr<nanommo::Server>> armed =
-      nanommo::Server::Create(io_, 0, *server_tls_,
-                              std::chrono::milliseconds(50), world_, 1, gear,
-                              metrics_, *tokens_, *players_, *storyteller_);
+      nanommo::Server::Create(
+          io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1, gear,
+          metrics_, *tokens_, *players_, *events_, *storyteller_);
   ASSERT_TRUE(armed.ok()) << armed.status();
   TestPlayer alice(io_, *client_tls_, (*armed)->port(), Token(alice_));
 
@@ -386,9 +388,9 @@ TEST_F(ServerTest, SendsEachPlayerTheirQuestsAsTheyChange) {
     spawns { kind: 1 land: "Meadows" x: 1 z: 0 }
   )pb");
   absl::StatusOr<std::unique_ptr<nanommo::Server>> guarded =
-      nanommo::Server::Create(io_, 0, *server_tls_,
-                              std::chrono::milliseconds(50), world_, 1, content,
-                              metrics_, *tokens_, *players_, *storyteller_);
+      nanommo::Server::Create(
+          io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1,
+          content, metrics_, *tokens_, *players_, *events_, *storyteller_);
   ASSERT_TRUE(guarded.ok()) << guarded.status();
   TestPlayer alice(io_, *client_tls_, (*guarded)->port(), Token(alice_));
 

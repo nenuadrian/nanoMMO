@@ -130,13 +130,14 @@ int main(int argc, char* argv[]) {
   const std::unique_ptr<nanommo::Redis> redis = *std::move(redis_or);
   nanommo::Tokens tokens(*redis);
   nanommo::Players players(*database, *redis);
+  nanommo::Events events(*redis);
 
   asio::io_context io;
   nanommo::Storyteller storyteller(
       io, nanommo::Setting("NANOMMO_STORYTELLER_HOST", "127.0.0.1"));
   absl::StatusOr<std::unique_ptr<nanommo::Server>> server_or =
       nanommo::Server::Create(io, *port, *tls, *interval, name, seed, *content,
-                              metrics, tokens, players, storyteller);
+                              metrics, tokens, players, events, storyteller);
   if (!server_or.ok()) {
     std::cerr << "nanommo server: " << server_or.status() << "\n";
     return 1;
