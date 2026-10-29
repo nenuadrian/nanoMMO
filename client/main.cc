@@ -264,6 +264,7 @@ int main(int argc, char* argv[]) {
                       nanommo::CameraTilt(), nanommo::CameraZoom(), *terrain);
         renderer.set_camera(camera.camera());
       }
+      nanommo::MarkQuestGivers(figures, *content, connection->quests());
       renderer.set_figures(std::move(figures));
       if (nanommo::ClickedWorld()) {
         const Ray ray =

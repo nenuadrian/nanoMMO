@@ -35,6 +35,9 @@ struct Figure {
   std::vector<uint32_t> teaches;
   /// The quests an NPC gives, by their ids in the quests file.
   std::vector<uint32_t> quests;
+  /// Over an NPC with a quest for you: '!' for one to take, or '?' for one
+  /// you've done, to turn in.
+  char mark = 0;
   int level = 1;
   int health = 0;
   int max_health = 0;

@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "client/animator.h"
 #include "content/content.h"
 #include "protocol/nanommo.pb.h"
 
@@ -32,6 +33,11 @@ class QuestWindow {
   std::string name_;
   std::vector<uint32_t> quests_;
 };
+
+/// Marks each NPC who has a quest for the player: '?' for one they've done,
+/// to turn in, over '!' for one they can take.
+void MarkQuestGivers(std::vector<Figure>& figures, const Content& content,
+                     const protocol::Quests& yours);
 
 /// The quests the player's on, in the top right corner, with how many
 /// they've killed for each.

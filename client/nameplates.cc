@@ -17,6 +17,9 @@ constexpr ImU32 kLevel = IM_COL32(190, 190, 190, 255);
 constexpr ImU32 kYourName = IM_COL32(255, 210, 80, 255);
 constexpr ImU32 kMonsterName = IM_COL32(255, 140, 120, 255);
 constexpr ImU32 kNpcName = IM_COL32(150, 230, 140, 255);
+// A quest's mark, over an NPC's name, in gold, and twice its size.
+constexpr ImU32 kMark = IM_COL32(255, 205, 60, 255);
+constexpr float kMarkScale = 2.0f;
 constexpr ImU32 kPlayerHealth = IM_COL32(90, 200, 90, 255);
 constexpr ImU32 kMonsterHealth = IM_COL32(220, 70, 60, 255);
 
@@ -74,6 +77,15 @@ void DrawNameplates(const std::vector<Figure>& figures,
           font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, figure.name.c_str());
       DrawShadowedText(draw, font_size, {at.x - size.x / 2, at.y - size.y},
                        kNpcName, figure.name);
+      if (figure.mark != 0) {
+        const std::string mark(1, figure.mark);
+        const float mark_size = font_size * kMarkScale;
+        const ImVec2 over =
+            font->CalcTextSizeA(mark_size, FLT_MAX, 0.0f, mark.c_str());
+        DrawShadowedText(draw, mark_size,
+                         {at.x - over.x / 2, at.y - size.y - over.y}, kMark,
+                         mark);
+      }
       continue;
     }
 

@@ -91,6 +91,26 @@ std::optional<protocol::Input> QuestWindow::Build(
   return ask;
 }
 
+void MarkQuestGivers(std::vector<Figure>& figures, const Content& content,
+                     const protocol::Quests& yours) {
+  for (Figure& figure : figures) {
+    figure.mark = 0;
+    for (const uint32_t id : figure.quests) {
+      const auto on = yours.on().find(id);
+      if (on != yours.on().end()) {
+        const auto quest = content.quests.find(id);
+        if (quest != content.quests.end() &&
+            on->second >= quest->second.kill().count()) {
+          figure.mark = '?';
+        }
+      } else if (figure.mark == 0 &&
+                 std::ranges::find(yours.done(), id) == yours.done().end()) {
+        figure.mark = '!';
+      }
+    }
+  }
+}
+
 void DrawQuestTracker(const Content& content, const protocol::Quests& yours) {
   if (yours.on().empty()) {
     return;

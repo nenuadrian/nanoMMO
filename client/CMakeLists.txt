@@ -59,6 +59,7 @@ add_executable(nanommo_client_tests
   renderer_test.cc sea_test.cc animator_test.cc characters_test.cc
   figures_test.cc picking_test.cc
   jukebox_test.cc sound_test.cc settings_test.cc bag_window_test.cc
+  quest_window_test.cc
 )
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)
 add_dependencies(nanommo_client_tests nanommo_client_assets)
