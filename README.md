@@ -946,6 +946,47 @@ rules`, and the rest of its group doesn't load: `docker compose logs loki | grep
 
 In production, Loki listens on the server's localhost, like Prometheus, and Alloy has no port.
 
+## Analytics
+
+The metrics say how the servers are doing, and the game's analytics say what the players do: who
+killed what, what dropped, which quests they take and which they finish, the levels they reach,
+what they drink and where they die. Each of those is an event, a row in
+[ClickHouse](https://github.com/ClickHouse/ClickHouse), a database that keeps each column on its own
+and reads the columns a query asks about and nothing more, so that counting millions of rows by a
+few of their columns is quick.
+
+- Each world records what happens as it steps, as events, with who, which land and where, and what
+  it's about by its ids in the content (`server/world.h`, `Event`). Once a tick, the server turns them into rows, each a line of JSON
+  with the time, the world and the name of what it's about, and adds them to a Redis stream,
+  `events`, in a single round trip (`server/events.h`). The stream keeps about the newest million,
+  so that it can't fill Redis while nothing reads it, and the tick never waits on ClickHouse.
+- The recorder (`nanommo_recorder`) takes the events from the stream, as a consumer of the
+  `recorder` group, up to 10,000 at a time, and inserts them into ClickHouse's `events` table in
+  its JSONEachRow format, over its HTTP interface, then acknowledges them. Redis remembers what each
+  consumer took and didn't acknowledge, so after a failure, or a restart, the recorder takes those
+  again first, and an event isn't lost while ClickHouse is down.
+- ClickHouse makes the table from `analytics/events.sql` the first time it starts, on an empty
+  volume, `clickhouse`: sorted by the kind of event and its time, a partition a month, and kept for
+  a year. A change to the table later takes an `ALTER TABLE` of its own.
+- Grafana has ClickHouse as a data source, through Grafana's ClickHouse plugin, which it installs
+  as it starts, and a second dashboard, nanoMMO game, at http://localhost:3000/d/nanommo-game: the
+  players who did something, kills a minute by monster, the quests taken against the ones done, the
+  items that came into the game against the ones used, where players die in the Meadows, and the
+  levels reached.
+
+```bash
+docker compose up -d --build recorder grafana
+docker compose exec clickhouse clickhouse-client --user nanommo --password nanommo --database nanommo
+```
+
+```sql
+SELECT kind, count() FROM events GROUP BY kind;
+SELECT what, countIf(kind = 'take') AS taken, countIf(kind = 'turn_in') AS done
+FROM events WHERE kind IN ('take', 'turn_in') GROUP BY what;
+```
+
+In production, ClickHouse listens on the server's localhost, like Loki.
+
 ## Benchmarking and profiling
 
 `bench/load.sh` measures how the server copes as players arrive. With the stack from `compose.yaml`
