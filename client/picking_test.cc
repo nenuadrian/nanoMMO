@@ -12,7 +12,6 @@ nanommo::Figure Npc(uint32_t id, float z, bool talks) {
   npc.id = id;
   npc.npc = true;
   npc.talks = talks;
-  npc.radius = 0.5f;
   npc.position = {0.0f, 0.0f, z};
   return npc;
 }

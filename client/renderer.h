@@ -91,7 +91,7 @@ class Renderer {
   Outline outline_;
   bool cel_shading_ = false;
   Model cube_;
-  /// Every NPC is this ball, scaled to its radius and tinted its colour.
+  /// A skill's glow is this ball, scaled and tinted.
   Model sphere_;
   std::vector<Face> tree_;
   std::vector<Chunk> chunks_;

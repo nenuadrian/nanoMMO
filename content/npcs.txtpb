@@ -1,37 +1,82 @@
 # proto-file: content/npcs.proto
 # proto-message: nanommo.npcs.Npcs
 
+# Each is a person, like the players, with a skin and hair from the figures
+# file's lists. Their hairs, by place: 0 short, 1 long, 2 tied in a tail, 3
+# short with a beard, 4 bald with a beard, 5 bald. What they wear is items: 1
+# the Sword, 4 the Leather Cap, 5 the Leather Tunic, 6 the Ash Blade, 7 the Ash
+# Buckler, 8 the Linen Shirt, which comes in the look's colour, 9 the Cloth
+# Trousers, 10 the Plain Shoes and 11 the Leather Boots.
 kinds {
   id: 1
   name: "Guard"
-  look { color: 0x3E6FD8FF radius: 0.6 }
+  look {
+    color: 0x3E6FD8FF
+    skin: 0xF1C49CFF
+    hair_color: 0x1C181AFF
+    hair: 3
+    weapon: 1
+    wearing: [4, 5, 9, 11]
+  }
 }
 kinds {
   id: 2
   name: "Merchant"
-  look { color: 0xE3B53BFF radius: 0.5 }
+  look {
+    color: 0xE3B53BFF
+    skin: 0xDEAA80FF
+    hair_color: 0x5C3822FF
+    hair: 1
+    wearing: [8, 9, 10]
+  }
 }
 kinds {
   id: 3
   name: "Healer"
-  look { color: 0x5BC46BFF radius: 0.4 }
+  look {
+    color: 0x5BC46BFF
+    skin: 0xFAD6B4FF
+    hair_color: 0xE2BA5CFF
+    hair: 2
+    wearing: [8, 9, 10]
+  }
 }
 kinds {
   id: 4
   name: "Ash Warden"
-  look { color: 0xD8552EFF radius: 0.7 }
+  look {
+    color: 0xD8552EFF
+    skin: 0xA06C4CFF
+    hair_color: 0x969696FF
+    hair: 4
+    weapon: 6
+    wearing: [7, 5, 9, 11]
+  }
 }
 kinds {
   id: 5
   name: "Storyteller"
   talks: true
-  look { color: 0x9B6BD8FF radius: 0.5 }
+  look {
+    color: 0x9B6BD8FF
+    skin: 0xC48A62FF
+    hair_color: 0x969696FF
+    hair: 1
+    wearing: [8, 9, 10]
+  }
 }
 kinds {
   id: 6
   name: "Trainer"
   teaches: [2, 3, 4]
-  look { color: 0xC8CCD4FF radius: 0.5 }
+  look {
+    color: 0xC8CCD4FF
+    skin: 0x80543AFF
+    hair_color: 0x1C181AFF
+    hair: 0
+    weapon: 1
+    wearing: [8, 9, 11]
+  }
 }
 
 spawns { kind: 1 land: "Meadows" x: -3.2 z: -7.5 yaw: 0 }

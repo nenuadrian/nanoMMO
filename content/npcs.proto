@@ -2,12 +2,23 @@ syntax = "proto3";
 
 package nanommo.npcs;
 
-// How a kind of NPC is drawn, until NPCs have models: a ball.
+// How a kind of NPC is drawn: as a person, like the players, in what it
+// wears.
 message Look {
-  // As 0xRRGGBBAA.
+  reserved 2;
+  reserved "radius";
+  // As 0xRRGGBBAA: what it wears that's dyed comes in this colour.
   uint32 color = 1;
-  // In metres.
-  float radius = 2;
+  // As 0xRRGGBBAA, like the figures file's.
+  uint32 skin = 3;
+  uint32 hair_color = 4;
+  // Which way it wears its hair, by its place in the figures file's hairs,
+  // from zero.
+  uint32 hair = 5;
+  // What it holds in its main hand, and what else it wears, by their ids in
+  // the items file.
+  uint32 weapon = 6;
+  repeated uint32 wearing = 7;
 }
 
 message Kind {

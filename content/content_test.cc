@@ -259,12 +259,26 @@ TEST(Content, RefusesLootThatDoesntAddUp) {
 }
 
 TEST(Content, RefusesNpcsThatDontAddUp) {
-  EXPECT_FALSE(nanommo::ParseNpcs("kinds { id: 1 } "
+  EXPECT_TRUE(nanommo::ParseNpcs("kinds { id: 1 look { skin: 0xF1C49CFF } } "
+                                 "spawns { kind: 1 land: \"Meadows\" }")
+                  .ok());
+  EXPECT_FALSE(nanommo::ParseNpcs("kinds { id: 1 look { skin: 0xF1C49CFF } } "
                                   "spawns { kind: 2 land: \"Meadows\" }")
                    .ok());
+  EXPECT_EQ(
+      nanommo::ParseNpcs("kinds { id: 1 name: \"Guard\" }").status().message(),
+      "the Guard has no skin");
 
   nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);
   EXPECT_TRUE(nanommo::CheckContent(content).ok());
+  content.npcs.kinds.at(1).mutable_look()->add_wearing(99);
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "the Guard wears an item 99 that isn't in the items file");
+  content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  content.npcs.kinds.at(1).mutable_look()->set_hair(9);
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "the Guard has a hair 9 that isn't in the figures file");
+  content = *nanommo::ReadContent(NANOMMO_CONTENT);
   content.npcs.kinds.at(1).add_teaches(99);
   EXPECT_EQ(nanommo::CheckContent(content).message(),
             "the Guard teaches a skill 99 that isn't in the skills file");

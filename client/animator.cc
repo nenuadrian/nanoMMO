@@ -69,12 +69,17 @@ Figure Stand(const std::map<uint32_t, Figure>& figures,
   figure.id = npc.id();
   figure.npc = true;
   figure.kind = npc.kind();
-  // A kind from a newer server stays nameless, and too small to see.
+  // A kind from a newer server stays nameless, and undressed.
   const auto kind = table.kinds.find(npc.kind());
   if (kind != table.kinds.end()) {
+    const npcs::Look& look = kind->second.look();
     figure.name = kind->second.name();
-    figure.color = GetColor(kind->second.look().color());
-    figure.radius = kind->second.look().radius();
+    figure.color = GetColor(look.color());
+    figure.features = Features{.skin = look.skin(),
+                               .hair_color = look.hair_color(),
+                               .hair = static_cast<int>(look.hair())};
+    figure.weapon = look.weapon();
+    figure.wearing = {look.wearing().begin(), look.wearing().end()};
     figure.talks = kind->second.talks();
     figure.teaches = {kind->second.teaches().begin(),
                       kind->second.teaches().end()};

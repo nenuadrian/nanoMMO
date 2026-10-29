@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "content/text.h"
@@ -95,6 +96,24 @@ absl::Status CheckContent(const Content& content) {
     }
   }
   for (const auto& [id, kind] : content.npcs.kinds) {
+    const npcs::Look& look = kind.look();
+    if (std::cmp_greater_equal(look.hair(), content.figures.hairs_size())) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("the ", kind.name(), " has a hair ", look.hair(),
+                       " that isn't in the figures file"));
+    }
+    // What it holds, if anything, and what else it wears.
+    std::vector<uint32_t> worn(look.wearing().begin(), look.wearing().end());
+    if (look.weapon() != 0) {
+      worn.push_back(look.weapon());
+    }
+    for (const uint32_t item : worn) {
+      if (!content.items.by_id.contains(item)) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("the ", kind.name(), " wears an item ", item,
+                         " that isn't in the items file"));
+      }
+    }
     for (const uint32_t skill : kind.teaches()) {
       if (!content.skills.by_id.contains(skill)) {
         return absl::InvalidArgumentError(

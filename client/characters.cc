@@ -312,7 +312,9 @@ Characters::Pose Characters::PoseFor(const Character& character,
 
 void Characters::Draw(const Figure& figure, Color color,
                       const Outline* outline) const {
-  const Character& character = characters_[figure.id % characters_.size()];
+  // An NPC looks the same wherever it stands, so it goes by its kind.
+  const uint32_t which = figure.npc ? figure.kind : figure.id;
+  const Character& character = characters_[which % characters_.size()];
   const Pose from =
       PoseFor(character, figure.from, figure.from_skill, figure.from_time);
   const Pose to =
@@ -338,7 +340,8 @@ void Characters::Draw(const Figure& figure, Color color,
   if (!character.dressed) {
     draw(character.model, character.hull, color);
   } else {
-    const Features features = FeaturesOf(figures_, figure.id);
+    const Features features =
+        figure.features ? *figure.features : FeaturesOf(figures_, figure.id);
     draw(character.model, character.hull, GetColor(features.skin));
     const auto hair = character.hairs.find(features.hair);
     if (hair != character.hairs.end()) {

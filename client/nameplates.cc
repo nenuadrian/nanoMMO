@@ -43,12 +43,7 @@ ImU32 NameColor(const Figure& figure) {
 }
 
 // In metres above a figure's feet.
-float Above(const Figure& figure) {
-  if (figure.npc) {
-    return 2.0f * figure.radius + 0.4f;
-  }
-  return figure.monster ? 1.9f : 2.35f;
-}
+float Above(const Figure& figure) { return figure.monster ? 1.9f : 2.35f; }
 
 }  // namespace
 

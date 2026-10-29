@@ -346,8 +346,7 @@ void Renderer::Draw() const {
     rlDisableDepthMask();
     BeginBlendMode(BLEND_ALPHA);
     for (const Figure& figure : figures_) {
-      DrawShadow(*terrain_, figure.position,
-                 figure.npc ? 1.2f * figure.radius : kShadowRadius);
+      DrawShadow(*terrain_, figure.position, kShadowRadius);
     }
     EndBlendMode();
     rlEnableDepthMask();
@@ -395,26 +394,13 @@ void Renderer::DrawPreview(const Figure& figure, const Camera3D& camera) const {
 }
 
 void Renderer::DrawFigure(const Figure& figure) const {
-  if (figure.npc) {
-    // The ball's middle is its origin, so it's raised to rest on the ground.
-    const Vector3& at = figure.position;
-    const float radius = figure.radius;
-    if (cel_shading_) {
-      DrawOutline(sphere_,
-                  MatrixMultiply(MatrixScale(radius, radius, radius),
-                                 MatrixTranslate(at.x, at.y + radius, at.z)),
-                  outline_.still);
-    }
-    DrawModelEx(sphere_, {at.x, at.y + radius, at.z}, {0.0f, 1.0f, 0.0f}, 0.0f,
-                {radius, radius, radius}, figure.color);
-    return;
-  }
   const Characters* looks = &characters_;
   if (figure.monster) {
     const auto kind = monsters_.find(figure.kind);
     looks = kind != monsters_.end() ? kind->second.get() : nullptr;
   }
-  const Color color = figure.monster ? figure.color : PlayerColor(figure.id);
+  const Color color =
+      figure.monster || figure.npc ? figure.color : PlayerColor(figure.id);
   if (looks != nullptr && looks->size() > 0) {
     looks->Draw(figure, color, cel_shading_ ? &outline_ : nullptr);
     return;

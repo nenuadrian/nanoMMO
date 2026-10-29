@@ -1,6 +1,8 @@
 #include "client/animator.h"
 
+#include <cstdint>
 #include <numbers>
+#include <vector>
 
 #include "gtest/gtest.h"
 
@@ -79,4 +81,37 @@ TEST(Animator, KeepsPlayersAndMonstersApart) {
   EXPECT_FALSE(figures[0].monster);
   EXPECT_TRUE(figures[1].monster);
   EXPECT_EQ(figures[1].name, "Skeleton");
+}
+
+TEST(Animator, DressesAnNpcAsItsKind) {
+  nanommo::protocol::World world;
+  nanommo::protocol::Npc* npc = world.add_npcs();
+  npc->set_id(1);
+  npc->set_kind(1);
+  nanommo::Content content;
+  content.npcs = *nanommo::ParseNpcs(R"pb(
+    kinds {
+      id: 1
+      name: "Guard"
+      look {
+        color: 0x3E6FD8FF
+        skin: 0xF1C49CFF
+        hair_color: 0x1C181AFF
+        hair: 3
+        weapon: 1
+        wearing: [ 4, 5 ]
+      }
+    }
+  )pb");
+
+  const auto figures = nanommo::Animator(content).Update(world, 0.1f);
+  ASSERT_EQ(figures.size(), 1u);
+  EXPECT_TRUE(figures[0].npc);
+  EXPECT_EQ(figures[0].name, "Guard");
+  ASSERT_TRUE(figures[0].features.has_value());
+  EXPECT_EQ(figures[0].features->skin, 0xF1C49CFFu);
+  EXPECT_EQ(figures[0].features->hair_color, 0x1C181AFFu);
+  EXPECT_EQ(figures[0].features->hair, 3);
+  EXPECT_EQ(figures[0].weapon, 1u);
+  EXPECT_EQ(figures[0].wearing, (std::vector<uint32_t>{4, 5}));
 }

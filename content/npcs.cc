@@ -5,6 +5,8 @@
 #include <string_view>
 #include <utility>
 
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "content/checks.h"
 #include "content/text.h"
 
@@ -22,6 +24,12 @@ absl::StatusOr<NpcTable> ParseNpcs(std::string_view text) {
   }
   NpcTable table{.kinds = *std::move(kinds),
                  .spawns = {file.spawns().begin(), file.spawns().end()}};
+  for (const auto& [id, kind] : table.kinds) {
+    if (kind.look().skin() == 0) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("the ", kind.name(), " has no skin"));
+    }
+  }
   for (const npcs::Spawn& spawn : table.spawns) {
     const absl::Status checked = CheckSpawn(table.kinds, spawn);
     if (!checked.ok()) {

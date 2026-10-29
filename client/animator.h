@@ -6,11 +6,13 @@
 #include <cstdint>
 #include <map>
 #include <numbers>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "content/content.h"
+#include "content/figures.h"
 #include "protocol/nanommo.pb.h"
 
 namespace nanommo {
@@ -23,10 +25,10 @@ struct Figure {
   bool npc = false;
   /// A monster's or an NPC's kind, by its id in the content folder.
   uint32_t kind = 0;
-  /// An NPC's look, until NPCs have models: a ball of this colour and radius,
-  /// in metres. A monster is tinted this colour.
+  /// A monster's tint, or the colour of what an NPC wears that's dyed.
   Color color = WHITE;
-  float radius = 0.0f;
+  /// An NPC's skin and hair, from its kind. A player's come from their id.
+  std::optional<Features> features;
   /// Whether the player can talk to it, by clicking it.
   bool talks = false;
   /// The skills an NPC teaches, by their ids, when it's a trainer.
