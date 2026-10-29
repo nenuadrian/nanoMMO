@@ -267,9 +267,8 @@ void Characters::Wear(uint32_t id, const items::Look& look) {
     const float metre = 1.0f / character.scale;
     // Copies of the model, with the item's parts for meshes, so they move
     // with its bones.
-    Garment garment{.model = character.model,
-                    .hull = character.model,
-                    .dyed = look.dyed()};
+    Garment garment{
+        .model = character.model, .hull = character.model, .dyed = look.dyed()};
     garment.model.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
     garment.model.meshes[0] = Parts(character.model, parts, metre);
     garment.hull.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));

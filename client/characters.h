@@ -31,8 +31,7 @@ class Characters {
   /// With the figures, each model is dressed in their body in place of its
   /// mesh, and each player is drawn in their own skin and hair.
   Characters(const std::string& folder, const std::vector<std::string>& files,
-             float height, Shader shader,
-             const figures::Figures& figures = {});
+             float height, Shader shader, const figures::Figures& figures = {});
   ~Characters();
 
   Characters(const Characters&) = delete;

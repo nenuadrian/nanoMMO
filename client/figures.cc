@@ -109,7 +109,11 @@ struct Ring {
 void AddLimb(Builder& out, Vector3 a, Vector3 b, float ra, float rb,
              float flatten, Color color, int bone) {
   const Vector3 axis = Vector3Normalize(Vector3Subtract(b, a));
-  const auto [u, v] = Across(axis);
+  // Named, not bound, as clang-tidy's analyzer loses a structured binding's
+  // value in a lambda that captures it.
+  const std::pair<Vector3, Vector3> across = Across(axis);
+  const Vector3 u = across.first;
+  const Vector3 v = across.second;
   const float c = std::cos(kCapAngle);
   const float s = std::sin(kCapAngle);
   const std::array<Ring, 6> rings = {{
