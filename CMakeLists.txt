@@ -205,5 +205,17 @@ if(DOXYGEN_FOUND)
     ${doxygen_awesome_SOURCE_DIR}/doxygen-awesome.css
     ${doxygen_awesome_SOURCE_DIR}/doxygen-awesome-sidebar-only.css
   )
-  doxygen_add_docs(docs README.md protocol content terrain server bot client)
+  # A link to a section of another page, such as docs/gameplay.md#items, works
+  # on GitHub, but Doxygen 1.9 leaves it as it is, which leads nowhere, so in
+  # the API docs it goes to the page.
+  set(DOXYGEN_FILTER_PATTERNS "*.md=sed -E 's/[.]md#[a-z0-9-]+[)]/.md)/g'")
+  # Each page in docs/ is a page of its own in the menu, after the README, in
+  # the order the README lists them.
+  doxygen_add_docs(docs
+    README.md
+    docs/gameplay.md docs/content.md docs/npcs.md docs/graphics.md
+    docs/island.md docs/worlds.md docs/networking.md docs/accounts.md
+    docs/saving.md docs/website.md docs/monitoring.md docs/benchmarking.md
+    docs/deployment.md docs/checks.md
+    protocol content terrain server bot client)
 endif()
