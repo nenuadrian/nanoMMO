@@ -195,6 +195,11 @@ class World {
 
   static constexpr float kRunSpeed = 3.1f;
 
+  /// A player who swings or uses a skill at the monster they picked, while
+  /// it's out of reach, runs up to this share of the reach first, so that a
+  /// monster that steps back is still within it.
+  static constexpr float kCloseIn = 0.8f;
+
   /// How long the dead wait before they can come back. A monster comes back
   /// once it's over, and a player when they ask to.
   static constexpr std::chrono::seconds kRespawnTime{10};
@@ -274,6 +279,12 @@ class World {
   void Dress(Player& player) const;
   void Act(uint32_t id, Player& player, std::chrono::nanoseconds time);
   void Move(Player& player, std::chrono::nanoseconds time);
+  /// Moves the player along the direction, at most a step of the speed long,
+  /// less for a shorter one.
+  void Go(Player& player, float x, float z, bool run,
+          std::chrono::nanoseconds time);
+  /// Runs the player towards the monster they picked, to within the reach.
+  void Approach(Player& player, float reach, std::chrono::nanoseconds time);
   /// The monster the player picked, while it's alive and within reach, or
   /// nullptr.
   const Monster* Target(const Player& player, float reach) const;

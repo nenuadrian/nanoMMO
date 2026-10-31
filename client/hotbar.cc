@@ -7,7 +7,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 #include <numbers>
 #include <optional>
 #include <string>
@@ -27,8 +26,8 @@ constexpr ImU32 kShade = IM_COL32(0, 0, 0, 170);
 constexpr ImU32 kShadow = IM_COL32(0, 0, 0, 255);
 constexpr float kSecondsSize = 22.0f;
 constexpr ImU32 kKey = IM_COL32(230, 230, 230, 255);
-// As most games show a skill whose target is too far, or missing.
-constexpr ImVec4 kOutOfReach{0.95f, 0.3f, 0.25f, 1.0f};
+// As most games show a skill without a target.
+constexpr ImVec4 kNoTarget{0.95f, 0.3f, 0.25f, 1.0f};
 
 // With a shadow, so that it reads over the icon.
 void DrawCentered(ImDrawList* draw, ImVec2 at, float size,
@@ -79,14 +78,9 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
   if (you == figures.end() || you->level == 0 || slots_.empty()) {
     return std::nullopt;
   }
-  const auto picked = std::ranges::find_if(figures, [target](const Figure& f) {
+  const bool picked = std::ranges::any_of(figures, [target](const Figure& f) {
     return f.monster && f.id == target && f.to != protocol::MOTION_DEAD;
   });
-  // How far the monster they picked is, if there's one.
-  const float away = picked == figures.end()
-                         ? std::numeric_limits<float>::infinity()
-                         : std::hypot(picked->position.x - you->position.x,
-                                      picked->position.z - you->position.z);
   const ImVec2 screen = ImGui::GetIO().DisplaySize;
   ImGui::SetNextWindowPos({screen.x / 2, screen.y - kMargin}, ImGuiCond_Always,
                           {0.5f, 1.0f});
@@ -109,15 +103,15 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
     ImGui::PushID(static_cast<int>(skill.id()));
     ImGui::BeginDisabled(!known);
     const skills::Effect& effect = skill.effect();
-    const bool out_of_reach =
-        known && effect.damage() > 0 && !effect.all() && away > effect.reach();
+    const bool no_target =
+        known && effect.damage() > 0 && !effect.all() && !picked;
     ImGui::PushFont(nullptr, kIconSize);
-    if (out_of_reach) {
-      ImGui::PushStyleColor(ImGuiCol_Text, kOutOfReach);
+    if (no_target) {
+      ImGui::PushStyleColor(ImGuiCol_Text, kNoTarget);
     }
     const bool clicked =
         ImGui::Button(Icon(skill.look().icon()).c_str(), kSlot);
-    if (out_of_reach) {
+    if (no_target) {
       ImGui::PopStyleColor();
     }
     ImGui::PopFont();

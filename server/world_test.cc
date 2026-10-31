@@ -245,29 +245,73 @@ TEST(World, UsesTheSkillsTheyKnowOnceTheyreReady) {
   EXPECT_EQ(world.players().at(2).motion, nanommo::Motion::kSkill);
 }
 
-TEST(World, SkillsThatHitOneMonsterNeedOnePickedInReach) {
+TEST(World, SkillsThatHitOneMonsterRunUpToTheOnePicked) {
   nanommo::World world(1, nanommo::Terrain(),
                        nanommo::testing::With(nanommo::testing::Sword(),
                                               nanommo::testing::Kick()));
   world.Join(1, {.experience = 100, .skills = {1}});
-  const uint32_t near =
-      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 1.0f, 0.0f));
-  const uint32_t far =
+  const uint32_t skeleton =
       world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 6.0f, 0.0f));
 
-  // Nothing picked, or one out of reach: no kick, and no cooldown either.
-  world.UseSkill(1, 1);
-  world.Step(kTick);
-  world.Pick(1, far);
+  // Nothing picked: no kick, and no cooldown either.
   world.UseSkill(1, 1);
   world.Step(kTick);
   EXPECT_NE(world.players().at(1).motion, nanommo::Motion::kSkill);
   EXPECT_FALSE(world.players().at(1).cooldowns.contains(1));
 
-  world.Pick(1, near);
+  // Picked, out of reach: they run to it, facing it, and kick once there.
+  world.Pick(1, skeleton);
   world.UseSkill(1, 1);
   world.Step(kTick);
-  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kSkill);
+  const nanommo::Player& player = world.players().at(1);
+  EXPECT_EQ(player.motion, nanommo::Motion::kRun);
+  EXPECT_GT(player.x, 0.0f);
+  EXPECT_FLOAT_EQ(player.yaw, std::numbers::pi_v<float> / 2);
+  EXPECT_FALSE(player.cooldowns.contains(1));
+  for (int second = 0; second < 2; ++second) {
+    RunOneSecond(world);
+  }
+  EXPECT_TRUE(world.players().at(1).cooldowns.contains(1));
+  EXPECT_LT(world.monsters().at(skeleton).health, 50);
+}
+
+TEST(World, WalkingOffCallsOffTheRunUp) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword(),
+                                              nanommo::testing::Kick()));
+  world.Join(1, {.experience = 100, .skills = {1}});
+  const uint32_t skeleton =
+      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 6.0f, 0.0f));
+
+  world.Pick(1, skeleton);
+  world.UseSkill(1, 1);
+  world.Step(kTick);
+  world.SetInput(1, -1.0f, 0.0f, false);
+  world.Step(kTick);
+  world.SetInput(1, 0.0f, 0.0f, false);
+  for (int second = 0; second < 2; ++second) {
+    RunOneSecond(world);
+  }
+  EXPECT_FALSE(world.players().at(1).cooldowns.contains(1));
+  EXPECT_EQ(world.monsters().at(skeleton).health, 50);
+}
+
+TEST(World, SwingingRunsUpToThePickedMonster) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword()));
+  world.Join(1, {});
+  const uint32_t skeleton = world.Spawn(
+      nanommo::MonsterOf(nanommo::testing::Skeleton(), 0.0f, -5.0f));
+
+  world.Pick(1, skeleton);
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  world.Step(kTick);
+  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kRun);
+  EXPECT_LT(world.players().at(1).z, 0.0f);
+  for (int second = 0; second < 3; ++second) {
+    RunOneSecond(world);
+  }
+  EXPECT_LT(world.monsters().at(skeleton).health, 50);
 }
 
 TEST(World, LearnsSkillsFromATrainerFromTheirLevel) {

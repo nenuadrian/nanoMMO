@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <memory>
 #include <random>
@@ -20,6 +21,15 @@
 namespace nanommo {
 
 namespace {
+
+// For the monster a player picked, wherever it is.
+constexpr float kAnyDistance = std::numeric_limits<float>::infinity();
+
+// Whether the skill hurts the one monster the player picked: it does damage,
+// and not to all around them. A heal doesn't.
+bool OneMonster(const skills::Effect& effect) {
+  return effect.damage() > 0 && !effect.all();
+}
 
 float Distance(const Player& player, const Monster& monster) {
   return std::hypot(monster.x - player.x, monster.z - player.z);
@@ -490,26 +500,50 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
     player.motion = Motion::kIdle;
   }
   // A skill asked for while the player was busy waits until now, and one they
-  // can't use yet goes.
-  if (const skills::Skill* skill =
-          Usable(player, std::exchange(player.input_skill, 0))) {
-    Start(player, *skill);
-  } else if (player.input_attack && weapon != nullptr) {
-    Swing(player, *weapon);
-  } else {
-    Move(player, time);
+  // can't use yet goes. A swing or a skill at the monster they picked, out of
+  // reach, runs them up to it first, unless they walk off themselves.
+  const bool walking = player.input_x != 0.0f || player.input_z != 0.0f;
+  if (player.input_skill != 0) {
+    const skills::Skill* skill = Usable(player, player.input_skill);
+    const bool far = skill != nullptr && OneMonster(skill->effect()) &&
+                     Target(player, skill->effect().reach()) == nullptr;
+    if (skill != nullptr && !far) {
+      player.input_skill = 0;
+      Start(player, *skill);
+      return;
+    }
+    if (skill != nullptr && !walking) {
+      Approach(player, skill->effect().reach(), time);
+      return;
+    }
+    player.input_skill = 0;
   }
+  if (player.input_attack && weapon != nullptr) {
+    if (!walking && Target(player, kAnyDistance) != nullptr &&
+        Target(player, weapon->reach()) == nullptr) {
+      Approach(player, weapon->reach(), time);
+    } else {
+      Swing(player, *weapon);
+    }
+    return;
+  }
+  Move(player, time);
 }
 
 void World::Move(Player& player, std::chrono::nanoseconds time) {
+  Go(player, player.input_x, player.input_z, player.input_run, time);
+}
+
+void World::Go(Player& player, float to_x, float to_z, bool run,
+               std::chrono::nanoseconds time) {
   const float seconds = std::chrono::duration<float>(time).count();
-  const float speed = player.input_run ? kRunSpeed : kWalkSpeed;
+  const float speed = run ? kRunSpeed : kWalkSpeed;
   const float edge = terrain_.edge();
   float x = player.x;
   float z = player.z;
   Walk(terrain_, x, z,
-       std::clamp(player.x + player.input_x * speed * seconds, -edge, edge),
-       std::clamp(player.z + player.input_z * speed * seconds, -edge, edge));
+       std::clamp(player.x + to_x * speed * seconds, -edge, edge),
+       std::clamp(player.z + to_z * speed * seconds, -edge, edge));
   // Motion comes from how far it actually went, so that a player pushing
   // against the edge or the sea stands still, instead of walking on the spot.
   const float dx = x - player.x;
@@ -517,11 +551,23 @@ void World::Move(Player& player, std::chrono::nanoseconds time) {
   if (dx == 0.0f && dz == 0.0f) {
     player.motion = Motion::kIdle;
   } else {
-    player.motion = player.input_run ? Motion::kRun : Motion::kWalk;
+    player.motion = run ? Motion::kRun : Motion::kWalk;
     player.yaw = std::atan2(dx, dz);
   }
   player.x = x;
   player.z = z;
+}
+
+void World::Approach(Player& player, float reach,
+                     std::chrono::nanoseconds time) {
+  const Monster* monster = Target(player, kAnyDistance);
+  const float distance = Distance(player, *monster);
+  const float step = kRunSpeed * std::chrono::duration<float>(time).count();
+  // The last step is shorter, so that it stops within the reach.
+  const float share =
+      std::clamp((distance - reach * kCloseIn) / step, 0.0f, 1.0f);
+  Go(player, (monster->x - player.x) / distance * share,
+     (monster->z - player.z) / distance * share, true, time);
 }
 
 const Monster* World::Target(const Player& player, float reach) const {
@@ -569,11 +615,10 @@ const skills::Skill* World::Usable(const Player& player, uint32_t id) const {
       player.cooldowns.contains(id)) {
     return nullptr;
   }
-  // One that hits a single monster needs the one they picked, within its
-  // reach, so that its cooldown isn't spent on the air.
-  const skills::Effect& effect = found->second.effect();
-  if (effect.damage() > 0 && !effect.all() &&
-      Target(player, effect.reach()) == nullptr) {
+  // One that hits a single monster needs a living one picked, so that its
+  // cooldown isn't spent on the air.
+  if (OneMonster(found->second.effect()) &&
+      Target(player, kAnyDistance) == nullptr) {
     return nullptr;
   }
   return &found->second;
