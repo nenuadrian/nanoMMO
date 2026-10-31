@@ -161,6 +161,7 @@ Characters::Characters(const std::string& folder,
         character.hand = i;
       }
     }
+    character.joints = FindJoints(character.model);
     // Sized by the model's own mesh, so a figure is as tall as the model.
     const BoundingBox box = GetModelBoundingBox(character.model);
     character.scale = height / (box.max.y - box.min.y);
@@ -278,30 +279,15 @@ void Characters::Wear(uint32_t id, const items::Look& look) {
 }
 
 void Characters::Learn(uint32_t skill, const skills::Look& look) {
-  if (look.clip().empty()) {
-    return;
-  }
-  for (Character& character : characters_) {
-    for (int i = 0; i < character.clip_count; ++i) {
-      if (HasWord(character.clips[i].name, look.clip()) &&
-          IsModelAnimationValid(character.model, character.clips[i])) {
-        character.skill_clips[skill] = i;
-      }
-    }
+  if (!look.move().keys().empty()) {
+    moves_[skill] = look.move();
   }
 }
 
-// A skill plays its clip once. One without a clip, or with one this
-// character doesn't have, stands.
+// A skill plays its move, over the character standing.
 Characters::Pose Characters::PoseFor(const Character& character,
-                                     protocol::Motion motion, uint32_t skill,
-                                     float time) {
+                                     protocol::Motion motion, float time) {
   if (motion == protocol::MOTION_SKILL) {
-    const auto found = character.skill_clips.find(skill);
-    if (found != character.skill_clips.end()) {
-      const ModelAnimation& clip = character.clips[found->second];
-      return {&clip, FrameAt(clip, time, false)};
-    }
     motion = protocol::MOTION_IDLE;
   }
   const int index = motion >= 0 && motion < std::ssize(kClips) ? motion : 0;
@@ -310,19 +296,31 @@ Characters::Pose Characters::PoseFor(const Character& character,
                          index != protocol::MOTION_DEAD)};
 }
 
-void Characters::Draw(const Figure& figure, Color color,
-                      const Outline* outline) const {
+const Characters::Character& Characters::For(const Figure& figure) const {
   // An NPC looks the same wherever it stands, so it goes by its kind.
   const uint32_t which = figure.npc ? figure.kind : figure.id;
-  const Character& character = characters_[which % characters_.size()];
-  const Pose from =
-      PoseFor(character, figure.from, figure.from_skill, figure.from_time);
-  const Pose to =
-      PoseFor(character, figure.to, figure.to_skill, figure.to_time);
+  return characters_[which % characters_.size()];
+}
 
+void Characters::PoseAs(const Character& character,
+                        const Figure& figure) const {
+  const Pose from = PoseFor(character, figure.from, figure.from_time);
+  const Pose to = PoseFor(character, figure.to, figure.to_time);
   // Players share the model's bones, so we pose them right before each draw.
   UpdateModelAnimationEx(character.model, *from.clip, from.frame, *to.clip,
                          to.frame, figure.blend);
+  const auto move = moves_.find(figure.to_skill);
+  if (figure.to == protocol::MOTION_SKILL && move != moves_.end()) {
+    Model model = character.model;
+    Apply(BendAt(move->second, figure.to_time * 1000.0f), character.joints,
+          1.0f / character.scale, model);
+  }
+}
+
+void Characters::Draw(const Figure& figure, Color color,
+                      const Outline* outline) const {
+  const Character& character = For(figure);
+  PoseAs(character, figure);
   const float scale = character.scale;
   const Matrix placed = MatrixMultiply(
       MatrixMultiply(MatrixScale(scale, scale, scale),

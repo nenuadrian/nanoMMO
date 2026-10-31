@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "client/animator.h"
+#include "client/moves.h"
 #include "client/outline.h"
 #include "content/figures.pb.h"
 #include "content/items.pb.h"
@@ -47,7 +48,7 @@ class Characters {
   /// wear it.
   void Wear(uint32_t id, const items::Look& look);
 
-  /// Finds the skill's clip, by its name, in each character that has it.
+  /// Keeps the skill's move, for the players who use it.
   void Learn(uint32_t skill, const skills::Look& look);
 
   /// Draws the figure, posed, with what it wears and its weapon, and with an
@@ -82,8 +83,8 @@ class Characters {
     std::array<float, 5> speed{1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
     float scale = 1.0f;
     int hand = -1;
-    /// Each skill's clip, by the skill's id.
-    std::map<uint32_t, int> skill_clips;
+    /// The bones the moves turn.
+    Joints joints{};
   };
 
   struct Pose {
@@ -92,16 +93,24 @@ class Characters {
   };
 
   static Pose PoseFor(const Character& character, protocol::Motion motion,
-                      uint32_t skill, float time);
+                      float time);
+
+  /// Poses the character's bones as the figure is: its clips, blended, and
+  /// the move of the skill it's using.
+  void PoseAs(const Character& character, const Figure& figure) const;
 
   struct Weapon {
     Model model;
     Matrix grip;
   };
 
+  const Character& For(const Figure& figure) const;
+
   figures::Figures figures_;
   std::vector<Character> characters_;
   std::map<uint32_t, Weapon> weapons_;
+  /// Each skill's move, by the skill's id.
+  std::map<uint32_t, skills::Move> moves_;
 };
 
 }  // namespace nanommo

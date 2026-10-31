@@ -33,6 +33,18 @@ absl::StatusOr<SkillTable> ParseSkills(std::string_view text) {
       return absl::InvalidArgumentError(
           absl::StrCat("the ", skill.name(), " lands after it's over"));
     }
+    uint32_t last = 0;
+    for (const skills::Key& key : skill.look().move().keys()) {
+      if (key.at_ms() < last) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("the ", skill.name(), "'s move goes back in time"));
+      }
+      last = key.at_ms();
+    }
+    if (last > skill.effect().cast_ms()) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "the ", skill.name(), "'s move runs on after it's over"));
+    }
   }
   std::set<uint32_t> starting(file.starting().begin(), file.starting().end());
   for (const uint32_t id : starting) {

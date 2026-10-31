@@ -367,3 +367,25 @@ TEST(Content, RefusesSkillsThatDontAddUp) {
                 .message(),
             "there's no skill 2 to start with");
 }
+
+TEST(Content, RefusesMovesThatDontAddUp) {
+  EXPECT_TRUE(nanommo::ParseSkills("skills { id: 1 name: \"Kick\" level: 1 "
+                                   "effect { cast_ms: 900 hit_ms: 300 } "
+                                   "look { move { keys { at_ms: 200 } "
+                                   "keys { at_ms: 900 } } } }")
+                  .ok());
+  EXPECT_EQ(nanommo::ParseSkills("skills { id: 1 name: \"Kick\" level: 1 "
+                                 "effect { cast_ms: 900 hit_ms: 300 } "
+                                 "look { move { keys { at_ms: 500 } "
+                                 "keys { at_ms: 200 } } } }")
+                .status()
+                .message(),
+            "the Kick's move goes back in time");
+  EXPECT_EQ(nanommo::ParseSkills("skills { id: 1 name: \"Kick\" level: 1 "
+                                 "effect { cast_ms: 900 hit_ms: 300 } "
+                                 "look { move { keys { at_ms: 200 } "
+                                 "keys { at_ms: 1000 } } } }")
+                .status()
+                .message(),
+            "the Kick's move runs on after it's over");
+}

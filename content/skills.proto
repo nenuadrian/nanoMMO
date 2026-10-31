@@ -18,14 +18,73 @@ message Effect {
   uint32 heal = 7;
 }
 
+// The joints a move turns, each a bone of the characters.
+enum Joint {
+  HIPS = 0;
+  SPINE = 1;
+  CHEST = 2;
+  HEAD = 3;
+  RIGHT_ARM = 4;
+  RIGHT_FOREARM = 5;
+  RIGHT_HAND = 6;
+  LEFT_ARM = 7;
+  LEFT_FOREARM = 8;
+  RIGHT_LEG = 9;
+  RIGHT_KNEE = 10;
+  LEFT_LEG = 11;
+  LEFT_KNEE = 12;
+}
+
+// A joint's turn, in degrees, about the player's own axes: pitch about the
+// one through their shoulders, yaw about up, and roll about the one they face
+// along. Each turns the way your fingers curl with your right thumb along its
+// axis: the left, up and forward.
+message Turn {
+  Joint joint = 1;
+  float pitch = 2;
+  float yaw = 3;
+  float roll = 4;
+}
+
+// How the joints go from the key before to this one.
+enum Ease {
+  // Slowly away, and slowly in.
+  SMOOTH = 0;
+  // Fast away, and slowly in: a strike.
+  SNAP = 1;
+  // Slowly away, then fast: winding up into it.
+  GATHER = 2;
+}
+
+// A pose, as turns of the joints from the clip under it, at a time into the
+// skill.
+message Key {
+  uint32 at_ms = 1;
+  Ease ease = 2;
+  repeated Turn turns = 3;
+  // The whole body, up and forward, in metres: a jump, or a lunge.
+  float lift = 4;
+  float ahead = 5;
+}
+
+// The player's move, from key to key, starting from the clip under it.
+// A move ends where its last key is, so that key is usually the clip again,
+// with no turns.
+message Move {
+  repeated Key keys = 1;
+}
+
 // How a skill looks: the client's part.
 message Look {
+  // Moves came in place of clips.
+  reserved 2;
+  reserved "clip";
   // A Font Awesome icon, by its code point.
   uint32 icon = 1;
-  // The characters' clip the player moves with. Without one, they stand.
-  string clip = 2;
   // As 0xRRGGBBAA, a glow around the player while they use it.
   optional uint32 glow = 3;
+  // Without one, the player stands.
+  Move move = 4;
 }
 
 message Skill {

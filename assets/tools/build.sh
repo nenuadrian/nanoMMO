@@ -14,12 +14,8 @@ convert "Walking" walk
 convert "Slow Run" run
 convert "Stable Sword Outward Slash" attack
 convert "Dying Backwards" death
-convert "Thrust Slash" thrust
-convert "Kicking" kick
-convert "Standing Melee Attack 360 Low" whirlwind
 
 for character in x_bot y_bot; do
   node tools/merge.mjs "glb/$character.glb" "out/$character.glb" \
-    glb/idle.glb glb/walk.glb glb/run.glb glb/attack.glb glb/death.glb \
-    glb/thrust.glb glb/kick.glb glb/whirlwind.glb
+    glb/idle.glb glb/walk.glb glb/run.glb glb/attack.glb glb/death.glb
 done
