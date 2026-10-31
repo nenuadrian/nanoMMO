@@ -84,6 +84,6 @@ spawns { kind: 2 land: "Ashlands" x: -3.5 z: -3 }
 spawns { kind: 2 land: "Ashlands" x: 3.5 z: -2.5 }
 spawns { kind: 2 land: "Ashlands" x: 3 z: 3.5 }
 
-camps { kind: 1 land: "Meadows" count: 8 }
-camps { kind: 2 land: "Ashlands" count: 8 }
-camps { kind: 3 land: "Crypt" count: 12 }
+camps { kind: 1 land: "Meadows" count: 40 }
+camps { kind: 2 land: "Ashlands" count: 40 }
+camps { kind: 3 land: "Crypt" count: 24 }

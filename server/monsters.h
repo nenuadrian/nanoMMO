@@ -23,8 +23,13 @@ Monster MonsterOf(const monsters::Kind& kind, float x, float z);
 /// the land's place in kLands.
 void SpawnMonsters(World& land, int index, const MonsterTable& table);
 
+/// In metres between the middles of two camps, at least.
+constexpr float kCampSpacing = 30.0f;
+
 /// Places for camps of monsters, which the terrain's seed picks: between the
-/// beach and the rock, and well away from the middle, where the players start.
+/// beach and the rock, well away from the middle, where the players start,
+/// and spread out over the land, kCampSpacing apart at least. As many as
+/// count, or as many as it finds room for in its tries.
 std::vector<std::pair<float, float>> Camps(const Terrain& terrain, int count);
 
 std::chrono::nanoseconds RandomRest(std::mt19937& random);

@@ -1,7 +1,9 @@
 #include "server/monsters.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <random>
@@ -91,4 +93,27 @@ TEST(Monsters, CampsAboveTheBeachAwayFromTheMiddle) {
     EXPECT_GE(island.Height(x, z), 1.0f);
   }
   EXPECT_EQ(nanommo::Camps(island, 8), camps);
+}
+
+TEST(Monsters, CampsSpreadOverTheLand) {
+  const nanommo::Terrain island(1);
+
+  const auto camps = nanommo::Camps(island, 40);
+
+  ASSERT_EQ(camps.size(), 40u);
+  for (std::size_t i = 0; i < camps.size(); ++i) {
+    for (std::size_t j = i + 1; j < camps.size(); ++j) {
+      EXPECT_GE(std::hypot(camps[i].first - camps[j].first,
+                           camps[i].second - camps[j].second),
+                nanommo::kCampSpacing);
+    }
+  }
+  // In each quarter of the island.
+  for (const float x : {-1.0f, 1.0f}) {
+    for (const float z : {-1.0f, 1.0f}) {
+      EXPECT_TRUE(std::ranges::any_of(camps, [x, z](const auto& camp) {
+        return camp.first * x > 0.0f && camp.second * z > 0.0f;
+      }));
+    }
+  }
 }

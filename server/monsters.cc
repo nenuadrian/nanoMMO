@@ -16,6 +16,9 @@ namespace {
 
 constexpr float kCampsFromTheMiddle = 30.0f;
 
+// So many places tried for each camp, before the land counts as full.
+constexpr int kTriesEach = 50;
+
 // Above the beach, and below the rock.
 constexpr float kLowestCamp = 1.0f;
 constexpr float kHighestCamp = 10.0f;
@@ -85,13 +88,21 @@ std::vector<std::pair<float, float>> Camps(const Terrain& terrain, int count) {
   std::mt19937 random(terrain.seed());
   std::uniform_real_distribution<float> place(-terrain.edge(), terrain.edge());
   std::vector<std::pair<float, float>> camps;
-  // Most of the grid is sea, so it takes a few tries to find each one.
-  for (int tries = 0; tries < 1000 && std::ssize(camps) < count; ++tries) {
+  // Darts thrown at the land: a place too near a camp we have is thrown
+  // again, as is one in the sea, so the camps spread over the land evenly,
+  // where places picked at random alone bunch up and leave gaps.
+  const auto spaced = [&camps](float x, float z) {
+    return std::ranges::none_of(camps, [x, z](const auto& camp) {
+      return std::hypot(camp.first - x, camp.second - z) < kCampSpacing;
+    });
+  };
+  for (int tries = 0; tries < kTriesEach * count && std::ssize(camps) < count;
+       ++tries) {
     const float x = place(random);
     const float z = place(random);
     const float height = terrain.Height(x, z);
     if (std::hypot(x, z) >= kCampsFromTheMiddle && height >= kLowestCamp &&
-        height <= kHighestCamp && terrain.Walkable(x, z)) {
+        height <= kHighestCamp && terrain.Walkable(x, z) && spaced(x, z)) {
       camps.emplace_back(x, z);
     }
   }
