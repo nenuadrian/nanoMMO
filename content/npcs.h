@@ -11,6 +11,11 @@
 
 namespace nanommo {
 
+/// In metres, from the middle of an NPC, as you'd talk to someone: how near a
+/// player has to be to talk to one, learn from it or take its quests. The
+/// server holds them to it, and the client lets them click only that near.
+constexpr float kTalkReach = 4.0f;
+
 /// The kinds of NPC, by id, and where each NPC stands.
 struct NpcTable {
   std::map<uint32_t, npcs::Kind> kinds;

@@ -22,6 +22,7 @@
 #include "client/chat_window.h"
 #include "client/combat_text.h"
 #include "client/connection.h"
+#include "client/cursor.h"
 #include "client/death_screen.h"
 #include "client/gate.h"
 #include "client/gui.h"
@@ -249,6 +250,7 @@ int main(int argc, char* argv[]) {
     // Whether our world has come, and its land is built, to be drawn.
     bool in_world = false;
     bool dead = false;
+    nanommo::Pointing pointing = nanommo::Pointing::kNothing;
     if (connection) {
       const Vector3 direction = camera.Relative(nanommo::Movement());
       const bool run = nanommo::Running();
@@ -314,6 +316,8 @@ int main(int argc, char* argv[]) {
                       nanommo::CameraTilt(), nanommo::CameraZoom(), *terrain);
         renderer.set_camera(camera.camera());
       }
+      const Vector3 here =
+          you != figures.end() ? you->position : Vector3{0.0f, 0.0f, 0.0f};
       for (const nanommo::protocol::Event& event : connection->TakeEvents()) {
         combat_text.Add(event, world.you());
       }
@@ -328,24 +332,31 @@ int main(int argc, char* argv[]) {
       }
       renderer.set_figures(std::move(figures));
       // A click on someone to talk to opens their window, one on a monster
-      // picks it, and one on neither lets go of what we'd picked.
-      if (nanommo::ClickedWorld() && !dead) {
+      // picks it, and one on neither lets go of what we'd picked. The cursor
+      // says which a click would do.
+      if (!ImGui::GetIO().WantCaptureMouse && !dead) {
         const Ray ray =
             GetScreenToWorldRay(GetMousePosition(), camera.camera());
-        if (const nanommo::Figure* npc =
-                nanommo::PickNpc(renderer.figures(), ray)) {
-          if (npc->talks) {
+        const nanommo::Figure* npc =
+            nanommo::PickNpc(renderer.figures(), ray, here);
+        const nanommo::Figure* monster =
+            npc == nullptr ? nanommo::PickMonster(renderer.figures(), ray)
+                           : nullptr;
+        if (npc != nullptr) {
+          pointing = nanommo::Pointing::kNpc;
+        } else if (monster != nullptr) {
+          pointing = nanommo::Pointing::kMonster;
+        }
+        if (nanommo::ClickedWorld()) {
+          if (npc == nullptr) {
+            target = monster != nullptr ? monster->id : 0;
+          } else if (npc->talks) {
             talk_window.Open(npc->id, npc->name);
           } else if (!npc->quests.empty()) {
             quest_window.Open(npc->id, npc->name, npc->quests);
           } else {
             trainer_window.Open(npc->id, npc->name, npc->teaches);
           }
-        } else if (const nanommo::Figure* monster =
-                       nanommo::PickMonster(renderer.figures(), ray)) {
-          target = monster->id;
-        } else {
-          target = 0;
         }
       }
       if (IsKeyPressed(KEY_ESCAPE) && !nanommo::Typing()) {
@@ -476,6 +487,7 @@ int main(int argc, char* argv[]) {
                                  nanommo::kLooks[land].atmosphere.sky,
                                  world_name, "Entering the world");
     }
+    nanommo::UpdateCursor(pointing);
     // Once a slider lets go, so that a drag across one writes once.
     if (settings != saved && !ImGui::IsAnyItemActive()) {
       if (const absl::Status written =

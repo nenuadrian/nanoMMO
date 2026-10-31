@@ -10,7 +10,7 @@ add_library(nanommo_client_core
   animator.cc characters.cc figures.cc triangles.cc ground.cc trees.cc chunks.cc
   sea.cc
   gate.cc
-  loading.cc death_screen.cc cube.cc
+  loading.cc death_screen.cc cube.cc cursor.cc
 )
 protobuf_generate(TARGET nanommo_client_core
   IMPORT_DIRS ${PROJECT_SOURCE_DIR} PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}

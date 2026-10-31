@@ -17,6 +17,8 @@ Gui::Gui() {
   rlImGuiSetup(true);
   ImGui::GetIO().IniFilename = nullptr;
   ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+  // The cursor is ours, as the world has cursors of its own (see cursor.h).
+  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 }
 
 Gui::~Gui() { rlImGuiShutdown(); }

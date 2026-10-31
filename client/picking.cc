@@ -1,7 +1,10 @@
 #include "client/picking.h"
 
+#include <cmath>
 #include <limits>
 #include <vector>
+
+#include "content/npcs.h"
 
 namespace nanommo {
 namespace {
@@ -35,10 +38,14 @@ const Figure* Pick(const std::vector<Figure>& figures, const Ray& ray,
 
 }  // namespace
 
-const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray) {
-  return Pick(figures, ray, [](const Figure& figure) {
+const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray,
+                      Vector3 you) {
+  return Pick(figures, ray, [you](const Figure& figure) {
     return figure.npc &&
-           (figure.talks || !figure.teaches.empty() || !figure.quests.empty());
+           (figure.talks || !figure.teaches.empty() ||
+            !figure.quests.empty()) &&
+           std::hypot(figure.position.x - you.x, figure.position.z - you.z) <=
+               kTalkReach;
   });
 }
 

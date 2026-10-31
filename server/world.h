@@ -199,8 +199,7 @@ class World {
   /// once it's over, and a player when they ask to.
   static constexpr std::chrono::seconds kRespawnTime{10};
 
-  /// In metres, from the middle of an NPC, as you'd talk to someone.
-  static constexpr float kTalkReach = 4.0f;
+  static constexpr float kTalkReach = nanommo::kTalkReach;
 
   /// Players fight with the content's weapons and skills, so in a world
   /// without content, nobody can. Content doesn't change as the game runs, so
