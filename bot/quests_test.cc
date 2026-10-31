@@ -26,14 +26,15 @@ nanommo::protocol::World Seen() {
   guard->set_id(7);
   guard->set_kind(kGuard);
   guard->set_x(10.0f);
-  const auto monster = [&](uint32_t kind, float x) {
+  const auto monster = [&](uint32_t id, uint32_t kind, float x) {
     nanommo::protocol::Monster* added = seen.add_monsters();
+    added->set_id(id);
     added->set_kind(kind);
     added->set_x(x);
   };
-  monster(kSkeleton, 20.0f);
-  monster(kAshSkeleton, 2.0f);
-  monster(kSkeleton, -8.0f);
+  monster(1, kSkeleton, 20.0f);
+  monster(2, kAshSkeleton, 2.0f);
+  monster(3, kSkeleton, -8.0f);
   return seen;
 }
 
@@ -59,6 +60,7 @@ TEST(Quests, HuntsTheNearestMonsterItsQuestAsksFor) {
   EXPECT_EQ(errand->kind, Errand::Kind::kHunt);
   // Not the Ash Skeleton, nearer as it is.
   EXPECT_FLOAT_EQ(errand->x, -8.0f);
+  EXPECT_EQ(errand->monster, 3u);
 
   nanommo::protocol::World dead = Seen();
   for (nanommo::protocol::Monster& monster : *dead.mutable_monsters()) {
@@ -84,4 +86,13 @@ TEST(Quests, LeavesAQuestItsDone) {
   quests.add_done(kBones);
 
   EXPECT_FALSE(nanommo::NextErrand(Content(), quests, Seen(), 0.0f, 0.0f));
+}
+
+TEST(Quests, TellsWhenTheMonsterItHuntsIsDead) {
+  nanommo::protocol::World seen = Seen();
+  EXPECT_FALSE(nanommo::Dead(seen, 3));
+  seen.mutable_monsters(2)->set_motion(nanommo::protocol::MOTION_DEAD);
+  EXPECT_TRUE(nanommo::Dead(seen, 3));
+  // Out of sight isn't dead.
+  EXPECT_FALSE(nanommo::Dead(seen, 9));
 }

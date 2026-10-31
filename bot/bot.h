@@ -55,6 +55,8 @@ class Bot {
   void ReceiveOverUdp();
   void Receive(std::string_view bytes);
   void Wander();
+  /// Wanders again once the wait is over.
+  void WanderIn(std::chrono::milliseconds wait);
   void Stop();
 
   TlsStream stream_;
@@ -77,6 +79,8 @@ class Bot {
   uint32_t land_ = 0;
   std::optional<Trip> trip_;
   int stay_ = 0;
+  /// The monster the bot swings at, by its id, while it hunts.
+  uint32_t hunting_ = 0;
   /// The storyteller in the bot's land, once the bot has seen it.
   std::optional<protocol::Npc> storyteller_;
   /// Whether the trip goes to the storyteller, for a story.

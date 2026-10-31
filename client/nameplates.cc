@@ -49,6 +49,11 @@ ImU32 NameColor(const Figure& figure) {
 
 float Above(const Figure& figure) { return figure.monster ? 1.9f : 2.35f; }
 
+bool HasNameplate(const Figure& figure) {
+  return !figure.name.empty() &&
+         !(figure.monster && figure.to == protocol::MOTION_DEAD);
+}
+
 void DrawNameplates(const std::vector<Figure>& figures,
                     const Camera3D& camera) {
   ImDrawList* draw = ImGui::GetBackgroundDrawList();
@@ -57,8 +62,7 @@ void DrawNameplates(const std::vector<Figure>& figures,
   const Vector3 forward =
       Vector3Normalize(Vector3Subtract(camera.target, camera.position));
   for (const Figure& figure : figures) {
-    // Names come once a second, so one we've just met waits for its nameplate.
-    if (figure.name.empty()) {
+    if (!HasNameplate(figure)) {
       continue;
     }
     const Vector3& position = figure.position;

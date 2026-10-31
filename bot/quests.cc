@@ -49,8 +49,10 @@ std::optional<Errand> NextErrand(const Content& content,
       if (monster.kind() == quest->second.kill().monster() &&
           monster.motion() != protocol::MOTION_DEAD && distance < nearest) {
         nearest = distance;
-        hunt = Errand{
-            .kind = Errand::Kind::kHunt, .x = monster.x(), .z = monster.z()};
+        hunt = Errand{.kind = Errand::Kind::kHunt,
+                      .x = monster.x(),
+                      .z = monster.z(),
+                      .monster = monster.id()};
       }
     }
   }
@@ -67,6 +69,13 @@ std::optional<Errand> NextErrand(const Content& content,
     }
   }
   return std::nullopt;
+}
+
+bool Dead(const protocol::World& seen, uint32_t monster) {
+  return std::ranges::any_of(
+      seen.monsters(), [monster](const protocol::Monster& unit) {
+        return unit.id() == monster && unit.motion() == protocol::MOTION_DEAD;
+      });
 }
 
 }  // namespace nanommo

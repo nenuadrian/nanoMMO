@@ -1,6 +1,7 @@
 #ifndef NANOMMO_BOT_QUESTS_H_
 #define NANOMMO_BOT_QUESTS_H_
 
+#include <cstdint>
 #include <optional>
 
 #include "content/content.h"
@@ -15,6 +16,9 @@ struct Errand {
   Kind kind = Kind::kHunt;
   float x = 0.0f;
   float z = 0.0f;
+  /// The monster a hunt goes after, by its id, so that the bot can tell once
+  /// it's dead.
+  uint32_t monster = 0;
   /// Who to, and which quest, unless it's a hunt.
   protocol::Quest quest;
 };
@@ -26,6 +30,10 @@ struct Errand {
 std::optional<Errand> NextErrand(const Content& content,
                                  const protocol::Quests& quests,
                                  const protocol::World& seen, float x, float z);
+
+/// Whether the world shows the monster dead, by its id. One the world doesn't
+/// have isn't, as it may be out of sight.
+bool Dead(const protocol::World& seen, uint32_t monster);
 
 }  // namespace nanommo
 

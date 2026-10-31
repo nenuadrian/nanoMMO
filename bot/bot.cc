@@ -58,6 +58,10 @@ constexpr std::chrono::seconds kDrinkEvery{10};
 constexpr float kSwing = 1.2f;
 constexpr float kTalk = 3.0f;
 
+// How soon a bot thinks again once the monster it hunts is dead: soon, but
+// not before what it sent last has gone out.
+constexpr std::chrono::milliseconds kRethink{100};
+
 std::string RandomWords(std::mt19937& random) {
   std::vector<const char*> words;
   std::ranges::sample(kWords, std::back_inserter(words), 3, random);
@@ -200,6 +204,12 @@ void Bot::Receive(std::string_view bytes) {
     return;
   }
   parts_.Add(world);
+  // Once the monster it hunts is dead, the bot thinks again, and doesn't swing
+  // at the body for as long as it holds its input.
+  if (hunting_ != 0 && Dead(world, hunting_)) {
+    hunting_ = 0;
+    WanderIn(kRethink);
+  }
   const uint32_t parts = std::max(world.parts(), 1u);
   newest_.resize(parts);
   if (world.part() < parts) {
@@ -234,6 +244,7 @@ void Bot::Receive(std::string_view bytes) {
 }
 
 void Bot::Wander() {
+  hunting_ = 0;
   // Quests come first: a bot hunts what they ask for, and takes and turns them
   // in, as players do, whenever its world has some of that around it.
   if (!trip_ && stay_ == 0) {
@@ -268,6 +279,7 @@ void Bot::Wander() {
         input.emplace();
         if (errand_->kind == Errand::Kind::kHunt) {
           input->set_attack(true);
+          hunting_ = errand_->monster;
         } else if (errand_->kind == Errand::Kind::kTake) {
           *input->mutable_take() = errand_->quest;
         } else {
@@ -322,7 +334,11 @@ void Bot::Wander() {
                         connected_ = false;
                       }
                     });
-  timer_.expires_after(trip_ ? std::chrono::seconds(1) : RandomHold(random_));
+  WanderIn(trip_ ? std::chrono::seconds(1) : RandomHold(random_));
+}
+
+void Bot::WanderIn(std::chrono::milliseconds wait) {
+  timer_.expires_after(wait);
   timer_.async_wait([this](std::error_code error) {
     if (!error && connected_) {
       Wander();
