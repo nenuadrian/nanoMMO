@@ -17,6 +17,7 @@
 #include "client/characters.h"
 #include "client/chunks.h"
 #include "client/cube.h"
+#include "client/fx.h"
 #include "client/outline.h"
 #include "client/sea.h"
 #include "client/trees.h"
@@ -73,6 +74,9 @@ class Renderer {
     figures_ = std::move(figures);
   }
 
+  /// Moves the skills' fx on by the seconds, as the figures are now.
+  void Animate(float seconds) { fx_->Update(figures_, seconds); }
+
   /// The monster the player picked, by its id, which gets a ring at its feet,
   /// or 0 for none.
   void set_target(uint32_t target) { target_ = target; }
@@ -110,8 +114,6 @@ class Renderer {
   Model cube_;
   Model disc_;
   Model spire_;
-  /// A skill's glow is this ball, scaled and tinted.
-  Model sphere_;
   std::vector<Face> tree_;
   std::vector<Chunk> chunks_;
   std::unique_ptr<Sea> sea_;
@@ -120,8 +122,7 @@ class Renderer {
   Characters characters_;
   /// Each kind of monster, by id, as its model at its height.
   std::map<uint32_t, std::unique_ptr<Characters>> monsters_;
-  /// The glows' colours, by the id of the skill each goes with.
-  std::map<uint32_t, Color> glows_;
+  std::unique_ptr<Fx> fx_;
 };
 
 }  // namespace nanommo

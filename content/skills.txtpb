@@ -55,6 +55,10 @@ skills {
       }
       keys { at_ms: 1300 }
     }
+    fx {
+      kind: TRAIL from_ms: 330 for_ms: 200
+      color: 0x9FD8FFFF
+    }
   }
 }
 skills {
@@ -112,7 +116,6 @@ skills {
   }
   look {
     icon: 0xF21E
-    glow: 0x5BC46B80
     move {
       keys {
         at_ms: 400
@@ -131,6 +134,10 @@ skills {
         turns { joint: LEFT_ARM pitch: -35 roll: 55 }
       }
       keys { at_ms: 1150 }
+    }
+    fx {
+      kind: GLOW from_ms: 0 for_ms: 1100
+      color: 0x7CF08CFF size: 0.9
     }
   }
 }
@@ -178,6 +185,10 @@ skills {
         at_ms: 1650
         turns { joint: HIPS yaw: -720 }
       }
+    }
+    fx {
+      kind: TRAIL from_ms: 300 for_ms: 900
+      color: 0xFF9A48FF
     }
   }
 }

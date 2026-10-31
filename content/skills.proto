@@ -74,17 +74,42 @@ message Move {
   repeated Key keys = 1;
 }
 
+// What a skill shows besides the move: its fx.
+message Fx {
+  enum Kind {
+    // A ribbon of light where the blade has just been.
+    TRAIL = 0;
+    // A ball of light.
+    GLOW = 1;
+  }
+  // Where it is.
+  enum Place {
+    // At the player's feet.
+    PLAYER = 0;
+    // At the tip of the player's blade, where it is now.
+    BLADE = 1;
+  }
+  Kind kind = 1;
+  Place at = 2;
+  // From the start of the skill, and for how long.
+  uint32 from_ms = 3;
+  uint32 for_ms = 4;
+  // As 0xRRGGBBAA.
+  uint32 color = 5;
+  // In metres.
+  float size = 6;
+}
+
 // How a skill looks: the client's part.
 message Look {
-  // Moves came in place of clips.
-  reserved 2;
-  reserved "clip";
+  // Moves and fx came in place of clips and glows.
+  reserved 2, 3;
+  reserved "clip", "glow";
   // A Font Awesome icon, by its code point.
   uint32 icon = 1;
-  // As 0xRRGGBBAA, a glow around the player while they use it.
-  optional uint32 glow = 3;
   // Without one, the player stands.
   Move move = 4;
+  repeated Fx fx = 5;
 }
 
 message Skill {

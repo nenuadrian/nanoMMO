@@ -157,12 +157,6 @@ constexpr float kOutlineThickness = 0.04f;
 
 constexpr std::array<float, 3> kPreviewBackground = {0.12f, 0.14f, 0.19f};
 
-// In metres: a glow's middle is halfway up a player, and it reaches past their
-// head and their feet.
-constexpr float kMiddle = 0.9f;
-constexpr float kGlowRadius = 1.1f;
-// A glow gives off half the light of a face turned to a white sun.
-constexpr float kGlowEmission = 0.5f;
 // The sun's light in three bands: in shadow, half lit and lit.
 constexpr float kBands = 3.0f;
 
@@ -240,13 +234,6 @@ Atmosphere Lifted(Atmosphere atmosphere, float clear) {
   return atmosphere;
 }
 
-// The light what's drawn next gives off of its own, which takes it past white,
-// so that it blooms.
-void SetEmission(Shader shader, float emission) {
-  SetShaderValue(shader, GetShaderLocation(shader, "emission"), &emission,
-                 SHADER_UNIFORM_FLOAT);
-}
-
 void SetFog(Shader shader, const Atmosphere& atmosphere) {
   // Into the sky's colour, so that far away things fade into the sky.
   SetShaderValue(shader, GetShaderLocation(shader, "fogColor"),
@@ -280,10 +267,10 @@ Renderer::Renderer(const Content& content)
       cube_(LoadModelFromMesh(GenMeshCube(1.0f, 1.0f, 1.0f))),
       disc_(LoadModelFromMesh(Disc().Upload())),
       spire_(LoadModelFromMesh(Spire().Upload())),
-      sphere_(LoadModelFromMesh(GenMeshSphere(1.0f, 16, 16))),
       characters_(CharactersFolder(), {"x_bot.glb", "y_bot.glb"}, 1.8f,
-                  character_shader_, content.figures) {
-  for (Model* model : {&cube_, &disc_, &spire_, &sphere_}) {
+                  character_shader_, content.figures),
+      fx_(std::make_unique<Fx>(content.skills)) {
+  for (Model* model : {&cube_, &disc_, &spire_}) {
     model->materials[0].shader = cube_shader_;
   }
   for (const Shader& shader : {outline_.still, outline_.skinned}) {
@@ -297,9 +284,6 @@ Renderer::Renderer(const Content& content)
   }
   for (const auto& [id, skill] : content.skills.by_id) {
     characters_.Learn(id, skill.look());
-    if (skill.look().has_glow()) {
-      glows_[id] = GetColor(skill.look().glow());
-    }
   }
   // Two kinds with one model load it twice, which is fine for a few kinds.
   for (const auto& [id, kind] : content.monsters.kinds) {
@@ -317,7 +301,6 @@ Renderer::~Renderer() {
   UnloadModel(cube_);
   UnloadModel(disc_);
   UnloadModel(spire_);
-  UnloadModel(sphere_);
   UnloadShader(character_shader_);
   UnloadShader(outline_.still);
   UnloadShader(outline_.skinned);
@@ -417,22 +400,8 @@ void Renderer::Draw() const {
     ++work_.draws;
     work_.triangles += sea_->triangles();
   }
-  // The glows are see-through too, around the players using a skill with one.
-  // Each grows over the first quarter of a second. A glow is light, so it adds
-  // to what's behind it, where blending would cover it.
-  SetEmission(cube_shader_, kGlowEmission);
-  BeginBlendMode(BLEND_ADDITIVE);
-  for (const Figure& figure : figures_) {
-    const auto glow = glows_.find(figure.to_skill);
-    if (figure.to == protocol::MOTION_SKILL && glow != glows_.end()) {
-      const Vector3& at = figure.position;
-      const float radius = kGlowRadius * figure.blend;
-      DrawModelEx(sphere_, {at.x, at.y + kMiddle, at.z}, {0.0f, 1.0f, 0.0f},
-                  0.0f, {radius, radius, radius}, glow->second);
-    }
-  }
-  EndBlendMode();
-  SetEmission(cube_shader_, 0.0f);
+  // The skills' light goes last, over everything it lights up.
+  fx_->DrawLight(camera_, atmosphere, characters_);
   EndMode3D();
 }
 

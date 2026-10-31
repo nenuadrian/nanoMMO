@@ -256,7 +256,14 @@ void Characters::Hold(uint32_t id, const items::Look& look, Shader shader) {
   const Matrix out = MatrixRotateY(40.0f * DEG2RAD);
   const Matrix in_hand = MatrixMultiply(MatrixMultiply(along, out),
                                         MatrixTranslate(0.0f, kPalm, 0.0f));
-  weapons_[id] = {.model = weapon, .grip = MatrixMultiply(sized, in_hand)};
+  // The blade runs up the middle of the model, from the grip to the top.
+  const float middle_x = (box.min.x + box.max.x) / 2.0f;
+  const float middle_z = (box.min.z + box.max.z) / 2.0f;
+  weapons_[id] = {
+      .model = weapon,
+      .grip = MatrixMultiply(sized, in_hand),
+      .hilt = {middle_x, box.min.y + 1.5f * look.grip() * height, middle_z},
+      .tip = {middle_x, box.max.y, middle_z}};
 }
 
 void Characters::Wear(uint32_t id, const items::Look& look) {
@@ -317,15 +324,47 @@ void Characters::PoseAs(const Character& character,
   }
 }
 
+Matrix Characters::Placed(const Character& character, const Figure& figure) {
+  const float scale = character.scale;
+  return MatrixMultiply(
+      MatrixMultiply(MatrixScale(scale, scale, scale),
+                     MatrixRotateY(figure.yaw)),
+      MatrixTranslate(figure.position.x, figure.position.y, figure.position.z));
+}
+
+Matrix Characters::InHand(const Character& character, const Matrix& grip) {
+  const Transform& hand = character.model.currentPose[character.hand];
+  const Matrix bone = MatrixMultiply(
+      MatrixMultiply(MatrixScale(hand.scale.x, hand.scale.y, hand.scale.z),
+                     QuaternionToMatrix(hand.rotation)),
+      MatrixTranslate(hand.translation.x, hand.translation.y,
+                      hand.translation.z));
+  return MatrixMultiply(grip, bone);
+}
+
+std::optional<std::pair<Vector3, Vector3>> Characters::Blade(
+    const Figure& figure) const {
+  const auto held = weapons_.find(figure.weapon);
+  if (characters_.empty() || held == weapons_.end()) {
+    return std::nullopt;
+  }
+  const Character& character = For(figure);
+  if (character.hand < 0) {
+    return std::nullopt;
+  }
+  PoseAs(character, figure);
+  const Matrix world = MatrixMultiply(InHand(character, held->second.grip),
+                                      Placed(character, figure));
+  return std::pair{Vector3Transform(held->second.hilt, world),
+                   Vector3Transform(held->second.tip, world)};
+}
+
 void Characters::Draw(const Figure& figure, Color color,
                       const Outline* outline) const {
   const Character& character = For(figure);
   PoseAs(character, figure);
   const float scale = character.scale;
-  const Matrix placed = MatrixMultiply(
-      MatrixMultiply(MatrixScale(scale, scale, scale),
-                     MatrixRotateY(figure.yaw)),
-      MatrixTranslate(figure.position.x, figure.position.y, figure.position.z));
+  const Matrix placed = Placed(character, figure);
   // Each with its outline first, at the figure's place, its turn and its
   // scale.
   auto draw = [&](const Model& model, const Model& hull, Color tint) {
@@ -361,15 +400,9 @@ void Characters::Draw(const Figure& figure, Color color,
   if (held == weapons_.end() || character.hand < 0) {
     return;
   }
-  const Transform& hand = character.model.currentPose[character.hand];
-  const Matrix bone = MatrixMultiply(
-      MatrixMultiply(MatrixScale(hand.scale.x, hand.scale.y, hand.scale.z),
-                     QuaternionToMatrix(hand.rotation)),
-      MatrixTranslate(hand.translation.x, hand.translation.y,
-                      hand.translation.z));
   Model weapon = held->second.model;
   weapon.transform =
-      MatrixMultiply(MatrixMultiply(held->second.grip, bone), placed);
+      MatrixMultiply(InHand(character, held->second.grip), placed);
   if (outline != nullptr) {
     DrawOutline(weapon, MatrixIdentity(), outline->still);
   }

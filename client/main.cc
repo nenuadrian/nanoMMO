@@ -370,6 +370,7 @@ int main(int argc, char* argv[]) {
         target = 0;
       }
       renderer.set_figures(std::move(figures));
+      renderer.Animate(GetFrameTime());
       // A click on someone to talk to opens their window, one on a monster
       // picks it, and one on neither lets go of what we'd picked. The cursor
       // says which a click would do.

@@ -7,7 +7,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "client/animator.h"
@@ -56,6 +58,10 @@ class Characters {
   /// figure in their skin, with their hair, and what's dyed in the colour.
   void Draw(const Figure& figure, Color color, const Outline* outline) const;
 
+  /// Where the figure's blade is, in the world, from the hilt to the tip, as
+  /// it's posed: none, if it holds nothing.
+  std::optional<std::pair<Vector3, Vector3>> Blade(const Figure& figure) const;
+
  private:
   /// Something over the figure, such as the hair or what it wears, as a model
   /// and its hull, which share the character's bones.
@@ -99,9 +105,18 @@ class Characters {
   /// the move of the skill it's using.
   void PoseAs(const Character& character, const Figure& figure) const;
 
+  /// Where the figure stands, turned and at its scale.
+  static Matrix Placed(const Character& character, const Figure& figure);
+
+  /// Where the held item goes, as the hand's bone is now.
+  static Matrix InHand(const Character& character, const Matrix& grip);
+
   struct Weapon {
     Model model;
     Matrix grip;
+    /// Along the blade, in the model's own units.
+    Vector3 hilt;
+    Vector3 tip;
   };
 
   const Character& For(const Figure& figure) const;
