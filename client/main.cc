@@ -22,6 +22,7 @@
 #include "client/chat_window.h"
 #include "client/combat_text.h"
 #include "client/connection.h"
+#include "client/death_screen.h"
 #include "client/gate.h"
 #include "client/gui.h"
 #include "client/hotbar.h"
@@ -173,6 +174,7 @@ int main(int argc, char* argv[]) {
   nanommo::Animator animator(*content);
   nanommo::CombatText combat_text;
   nanommo::Loading loading;
+  nanommo::DeathScreen death_screen;
   std::optional<nanommo::Terrain> terrain;
   int land = 0;
   nanommo::FollowCamera camera;
@@ -243,6 +245,7 @@ int main(int argc, char* argv[]) {
 
     // Whether our world has come, and its land is built, to be drawn.
     bool in_world = false;
+    bool dead = false;
     if (connection) {
       const Vector3 direction = camera.Relative(nanommo::Movement());
       const bool run = nanommo::Running();
@@ -298,6 +301,7 @@ int main(int argc, char* argv[]) {
             terrain->Height(figure.position.x, figure.position.z);
       }
       const auto you = std::ranges::find_if(figures, &nanommo::Figure::you);
+      dead = you != figures.end() && you->to == nanommo::protocol::MOTION_DEAD;
       if (you != figures.end()) {
         camera.Update(you->position, nanommo::CameraTurn(GetFrameTime()),
                       nanommo::CameraTilt(), nanommo::CameraZoom(), *terrain);
@@ -332,6 +336,10 @@ int main(int argc, char* argv[]) {
       character_screen.Render(renderer);
     }
 
+    // Before the frame is drawn, so that the frame we're back in is the dark
+    // one, which hides our jump to the middle.
+    death_screen.Update(GetFrameTime(), dead);
+
     // The world goes into a frame of its own, which the screen gets from there.
     if (in_world) {
       renderer.set_cel_shading(settings.graphics.cel_shading);
@@ -351,6 +359,12 @@ int main(int argc, char* argv[]) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera());
       nanommo::DrawCombatText(combat_text, renderer.figures(),
                               renderer.camera());
+      // Over the nameplates, and under the windows.
+      if (death_screen.Build(dead, connection->world().respawn())) {
+        nanommo::protocol::Input respawn = sent;
+        respawn.set_respawn(true);
+        connection->Send(respawn);
+      }
       nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
       nanommo::DrawQuestTracker(*content, connection->quests());
       if (const std::optional<uint32_t> skill =
