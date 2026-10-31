@@ -335,6 +335,7 @@ int main(int argc, char* argv[]) {
     // The world goes into a frame of its own, which the screen gets from there.
     if (in_world) {
       renderer.set_cel_shading(settings.graphics.cel_shading);
+      renderer.set_clear(loading.clear());
       post.Begin(settings.graphics);
       renderer.Draw();
       post.End();

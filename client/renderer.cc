@@ -201,6 +201,15 @@ void DrawShadow(const Terrain& terrain, Vector3 at, float radius) {
   rlEnd();
 }
 
+// The fog as far as it's lifted: from all of it within a couple of metres, to
+// the atmosphere's own.
+Atmosphere Lifted(Atmosphere atmosphere, float clear) {
+  constexpr float kNearest = 2.0f;
+  atmosphere.fog_near *= clear;
+  atmosphere.fog_far = kNearest + (atmosphere.fog_far - kNearest) * clear;
+  return atmosphere;
+}
+
 // The light what's drawn next gives off of its own, which takes it past white,
 // so that it blooms.
 void SetEmission(Shader shader, float emission) {
@@ -318,17 +327,18 @@ void Renderer::DrawCounted(const Mesh& mesh, const Material& material,
 void Renderer::Draw() const {
   work_ = {};
   Clear();
-  SetAtmosphere(cube_shader_, atmosphere_);
-  SetAtmosphere(character_shader_, atmosphere_);
-  SetFog(outline_.still, atmosphere_);
-  SetFog(outline_.skinned, atmosphere_);
+  const Atmosphere atmosphere = Lifted(atmosphere_, clear_);
+  SetAtmosphere(cube_shader_, atmosphere);
+  SetAtmosphere(character_shader_, atmosphere);
+  SetFog(outline_.still, atmosphere);
+  SetFog(outline_.skinned, atmosphere);
   BeginMode3D(camera_);
   // As BeginMode3D set them up, so we cull with what the GPU will use.
   const Matrix view_projection =
       MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
   for (const Chunk& chunk : chunks_) {
     if (InSight(chunk.box, camera_.position, view_projection,
-                atmosphere_.fog_far)) {
+                atmosphere.fog_far)) {
       DrawCounted(chunk.model.meshes[0], chunk.model.materials[0],
                   MatrixIdentity());
     }
@@ -353,7 +363,7 @@ void Renderer::Draw() const {
   }
   // Last, as we see the ground under it through the water.
   if (sea_) {
-    sea_->Draw(camera_, atmosphere_, cel_shading_ ? kBands : 0.0f,
+    sea_->Draw(camera_, atmosphere, cel_shading_ ? kBands : 0.0f,
                static_cast<float>(GetTime()));
     ++work_.draws;
     work_.triangles += sea_->triangles();

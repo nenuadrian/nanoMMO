@@ -9,11 +9,13 @@ namespace nanommo {
 /// When a screen covers the world, while the world isn't there yet, kept apart
 /// from raylib and ImGui so that it can be tested without a window. It covers
 /// the world from the moment we enter one, or go into a new land, until the
-/// land is built, and then fades.
+/// land is built. Then it fades, and the fog lifts off the land, nearest
+/// first, so that the land comes out of its sky instead of appearing at once.
 class Loading {
  public:
   /// In seconds.
   static constexpr float kFade = 0.4f;
+  static constexpr float kLift = 1.5f;
 
   /// Covers the world from the next frame on.
   void Cover();
@@ -27,7 +29,7 @@ class Loading {
     return stage_ == Stage::kCovering || stage_ == Stage::kCovered;
   }
 
-  /// The land is built, so the cover fades.
+  /// The land is built, so the cover fades and the fog lifts.
   void Lift();
 
   /// Moves on by the frame's time, once the frame is drawn.
@@ -35,6 +37,10 @@ class Loading {
 
   /// How much of the screen the cover hides, from 0 to 1.
   float cover() const;
+
+  /// How far the fog has lifted, from 0, where it hides all but what's
+  /// nearest, to 1, the land's own fog.
+  float clear() const;
 
  private:
   enum class Stage { kNone, kCovering, kCovered, kLifting };

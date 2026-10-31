@@ -73,6 +73,10 @@ class Renderer {
     figures_ = std::move(figures);
   }
 
+  /// How far the fog has lifted, as Loading::clear says: from 0, where it
+  /// hides all but what's nearest, to 1, the atmosphere's own.
+  void set_clear(float clear) { clear_ = clear; }
+
  private:
   void UnloadTerrain();
   void DrawCounted(const Mesh& mesh, const Material& material,
@@ -83,6 +87,7 @@ class Renderer {
   Camera3D camera_ = GameCamera();
   std::vector<Cube> cubes_;
   std::vector<Figure> figures_;
+  float clear_ = 1.0f;
   // Draw is const, as drawing doesn't change what we draw, but it counts.
   mutable Work work_;
 

@@ -12,8 +12,14 @@ namespace nanommo {
 namespace {
 
 // A frame that took long, such as the one that built the land, counts as a
-// short one, so that the cover doesn't jump.
+// short one, so that the fog doesn't jump.
 constexpr float kLongestFrame = 1.0f / 30.0f;
+
+// Fast at first, then slower as it ends.
+float EaseOut(float share) {
+  const float left = 1.0f - std::clamp(share, 0.0f, 1.0f);
+  return 1.0f - left * left * left;
+}
 
 }  // namespace
 
@@ -36,7 +42,7 @@ void Loading::Update(float seconds) {
       break;
     case Stage::kLifting:
       time_ += std::min(seconds, kLongestFrame);
-      if (time_ >= kFade) {
+      if (time_ >= kLift) {
         stage_ = Stage::kNone;
       }
       break;
@@ -57,6 +63,19 @@ float Loading::cover() const {
       break;
   }
   return 0.0f;
+}
+
+float Loading::clear() const {
+  switch (stage_) {
+    case Stage::kCovering:
+    case Stage::kCovered:
+      return 0.0f;
+    case Stage::kLifting:
+      return EaseOut(time_ / kLift);
+    case Stage::kNone:
+      break;
+  }
+  return 1.0f;
 }
 
 void DrawLoadingScreen(float cover, const std::array<float, 3>& sky,
