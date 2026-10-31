@@ -169,6 +169,10 @@ constexpr float kBands = 3.0f;
 // A shadow reaches out from a figure's middle about as far as its shoulders
 // are wide, in metres, and it's black, at about a third of the way to opaque.
 constexpr float kShadowRadius = 0.42f;
+// Around the monster the player picked, in the red of its nameplate.
+constexpr float kRingInner = 0.55f;
+constexpr float kRingOuter = 0.68f;
+constexpr Color kRing = {235, 90, 75, 220};
 constexpr unsigned char kShadowDarkness = 82;
 
 // Nothing casts a shadow, so each figure gets a soft dark patch under it,
@@ -197,6 +201,30 @@ void DrawShadow(const Terrain& terrain, Vector3 at, float radius) {
     corner(inner, i, kShadowDarkness);
     corner(radius, i + 1, 0);
     corner(radius, i, 0);
+  }
+  rlEnd();
+}
+
+// A ring at a figure's feet, which lies on a slope as a shadow does.
+void DrawRing(const Terrain& terrain, Vector3 at, float inner, float outer,
+              Color color) {
+  constexpr int kSides = 32;
+  auto corner = [&](float distance, int i) {
+    const float turn = 2.0f * PI * i / kSides;
+    const float x = at.x + distance * std::cos(turn);
+    const float z = at.z + distance * std::sin(turn);
+    rlColor4ub(color.r, color.g, color.b, color.a);
+    // A little above the ground, so that the ground doesn't cover it.
+    rlVertex3f(x, terrain.Height(x, z) + 0.04f, z);
+  };
+  rlBegin(RL_TRIANGLES);
+  for (int i = 0; i < kSides; ++i) {
+    corner(inner, i);
+    corner(outer, i + 1);
+    corner(outer, i);
+    corner(inner, i);
+    corner(inner, i + 1);
+    corner(outer, i + 1);
   }
   rlEnd();
 }
@@ -365,6 +393,13 @@ void Renderer::Draw() const {
     BeginBlendMode(BLEND_ALPHA);
     for (const Figure& figure : figures_) {
       DrawShadow(*terrain_, figure.position, kShadowRadius);
+    }
+    // After all the shadows, so that none of them, such as a player's
+    // beside the monster, darkens the ring.
+    for (const Figure& figure : figures_) {
+      if (figure.monster && figure.id == target_ && target_ != 0) {
+        DrawRing(*terrain_, figure.position, kRingInner, kRingOuter, kRing);
+      }
     }
     EndBlendMode();
     rlEnableDepthMask();

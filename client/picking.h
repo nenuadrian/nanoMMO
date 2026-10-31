@@ -14,6 +14,9 @@ namespace nanommo {
 /// none.
 const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray);
 
+/// The nearest living monster along the ray, or nullptr if there's none.
+const Figure* PickMonster(const std::vector<Figure>& figures, const Ray& ray);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_PICKING_H_

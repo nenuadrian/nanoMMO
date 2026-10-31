@@ -11,14 +11,14 @@ namespace {
 constexpr float kHalfWidth = 0.4f;
 constexpr float kHeight = 1.8f;
 
-}  // namespace
-
-const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray) {
+// The nearest of the figures along the ray that the test lets through.
+template <typename Test>
+const Figure* Pick(const std::vector<Figure>& figures, const Ray& ray,
+                   Test test) {
   const Figure* picked = nullptr;
   float nearest = std::numeric_limits<float>::infinity();
   for (const Figure& figure : figures) {
-    if (!figure.npc ||
-        (!figure.talks && figure.teaches.empty() && figure.quests.empty())) {
+    if (!test(figure)) {
       continue;
     }
     const Vector3& at = figure.position;
@@ -31,6 +31,21 @@ const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray) {
     }
   }
   return picked;
+}
+
+}  // namespace
+
+const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray) {
+  return Pick(figures, ray, [](const Figure& figure) {
+    return figure.npc &&
+           (figure.talks || !figure.teaches.empty() || !figure.quests.empty());
+  });
+}
+
+const Figure* PickMonster(const std::vector<Figure>& figures, const Ray& ray) {
+  return Pick(figures, ray, [](const Figure& figure) {
+    return figure.monster && figure.to != protocol::MOTION_DEAD;
+  });
 }
 
 }  // namespace nanommo

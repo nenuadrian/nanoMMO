@@ -73,6 +73,10 @@ class Renderer {
     figures_ = std::move(figures);
   }
 
+  /// The monster the player picked, by its id, which gets a ring at its feet,
+  /// or 0 for none.
+  void set_target(uint32_t target) { target_ = target; }
+
   /// How far the fog has lifted, as Loading::clear says: from 0, where it
   /// hides all but what's nearest, to 1, the atmosphere's own.
   void set_clear(float clear) { clear_ = clear; }
@@ -87,6 +91,7 @@ class Renderer {
   Camera3D camera_ = GameCamera();
   std::vector<Cube> cubes_;
   std::vector<Figure> figures_;
+  uint32_t target_ = 0;
   float clear_ = 1.0f;
   // Draw is const, as drawing doesn't change what we draw, but it counts.
   mutable Work work_;

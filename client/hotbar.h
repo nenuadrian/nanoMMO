@@ -21,10 +21,12 @@ class Hotbar {
 
   /// Draws each skill with its icon and its key, and how long until it's
   /// ready, or, while the player doesn't know it, the level it needs, or Learn
-  /// once they've reached it. Returns the skill the player used, with its key
-  /// or a click.
+  /// once they've reached it. A skill that hits one monster is red while the
+  /// one they picked, by its id in target, isn't within its reach. Returns the
+  /// skill the player used, with its key or a click.
   std::optional<uint32_t> Build(const std::vector<Figure>& figures,
-                                const protocol::World& world) const;
+                                const protocol::World& world,
+                                uint32_t target) const;
 
  private:
   std::vector<skills::Skill> slots_;

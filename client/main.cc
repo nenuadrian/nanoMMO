@@ -186,6 +186,8 @@ int main(int argc, char* argv[]) {
   std::optional<nanommo::protocol::LoginRequest> entering;
   std::string world_name;
   nanommo::protocol::Input sent;
+  // The monster the player picked, by its id.
+  uint32_t target = 0;
   int nearby = 0;
 
   while (!window->ShouldClose()) {
@@ -199,6 +201,7 @@ int main(int argc, char* argv[]) {
       }
       entering.reset();
       sent.Clear();
+      target = 0;
       nearby = 0;
       // So that the land is built again, behind the loading screen.
       terrain.reset();
@@ -251,11 +254,13 @@ int main(int argc, char* argv[]) {
       const bool run = nanommo::Running();
       const bool attack = nanommo::Attacking();
       if (direction.x != sent.x() || direction.z != sent.z() ||
-          run != sent.run() || attack != sent.attack()) {
+          run != sent.run() || attack != sent.attack() ||
+          target != sent.target()) {
         sent.set_x(direction.x);
         sent.set_z(direction.z);
         sent.set_run(run);
         sent.set_attack(attack);
+        sent.set_target(target);
         connection->Send(sent);
       }
 
@@ -283,6 +288,8 @@ int main(int argc, char* argv[]) {
         renderer.set_cubes(nanommo::GateCubes(*terrain, land));
         std::cout << "nanommo client: in the " << nanommo::kLands[land].name
                   << '\n';
+        // The monster we picked was the last land's.
+        target = 0;
         loading.Lift();
       } else if (!arrived || new_land) {
         loading.Cover();
@@ -312,8 +319,17 @@ int main(int argc, char* argv[]) {
       }
       combat_text.Update(GetFrameTime());
       nanommo::MarkQuestGivers(figures, *content, connection->quests());
+      // The monster we picked, while it's alive and near enough to be sent.
+      if (std::ranges::none_of(figures, [target](const nanommo::Figure& f) {
+            return f.monster && f.id == target &&
+                   f.to != nanommo::protocol::MOTION_DEAD;
+          })) {
+        target = 0;
+      }
       renderer.set_figures(std::move(figures));
-      if (nanommo::ClickedWorld()) {
+      // A click on someone to talk to opens their window, one on a monster
+      // picks it, and one on neither lets go of what we'd picked.
+      if (nanommo::ClickedWorld() && !dead) {
         const Ray ray =
             GetScreenToWorldRay(GetMousePosition(), camera.camera());
         if (const nanommo::Figure* npc =
@@ -325,8 +341,17 @@ int main(int argc, char* argv[]) {
           } else {
             trainer_window.Open(npc->id, npc->name, npc->teaches);
           }
+        } else if (const nanommo::Figure* monster =
+                       nanommo::PickMonster(renderer.figures(), ray)) {
+          target = monster->id;
+        } else {
+          target = 0;
         }
       }
+      if (IsKeyPressed(KEY_ESCAPE) && !nanommo::Typing()) {
+        target = 0;
+      }
+      renderer.set_target(target);
       if (IsKeyPressed(KEY_C) && !nanommo::Typing()) {
         character_screen.Toggle();
       }
@@ -365,10 +390,12 @@ int main(int argc, char* argv[]) {
         respawn.set_respawn(true);
         connection->Send(respawn);
       }
-      nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
+      const float right =
+          nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
+      nanommo::DrawTargetFrame(renderer.figures(), target, right);
       nanommo::DrawQuestTracker(*content, connection->quests());
       if (const std::optional<uint32_t> skill =
-              hotbar.Build(renderer.figures(), connection->world())) {
+              hotbar.Build(renderer.figures(), connection->world(), target)) {
         nanommo::protocol::Input use = sent;
         use.set_skill(*skill);
         connection->Send(use);
