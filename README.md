@@ -956,7 +956,8 @@ and reads the columns a query asks about and nothing more, so that counting mill
 few of their columns is quick.
 
 - Each world records what happens as it steps, as events, with who, which land and where, and what
-  it's about by its ids in the content (`server/world.h`, `Event`). Once a tick, the server turns them into rows, each a line of JSON
+  it's about by its ids in the content (`server/world.h`, `Event`). Once a tick, the server turns the
+  kinds the analytics keep into rows, each a line of JSON
   with the time, the world and the name of what it's about, and adds them to a Redis stream,
   `events`, in a single round trip (`server/events.h`). The stream keeps about the newest million,
   so that it can't fill Redis while nothing reads it, and the tick never waits on ClickHouse.
@@ -1126,6 +1127,31 @@ same machine as the server:
 
 On a VPS with 2 vCPUs, with the bots on it too, the game server now keeps its 20 ticks a second up to
 about 700 players, where it fell behind past 400.
+
+## What happens near you
+
+The world comes each tick, and the newest replaces the last, so a client knows how things are, but
+not what happened in between: who hit whom, for how much, or that a potion was drunk at the moment a
+skeleton hit. Those are events, which come once each, and the client floats each over the unit it's
+about, as combat text.
+
+- The world records a hit a player lands, a hit a monster lands on a player, health a potion or a
+  skill gives back, and a new level, as events (`server/world.h`, `Event`), with the player's id,
+  the monster's id for a hit, and the amount. They're the analytics' events too: the analytics keep
+  the kinds they count (`ForAnalytics`), and not the blows, which come a second or so apart for each
+  player in a fight.
+- After the world goes out, the server sends each player the events in their copy of the land whose
+  cell is near theirs (`Near` in `server/interest.h`), the same cells they get the units of, in a
+  single message a tick, over TCP, so that none of it is lost (`Event` in the protocol). An event
+  goes after the world, so that a client getting the world over TCP has the units it's about
+  first. Over UDP, an event can come before its world, and the client draws its number once the
+  unit has come.
+- The client (`client/combat_text.h`) shows a hit's damage over the monster, in white, a monster's
+  over the player it hit, in red, health given back in green, and a new level in gold, each rising
+  over the nameplate for a second and a half and fading. What happens to the other players is
+  smaller than what happens to you. A kind of event from a newer server shows nothing.
+- A dead monster has no nameplate, and a bot hunting it thinks again as soon as its world shows it
+  dead, so it doesn't swing at the body.
 
 ## Worlds
 
