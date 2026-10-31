@@ -129,8 +129,8 @@ struct Notice {
 };
 
 /// Something a player did, or that happened to them, for the game's
-/// analytics: what, who and where, and what it was about, by its ids in the
-/// content.
+/// analytics and for the players near them to see: what, who and where, and
+/// what it was about, by its ids in the content.
 struct Event {
   enum class Kind {
     kKill,
@@ -140,22 +140,31 @@ struct Event {
     kLevel,
     kTake,
     kTurnIn,
-    kUse
+    kUse,
+    kHit,
+    kHurt,
+    kHeal
   };
   Kind kind = Kind::kKill;
   std::string player;
+  /// The player's id in the world, which the clients know them by.
+  uint32_t player_id = 0;
   /// By its place in kLands.
   int land = 0;
   float x = 0.0f;
   float z = 0.0f;
-  /// The monster killed, or that killed the player.
+  /// The monster killed, or that killed or hit the player.
   uint32_t monster = 0;
+  /// The monster the player hit, by its id in the world.
+  uint32_t monster_id = 0;
   /// An item dropped, given for a quest, or used, and how many.
   uint32_t item = 0;
   uint32_t count = 0;
   uint32_t quest = 0;
   /// The level a player's reached.
   uint32_t level = 0;
+  /// The health a hit took, or that a potion or a skill gave back.
+  uint32_t amount = 0;
 };
 
 /// The most health the player can have: their level's, and what they wear
@@ -258,7 +267,10 @@ class World {
   void Start(Player& player, const skills::Skill& skill);
   void Land(uint32_t id, Player& player, const skills::Skill& skill);
   void Push(const Player& player, Monster& monster, float metres);
-  void Hurt(uint32_t id, Player& player, Monster& monster, int damage);
+  void Hurt(uint32_t id, Player& player, uint32_t monster_id, Monster& monster,
+            int damage);
+  /// Gives the player back as much of the health as they're missing.
+  void Heal(uint32_t id, Player& player, int health);
   /// What the monster the player's just killed drops, into their bag.
   void Loot(uint32_t id, Player& player, const Monster& monster);
   /// Puts count of the item into the bag, each with rolls of its own, and
@@ -269,8 +281,8 @@ class World {
   void Count(uint32_t id, Player& player, const Monster& monster);
   void Act(Monster& monster, std::chrono::nanoseconds time);
   void Hit(Monster& monster);
-  /// An event of the kind, for the player, where they are.
-  Event& Record(Event::Kind kind, const Player& player);
+  /// An event of the kind, for the player, by their id, where they are.
+  Event& Record(Event::Kind kind, uint32_t id, const Player& player);
 
   Terrain terrain_;
   std::shared_ptr<const Content> content_;

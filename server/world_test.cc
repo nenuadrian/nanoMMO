@@ -1,5 +1,6 @@
 #include "server/world.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <limits>
@@ -10,6 +11,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "server/events.h"
 #include "server/monsters.h"
 #include "server/test_content.h"
 #include "terrain/terrain.h"
@@ -670,10 +672,12 @@ TEST(World, RecordsWhatPlayersDoForTheAnalytics) {
   Kill(world, 1);
 
   // The quest, the kill and the two drops, each with who and where, and
-  // what about. Whether the kill took alice to a new level isn't the point.
+  // what about. Whether the kill took alice to a new level isn't the point,
+  // and neither are the blows, which the analytics don't keep.
   std::vector<nanommo::Event> events = world.TakeEvents();
   std::erase_if(events, [](const nanommo::Event& event) {
-    return event.kind == nanommo::Event::Kind::kLevel;
+    return event.kind == nanommo::Event::Kind::kLevel ||
+           !nanommo::ForAnalytics(event.kind);
   });
   ASSERT_EQ(events.size(), 4u);
   EXPECT_EQ(events[0].kind, nanommo::Event::Kind::kTake);
@@ -689,4 +693,36 @@ TEST(World, RecordsWhatPlayersDoForTheAnalytics) {
   EXPECT_EQ(events[3].item, kBlade);
   // Each goes once.
   EXPECT_TRUE(world.TakeEvents().empty());
+}
+
+TEST(World, RecordsTheBlowsAndTheHealingForThePlayersToSee) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Gear()));
+  world.Join(1, {.health = 50});
+  const uint32_t skeleton =
+      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 1.0f, 0.0f));
+  ASSERT_TRUE(world.UseItem(1, 0).ok());
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  RunOneSecond(world);
+
+  const std::vector<nanommo::Event> events = world.TakeEvents();
+  const auto first = [&events](nanommo::Event::Kind kind) {
+    return std::ranges::find(events, kind, &nanommo::Event::kind);
+  };
+  // The potion gives back forty of the fifty missing.
+  const auto heal = first(nanommo::Event::Kind::kHeal);
+  ASSERT_NE(heal, events.end());
+  EXPECT_EQ(heal->player_id, 1u);
+  EXPECT_EQ(heal->amount, 40u);
+  // The sword takes fifteen from the skeleton.
+  const auto hit = first(nanommo::Event::Kind::kHit);
+  ASSERT_NE(hit, events.end());
+  EXPECT_EQ(hit->player_id, 1u);
+  EXPECT_EQ(hit->monster_id, skeleton);
+  EXPECT_EQ(hit->amount, 15u);
+  // And the skeleton hits back, for five.
+  const auto hurt = first(nanommo::Event::Kind::kHurt);
+  ASSERT_NE(hurt, events.end());
+  EXPECT_EQ(hurt->player_id, 1u);
+  EXPECT_EQ(hurt->amount, 5u);
 }

@@ -23,6 +23,10 @@ inline constexpr char kEventStream[] = "events";
 std::string Row(const Event& event, const Content& content,
                 std::string_view world, absl::Time time);
 
+/// Whether the analytics keep events of the kind. A fight is a hit a second
+/// or so for each player in it, and what the analytics count is the kills.
+bool ForAnalytics(Event::Kind kind);
+
 /// Where the worlds put the game's events, a Redis stream, so that a tick
 /// never waits on the analytics.
 class Events {

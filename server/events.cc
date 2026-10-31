@@ -29,6 +29,12 @@ std::string_view Name(Event::Kind kind) {
       return "turn_in";
     case Event::Kind::kUse:
       return "use";
+    case Event::Kind::kHit:
+      return "hit";
+    case Event::Kind::kHurt:
+      return "hurt";
+    case Event::Kind::kHeal:
+      return "heal";
   }
   return "";
 }
@@ -38,7 +44,9 @@ std::string_view Name(Event::Kind kind) {
 std::string What(const Event& event, const Content& content) {
   switch (event.kind) {
     case Event::Kind::kKill:
-    case Event::Kind::kDeath: {
+    case Event::Kind::kDeath:
+    case Event::Kind::kHit:
+    case Event::Kind::kHurt: {
       const auto kind = content.monsters.kinds.find(event.monster);
       return kind != content.monsters.kinds.end() ? kind->second.name() : "";
     }
@@ -54,6 +62,7 @@ std::string What(const Event& event, const Content& content) {
       return quest != content.quests.end() ? quest->second.name() : "";
     }
     case Event::Kind::kLevel:
+    case Event::Kind::kHeal:
       return "";
   }
   return "";
@@ -83,6 +92,25 @@ std::string Row(const Event& event, const Content& content,
       {"level", event.level},
   };
   return row.dump();
+}
+
+bool ForAnalytics(Event::Kind kind) {
+  switch (kind) {
+    case Event::Kind::kKill:
+    case Event::Kind::kDeath:
+    case Event::Kind::kLoot:
+    case Event::Kind::kPrize:
+    case Event::Kind::kLevel:
+    case Event::Kind::kTake:
+    case Event::Kind::kTurnIn:
+    case Event::Kind::kUse:
+      return true;
+    case Event::Kind::kHit:
+    case Event::Kind::kHurt:
+    case Event::Kind::kHeal:
+      return false;
+  }
+  return false;
 }
 
 absl::Status Events::Add(const std::vector<std::string>& rows) {

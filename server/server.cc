@@ -584,7 +584,12 @@ void Server::RecordEvents() {
   std::vector<std::string> rows;
   rows.reserve(happened.size());
   for (const Event& event : happened) {
-    rows.push_back(Row(event, copies_.content(), name_, now));
+    if (ForAnalytics(event.kind)) {
+      rows.push_back(Row(event, copies_.content(), name_, now));
+    }
+  }
+  if (rows.empty()) {
+    return;
   }
   // The game goes on without its analytics.
   const absl::Status added = events_.Add(rows);

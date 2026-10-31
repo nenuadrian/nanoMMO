@@ -37,3 +37,10 @@ TEST(Events, MakesARowForClickHouse) {
   EXPECT_EQ(json["count"], 1);
   EXPECT_EQ(json["quest"], 0);
 }
+
+TEST(Events, KeepsTheKillsForTheAnalyticsAndNotTheBlows) {
+  EXPECT_TRUE(nanommo::ForAnalytics(nanommo::Event::Kind::kKill));
+  EXPECT_TRUE(nanommo::ForAnalytics(nanommo::Event::Kind::kUse));
+  EXPECT_FALSE(nanommo::ForAnalytics(nanommo::Event::Kind::kHit));
+  EXPECT_FALSE(nanommo::ForAnalytics(nanommo::Event::Kind::kHeal));
+}
