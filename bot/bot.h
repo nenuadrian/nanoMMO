@@ -55,6 +55,8 @@ class Bot {
   void ReceiveOverUdp();
   void Receive(std::string_view bytes);
   void Wander();
+  /// Writes the input to the server.
+  void Send(const protocol::Input& input);
   /// Wanders again once the wait is over.
   void WanderIn(std::chrono::milliseconds wait);
   void Stop();
@@ -89,6 +91,9 @@ class Bot {
   std::vector<uint32_t> skills_;
   int health_ = 0;
   int max_health_ = 0;
+  /// Whether the bot's dead, and if so, whether its wait is over.
+  bool dead_ = false;
+  bool can_respawn_ = false;
   protocol::Inventory bag_;
   /// When it last drank something, which it does once its cooldown's over.
   std::chrono::steady_clock::time_point drank_;

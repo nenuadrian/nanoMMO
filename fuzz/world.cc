@@ -44,7 +44,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
   while (input.remaining_bytes() > 0) {
     const uint32_t id = input.ConsumeIntegralInRange<uint32_t>(1, 3);
     const bool playing = world.players().contains(id);
-    switch (input.ConsumeIntegralInRange(0, 10)) {
+    switch (input.ConsumeIntegralInRange(0, 11)) {
       case 0:
         // Up to level four, where the last skill is.
         if (!playing) {
@@ -93,6 +93,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, std::size_t size) {
             .TurnIn(id, input.ConsumeIntegralInRange<uint32_t>(0, 9),
                     input.ConsumeIntegralInRange<uint32_t>(0, 4))
             .IgnoreError();
+        break;
+      case 10:
+        world.Respawn(id);
         break;
       default:
         if (playing) {

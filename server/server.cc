@@ -231,6 +231,9 @@ void Server::Accept() {
         if (land != nullptr && input.ParseFromString(bytes)) {
           land->SetInput(*id, input.x(), input.z(), input.run(),
                          input.attack());
+          if (input.respawn()) {
+            land->Respawn(*id);
+          }
           if (input.skill() != 0) {
             land->UseSkill(*id, input.skill());
           }
@@ -712,6 +715,12 @@ void Server::BroadcastCopy(const Copy& copy, bool full) {
                 .count());
       }
       you.mutable_skills()->Add(player.skills.begin(), player.skills.end());
+      if (player.motion == Motion::kDead) {
+        you.set_respawn(static_cast<uint32_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                player.respawn)
+                .count()));
+      }
       you.set_seed(seed_ + kLands[copy.land].seed);
       you.set_land(static_cast<uint32_t>(copy.land));
       std::string own = you.SerializeAsString();

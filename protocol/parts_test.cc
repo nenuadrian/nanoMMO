@@ -54,6 +54,7 @@ TEST(Parts, SplitsAWorldIntoDatagrams) {
   you.set_next_level(4'000'000'000);
   you.set_seed(4'000'000'000);
   you.set_land(4'000'000'000);
+  you.set_respawn(4'000'000'000);
   for (uint32_t skill = 1; skill <= 9; ++skill) {
     (*you.mutable_cooldowns())[skill] = 4'000'000'000;
   }
@@ -137,6 +138,18 @@ TEST(Parts, KeepsYourCooldownsAndSkills) {
   EXPECT_EQ(
       std::vector<uint32_t>(result.skills().begin(), result.skills().end()),
       (std::vector<uint32_t>{1, 2}));
+}
+
+TEST(Parts, TakesYourWaitToComeBackFromTheNewestWorld) {
+  nanommo::protocol::World dead = MakeWorld(1, 1);
+  dead.set_respawn(7000);
+  nanommo::Parts assembled;
+  assembled.Add(dead);
+  EXPECT_EQ(assembled.world().respawn(), 7000u);
+
+  // Back, with no wait in the world, as protobuf leaves out a zero.
+  assembled.Add(MakeWorld(1, 2));
+  EXPECT_EQ(assembled.world().respawn(), 0u);
 }
 
 TEST(Parts, KeepsNpcsBetweenTheWorldsThatSendThemUntilTheyAreGone) {

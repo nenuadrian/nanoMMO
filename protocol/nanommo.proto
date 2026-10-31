@@ -67,6 +67,8 @@ message Input {
   Quest take = 10;
   // A quest to turn in, done, to the NPC who gave it.
   Quest turn_in = 11;
+  // Back to life, once the wait is over. Sent once.
+  bool respawn = 12;
 }
 
 enum Motion {
@@ -207,6 +209,8 @@ message World {
   // What happened near you since the last tick, which comes on its own, over
   // TCP, so that none of it is lost.
   repeated Event events = 18;
+  // While you're dead: how long until you can come back, in milliseconds.
+  uint32 respawn = 19;
 }
 
 message LoginRequest {

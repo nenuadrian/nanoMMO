@@ -251,7 +251,7 @@ TEST(World, LearnsSkillsFromATrainerFromTheirLevel) {
             "You're too far away to learn from the Trainer.");
 }
 
-TEST(World, MonstersKillPlayersWhoComeBackInTheMiddle) {
+TEST(World, MonstersKillPlayersWhoComeBackInTheMiddleWhenTheyAsk) {
   nanommo::World world;
   world.Join(1, {.x = 2.0f});
   world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 3.0f, 0.0f));
@@ -262,11 +262,18 @@ TEST(World, MonstersKillPlayersWhoComeBackInTheMiddle) {
   EXPECT_EQ(world.players().at(1).health, 0);
   EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kDead);
 
+  // Not before the wait is over, and not without asking.
+  world.Respawn(1);
   for (int second = 0; second < nanommo::World::kRespawnTime.count();
        ++second) {
     RunOneSecond(world);
   }
+  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kDead);
+  EXPECT_EQ(world.players().at(1).respawn, std::chrono::nanoseconds::zero());
+
+  world.Respawn(1);
   const nanommo::Player& player = world.players().at(1);
+  EXPECT_NE(player.motion, nanommo::Motion::kDead);
   EXPECT_EQ(player.x, 0.0f);
   EXPECT_EQ(player.health, 100);
 }

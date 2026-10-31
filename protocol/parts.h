@@ -53,6 +53,7 @@ class Parts {
   uint32_t next_level_ = 0;
   uint32_t seed_ = 0;
   uint32_t land_ = 0;
+  uint32_t respawn_ = 0;
   std::map<uint32_t, uint32_t> cooldowns_;
   std::vector<uint32_t> skills_;
   int64_t sent_ = 0;

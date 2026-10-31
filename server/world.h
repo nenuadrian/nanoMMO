@@ -65,6 +65,7 @@ struct Player {
   /// How long until they can use each item again, by its id in the items
   /// file.
   std::map<uint32_t, std::chrono::nanoseconds> item_cooldowns;
+  /// While they're dead, how long until they can come back.
   std::chrono::nanoseconds respawn{0};
   float input_x = 0.0f;
   float input_z = 0.0f;
@@ -192,6 +193,8 @@ class World {
 
   static constexpr float kRunSpeed = 3.1f;
 
+  /// How long the dead wait before they can come back. A monster comes back
+  /// once it's over, and a player when they ask to.
   static constexpr std::chrono::seconds kRespawnTime{10};
 
   /// In metres, from the middle of an NPC, as you'd talk to someone.
@@ -209,6 +212,10 @@ class World {
   void Leave(uint32_t id);
 
   void SetInput(uint32_t id, float x, float z, bool run, bool attack = false);
+
+  /// A dead player comes back in the middle of their land, at full health,
+  /// once their wait is over.
+  void Respawn(uint32_t id);
 
   /// The player uses the skill as soon as they're free, if they know it and
   /// it's ready.

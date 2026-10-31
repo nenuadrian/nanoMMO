@@ -219,6 +219,8 @@ void Bot::Receive(std::string_view bytes) {
     if (player.id() == world.you()) {
       x_ = player.x();
       z_ = player.z();
+      dead_ = player.motion() == protocol::MOTION_DEAD;
+      can_respawn_ = dead_ && world.respawn() == 0;
       health_ = static_cast<int>(player.health());
       // The most comes once a second, with the names.
       if (player.max_health() != 0) {
@@ -245,6 +247,16 @@ void Bot::Receive(std::string_view bytes) {
 
 void Bot::Wander() {
   hunting_ = 0;
+  // A dead bot comes back as soon as it can, as most players do.
+  if (dead_) {
+    if (can_respawn_) {
+      protocol::Input respawn;
+      respawn.set_respawn(true);
+      Send(respawn);
+    }
+    WanderIn(std::chrono::seconds(1));
+    return;
+  }
   // Quests come first: a bot hunts what they ask for, and takes and turns them
   // in, as players do, whenever its world has some of that around it.
   if (!trip_ && stay_ == 0) {
@@ -327,14 +339,18 @@ void Bot::Wander() {
   if (talk) {
     *input->mutable_talk() = *talk;
   }
-  outgoing_ = Frame(*input);
+  Send(*input);
+  WanderIn(trip_ ? std::chrono::seconds(1) : RandomHold(random_));
+}
+
+void Bot::Send(const protocol::Input& input) {
+  outgoing_ = Frame(input);
   asio::async_write(stream_, asio::buffer(outgoing_),
                     [this](std::error_code error, std::size_t) {
                       if (error) {
                         connected_ = false;
                       }
                     });
-  WanderIn(trip_ ? std::chrono::seconds(1) : RandomHold(random_));
 }
 
 void Bot::WanderIn(std::chrono::milliseconds wait) {

@@ -293,6 +293,22 @@ void World::SetInput(uint32_t id, float x, float z, bool run, bool attack) {
   found->second.input_attack = attack;
 }
 
+void World::Respawn(uint32_t id) {
+  const auto found = players_.find(id);
+  if (found == players_.end()) {
+    return;
+  }
+  Player& player = found->second;
+  if (player.motion != Motion::kDead ||
+      player.respawn > std::chrono::nanoseconds::zero()) {
+    return;
+  }
+  player.x = 0.0f;
+  player.z = 0.0f;
+  player.motion = Motion::kIdle;
+  player.health = MaxHealthOf(player);
+}
+
 void World::UseSkill(uint32_t id, uint32_t skill) {
   const auto found = players_.find(id);
   if (found != players_.end()) {
@@ -431,15 +447,11 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
   // Cooldowns run down whatever the player's doing.
   RunDown(player.cooldowns, time);
   RunDown(player.item_cooldowns, time);
+  // The dead wait, and then stay down until they ask to come back.
   if (player.motion == Motion::kDead) {
     player.input_skill = 0;
-    player.respawn -= time;
-    if (player.respawn <= std::chrono::nanoseconds::zero()) {
-      player.x = 0.0f;
-      player.z = 0.0f;
-      player.motion = Motion::kIdle;
-      player.health = MaxHealthOf(player);
-    }
+    player.respawn =
+        std::max(player.respawn - time, std::chrono::nanoseconds::zero());
     return;
   }
   if (player.motion == Motion::kSkill) {
