@@ -69,7 +69,8 @@ The client opens on the worlds that are up, with how many players each has. Pick
 keys and Enter, or a click, and F5 or Refresh asks for the list again. Then type a name and a
 password, and Create account the first time, and Log in after that. The client asks the login
 server on `localhost`, or on the host you give it (`./build/bin/nanommo_client 192.168.1.20`), and
-connects to the world at the host and port that world registered. It gets the world over UDP, unless you put `tcp` after the
+connects to the world at the host and port that world registered, behind a loading screen until the
+land is built (see [The loading screen](docs/graphics.md#the-loading-screen)). It gets the world over UDP, unless you put `tcp` after the
 host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP](docs/networking.md#packet-loss-tcp-and-udp).
 Each player is an animated person, in their own skin and hair, and in a shirt of their own colour,
 with a sword, on an island of hills, woods and beaches, with its level, name and health over it, or

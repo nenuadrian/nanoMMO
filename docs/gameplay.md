@@ -38,8 +38,14 @@ players' running speed, and swings once it's within 1.2 metres. The skeleton's s
 A monster with no health left dies, and whoever killed it gets its experience, fifty for a skeleton, and ninety for an Ash Skeleton,
 and what it drops, into their bag (see [Items](#items)).
 Going up a level fills your health, to the new level's most. A player with no health left dies. The
-dead play their death animation, lie there for ten seconds, and come back: a monster where it
-spawned, and a player in the middle of the island, both at full health.
+dead play their death animation and lie there for ten seconds (`World::kRespawnTime`). Then a
+monster comes back where it spawned, at full health. A player can come back once the wait is over,
+and stays down until they ask to: the world refuses before then. While you're dead, the world
+darkens, and a window in the middle counts down the seconds the server says you have left to a
+Respawn button, which brings you back in the middle of your land, at full health. The screen goes
+dark as you come back, and the world fades in, so you don't see yourself jump there. Each world a
+dead player gets says how long they have left to wait (`respawn`, in milliseconds), and the bots
+come back as soon as they can.
 
 Players and monsters have a level and health, which everyone sees. A player's experience is its own:
 the server works out its level, and sends its experience into the level, and what the next level

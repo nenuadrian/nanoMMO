@@ -49,6 +49,27 @@ at 1.8 and 3.1 metres a second, the speeds of the walk and the run, so that the 
 The client blends from one clip into the next over a quarter of a second, and smooths each player's
 position between the server's ticks.
 
+## The loading screen
+
+Entering a world, the client used to wait on the login and the connection with the login screen
+frozen, then draw a land from no seed until its world came; going through a gate, it built the new
+land in the middle of a frame, and the land appeared all at once. Now a loading screen covers the
+world from the moment you enter one, in the sky's colour, with the world's name, and once the world
+says which land you're in, the land's (`client/loading.h`).
+
+- Connecting and building a land each hold up the frame they happen in. So each waits until a
+  frame of the cover has been drawn: `Loading::covered()` is true only once the frame after
+  `Cover()` is on the screen, and the land is built in the next one, behind it.
+- Once the land is built, the cover fades over 0.4 seconds, and the fog lifts over a second and a
+  half, fast at first and slower as it ends: it starts two metres from the camera and goes out to
+  the land's own, so what's nearest comes out of the sky first. The renderer draws the atmosphere
+  with the fog as far as it's lifted (`Renderer::set_clear`), and leaves the land's as it is.
+- A frame that took long, such as the one that built the land, counts as a thirtieth of a second, so
+  the fade and the fog don't jump.
+- `Loading` is kept apart from raylib and ImGui, so its tests need no window, and
+  `DrawLoadingScreen` draws it on ImGui's foreground list, over the windows, with dark words on a
+  light sky and light words on a dark one.
+
 ## Music
 
 While you're in the world, the client plays "Background Music" by

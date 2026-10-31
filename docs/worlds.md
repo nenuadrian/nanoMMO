@@ -86,13 +86,17 @@ monsters, so that nobody else is in it:
 
 - Players wade into the Meadows' sea up to their knees, and not into the Ashlands' lava: each land
   says how deep its sea can be waded, and its `Terrain` takes that.
-- A gate is a ring of standing stones around a slab in the colour of the sky of the land it leads to.
+- A gate is a round platform, a rim of the land's stone with a disc in the colour of the sky of the
+  land it leads to set into it, in a ring of six standing stones, each on a flat base and coming to a
+  point. The client draws them as cubes in the shapes `client/cube.h` has, a box, a disc and a
+  spire, each made of flat-shaded triangles.
   A player who walks within a metre of its middle goes to that land, and comes out three metres past
   the middle of its twin there, the gate that leads back, the way they were facing, so that they walk
   on out of it. Each gate has a twin, and each dungeon a gate, which a `static_assert` checks.
 - The server sends each client its land and its land's seed, and the client builds that land in its
   look, from `client/atmosphere.h`, whenever the seed changes. That takes a moment, as it makes the
-  island and its chunks again.
+  island and its chunks again, so the client does it behind a loading screen (see
+  [The loading screen](graphics.md#the-loading-screen)).
 - The `players` table and the players' hashes in Redis keep the land a player is in, by its name, so
   they come back where they left. The migration gives the column the Meadows as its default, which is
   where the players from before were, and keeps the servers from before saving while a deploy
