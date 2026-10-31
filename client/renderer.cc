@@ -248,11 +248,14 @@ Renderer::Renderer(const Content& content)
                .skinned = LoadShaderFromMemory(kSkinnedOutlineVertexShader,
                                                kOutlineFragmentShader)},
       cube_(LoadModelFromMesh(GenMeshCube(1.0f, 1.0f, 1.0f))),
+      disc_(LoadModelFromMesh(Disc().Upload())),
+      spire_(LoadModelFromMesh(Spire().Upload())),
       sphere_(LoadModelFromMesh(GenMeshSphere(1.0f, 16, 16))),
       characters_(CharactersFolder(), {"x_bot.glb", "y_bot.glb"}, 1.8f,
                   character_shader_, content.figures) {
-  cube_.materials[0].shader = cube_shader_;
-  sphere_.materials[0].shader = cube_shader_;
+  for (Model* model : {&cube_, &disc_, &spire_, &sphere_}) {
+    model->materials[0].shader = cube_shader_;
+  }
   for (const Shader& shader : {outline_.still, outline_.skinned}) {
     SetShaderValue(shader, GetShaderLocation(shader, "thickness"),
                    &kOutlineThickness, SHADER_UNIFORM_FLOAT);
@@ -282,6 +285,8 @@ Renderer::Renderer(const Content& content)
 Renderer::~Renderer() {
   UnloadTerrain();
   UnloadModel(cube_);
+  UnloadModel(disc_);
+  UnloadModel(spire_);
   UnloadModel(sphere_);
   UnloadShader(character_shader_);
   UnloadShader(outline_.still);
@@ -344,7 +349,10 @@ void Renderer::Draw() const {
     }
   }
   for (const Cube& cube : cubes_) {
-    DrawModelEx(cube_, cube.position, {0.0f, 1.0f, 0.0f}, 0.0f, cube.size,
+    const Model& model = cube.shape == Shape::kDisc    ? disc_
+                         : cube.shape == Shape::kSpire ? spire_
+                                                       : cube_;
+    DrawModelEx(model, cube.position, {0.0f, 1.0f, 0.0f}, 0.0f, cube.size,
                 cube.color);
   }
   for (const Figure& figure : figures_) {

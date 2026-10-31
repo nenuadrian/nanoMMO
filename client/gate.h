@@ -8,8 +8,9 @@
 
 namespace nanommo {
 
-/// A ring of standing stones around each of the land's gates, and a slab in
-/// the middle in the colour of the sky where it takes you.
+/// A ring of standing stones, each on a flat base and coming to a point,
+/// around each of the land's gates, and a round platform in the middle, in the
+/// colour of the sky where it takes you.
 std::vector<Cube> GateCubes(const Terrain& terrain, int land);
 
 }  // namespace nanommo

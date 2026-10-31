@@ -96,6 +96,8 @@ class Renderer {
   Outline outline_;
   bool cel_shading_ = false;
   Model cube_;
+  Model disc_;
+  Model spire_;
   /// A skill's glow is this ball, scaled and tinted.
   Model sphere_;
   std::vector<Face> tree_;
