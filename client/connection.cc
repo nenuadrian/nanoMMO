@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
@@ -108,14 +110,17 @@ void Connection::Read() {
                                 connected_ = false;
                                 return;
                               }
-                              // Chat, moves, our bag and our quests come on
-                              // their own, with nothing of the world in them.
+                              // Chat, moves, our bag, our quests and the
+                              // events come on their own, with nothing of the
+                              // world in them.
                               if (world.has_move()) {
                                 move_ = world.move();
                               } else if (world.has_inventory()) {
                                 inventory_ = world.inventory();
                               } else if (world.has_quests()) {
                                 quests_ = world.quests();
+                              } else if (!world.events().empty()) {
+                                See(world);
                               } else if (world.chat().empty()) {
                                 Receive(world);
                               } else {
@@ -159,9 +164,17 @@ void Connection::ReceiveOverUdp() {
       });
 }
 
+std::vector<protocol::Event> Connection::TakeEvents() {
+  return std::exchange(events_, {});
+}
+
 void Connection::Receive(const protocol::World& world) {
   parts_.Add(world);
   world_ = parts_.world();
+}
+
+void Connection::See(const protocol::World& events) {
+  events_.insert(events_.end(), events.events().begin(), events.events().end());
 }
 
 void Connection::Hear(const protocol::World& chat) {

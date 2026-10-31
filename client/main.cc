@@ -20,6 +20,7 @@
 #include "client/camera.h"
 #include "client/character_screen.h"
 #include "client/chat_window.h"
+#include "client/combat_text.h"
 #include "client/connection.h"
 #include "client/gate.h"
 #include "client/gui.h"
@@ -169,6 +170,7 @@ int main(int argc, char* argv[]) {
   nanommo::Renderer renderer(*content);
   nanommo::PostProcess post;
   nanommo::Animator animator(*content);
+  nanommo::CombatText combat_text;
   std::optional<nanommo::Terrain> terrain;
   int land = 0;
   nanommo::FollowCamera camera;
@@ -264,6 +266,10 @@ int main(int argc, char* argv[]) {
                       nanommo::CameraTilt(), nanommo::CameraZoom(), *terrain);
         renderer.set_camera(camera.camera());
       }
+      for (const nanommo::protocol::Event& event : connection->TakeEvents()) {
+        combat_text.Add(event, world.you());
+      }
+      combat_text.Update(GetFrameTime());
       nanommo::MarkQuestGivers(figures, *content, connection->quests());
       renderer.set_figures(std::move(figures));
       if (nanommo::ClickedWorld()) {
@@ -305,6 +311,8 @@ int main(int argc, char* argv[]) {
     gui.Begin();
     if (connection) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera());
+      nanommo::DrawCombatText(combat_text, renderer.figures(),
+                              renderer.camera());
       nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
       nanommo::DrawQuestTracker(*content, connection->quests());
       if (const std::optional<uint32_t> skill =

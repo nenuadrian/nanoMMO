@@ -45,10 +45,9 @@ ImU32 NameColor(const Figure& figure) {
   return figure.you ? kYourName : IM_COL32_WHITE;
 }
 
-// In metres above a figure's feet.
-float Above(const Figure& figure) { return figure.monster ? 1.9f : 2.35f; }
-
 }  // namespace
+
+float Above(const Figure& figure) { return figure.monster ? 1.9f : 2.35f; }
 
 void DrawNameplates(const std::vector<Figure>& figures,
                     const Camera3D& camera) {

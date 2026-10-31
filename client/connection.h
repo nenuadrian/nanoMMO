@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -50,6 +51,10 @@ class Connection {
   const protocol::Inventory& inventory() const { return inventory_; }
   const protocol::Quests& quests() const { return quests_; }
 
+  /// What happened near us since the last time, oldest first, which it hands
+  /// over, as each event comes once.
+  std::vector<protocol::Event> TakeEvents();
+
  private:
   Connection(asio::ssl::context& tls, const std::string& token);
 
@@ -59,6 +64,7 @@ class Connection {
   void HelloOverUdp();
   void ReceiveOverUdp();
   void Receive(const protocol::World& world);
+  void See(const protocol::World& events);
   void Hear(const protocol::World& chat);
 
   asio::io_context io_;
@@ -75,6 +81,7 @@ class Connection {
   std::optional<protocol::Move> move_;
   protocol::Inventory inventory_;
   protocol::Quests quests_;
+  std::vector<protocol::Event> events_;
   bool udp_worlds_ = false;
   bool connected_ = true;
 };

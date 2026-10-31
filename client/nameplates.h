@@ -9,8 +9,11 @@
 
 namespace nanommo {
 
+/// In metres above a figure's feet, where its nameplate goes.
+float Above(const Figure& figure);
+
 void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera);
 
-}
+}  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_NAMEPLATES_H_
