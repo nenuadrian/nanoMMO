@@ -10,6 +10,7 @@ add_library(nanommo_client_core
   animator.cc characters.cc figures.cc triangles.cc ground.cc trees.cc chunks.cc
   sea.cc
   gate.cc
+  loading.cc
 )
 protobuf_generate(TARGET nanommo_client_core
   IMPORT_DIRS ${PROJECT_SOURCE_DIR} PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}
@@ -61,6 +62,7 @@ add_executable(nanommo_client_tests
   figures_test.cc picking_test.cc
   jukebox_test.cc sound_test.cc settings_test.cc bag_window_test.cc
   quest_window_test.cc combat_text_test.cc nameplates_test.cc
+  loading_test.cc
 )
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)
 add_dependencies(nanommo_client_tests nanommo_client_assets)

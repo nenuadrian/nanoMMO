@@ -27,6 +27,7 @@
 #include "client/hotbar.h"
 #include "client/input.h"
 #include "client/jukebox.h"
+#include "client/loading.h"
 #include "client/login_screen.h"
 #include "client/menu.h"
 #include "client/nameplates.h"
@@ -171,6 +172,7 @@ int main(int argc, char* argv[]) {
   nanommo::PostProcess post;
   nanommo::Animator animator(*content);
   nanommo::CombatText combat_text;
+  nanommo::Loading loading;
   std::optional<nanommo::Terrain> terrain;
   int land = 0;
   nanommo::FollowCamera camera;
@@ -178,10 +180,27 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<nanommo::Connection> connection;
   // The world's next instance, while we move to it.
   std::unique_ptr<nanommo::Connection> next;
+  // The login we enter the world with, once the loading screen's up.
+  std::optional<nanommo::protocol::LoginRequest> entering;
+  std::string world_name;
   nanommo::protocol::Input sent;
   int nearby = 0;
 
   while (!window->ShouldClose()) {
+    // Connecting holds up the frame, so it waits for the loading screen to be
+    // on the screen first.
+    if (entering && loading.covered()) {
+      if (const std::optional<nanommo::protocol::WorldListing>& world =
+              login_screen.world()) {
+        connection = Enter(host, *world, transport == "udp", *tls, *entering,
+                           login_screen);
+      }
+      entering.reset();
+      sent.Clear();
+      nearby = 0;
+      // So that the land is built again, behind the loading screen.
+      terrain.reset();
+    }
     if (connection) {
       connection->Poll();
       if (const std::optional<nanommo::protocol::Move>& move =
@@ -222,6 +241,8 @@ int main(int argc, char* argv[]) {
       }
     }
 
+    // Whether our world has come, and its land is built, to be drawn.
+    bool in_world = false;
     if (connection) {
       const Vector3 direction = camera.Relative(nanommo::Movement());
       const bool run = nanommo::Running();
@@ -241,8 +262,14 @@ int main(int argc, char* argv[]) {
         std::cout << "nanommo client: we're player " << world.you() << ", "
                   << nearby << " nearby" << '\n';
       }
-      // Each land has a seed of its own, so a new seed is a new land.
-      if (!terrain || terrain->seed() != world.seed()) {
+      // Each land has a seed of its own, so a new seed is a new land. Until
+      // our world comes, we don't know which land we're in.
+      const bool arrived = world.you() != 0;
+      const bool new_land =
+          arrived && (!terrain || terrain->seed() != world.seed());
+      // Building a land holds up the frame, so it's built behind the loading
+      // screen, once that's on the screen.
+      if (new_land && loading.covered()) {
         // A land this client doesn't know, from a newer server, looks like
         // the Meadows.
         land = world.land() < nanommo::kLands.size()
@@ -253,7 +280,17 @@ int main(int argc, char* argv[]) {
         renderer.set_cubes(nanommo::GateCubes(*terrain, land));
         std::cout << "nanommo client: in the " << nanommo::kLands[land].name
                   << '\n';
+        loading.Lift();
+      } else if (!arrived || new_land) {
+        loading.Cover();
+      } else if (loading.covering()) {
+        loading.Lift();
       }
+      in_world = arrived && terrain && terrain->seed() == world.seed();
+    }
+
+    if (in_world) {
+      const nanommo::protocol::World& world = connection->world();
       std::vector<nanommo::Figure> figures =
           animator.Update(world, GetFrameTime());
       for (nanommo::Figure& figure : figures) {
@@ -296,20 +333,20 @@ int main(int argc, char* argv[]) {
     }
 
     // The world goes into a frame of its own, which the screen gets from there.
-    if (connection) {
+    if (in_world) {
       renderer.set_cel_shading(settings.graphics.cel_shading);
       post.Begin(settings.graphics);
       renderer.Draw();
       post.End();
     }
     BeginDrawing();
-    if (connection) {
+    if (in_world) {
       post.Draw();
     } else {
       renderer.Clear();
     }
     gui.Begin();
-    if (connection) {
+    if (in_world) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera());
       nanommo::DrawCombatText(combat_text, renderer.figures(),
                               renderer.camera());
@@ -367,16 +404,35 @@ int main(int argc, char* argv[]) {
                      bag_window.mutable_visible())) {
         connection.reset();
       }
-    } else if (const auto request = login_screen.Build()) {
-      if (request->list_worlds()) {
-        ListWorlds(host, *tls, *request, login_screen);
-      } else if (const std::optional<nanommo::protocol::WorldListing>& world =
-                     login_screen.world()) {
-        connection = Enter(host, *world, transport == "udp", *tls, *request,
-                           login_screen);
-        sent.Clear();
-        nearby = 0;
+    } else if (!connection && !entering) {
+      if (const auto request = login_screen.Build()) {
+        if (request->list_worlds()) {
+          ListWorlds(host, *tls, *request, login_screen);
+        } else if (const std::optional<nanommo::protocol::WorldListing>& world =
+                       login_screen.world()) {
+          entering = *request;
+          world_name = world->name();
+          loading.Cover();
+        }
       }
+    }
+    // Back on the login screen, there's nothing to cover.
+    if (!connection && !entering) {
+      loading = nanommo::Loading();
+    }
+    // While our world hasn't come, we're entering it; once it has, the
+    // screen says which land it's in, in that land's sky.
+    if (connection && connection->world().you() != 0) {
+      const uint32_t shown = connection->world().land();
+      const int arriving =
+          shown < nanommo::kLands.size() ? static_cast<int>(shown) : 0;
+      nanommo::DrawLoadingScreen(
+          loading.cover(), nanommo::kLooks[arriving].atmosphere.sky,
+          absl::StrCat("The ", nanommo::kLands[arriving].name), world_name);
+    } else {
+      nanommo::DrawLoadingScreen(loading.cover(),
+                                 nanommo::kLooks[land].atmosphere.sky,
+                                 world_name, "Entering the world");
     }
     // Once a slider lets go, so that a drag across one writes once.
     if (settings != saved && !ImGui::IsAnyItemActive()) {
@@ -389,10 +445,10 @@ int main(int argc, char* argv[]) {
     }
     gui.End();
     EndDrawing();
+    loading.Update(GetFrameTime());
 
     if (music) {
-      switch (jukebox.Update(GetFrameTime(), connection != nullptr,
-                             music->playing())) {
+      switch (jukebox.Update(GetFrameTime(), in_world, music->playing())) {
         case nanommo::Jukebox::Cue::kStart:
           music->Play();
           break;
