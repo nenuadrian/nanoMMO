@@ -521,7 +521,8 @@ void Server::Tick() {
       Notify(notice.player, notice.text);
     }
   }
-  RecordEvents();
+  const std::vector<Event> happened = copies_.TakeEvents();
+  RecordEvents(happened);
   std::array<std::size_t, kLands.size()> in_land{};
   std::array<std::size_t, kLands.size()> copies_of{};
   for (const auto& [id, copy] : copies_.all()) {
@@ -534,6 +535,7 @@ void Server::Tick() {
   }
   SaveChanged();
   Broadcast();
+  ShowEvents(happened);
   SendChat();
   SendBags();
   SendQuests();
@@ -574,9 +576,8 @@ void Server::SaveChanged() {
   metrics_.ObserveSave(std::chrono::steady_clock::now() - start);
 }
 
-void Server::RecordEvents() {
+void Server::RecordEvents(const std::vector<Event>& happened) {
   ZoneScoped;
-  const std::vector<Event> happened = copies_.TakeEvents();
   if (happened.empty()) {
     return;
   }
@@ -596,6 +597,31 @@ void Server::RecordEvents() {
   if (!added.ok()) {
     std::cerr << "couldn't record " << rows.size() << " events: " << added
               << "\n";
+  }
+}
+
+void Server::ShowEvents(const std::vector<Event>& happened) {
+  ZoneScoped;
+  // Each player's events go together, in a message a tick.
+  std::map<uint32_t, protocol::World> shown;
+  for (const Event& event : happened) {
+    const std::optional<protocol::Event> for_players = ForPlayers(event);
+    const auto copy = copies_.all().find(event.copy);
+    if (!for_players || copy == copies_.all().end()) {
+      continue;
+    }
+    const protocol::Event& seen = *for_players;
+    const Cell cell = CellOf(event.x, event.z);
+    for (const auto& [id, player] : copy->second.world.players()) {
+      if (sessions_.contains(id) && Near(CellOf(player.x, player.z), cell)) {
+        *shown[id].add_events() = seen;
+      }
+    }
+  }
+  for (const auto& [id, events] : shown) {
+    std::string frame = Frame(events);
+    metrics_.AddBytesSent(frame.size());
+    sessions_.at(id)->Send(std::move(frame));
   }
 }
 

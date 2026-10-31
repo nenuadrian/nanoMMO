@@ -74,6 +74,11 @@ class TestPlayer {
   /// What the server told the player, which nobody said.
   const std::vector<std::string>& notices() const { return notices_; }
 
+  /// What the player saw happen, oldest first.
+  const std::vector<nanommo::protocol::Event>& events() const {
+    return events_;
+  }
+
   void Send(const nanommo::protocol::Input& input) {
     auto bytes = std::make_shared<const std::string>(nanommo::Frame(input));
     asio::async_write(stream_, asio::buffer(*bytes),
@@ -120,6 +125,9 @@ class TestPlayer {
               bag_ = world.inventory();
             } else if (world.has_quests()) {
               quests_ = world.quests();
+            } else if (!world.events().empty()) {
+              events_.insert(events_.end(), world.events().begin(),
+                             world.events().end());
             } else if (!world.chat().empty()) {
               for (const nanommo::protocol::Chat& line : world.chat()) {
                 if (line.name().empty()) {
@@ -142,6 +150,7 @@ class TestPlayer {
   nanommo::protocol::Inventory bag_;
   std::optional<nanommo::protocol::Quests> quests_;
   std::vector<std::string> notices_;
+  std::vector<nanommo::protocol::Event> events_;
   bool closed_ = false;
 };
 
@@ -410,4 +419,37 @@ TEST_F(ServerTest, SendsEachPlayerTheirQuestsAsTheyChange) {
   alice.Send(take);
   ASSERT_TRUE(RunUntil([&] { return !alice.notices().empty(); }));
   EXPECT_EQ(alice.notices().back(), "You're on Bones already.");
+}
+
+TEST_F(ServerTest, ShowsEachHitToThePlayersNearIt) {
+  // A skeleton a step from where new players start, and a sword for each.
+  nanommo::Content content{.items = nanommo::testing::Sword()};
+  content.monsters.kinds[1] = nanommo::testing::Skeleton();
+  nanommo::monsters::Spawn spawn;
+  spawn.set_kind(1);
+  spawn.set_land("Meadows");
+  spawn.set_x(1.0f);
+  content.monsters.spawns.push_back(spawn);
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> haunted =
+      nanommo::Server::Create(
+          io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1,
+          content, metrics_, *tokens_, *players_, *events_, *storyteller_);
+  ASSERT_TRUE(haunted.ok()) << haunted.status();
+  TestPlayer alice(io_, *client_tls_, (*haunted)->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, (*haunted)->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(bob_) && bob.Sees(alice_); }));
+
+  // alice swings, and bob, beside her, sees her hit land.
+  nanommo::protocol::Input swing;
+  swing.set_attack(true);
+  alice.Send(swing);
+  const auto hit = [](const TestPlayer& player) {
+    return std::ranges::find(player.events(), nanommo::protocol::EVENT_HIT,
+                             &nanommo::protocol::Event::kind);
+  };
+  ASSERT_TRUE(RunUntil([&] { return hit(bob) != bob.events().end(); }));
+  EXPECT_EQ(hit(bob)->player(), alice_);
+  EXPECT_EQ(hit(bob)->monster(), 1u);
+  EXPECT_EQ(hit(bob)->amount(), 15u);
+  EXPECT_NE(hit(alice), alice.events().end());
 }

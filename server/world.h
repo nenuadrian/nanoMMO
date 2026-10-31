@@ -151,6 +151,8 @@ struct Event {
   uint32_t player_id = 0;
   /// By its place in kLands.
   int land = 0;
+  /// The copy of the land it happened in, which Copies fills in.
+  uint32_t copy = 0;
   float x = 0.0f;
   float z = 0.0f;
   /// The monster killed, or that killed or hit the player.

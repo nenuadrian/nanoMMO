@@ -59,7 +59,10 @@ std::vector<Notice> Copies::TakeNotices() {
 std::vector<Event> Copies::TakeEvents() {
   std::vector<Event> events;
   for (auto& [id, copy] : copies_) {
-    std::ranges::move(copy.world.TakeEvents(), std::back_inserter(events));
+    for (Event& event : copy.world.TakeEvents()) {
+      event.copy = id;
+      events.push_back(std::move(event));
+    }
   }
   return events;
 }

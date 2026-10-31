@@ -180,10 +180,10 @@ void Bot::ReceiveOverUdp() {
 
 void Bot::Receive(std::string_view bytes) {
   protocol::World world;
-  // Chat has no land in it, which would read as the Meadows, and neither
-  // does a move.
+  // Chat and events have no land in them, which would read as the Meadows,
+  // and neither does a move. The bot goes by the world, so it skips events.
   if (!world.ParseFromArray(bytes.data(), static_cast<int>(bytes.size())) ||
-      !world.chat().empty()) {
+      !world.chat().empty() || !world.events().empty()) {
     return;
   }
   if (world.has_move()) {

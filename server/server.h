@@ -80,7 +80,10 @@ class Server {
   void Tick();
   void SaveChanged();
   /// What happened in the worlds this tick, into the events stream.
-  void RecordEvents();
+  void RecordEvents(const std::vector<Event>& happened);
+  /// To each player near what happened, in their copy, after the world, so
+  /// that a client getting the world over TCP has the units it's about first.
+  void ShowEvents(const std::vector<Event>& happened);
   void Broadcast();
   void BroadcastCopy(const Copy& copy, bool full);
   void SendChat();
