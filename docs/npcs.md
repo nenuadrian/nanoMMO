@@ -59,8 +59,9 @@ curl localhost:8000/v1/completions -H 'Content-Type: application/json' \
 
 - A click on the world makes a ray from the camera through the mouse (raylib's
   `GetScreenToWorldRay`), and the client picks the nearest NPC that talks along it, by a box around
-  where a person stands (`GetRayCollisionBox`, in `client/picking.h`). Each NPC says whether it
-  talks, from its kind.
+  where a person stands (`GetRayCollisionBox`, in `client/picking.h`), if you're within talking
+  reach of it (`kTalkReach`, four metres, in `content/npcs.h`, which the server holds you to too).
+  The cursor is a hand over one you can click. Each NPC says whether it talks, from its kind.
 - The words go to the server with your input, as `talk`, with the NPC's id. The server checks that
   the NPC is in your land and talks, and that you're within four metres of it, and cleans the words
   like a line of chat (see [Chat](gameplay.md#chat)).

@@ -19,7 +19,16 @@ picks another place. The world's random generator takes a seed, so the tests pic
 
 ## Fighting
 
-Space swings your weapon at the nearest monster within its reach, and turns you to face it. The
+Click a monster to pick it: it gets a red ring at its feet, and a frame beside yours with its
+name, level and health. A click on the ground lets it go, and so does Escape, its death, or going
+into another land. The cursor is a crosshair over a living monster, a hand over an NPC within
+talking reach, and the arrow elsewhere. Each input carries the monster you picked (`Input.target`),
+which the world keeps as your target.
+
+Space swings your weapon at the monster you picked, and turns you to face it. Out of its reach, it
+first runs you up to it, to most of the reach (`World::kCloseIn`, 0.8), so that a monster that
+steps back is still within it; the keys call that off. With nothing picked, you swing at the air,
+the way you face. The
 sword's numbers are in the items file: it reaches 1.6 metres, and a swing takes two seconds, the
 length of the slash animation, and you stand still until it's over. The sword hits 0.9 seconds in, as
 it comes across the front, if the monster is still alive and in reach, for fifteen health, and each
@@ -65,8 +74,8 @@ others from a trainer, from their levels on (see [Learning skills](#learning-ski
 
 | Skill | From level | Cooldown | What it does |
 |---|---|---|---|
-| Thrust | 1 | 8 s | 35 damage to the nearest monster within 2.4 metres |
-| Kick | 2 | 6 s | 10 damage, and knocks the monster 3 metres back |
+| Thrust | 1 | 8 s | 35 damage to the monster you picked, within 2.4 metres |
+| Kick | 2 | 6 s | 10 damage to the monster you picked, within 1.4 metres, and knocks it 3 metres back |
 | Second Wind | 3 | 30 s | Heals 40, up to your most |
 | Whirlwind | 4 | 12 s | 25 damage to each monster within 2.5 metres |
 
@@ -83,9 +92,11 @@ server sends and the cooldown in the skills file.
 The server decides it all, as it does a swing. The client sends a skill's id in `Input` once, as its
 key goes down, and the world keeps it until the player is free: a skill asked for during a swing or
 another skill starts as that ends. Then it starts if the player knows it and its cooldown is over,
-and otherwise it goes. A skill holds the player for its cast time, like a swing,
-lands partway through, on the monster the player turned to as it started if it's still in reach,
-or on each one in reach, and starts its cooldown as it starts. Cooldowns run down whatever the player does, dead or alive,
+and otherwise it goes. A skill that hits one monster needs a living one picked, and goes without
+one, keeping its cooldown; the hotbar shows it red then. Out of its reach, it runs the player up to
+the monster first, like a swing, and starts once they're there. A skill holds the player for its
+cast time, like a swing, lands partway through, on the monster the player picked if it's still in
+reach, or on each one in reach, and starts its cooldown as it starts. Cooldowns run down whatever the player does, dead or alive,
 and aren't saved: a player who leaves and comes back finds their skills ready.
 
 A player using a skill has the motion `MOTION_SKILL`, and its id, so that everyone's clients can
