@@ -25,6 +25,10 @@ struct Cell {
 
 Cell CellOf(float x, float z);
 
+/// Whether the players in one cell see what happens in the other: within
+/// kInterestCells of it each way, as they get the units there.
+bool Near(Cell from, Cell to);
+
 /// The ids of what's in each cell.
 using Cells = std::map<Cell, std::vector<uint32_t>>;
 

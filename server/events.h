@@ -1,6 +1,7 @@
 #ifndef NANOMMO_SERVER_EVENTS_H_
 #define NANOMMO_SERVER_EVENTS_H_
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -8,6 +9,7 @@
 #include "absl/status/status.h"
 #include "absl/time/time.h"
 #include "content/content.h"
+#include "protocol/nanommo.pb.h"
 #include "server/redis.h"
 #include "server/world.h"
 
@@ -26,6 +28,10 @@ std::string Row(const Event& event, const Content& content,
 /// Whether the analytics keep events of the kind. A fight is a hit a second
 /// or so for each player in it, and what the analytics count is the kills.
 bool ForAnalytics(Event::Kind kind);
+
+/// The event as the players near it get it, or nothing for a kind they don't
+/// see, such as a quest taken.
+std::optional<protocol::Event> ForPlayers(const Event& event);
 
 /// Where the worlds put the game's events, a Redis stream, so that a tick
 /// never waits on the analytics.

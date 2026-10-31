@@ -1,6 +1,7 @@
 #include "server/interest.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <map>
 #include <vector>
 
@@ -19,6 +20,11 @@ void Gather(const Cells& cells, Cell cell, std::vector<uint32_t>& ids) {
 Cell CellOf(float x, float z) {
   return {.x = static_cast<int>(std::floor(x / kCellSize)),
           .z = static_cast<int>(std::floor(z / kCellSize))};
+}
+
+bool Near(Cell from, Cell to) {
+  return std::abs(from.x - to.x) <= kInterestCells &&
+         std::abs(from.z - to.z) <= kInterestCells;
 }
 
 std::map<Cell, View> Views(const std::map<uint32_t, Player>& players,

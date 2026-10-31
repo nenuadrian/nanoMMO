@@ -160,6 +160,26 @@ message Move {
   string token = 3;
 }
 
+enum EventKind {
+  EVENT_HIT = 0;
+  EVENT_HURT = 1;
+  EVENT_HEAL = 2;
+  EVENT_LEVEL = 3;
+}
+
+// Something that happened in the world, for the players near it to see, such
+// as a hit. A unit comes again each tick, and the newest replaces the one
+// before it, while each event comes once.
+message Event {
+  EventKind kind = 1;
+  // Who hit, was hit, healed or reached a level, by their id.
+  uint32 player = 2;
+  // The monster they hit, by its id.
+  uint32 monster = 3;
+  // The damage, the health given back, or the level reached.
+  uint32 amount = 4;
+}
+
 message World {
   uint32 you = 1;
   repeated Player players = 2;
@@ -184,6 +204,9 @@ message World {
   Inventory inventory = 16;
   // Your quests, which come the same way.
   Quests quests = 17;
+  // What happened near you since the last tick, which comes on its own, over
+  // TCP, so that none of it is lost.
+  repeated Event events = 18;
 }
 
 message LoginRequest {

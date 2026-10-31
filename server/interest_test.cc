@@ -35,3 +35,10 @@ TEST(Interest, SendsEachPlayerWhatIsNearIt) {
   EXPECT_TRUE(far.monsters.empty());
   EXPECT_TRUE(far.npcs.empty());
 }
+
+TEST(Interest, ShowsWhatHappensToThePlayersWhoGetItsCell) {
+  const nanommo::Cell here = nanommo::CellOf(5.0f, 5.0f);
+  EXPECT_TRUE(nanommo::Near(here, here));
+  EXPECT_TRUE(nanommo::Near(here, nanommo::CellOf(60.0f, -40.0f)));
+  EXPECT_FALSE(nanommo::Near(here, nanommo::CellOf(200.0f, 5.0f)));
+}
