@@ -109,3 +109,27 @@ Running a world's copies in one process makes a trip through a gate a move from 
 another, within a tick. With a server for each land, each land could have a machine of its own, and
 a trip would hand the player over from one server to the other, with a save and a token, like a
 login.
+
+## Walking by yourself
+
+A double click on the ground, or a click on the map, walks you there by yourself, around what's in
+the way. The client sends where (`Input.walk_to`), and the world finds the way and walks you along
+it, a step each tick, at a run. The keys, a swing or a skill call the walk off, and so do dying and
+going into another land.
+
+- `terrain/paths.h` marks each metre square of a land a player can walk on: its middle, and four
+  points 35 centimetres around it, are walkable, which keeps the way clear of the tree trunks.
+  The world's copies of a land share its squares, made once, as the copies are made, in about ten
+  milliseconds.
+- A walk with nothing in the way goes straight, with no search. Otherwise, A* finds the shortest
+  way over the squares: the squares to look at next wait in a priority queue, ordered by the cost
+  so far plus the octile distance left, as far diagonally as it can and then straight. Each square
+  has eight neighbours, and the way doesn't cut the corner between two squares that touch at it.
+- A search looks at 40,000 squares at most, then goes as near as it got. On Ember's Meadows, a
+  search from the middle to anywhere on the island takes about a quarter of a millisecond, and the
+  slowest about two and a half, against a tick of fifty.
+- The way is straightened to the places where it turns: from where you are, on to the farthest
+  square still in sight, and again from there.
+- The cost of each square and where it was reached from stay from one search to the next, and count
+  only while stamped with the number of the search going on, so a search clears and allocates
+  nothing.

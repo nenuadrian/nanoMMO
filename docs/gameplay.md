@@ -11,8 +11,11 @@ from the file's inverse bind matrices, as raylib binds the mesh to where the bon
 skeleton's arms rest about 70 degrees from where its mesh was bound.
 
 The server spawns the monsters that `content/monsters.txtpb` lists (see [Content](content.md)): three monsters
-around the middle of each land, and up to three more at each of eight camps, which the land's seed
-places between the beach and the rock, at least thirty metres from the middle. It runs their AI each
+around the middle of each land, and up to three more at each of its camps, forty in the Meadows and
+the Ashlands and twenty-four in the Crypt, which the land's seed places between the beach and the
+rock, at least thirty metres from the middle. The camps are darts thrown at the land: a place too
+near a camp already there (`kCampSpacing`, thirty metres) is thrown again, like one in the sea, so
+they spread over the land evenly, where places picked at random bunch up and leave gaps. It runs their AI each
 tick: a monster rests for two to six seconds, walks to a random place within its kind's wander of where
 it spawned, at 1.8 metres a second, and rests again. If the sea or a tree stops it, it rests, and
 picks another place. The world's random generator takes a seed, so the tests pick theirs.

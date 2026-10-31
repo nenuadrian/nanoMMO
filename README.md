@@ -81,7 +81,8 @@ to ask it for a story (see [The storyteller](docs/npcs.md#the-storyteller)), the
 skills (see [Learning skills](docs/gameplay.md#learning-skills)), and the guard, with a gold mark over its name, for
 a quest (see [Quests](docs/gameplay.md#quests)). W, A, S and D, or the arrow
 keys, move yours, whose name is in gold, Shift makes it run, a click on a monster picks it, Space
-swings the sword at it, running up to it first, and 1 to 4 use your skills, from the bar along the bottom (see [Skills](docs/gameplay.md#skills)). I, or View, Bag, opens your bag,
+swings the sword at it, running up to it first, a double click on the ground walks you there, M
+opens the map, and 1 to 4 use your skills, from the bar along the bottom (see [Skills](docs/gameplay.md#skills)). I, or View, Bag, opens your bag,
 where a new player has three health potions, and wears a shirt, trousers and shoes (see
 [Items](docs/gameplay.md#items)).
 The camera follows you: Q and E, or dragging with the right mouse button, turn it around you,

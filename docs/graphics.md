@@ -70,6 +70,17 @@ says which land you're in, the land's (`client/loading.h`).
   `DrawLoadingScreen` draws it on ImGui's foreground list, over the windows, with dark words on a
   light sky and light words on a dark one.
 
+## The map and the minimap
+
+As a land is built, behind the loading screen, the client draws it from above into a texture, a
+pixel a metre, north up (`client/map.h`): its ground in the land's colours, as the meshes have
+them, lit from the top left by its slopes, its shallow and deep sea, and each tree as a dark spot.
+The minimap, in the bottom right, shows the 45 metres around you, and M opens the map of the whole
+land, which Escape or M closes. Both show the land's gates, in the colour of where they lead, the
+NPCs and their quest marks, the monsters, with a ring around the one you picked, the other players,
+where you're walking to, and you, as an arrow the way you face. A click on the map walks you there
+(see [Walking by yourself](worlds.md#walking-by-yourself)).
+
 ## Music
 
 While you're in the world, the client plays "Background Music" by
