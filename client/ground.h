@@ -9,6 +9,11 @@
 
 namespace nanommo {
 
+/// The ground's colour in the look at the height, where the y of the ground's
+/// normal is up: sand by the sea, snow up high, rock where it's high or
+/// steep, and grass elsewhere.
+Color GroundColor(const Look& look, float height, float up);
+
 /// The two triangles in each cell of a square of cells, from the cell at
 /// left and top, in the look's colours, by height and slope.
 void AddGround(Triangles& triangles, const Terrain& terrain, const Look& look,

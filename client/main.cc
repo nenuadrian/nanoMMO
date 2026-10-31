@@ -31,6 +31,7 @@
 #include "client/jukebox.h"
 #include "client/loading.h"
 #include "client/login_screen.h"
+#include "client/map.h"
 #include "client/menu.h"
 #include "client/nameplates.h"
 #include "client/picking.h"
@@ -183,6 +184,8 @@ int main(int argc, char* argv[]) {
   nanommo::CombatText combat_text;
   nanommo::Loading loading;
   nanommo::DeathScreen death_screen;
+  nanommo::LandMap land_map;
+  bool map_open = false;
   std::optional<nanommo::Terrain> terrain;
   int land = 0;
   nanommo::FollowCamera camera;
@@ -302,6 +305,7 @@ int main(int argc, char* argv[]) {
         terrain.emplace(world.seed());
         renderer.set_terrain(*terrain, nanommo::kLooks[land]);
         renderer.set_cubes(nanommo::GateCubes(*terrain, land));
+        land_map.Build(*terrain, land);
         std::cout << "nanommo client: in the " << nanommo::kLands[land].name
                   << '\n';
         // The monster we picked, and where we walked to, were the last land's.
@@ -404,7 +408,14 @@ int main(int argc, char* argv[]) {
         }
       }
       if (IsKeyPressed(KEY_ESCAPE) && !nanommo::Typing()) {
-        target = 0;
+        if (map_open) {
+          map_open = false;
+        } else {
+          target = 0;
+        }
+      }
+      if (IsKeyPressed(KEY_M) && !nanommo::Typing()) {
+        map_open = !map_open;
       }
       renderer.set_target(target);
       renderer.set_destination(destination);
@@ -456,6 +467,12 @@ int main(int argc, char* argv[]) {
         use.set_skill(*skill);
         connection->Send(use);
         destination.reset();
+      }
+      land_map.DrawMinimap(renderer.figures(), target, destination);
+      if (const std::optional<nanommo::Place> place = land_map.DrawMap(
+              renderer.figures(), target, destination, &map_open);
+          place && terrain->Walkable(place->x, place->z)) {
+        walk_to(place->x, place->z);
       }
       if (const std::optional<std::string> line =
               chat_window.Build(connection->chat())) {

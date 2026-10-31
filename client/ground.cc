@@ -16,6 +16,8 @@ constexpr float kSnowLine = 19.0f;
 // The y of a face's normal: below this, it's too steep for grass.
 constexpr float kSteep = 0.8f;
 
+}  // namespace
+
 Color GroundColor(const Look& look, float height, float up) {
   if (height < kBeach) {
     return look.sand;
@@ -28,6 +30,8 @@ Color GroundColor(const Look& look, float height, float up) {
   }
   return look.grass;
 }
+
+namespace {
 
 // Up to four percent lighter or darker, so that faces of one colour still
 // stand apart.
