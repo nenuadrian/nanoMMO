@@ -69,6 +69,9 @@ message Input {
   Quest turn_in = 11;
   // Back to life, once the wait is over. Sent once.
   bool respawn = 12;
+  // The monster the player picked, by its id, or 0 for none: what their
+  // swings and skills go for. It comes with each input, like the keys.
+  uint32 target = 13;
 }
 
 enum Motion {

@@ -442,6 +442,7 @@ TEST_F(ServerTest, ShowsEachHitToThePlayersNearIt) {
   // alice swings, and bob, beside her, sees her hit land.
   nanommo::protocol::Input swing;
   swing.set_attack(true);
+  swing.set_target(1);
   alice.Send(swing);
   const auto hit = [](const TestPlayer& player) {
     return std::ranges::find(player.events(), nanommo::protocol::EVENT_HIT,

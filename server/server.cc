@@ -231,6 +231,7 @@ void Server::Accept() {
         if (land != nullptr && input.ParseFromString(bytes)) {
           land->SetInput(*id, input.x(), input.z(), input.run(),
                          input.attack());
+          land->Pick(*id, input.target());
           if (input.respawn()) {
             land->Respawn(*id);
           }

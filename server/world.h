@@ -54,6 +54,8 @@ struct Player {
   /// Each change to their quests takes this to the next, as a bag's revision
   /// does, so the server can tell when to send them.
   uint32_t quests_revision = 0;
+  /// The monster the player picked, by its id, which their swings and skills
+  /// go for, or 0 for none.
   uint32_t target = 0;
   std::chrono::nanoseconds swing{0};
   /// The skill the player's using, by its id in the skills file, and how far
@@ -213,6 +215,10 @@ class World {
 
   void SetInput(uint32_t id, float x, float z, bool run, bool attack = false);
 
+  /// The monster, by its id, that the player's swings and skills go for from
+  /// now on, or 0 for none.
+  void Pick(uint32_t id, uint32_t monster);
+
   /// A dead player comes back in the middle of their land, at full health,
   /// once their wait is over.
   void Respawn(uint32_t id);
@@ -269,6 +275,9 @@ class World {
   void Dress(Player& player) const;
   void Act(uint32_t id, Player& player, std::chrono::nanoseconds time);
   void Move(Player& player, std::chrono::nanoseconds time);
+  /// The monster the player picked, while it's alive and within reach, or
+  /// nullptr.
+  const Monster* Target(const Player& player, float reach) const;
   void Aim(Player& player, float reach);
   void Swing(Player& player, const items::Weapon& weapon);
   void Hit(uint32_t id, Player& player, const items::Weapon& weapon);

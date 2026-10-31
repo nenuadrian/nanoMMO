@@ -131,6 +131,8 @@ World::World(uint32_t seed, Terrain terrain,
       random_(seed) {}
 
 void World::Join(uint32_t id, Player player) {
+  // The monster they picked was another land's.
+  player.target = 0;
   // Saved somewhere that's sea now, such as on a terrain from another seed.
   if (!terrain_.Walkable(player.x, player.z)) {
     player.x = 0.0f;
@@ -291,6 +293,13 @@ void World::SetInput(uint32_t id, float x, float z, bool run, bool attack) {
   found->second.input_z = z;
   found->second.input_run = run;
   found->second.input_attack = attack;
+}
+
+void World::Pick(uint32_t id, uint32_t monster) {
+  const auto found = players_.find(id);
+  if (found != players_.end()) {
+    found->second.target = monster;
+  }
 }
 
 void World::Respawn(uint32_t id) {
@@ -515,20 +524,20 @@ void World::Move(Player& player, std::chrono::nanoseconds time) {
   player.z = z;
 }
 
-// Picks the nearest monster in reach, and turns the player towards it.
-void World::Aim(Player& player, float reach) {
-  player.target = 0;
-  float nearest = reach;
-  for (const auto& [id, monster] : monsters_) {
-    if (monster.motion != Motion::kDead &&
-        Distance(player, monster) <= nearest) {
-      player.target = id;
-      nearest = Distance(player, monster);
-    }
+const Monster* World::Target(const Player& player, float reach) const {
+  const auto found = monsters_.find(player.target);
+  if (found == monsters_.end() || found->second.motion == Motion::kDead ||
+      Distance(player, found->second) > reach) {
+    return nullptr;
   }
-  if (player.target != 0) {
-    const Monster& monster = monsters_.at(player.target);
-    player.yaw = std::atan2(monster.x - player.x, monster.z - player.z);
+  return &found->second;
+}
+
+// Turns the player towards the monster they picked, if it's within reach.
+// Without one, they swing at the air the way they face.
+void World::Aim(Player& player, float reach) {
+  if (const Monster* monster = Target(player, reach)) {
+    player.yaw = std::atan2(monster->x - player.x, monster->z - player.z);
   }
 }
 
@@ -558,6 +567,13 @@ const skills::Skill* World::Usable(const Player& player, uint32_t id) const {
   const auto found = content_->skills.by_id.find(id);
   if (found == content_->skills.by_id.end() || !player.skills.contains(id) ||
       player.cooldowns.contains(id)) {
+    return nullptr;
+  }
+  // One that hits a single monster needs the one they picked, within its
+  // reach, so that its cooldown isn't spent on the air.
+  const skills::Effect& effect = found->second.effect();
+  if (effect.damage() > 0 && !effect.all() &&
+      Target(player, effect.reach()) == nullptr) {
     return nullptr;
   }
   return &found->second;

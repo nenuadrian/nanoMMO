@@ -291,6 +291,8 @@ void Bot::Wander() {
         input.emplace();
         if (errand_->kind == Errand::Kind::kHunt) {
           input->set_attack(true);
+          // Picked first, as a player clicks it, so the swings go for it.
+          input->set_target(errand_->monster);
           hunting_ = errand_->monster;
         } else if (errand_->kind == Errand::Kind::kTake) {
           *input->mutable_take() = errand_->quest;
