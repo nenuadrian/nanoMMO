@@ -3,9 +3,11 @@
 
 #include <raylib.h>
 
+#include <optional>
 #include <vector>
 
 #include "client/animator.h"
+#include "terrain/terrain.h"
 
 namespace nanommo {
 
@@ -17,6 +19,10 @@ const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray,
 
 /// The nearest living monster along the ray, or nullptr if there's none.
 const Figure* PickMonster(const std::vector<Figure>& figures, const Ray& ray);
+
+/// Where the ray first meets the ground, if it does within the farthest
+/// anyone sees, such as the spot under the mouse.
+std::optional<Vector3> PickGround(const Terrain& terrain, const Ray& ray);
 
 }  // namespace nanommo
 

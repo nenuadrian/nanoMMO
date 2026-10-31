@@ -77,6 +77,12 @@ class Renderer {
   /// or 0 for none.
   void set_target(uint32_t target) { target_ = target; }
 
+  /// Where the player's walking to by themselves, which gets a ring of its
+  /// own, if they are.
+  void set_destination(std::optional<Vector3> destination) {
+    destination_ = destination;
+  }
+
   /// How far the fog has lifted, as Loading::clear says: from 0, where it
   /// hides all but what's nearest, to 1, the atmosphere's own.
   void set_clear(float clear) { clear_ = clear; }
@@ -92,6 +98,7 @@ class Renderer {
   std::vector<Cube> cubes_;
   std::vector<Figure> figures_;
   uint32_t target_ = 0;
+  std::optional<Vector3> destination_;
   float clear_ = 1.0f;
   // Draw is const, as drawing doesn't change what we draw, but it counts.
   mutable Work work_;

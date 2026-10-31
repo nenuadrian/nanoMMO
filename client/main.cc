@@ -54,6 +54,13 @@ namespace {
 
 constexpr uint16_t kLoginPort = 7778;
 
+// In metres from where we walk to by ourselves: there.
+constexpr float kThere = 0.6f;
+
+// In seconds: a walk we asked for that stands still after this has ended, as
+// we got there, or something stopped us.
+constexpr float kSetOff = 0.5f;
+
 void ListWorlds(const std::string& host, asio::ssl::context& tls,
                 const nanommo::protocol::LoginRequest& request,
                 nanommo::LoginScreen& screen) {
@@ -189,6 +196,9 @@ int main(int argc, char* argv[]) {
   nanommo::protocol::Input sent;
   // The monster the player picked, by its id.
   uint32_t target = 0;
+  // Where we asked to walk to by ourselves, and for how long we have.
+  std::optional<Vector3> destination;
+  float walking_for = 0.0f;
   int nearby = 0;
 
   while (!window->ShouldClose()) {
@@ -265,6 +275,10 @@ int main(int argc, char* argv[]) {
         sent.set_target(target);
         connection->Send(sent);
       }
+      // The keys and a swing call off a walk we asked for, as on the server.
+      if (direction.x != 0.0f || direction.z != 0.0f || attack) {
+        destination.reset();
+      }
 
       const nanommo::protocol::World& world = connection->world();
       if (world.players_size() != nearby) {
@@ -290,8 +304,9 @@ int main(int argc, char* argv[]) {
         renderer.set_cubes(nanommo::GateCubes(*terrain, land));
         std::cout << "nanommo client: in the " << nanommo::kLands[land].name
                   << '\n';
-        // The monster we picked was the last land's.
+        // The monster we picked, and where we walked to, were the last land's.
         target = 0;
+        destination.reset();
         loading.Lift();
       } else if (!arrived || new_land) {
         loading.Cover();
@@ -300,6 +315,16 @@ int main(int argc, char* argv[]) {
       }
       in_world = arrived && terrain && terrain->seed() == world.seed();
     }
+
+    // Asks the world to walk us there, around what's in the way.
+    const auto walk_to = [&](float x, float z) {
+      nanommo::protocol::Input walk = sent;
+      walk.mutable_walk_to()->set_x(x);
+      walk.mutable_walk_to()->set_z(z);
+      connection->Send(walk);
+      destination = Vector3{x, terrain->Height(x, z), z};
+      walking_for = 0.0f;
+    };
 
     if (in_world) {
       const nanommo::protocol::World& world = connection->world();
@@ -318,6 +343,16 @@ int main(int argc, char* argv[]) {
       }
       const Vector3 here =
           you != figures.end() ? you->position : Vector3{0.0f, 0.0f, 0.0f};
+      if (destination) {
+        walking_for += GetFrameTime();
+        const bool there = std::hypot(here.x - destination->x,
+                                      here.z - destination->z) < kThere;
+        const bool stopped = walking_for > kSetOff && you != figures.end() &&
+                             you->to == nanommo::protocol::MOTION_IDLE;
+        if (there || stopped || dead) {
+          destination.reset();
+        }
+      }
       for (const nanommo::protocol::Event& event : connection->TakeEvents()) {
         combat_text.Add(event, world.you());
       }
@@ -358,11 +393,21 @@ int main(int argc, char* argv[]) {
             trainer_window.Open(npc->id, npc->name, npc->teaches);
           }
         }
+        // A double click on the ground walks there, around what's in the way.
+        if (npc == nullptr && monster == nullptr &&
+            ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+          if (const std::optional<Vector3> ground =
+                  nanommo::PickGround(*terrain, ray);
+              ground && terrain->Walkable(ground->x, ground->z)) {
+            walk_to(ground->x, ground->z);
+          }
+        }
       }
       if (IsKeyPressed(KEY_ESCAPE) && !nanommo::Typing()) {
         target = 0;
       }
       renderer.set_target(target);
+      renderer.set_destination(destination);
       if (IsKeyPressed(KEY_C) && !nanommo::Typing()) {
         character_screen.Toggle();
       }
@@ -410,6 +455,7 @@ int main(int argc, char* argv[]) {
         nanommo::protocol::Input use = sent;
         use.set_skill(*skill);
         connection->Send(use);
+        destination.reset();
       }
       if (const std::optional<std::string> line =
               chat_window.Build(connection->chat())) {

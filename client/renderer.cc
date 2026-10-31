@@ -173,6 +173,8 @@ constexpr float kShadowRadius = 0.42f;
 constexpr float kRingInner = 0.55f;
 constexpr float kRingOuter = 0.68f;
 constexpr Color kRing = {235, 90, 75, 220};
+// Where the player's walking to.
+constexpr Color kDestination = {255, 255, 255, 200};
 constexpr unsigned char kShadowDarkness = 82;
 
 // Nothing casts a shadow, so each figure gets a soft dark patch under it,
@@ -400,6 +402,10 @@ void Renderer::Draw() const {
       if (figure.monster && figure.id == target_ && target_ != 0) {
         DrawRing(*terrain_, figure.position, kRingInner, kRingOuter, kRing);
       }
+    }
+    if (destination_) {
+      DrawRing(*terrain_, *destination_, kRingInner * 0.6f, kRingOuter * 0.6f,
+               kDestination);
     }
     EndBlendMode();
     rlEnableDepthMask();

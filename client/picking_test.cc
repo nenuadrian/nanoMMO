@@ -1,10 +1,14 @@
 #include "client/picking.h"
 
+#include <raymath.h>
+
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "terrain/terrain.h"
 
 namespace {
 
@@ -67,4 +71,19 @@ TEST(Picking, PicksOnlyNpcsNearEnoughToTalkTo) {
                   .direction = {0.0f, 0.0f, -1.0f}};
   EXPECT_EQ(nanommo::PickNpc(figures, ahead, {0.0f, 0.0f, 0.0f}), nullptr);
   EXPECT_NE(nanommo::PickNpc(figures, ahead, {0.0f, 0.0f, -7.0f}), nullptr);
+}
+
+TEST(Picking, FindsTheGroundUnderTheMouse) {
+  const nanommo::Terrain board;
+  // From above, looking down at an angle, onto the flat board.
+  const Ray down{.position = {0.0f, 10.0f, 10.0f},
+                 .direction = Vector3Normalize({0.0f, -1.0f, -1.0f})};
+  const std::optional<Vector3> ground = nanommo::PickGround(board, down);
+  ASSERT_TRUE(ground);
+  EXPECT_NEAR(ground->y, board.Height(ground->x, ground->z), 0.01f);
+  EXPECT_NEAR(ground->z, 10.0f - (10.0f - ground->y), 0.01f);
+
+  const Ray up{.position = {0.0f, 10.0f, 0.0f},
+               .direction = {0.0f, 1.0f, 0.0f}};
+  EXPECT_FALSE(nanommo::PickGround(board, up));
 }
