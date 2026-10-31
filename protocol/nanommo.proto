@@ -72,6 +72,15 @@ message Input {
   // The monster the player picked, by its id, or 0 for none: what their
   // swings and skills go for. It comes with each input, like the keys.
   uint32 target = 13;
+  // Somewhere to walk to by itself, around what's in the way. Sent once; the
+  // keys, a swing or a skill call the walk off.
+  Point walk_to = 14;
+}
+
+// A place in a land, in metres from its middle.
+message Point {
+  float x = 1;
+  float z = 2;
 }
 
 enum Motion {

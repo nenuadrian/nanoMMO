@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <deque>
 #include <map>
 #include <memory>
 #include <random>
@@ -14,6 +15,8 @@
 #include "content/content.h"
 #include "protocol/nanommo.pb.h"
 #include "server/inventory.h"
+#include "terrain/lands.h"
+#include "terrain/paths.h"
 #include "terrain/terrain.h"
 
 namespace nanommo {
@@ -69,6 +72,9 @@ struct Player {
   std::map<uint32_t, std::chrono::nanoseconds> item_cooldowns;
   /// While they're dead, how long until they can come back.
   std::chrono::nanoseconds respawn{0};
+  /// Where the player walks by themselves, as they asked to: each place in
+  /// turn, straight, until they get there, or move, fight or die.
+  std::deque<Place> way;
   float input_x = 0.0f;
   float input_z = 0.0f;
   bool input_run = false;
@@ -209,9 +215,12 @@ class World {
   /// Players fight with the content's weapons and skills, so in a world
   /// without content, nobody can. Content doesn't change as the game runs, so
   /// the world's copies of its lands share one.
+  /// The world's copies of a land share its paths, as they're the same land;
+  /// without them, the world makes its own.
   explicit World(
       uint32_t seed = std::mt19937::default_seed, Terrain terrain = Terrain(),
-      std::shared_ptr<const Content> content = std::make_shared<Content>());
+      std::shared_ptr<const Content> content = std::make_shared<Content>(),
+      std::shared_ptr<Paths> paths = nullptr);
 
   void Join(uint32_t id, Player player);
 
@@ -226,6 +235,10 @@ class World {
   /// A dead player comes back in the middle of their land, at full health,
   /// once their wait is over.
   void Respawn(uint32_t id);
+
+  /// The player walks there by themselves, around what's in the way, or as
+  /// near as the way goes, if they can stand there.
+  void WalkTo(uint32_t id, Place to);
 
   /// The player uses the skill as soon as they're free, if they know it and
   /// it's ready.
@@ -285,6 +298,8 @@ class World {
           std::chrono::nanoseconds time);
   /// Runs the player towards the monster they picked, to within the reach.
   void Approach(Player& player, float reach, std::chrono::nanoseconds time);
+  /// Runs the player along their way, a step at a time.
+  void Follow(Player& player, std::chrono::nanoseconds time);
   /// The monster the player picked, while it's alive and within reach, or
   /// nullptr.
   const Monster* Target(const Player& player, float reach) const;
@@ -314,6 +329,7 @@ class World {
 
   Terrain terrain_;
   std::shared_ptr<const Content> content_;
+  std::shared_ptr<Paths> paths_;
   std::map<uint32_t, Player> players_;
   std::map<uint32_t, Monster> monsters_;
   uint32_t next_monster_ = 1;

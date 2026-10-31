@@ -135,14 +135,18 @@ void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z) {
 }
 
 World::World(uint32_t seed, Terrain terrain,
-             std::shared_ptr<const Content> content)
+             std::shared_ptr<const Content> content,
+             std::shared_ptr<Paths> paths)
     : terrain_(std::move(terrain)),
       content_(std::move(content)),
+      paths_(paths != nullptr ? std::move(paths)
+                              : std::make_shared<Paths>(terrain_)),
       random_(seed) {}
 
 void World::Join(uint32_t id, Player player) {
-  // The monster they picked was another land's.
+  // The monster they picked, and the way they walked, were another land's.
   player.target = 0;
+  player.way.clear();
   // Saved somewhere that's sea now, such as on a terrain from another seed.
   if (!terrain_.Walkable(player.x, player.z)) {
     player.x = 0.0f;
@@ -328,6 +332,18 @@ void World::Respawn(uint32_t id) {
   player.health = MaxHealthOf(player);
 }
 
+void World::WalkTo(uint32_t id, Place to) {
+  ZoneScoped;
+  const auto found = players_.find(id);
+  if (found == players_.end() || found->second.motion == Motion::kDead ||
+      !std::isfinite(to.x) || !std::isfinite(to.z)) {
+    return;
+  }
+  Player& player = found->second;
+  const std::vector<Place> way = paths_->Find({player.x, player.z}, to);
+  player.way.assign(way.begin(), way.end());
+}
+
 void World::UseSkill(uint32_t id, uint32_t skill) {
   const auto found = players_.find(id);
   if (found != players_.end()) {
@@ -503,6 +519,10 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
   // can't use yet goes. A swing or a skill at the monster they picked, out of
   // reach, runs them up to it first, unless they walk off themselves.
   const bool walking = player.input_x != 0.0f || player.input_z != 0.0f;
+  // The keys, a swing or a skill call off a walk the player asked for.
+  if (walking || player.input_skill != 0 || player.input_attack) {
+    player.way.clear();
+  }
   if (player.input_skill != 0) {
     const skills::Skill* skill = Usable(player, player.input_skill);
     const bool far = skill != nullptr && OneMonster(skill->effect()) &&
@@ -525,6 +545,10 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
     } else {
       Swing(player, *weapon);
     }
+    return;
+  }
+  if (!player.way.empty()) {
+    Follow(player, time);
     return;
   }
   Move(player, time);
@@ -556,6 +580,28 @@ void World::Go(Player& player, float to_x, float to_z, bool run,
   }
   player.x = x;
   player.z = z;
+}
+
+void World::Follow(Player& player, std::chrono::nanoseconds time) {
+  const Place next = player.way.front();
+  const float distance = std::hypot(next.x - player.x, next.z - player.z);
+  const float step = kRunSpeed * std::chrono::duration<float>(time).count();
+  if (distance > 0.0f) {
+    // The last step to each place is shorter, so that it stops there.
+    const float share = std::min(distance / step, 1.0f);
+    const float x = player.x;
+    const float z = player.z;
+    Go(player, (next.x - x) / distance * share, (next.z - z) / distance * share,
+       true, time);
+    // Something the squares missed is in the way after all: they stop.
+    if (player.x == x && player.z == z) {
+      player.way.clear();
+      return;
+    }
+  }
+  if (distance <= step) {
+    player.way.pop_front();
+  }
 }
 
 void World::Approach(Player& player, float reach,
@@ -838,6 +884,7 @@ void World::Hit(Monster& monster) {
   }
   player.motion = Motion::kDead;
   player.respawn = kRespawnTime;
+  player.way.clear();
   Record(Event::Kind::kDeath, found->first, player).monster = monster.kind;
 }
 

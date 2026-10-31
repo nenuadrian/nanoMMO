@@ -20,6 +20,7 @@ Copies::Copies(uint32_t seed, Content content)
     : content_(std::make_shared<const Content>(std::move(content))) {
   for (const Land& land : kLands) {
     terrains_.emplace_back(seed + land.seed, land.wading);
+    paths_.push_back(std::make_shared<Paths>(terrains_.back()));
   }
   for (int land = 0; land < std::ssize(kLands); ++land) {
     if (!kLands[land].dungeon) {
@@ -104,13 +105,13 @@ uint32_t Copies::For(int land, uint32_t id) {
     }
   }
   const uint32_t made = next_++;
-  Copy& copy =
-      copies_
-          .emplace(made, Copy{.land = land,
-                              .world = World(std::random_device()(),
-                                             terrains_[land], content_),
-                              .owner = owner})
-          .first->second;
+  Copy& copy = copies_
+                   .emplace(made, Copy{.land = land,
+                                       .world = World(std::random_device()(),
+                                                      terrains_[land], content_,
+                                                      paths_[land]),
+                                       .owner = owner})
+                   .first->second;
   SpawnMonsters(copy.world, land, content_->monsters);
   SpawnNpcs(copy.world, land, content_->npcs);
   copy.npc_cells = CellsOf(copy.world.npcs());

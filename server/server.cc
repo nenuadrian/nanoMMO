@@ -235,6 +235,9 @@ void Server::Accept() {
           if (input.respawn()) {
             land->Respawn(*id);
           }
+          if (input.has_walk_to()) {
+            land->WalkTo(*id, {input.walk_to().x(), input.walk_to().z()});
+          }
           if (input.skill() != 0) {
             land->UseSkill(*id, input.skill());
           }

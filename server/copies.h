@@ -10,6 +10,7 @@
 #include "content/content.h"
 #include "server/interest.h"
 #include "server/world.h"
+#include "terrain/paths.h"
 #include "terrain/terrain.h"
 
 namespace nanommo {
@@ -78,6 +79,8 @@ class Copies {
   std::shared_ptr<const Content> content_;
   /// Each land's, made once, which each of its copies copies.
   std::vector<Terrain> terrains_;
+  /// Each land's, which its copies share.
+  std::vector<std::shared_ptr<Paths>> paths_;
   std::map<uint32_t, Copy> copies_;
   uint32_t next_ = 1;
   /// The copy each player's in, by their ids.

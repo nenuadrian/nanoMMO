@@ -296,6 +296,40 @@ TEST(World, WalkingOffCallsOffTheRunUp) {
   EXPECT_EQ(world.monsters().at(skeleton).health, 50);
 }
 
+TEST(World, WalksWhereThePlayerAskedByItself) {
+  nanommo::World world;
+  world.Join(1, {});
+
+  world.WalkTo(1, {4.0f, 3.0f});
+  world.Step(kTick);
+  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kRun);
+  for (int second = 0; second < 3; ++second) {
+    RunOneSecond(world);
+  }
+  const nanommo::Player& player = world.players().at(1);
+  EXPECT_FLOAT_EQ(player.x, 4.0f);
+  EXPECT_FLOAT_EQ(player.z, 3.0f);
+  EXPECT_EQ(player.motion, nanommo::Motion::kIdle);
+  EXPECT_TRUE(player.way.empty());
+
+  // Not off the board, where nobody can stand.
+  world.WalkTo(1, {40.0f, 0.0f});
+  EXPECT_TRUE(world.players().at(1).way.empty());
+}
+
+TEST(World, TheKeysCallOffAWalk) {
+  nanommo::World world;
+  world.Join(1, {});
+  world.WalkTo(1, {5.0f, 0.0f});
+  world.Step(kTick);
+  world.SetInput(1, 0.0f, 1.0f, false);
+  world.Step(kTick);
+  world.SetInput(1, 0.0f, 0.0f, false);
+  RunOneSecond(world);
+  EXPECT_TRUE(world.players().at(1).way.empty());
+  EXPECT_LT(world.players().at(1).x, 1.0f);
+}
+
 TEST(World, SwingingRunsUpToThePickedMonster) {
   nanommo::World world(1, nanommo::Terrain(),
                        nanommo::testing::With(nanommo::testing::Sword()));
