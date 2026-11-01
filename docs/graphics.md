@@ -73,9 +73,11 @@ turned.
 A skill's fx, in its look too, are what it shows besides the move: each a kind, where it is (at the
 player's feet, the tip of their blade, or the feet of the monster they picked, without which it's
 left out), when it starts and for how long, in milliseconds into the skill, a colour, a size in
-metres and a count. There are six kinds: `TRAIL`, a ribbon where the blade has just been; `GLOW`, a ball of light; `RING`, a wave along
-the ground; `SPARKS`, which fly out and fall; `MOTES`, specks that rise and swirl; and `SHAKE`, which
-shakes the camera of anyone within 15 metres, less out to 40.
+metres and a count. There are ten kinds: `TRAIL`, a ribbon where the blade has just been; `GLOW`, a ball of light; `RING`, a wave along
+the ground; `SPARKS`, which fly out and fall; `MOTES`, specks that rise and swirl; `SHAKE`, which
+shakes the camera of anyone within 15 metres, less out to 40; `SHARDS`, pieces thrown up that fall
+back and shrink away; `SPIKES`, which come out of the ground nearest first and sink back; `BOLT`,
+lightning from the sky; and `WAVE`, a crescent that flies forward.
 
 Each is worked out from how long ago the skill started, with numbers that look random but are the
 same every frame, for each cast, so an fx looks the same at any frame rate, in every capture. The
@@ -83,7 +85,9 @@ client keeps each cast going until its last fx is over, after the player's done 
 trail poses the blade again at moments just gone, sixteen of them over the last 0.16 seconds, and
 joins where it was into a ribbon: see-through at the hilt and brightest at the tip.
 
-Fx are light: drawn last, from both sides, over what's behind it without hiding it. The
+The shards and the spikes are solid, a five-sided gem scaled and turned, lit by the world's shader
+like the rest of it, and drawn with the figures. The rest is light: drawn last, from both sides,
+over what's behind it without hiding it. The
 light's colour goes out three times as bright, past white, so it blooms. It's blended over what's
 behind it rather than added to it, as light added to the grass's green goes green itself.
 

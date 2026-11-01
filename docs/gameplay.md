@@ -75,7 +75,7 @@ you back, in the middle at full health. A player saved before health was kept jo
 
 A skill is a move with a cooldown. Each player knows Strike, on Space, and the thrust from the
 start, and learns the others from a trainer (see [Learning skills](#learning-skills)). For now, while
-we try them out, each of the five in `content/skills.txtpb` is from level one:
+we try them out, each of the nine in `content/skills.txtpb` is from level one:
 
 | Skill | From level | Cooldown | What it does |
 |---|---|---|---|
@@ -84,6 +84,10 @@ we try them out, each of the five in `content/skills.txtpb` is from level one:
 | Kick | 1 | 6 s | 10 damage to the monster you picked, within 1.4 metres, and knocks it 3 metres back |
 | Second Wind | 1 | 30 s | Heals 40, up to your most |
 | Whirlwind | 1 | 12 s | 25 damage to each monster within 2.5 metres |
+| Earthsplitter | 1 | 15 s | 40 damage to each monster within 3.5 metres, and knocks them 2 metres back |
+| Frost Nova | 1 | 18 s | 30 damage to each monster within 4 metres |
+| Searing Arc | 1 | 14 s | 35 damage to each monster within 7 metres, in a slice 100 degrees wide in front of you |
+| Stormcaller | 1 | 20 s | 60 damage to the monster you picked, within 10 metres |
 Each level after the first adds five to a skill's damage, as it does to a weapon's. There's no
 skill tree: a trainer teaches each of its skills to any player who has reached its level.
 
@@ -102,7 +106,8 @@ hits one monster needs a living one picked, and goes without one, keeping its co
 shows it red then. Strike is the one that doesn't, and swings at the air. Out of its reach, a skill
 runs the player up to the monster first, and starts once they're there. A skill holds the player for
 its cast time, lands partway through, on the monster the player picked if it's still in reach, or on
-each one in reach, and starts its cooldown as it starts. Cooldowns run down whatever the player
+each one in reach, and starts its cooldown as it starts. Searing Arc's effect has an `arc`, in degrees, and hits only the monsters within that slice in
+front of the player, half of it to either side of the way they face. Cooldowns run down whatever the player
 does, dead or alive, and aren't saved: a player who leaves and comes back finds their skills ready.
 
 A player using a skill has the motion `MOTION_SKILL`, its id, the monster they picked
