@@ -1,6 +1,6 @@
 # The trailer's shots, in the order they're cut together. Times in a camera
-# key or a pace are the film's seconds; times in a cast, a leg or a fall are the
-# game's.
+# key or a pace are the film's seconds; times in a cast, a leg or a charge are
+# the game's.
 
 # Up at the sun, and down to the land under it.
 shots {
@@ -24,8 +24,7 @@ shots {
 }
 
 # Earthsplitter in a ring of skeletons, slowed to a fifth from the leap to the
-# spikes, with the camera going round at the film's own pace. They fall as the
-# spikes come up.
+# spikes, with the camera going round at the film's own pace.
 shots {
   id: "earthsplitter"
   land: "Meadows"
@@ -36,10 +35,32 @@ shots {
   pace { at: 1.6 speed: 0.2 }
   pace { at: 5.2 speed: 0.2 }
   pace { at: 5.8 speed: 1 }
-  players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: 0 z: 8 } casts { at: 0.8 skill: 6 target: 101 } }
-  monsters { id: 101 kind: 1 at { x: 0.3 z: 10.6 } face: 1 dies: 1.74 }
-  monsters { id: 102 kind: 1 at { x: 1.7 z: 10.3 } face: 1 dies: 1.8 }
-  monsters { id: 103 kind: 1 at { x: -2.2 z: 9.6 } face: 1 dies: 1.77 }
-  monsters { id: 104 kind: 1 at { x: 0.5 z: 5.5 } face: 1 dies: 1.86 }
-  monsters { id: 105 kind: 1 at { x: -2.4 z: 7.0 } face: 1 dies: 1.83 }
+  players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: 0 z: 8 } face: 101 casts { at: 0.8 skill: 6 target: 101 } }
+  monsters { id: 101 kind: 1 at { x: 0.3 z: 10.6 } face: 1 }
+  monsters { id: 102 kind: 1 at { x: 1.7 z: 10.3 } face: 1 }
+  monsters { id: 103 kind: 1 at { x: -2.2 z: 9.6 } face: 1 }
+  monsters { id: 104 kind: 1 at { x: 0.5 z: 5.5 } face: 1 }
+  monsters { id: 105 kind: 1 at { x: -2.4 z: 7.0 } face: 1 }
+}
+
+# Six of them and nineteen skeletons, eight skills at once, from above.
+shots {
+  id: "battle"
+  land: "Meadows"
+  seconds: 9
+  ease: 0.2
+  pace { at: 2.5 speed: 1 }
+  pace { at: 3.0 speed: 0.4 }
+  pace { at: 6.5 speed: 0.4 }
+  pace { at: 7.2 speed: 1 }
+  orbit { center { x: 0 z: 2 up: 1 } radius: 10 up: 12 from: 200 to: 240 fov: 50 }
+  players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: -2 z: 4 } face: 301 casts { at: 3.6 skill: 6 target: 301 } }
+  players { id: 2 name: "elaine" level: 11 weapon: 1 wearing: [8, 9, 10] at { x: 1 z: 5.5 } face: 321 casts { at: 2.2 skill: 8 target: 321 } casts { at: 5.2 skill: 5 target: 321 } }
+  players { id: 3 name: "gawain" level: 12 weapon: 6 wearing: [4, 5, 11] at { x: 3.5 z: 2 } face: 301 casts { at: 2.9 skill: 4 } casts { at: 5.0 skill: 5 target: 302 } }
+  players { id: 4 name: "morgan" level: 12 weapon: 1 wearing: [5, 9, 11, 7] at { x: -1 z: -0.5 } face: 311 casts { at: 3.1 skill: 7 } }
+  players { id: 5 name: "percival" level: 10 weapon: 1 wearing: [4, 8, 9, 10] at { x: -4.5 z: 1.5 } face: 311 casts { at: 2.4 skill: 1 target: 311 } casts { at: 4.3 skill: 2 target: 312 } }
+  players { id: 6 name: "nimue" level: 13 weapon: 6 wearing: [8, 9, 11] at { x: 2 z: -1.5 } face: 301 casts { at: 4.0 skill: 9 target: 305 } }
+  packs { kind: 1 center { x: 8 z: -8 } radius: 4 count: 7 first: 301 charge: 3 charge_at: 0.6 }
+  packs { kind: 1 center { x: -8 z: -9 } radius: 3.5 count: 6 first: 311 charge: 5 charge_at: 0.8 }
+  packs { kind: 1 center { x: 4 z: 15 } radius: 3.5 count: 6 first: 321 charge: 2 charge_at: 0.7 }
 }

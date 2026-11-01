@@ -74,6 +74,8 @@ message Player {
   repeated uint32 wearing = 7;
   repeated Cast casts = 8;
   repeated Leg legs = 9;
+  // Faces this monster, by id, while standing.
+  uint32 face = 10;
 }
 
 message Monster {
@@ -85,9 +87,32 @@ message Monster {
   uint32 face = 4;
   float yaw = 5;
   uint32 level = 6;
-  // When it falls, on the game's clock, or never at 0.
+  // When it falls, on the game's clock, whatever hits it, or 0 for when the
+  // skills' hits have taken its last.
   float dies = 7;
   repeated Leg legs = 8;
+  // The player it runs at, by id, from that moment, to swing at them once
+  // it's in reach.
+  uint32 charge = 9;
+  float charge_at = 10;
+  // How many hits it takes to fall: 1 without.
+  uint32 hits = 11;
+}
+
+// Many monsters of a kind, spread round a place, which act together.
+message Pack {
+  uint32 kind = 1;
+  Point center = 2;
+  // In metres.
+  float radius = 3;
+  uint32 count = 4;
+  // Their ids, counting up from this one.
+  uint32 first = 5;
+  uint32 face = 6;
+  uint32 charge = 7;
+  float charge_at = 8;
+  uint32 hits = 9;
+  uint32 level = 10;
 }
 
 message Shot {
@@ -106,6 +131,7 @@ message Shot {
   repeated Pace pace = 10;
   repeated Player players = 11;
   repeated Monster monsters = 12;
+  repeated Pack packs = 14;
 }
 
 message Film {

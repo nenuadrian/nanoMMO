@@ -53,7 +53,9 @@ Camera3D CameraAt(const Shot& shot, float seconds, const Terrain& terrain);
 
 /// A shot's world, played out on the game's clock. Players go where their
 /// legs take them and use their skills when the shot says. Monsters stand,
-/// face who the shot says, walk their legs, and fall when it says.
+/// walk their legs, or charge the player they're set on and swing at them in
+/// reach, and the skills' hits land on them as the server's would: knocked
+/// back by a push, falling at their last hit.
 class Stage {
  public:
   Stage(const Shot& shot, const Content& content);
@@ -67,21 +69,32 @@ class Stage {
     Monster spec;
     Vector2 at;
     float yaw = 0.0f;
+    uint32_t hits = 1;
     bool fallen = false;
     protocol::Motion motion = protocol::MOTION_IDLE;
+    /// While it's knocked back: from where, to where, and since when.
+    Vector2 pushed_from{};
+    Vector2 pushed_to{};
+    float pushed_at = -1.0f;
   };
 
-  /// How long a cast holds its player, from its skill, or its weapon's swing
-  /// for a skill that swings it.
+  /// What a cast does, from its skill, or its weapon's swing for a skill
+  /// that swings it.
   struct Blow {
     float lasts = 0.0f;
+    float lands = 0.0f;
+    float reach = 0.0f;
+    bool all = false;
+    float push = 0.0f;
+    float arc = 0.0f;
   };
   Blow BlowOf(const Player& player, const Cast& cast) const;
 
   /// Where the player is at that moment of the game.
   Vector2 PlayerAt(int player, float game) const;
 
-  void Step(float to);
+  void Step(float from, float to);
+  void Land(int player, const Cast& cast, float game);
 
   const Shot& shot_;
   const Content& content_;
