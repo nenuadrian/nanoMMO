@@ -2,8 +2,8 @@
 
 ## Characters
 
-The players are people, posed by Mixamo's X Bot and Y Bot, with an idle, a walk, a run, a sword
-slash and a death, and a clip for each skill that has one: a thrust, a kick and a spin.
+The players are people, posed by Mixamo's X Bot and Y Bot, with an idle, a walk, a run and a death.
+The skills, Strike on Space too, are moves of our own (see [Moves and fx](#moves-and-fx)).
 Mixamo's terms don't let us share its files, so they're not in the repo:
 [assets/mixamo/README.md](../assets/mixamo/README.md) lists what to download from mixamo.com. Then make
 the characters:
@@ -15,7 +15,7 @@ docker build --target characters --output assets/characters .
 The `characters` stage converts the FBX files to glTF with FBX2glTF, and
 [assets/tools/merge.mjs](../assets/tools/merge.mjs) puts each character and the clips into one `.glb`
 that raylib can load: one skeleton, the walk and the run in place, and a tenth of the triangles. The
-slash and the death keep their motion, so a player falls back as it dies. The build copies
+death keeps its motion, so a player falls back as it dies. The build copies
 `assets/characters` next to the client, which loads them from there. Without them, the players are
 cubes, and the client's character tests skip themselves.
 
@@ -48,6 +48,44 @@ The server decides which way each player faces, and whether it stands, walks or 
 at 1.8 and 3.1 metres a second, the speeds of the walk and the run, so that the feet don't slide.
 The client blends from one clip into the next over a quarter of a second, and smooths each player's
 position between the server's ticks.
+
+## Moves and fx
+
+A skill's move, in its look in the skills file, is a list of keys, each a pose at a time into the
+skill. A key turns some of thirteen joints, from the hips and the chest to the knees, each a bone of
+the characters (`kJointBones` in `client/moves.h`), by a pitch, a yaw and a roll in degrees, about
+the player's own axes: the one out to their left, up, and the one they face along, the way your
+fingers curl with your thumb along it. So a positive pitch bows the chest forward and swings a
+hanging arm back. A key's `lift` and `ahead` move the whole body, in metres, for a jump or a lunge,
+and its ease is how the joints get to it from the key before: `SMOOTH`, `SNAP` for a strike, fast
+away and slowly in, or `GATHER` for a wind-up. Before the first key, the move is the clip under it,
+the idle, and it holds its last key, which is that again, with no turns, unless a turn is a whole
+one, as Whirlwind's two turns round are. The content's checks refuse a move whose keys go back in
+time, or which runs on after its skill is over.
+
+The client poses the clips as before, then turns the bones by the move (`client/moves.cc`): the
+bones come parent first, and each joint takes the bones below it round with it, about itself, so a
+turn of the chest moves the arms and the head. raylib skins on the GPU, from a matrix for each bone,
+from where it was bound to where it is now, so those are worked out again. Each turn is about the
+axes as the joints above it left them, so an arm swung forward stays forward of a chest that's
+turned.
+
+A skill's fx, in its look too, are what it shows besides the move: each a kind, where it is (at the
+player's feet, the tip of their blade, or the feet of the monster they picked, without which it's
+left out), when it starts and for how long, in milliseconds into the skill, a colour, a size in
+metres and a count. There are six kinds: `TRAIL`, a ribbon where the blade has just been; `GLOW`, a ball of light; `RING`, a wave along
+the ground; `SPARKS`, which fly out and fall; `MOTES`, specks that rise and swirl; and `SHAKE`, which
+shakes the camera of anyone within 15 metres, less out to 40.
+
+Each is worked out from how long ago the skill started, with numbers that look random but are the
+same every frame, for each cast, so an fx looks the same at any frame rate, in every capture. The
+client keeps each cast going until its last fx is over, after the player's done with the skill. A
+trail poses the blade again at moments just gone, sixteen of them over the last 0.16 seconds, and
+joins where it was into a ribbon: see-through at the hilt and brightest at the tip.
+
+Fx are light: drawn last, from both sides, over what's behind it without hiding it. The
+light's colour goes out three times as bright, past white, so it blooms. It's blended over what's
+behind it rather than added to it, as light added to the grass's green goes green itself.
 
 ## The loading screen
 
@@ -126,7 +164,7 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
 
 - OpenGL keeps a texture's rows from the bottom up, so the frame goes to the screen with a negative
   height, which flips it the right way up.
-- The sea and the glows are see-through, and leave the frame see-through where they are, so the
+- The sea and the skills' fx are see-through, and leave the frame see-through where they are, so the
   shader that puts it on the screen writes it opaque: blending it in would let an older picture show
   through.
 - The frame is the screen's size in pixels, from `GetRenderWidth` and `GetRenderHeight`, and goes to
@@ -141,10 +179,9 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
   halves back up from the smallest, each spread over the nine pixels around as it doubles. A quarter
   of it goes on top of the frame. raylib's example blurs the whole picture onto itself instead, which
   washes it out.
-- The lava, the ooze and Second Wind's glow give off light of their own, their emission, which the
-  shaders add to the sun's, the lava's and the ooze's most at the tops of their waves, and which
-  takes them past white, so they bloom. A glow adds its light to
-  what's behind it. The screen cuts each channel at white on its own, which turns a bright orange
+- The lava and the ooze give off light of their own, their emission, which the shaders add to the
+  sun's, most at the tops of their waves, and which takes them past white, so they bloom, as do the
+  skills' fx. The screen cuts each channel at white on its own, which turns a bright orange
   yellow, so a colour past white goes to the screen scaled down to white as a whole, by its brightest
   channel.
 - Cel shading, from raylib's

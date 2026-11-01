@@ -28,16 +28,18 @@ into another land. The cursor is a crosshair over a living monster, a hand over 
 talking reach, and the arrow elsewhere. Each input carries the monster you picked (`Input.target`),
 which the world keeps as your target.
 
-Space swings your weapon at the monster you picked, and turns you to face it. Out of its reach, it
-first runs you up to it, to most of the reach (`World::kCloseIn`, 0.8), so that a monster that
-steps back is still within it; the keys call that off. With nothing picked, you swing at the air,
-the way you face. The
-sword's numbers are in the items file: it reaches 1.6 metres, and a swing takes two seconds, the
-length of the slash animation, and you stand still until it's over. The sword hits 0.9 seconds in, as
-it comes across the front, if the monster is still alive and in reach, for fifteen health, and each
-level after the first adds five to whatever you hold, and what you wear adds its damage. With no
-weapon in your main hand, Space does nothing, and putting the weapon away ends a swing. Holding Space down swings again and again. All
-of it happens on the server: the client only says that Space is down, in `Input`.
+Space uses Strike, the skill every player has: a swing of your weapon at the monster you picked,
+which turns you to face it. Out of its reach, it first runs you up to it, to most of the reach
+(`World::kCloseIn`, 0.8), so that a monster that steps back is still within it; the keys call that
+off. With nothing picked, you swing at the air, the way you face. Strike's effect in the skills file
+is `weapon: true`, so its reach, its damage and its timing are the weapon's in your hand, and the
+sword's numbers are in the items file: it reaches 1.6 metres, a swing takes two seconds, and you
+stand still until it's over. The sword hits 0.9 seconds in, as it comes across the front, if the
+monster is still alive and in reach, for fifteen health, and each level after the first adds five to
+whatever you hold, and what you wear adds its damage. With no weapon in your main hand, Space does
+nothing, and putting the weapon away ends a swing. Holding Space down swings again and again. All of
+it happens on the server: the client only says that Space is down, in `Input`, and the world uses
+the skill the skills file names as its `attack`, as if its key had gone down.
 
 A monster goes for the nearest living player within its kind's sight, three metres for a skeleton, if that player is within
 its leash of the monster's home, four metres. A monster that's hurt goes for whoever hurt it last
@@ -71,45 +73,44 @@ you back, in the middle at full health. A player saved before health was kept jo
 
 ## Skills
 
-A skill is a move with a cooldown. Each player knows the thrust from the start, and learns the
-others from a trainer, from their levels on (see [Learning skills](#learning-skills)). The four in
-`content/skills.txtpb` are a skill a level, from one to four:
+A skill is a move with a cooldown. Each player knows Strike, on Space, and the thrust from the
+start, and learns the others from a trainer (see [Learning skills](#learning-skills)). For now, while
+we try them out, each of the five in `content/skills.txtpb` is from level one:
 
 | Skill | From level | Cooldown | What it does |
 |---|---|---|---|
+| Strike | 1 | none | The weapon's damage to the monster you picked, within its reach |
 | Thrust | 1 | 8 s | 35 damage to the monster you picked, within 2.4 metres |
-| Kick | 2 | 6 s | 10 damage to the monster you picked, within 1.4 metres, and knocks it 3 metres back |
-| Second Wind | 3 | 30 s | Heals 40, up to your most |
-| Whirlwind | 4 | 12 s | 25 damage to each monster within 2.5 metres |
-
+| Kick | 1 | 6 s | 10 damage to the monster you picked, within 1.4 metres, and knocks it 3 metres back |
+| Second Wind | 1 | 30 s | Heals 40, up to your most |
+| Whirlwind | 1 | 12 s | 25 damage to each monster within 2.5 metres |
 Each level after the first adds five to a skill's damage, as it does to a weapon's. There's no
 skill tree: a trainer teaches each of its skills to any player who has reached its level.
 
-The hotbar along the bottom of the screen has the skills in the order of their levels, each on a
-number key, 1 for the first, up to 9, and a click on one uses it too. Each shows its icon and its key,
-and its name and level when the mouse is over it. A skill you don't know yet is greyed out, with
-the level it needs, or Learn once you've reached it, and one that's cooling down is shaded, a slice that shrinks clockwise from
-the top, with the seconds left in the middle. The client works that out from the milliseconds the
-server sends and the cooldown in the skills file.
+The hotbar along the bottom of the screen has Strike first, on Space, then the others in the order
+of their levels, each on a number key, 1 for the first, up to 9, and a click on one uses it too.
+Each shows its icon and its key, and its name and level when the mouse is over it. A skill you don't
+know yet is greyed out, with the level it needs, or Learn once you've reached it, and one that's
+cooling down is shaded, a slice that shrinks clockwise from the top, with the seconds left in the
+middle. The client works that out from the milliseconds the server sends and the cooldown in the
+skills file.
 
-The server decides it all, as it does a swing. The client sends a skill's id in `Input` once, as its
-key goes down, and the world keeps it until the player is free: a skill asked for during a swing or
-another skill starts as that ends. Then it starts if the player knows it and its cooldown is over,
-and otherwise it goes. A skill that hits one monster needs a living one picked, and goes without
-one, keeping its cooldown; the hotbar shows it red then. Out of its reach, it runs the player up to
-the monster first, like a swing, and starts once they're there. A skill holds the player for its
-cast time, like a swing, lands partway through, on the monster the player picked if it's still in
-reach, or on each one in reach, and starts its cooldown as it starts. Cooldowns run down whatever the player does, dead or alive,
-and aren't saved: a player who leaves and comes back finds their skills ready.
+The server decides it all. The client sends a skill's id in `Input` once, as its key goes down, and
+the world keeps it until the player is free: a skill asked for during another starts as that ends.
+Then it starts if the player knows it and its cooldown is over, and otherwise it goes. A skill that
+hits one monster needs a living one picked, and goes without one, keeping its cooldown; the hotbar
+shows it red then. Strike is the one that doesn't, and swings at the air. Out of its reach, a skill
+runs the player up to the monster first, and starts once they're there. A skill holds the player for
+its cast time, lands partway through, on the monster the player picked if it's still in reach, or on
+each one in reach, and starts its cooldown as it starts. Cooldowns run down whatever the player
+does, dead or alive, and aren't saved: a player who leaves and comes back finds their skills ready.
 
-A player using a skill has the motion `MOTION_SKILL`, and its id, so that everyone's clients can
-show it. The skills file names each skill's clip, which the client finds in the characters by name,
-and plays once, from the start: Thrust plays Mixamo's Thrust Slash, Kick its Kicking, and Whirlwind
-its Standing Melee Attack 360 Low, each about as long as the skill holds the player. Second Wind has no
-clip, so the player stands, in a green glow, see-through and drawn after the sea, that grows over
-the first quarter of a second. One skill straight after another blends from one clip into the next,
-as a change of motion does. Your cooldowns are yours alone, so they go with your experience, after the world: the
-milliseconds left for each skill that isn't ready, by its id.
+A player using a skill has the motion `MOTION_SKILL`, its id, the monster they picked
+(`Player.target`), and how many skills they've started (`Player.casts`), so that everyone's
+clients can show it, its fx land on the same monster on every screen, and a swing straight after a
+swing starts its move again. A skill's look in the skills file has its move and its fx, which the client draws (see
+[Moves and fx](graphics.md#moves-and-fx)). Your cooldowns are yours alone, so they go with your
+experience, after the world: the milliseconds left for each skill that isn't ready, by its id.
 
 ### Learning skills
 

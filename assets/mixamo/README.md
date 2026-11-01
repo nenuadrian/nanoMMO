@@ -13,11 +13,7 @@ Sign in at mixamo.com with a free Adobe account, and download these into this fo
 | `Idle.fbx` | Animations: Idle | FBX Binary, Without Skin, 30 frames per second, no keyframe reduction |
 | `Walking.fbx` | Animations: Walking | FBX Binary, Without Skin, 30 frames per second, no keyframe reduction |
 | `Slow Run.fbx` | Animations: Slow Run | FBX Binary, Without Skin, 30 frames per second, no keyframe reduction |
-| `Stable Sword Outward Slash.fbx` | Animations: Stable Sword Outward Slash | FBX Binary, Without Skin, 30 frames per second, no keyframe reduction |
 | `Dying Backwards.fbx` | Animations: Dying Backwards | FBX Binary, Without Skin, 30 frames per second, no keyframe reduction |
-| `Thrust Slash.fbx` | Animations: Thrust Slash | FBX Binary, Without Skin, 30 frames per second, no keyframe reduction |
-| `Kicking.fbx` | Animations: Kicking | FBX Binary, Without Skin, 30 frames per second, no keyframe reduction |
-| `Standing Melee Attack 360 Low.fbx` | Animations: Standing Melee Attack 360 Low | FBX Binary, Without Skin, 30 frames per second, no keyframe reduction |
 
 Then, from the top of the repo, make the characters the client draws:
 

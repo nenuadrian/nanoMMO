@@ -24,9 +24,10 @@ skills (see [Skills](gameplay.md#skills)).
   as it's made, from `min` to `max`. A new kind of item that puts parts we have together is
   another entry, and needs no code. The kit, `starting`, is what a new player starts with, and
   `retired` lists the ids of items that are gone, which no item can take again. A skill's `effect` is
-  the server's, and its `look` the client's: its icon, its clip and its glow. The client shows a
+  the server's, and its `look` the client's: its icon, its move and its fx. The client shows a
   skill's level and cooldown too, so those are in both. `starting` names the skills every new
-  player knows, and a kind of NPC's `teaches` the skills it teaches, by id.
+  player knows, `attack` the swing on Space, which every player knows, and a kind of NPC's
+  `teaches` the skills it teaches, by id.
 - Monsters with a fixed home, camps of monsters and NPCs name their kind by id, and their land by
   name. A quest names its giver's kind of NPC, the kind of monster it asks for and its prizes by id.
 - Each file's first two lines, `# proto-file:` and `# proto-message:`, name its schema, so that
