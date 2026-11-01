@@ -116,6 +116,10 @@ skills {
       color: 0xFFF2DCFF size: 1.6
     }
     fx {
+      kind: SHARDS at: TARGET from_ms: 420 for_ms: 700
+      color: 0x9C8466FF size: 0.5 count: 8
+    }
+    fx {
       kind: GLOW at: TARGET from_ms: 400 for_ms: 250
       color: 0xFFE0B0FF size: 0.5
     }
@@ -285,6 +289,189 @@ skills {
     fx {
       kind: SPARKS at: TARGET from_ms: 880 for_ms: 400
       color: 0xFF9A3AFF size: 0.8 count: 12
+    }
+  }
+}
+skills {
+  id: 6
+  name: "Earthsplitter"
+  level: 1
+  cooldown_ms: 15000
+  effect {
+    cast_ms: 1800
+    hit_ms: 880
+    reach: 3.5
+    damage: 40
+    all: true
+    push: 2
+  }
+  look {
+    icon: 0xF6FC
+    move {
+      keys {
+        at_ms: 350
+        lift: -0.12
+        turns { joint: CHEST pitch: -8 }
+        turns { joint: RIGHT_ARM pitch: -160 }
+        turns { joint: RIGHT_FOREARM pitch: -70 }
+        turns { joint: LEFT_ARM pitch: -150 }
+        turns { joint: LEFT_FOREARM pitch: -70 }
+        turns { joint: RIGHT_LEG pitch: -30 }
+        turns { joint: RIGHT_KNEE pitch: 60 }
+        turns { joint: LEFT_LEG pitch: -30 }
+        turns { joint: LEFT_KNEE pitch: 60 }
+      }
+      keys {
+        at_ms: 660
+        lift: 0.65
+        ahead: 0.3
+        turns { joint: CHEST pitch: -12 }
+        turns { joint: RIGHT_ARM pitch: -170 }
+        turns { joint: RIGHT_FOREARM pitch: -60 }
+        turns { joint: LEFT_ARM pitch: -160 }
+        turns { joint: LEFT_FOREARM pitch: -60 }
+        turns { joint: RIGHT_LEG pitch: -60 }
+        turns { joint: RIGHT_KNEE pitch: 110 }
+        turns { joint: LEFT_LEG pitch: -40 }
+        turns { joint: LEFT_KNEE pitch: 120 }
+      }
+      keys {
+        at_ms: 860
+        ease: SNAP
+        lift: -0.34
+        ahead: 0.55
+        turns { joint: SPINE pitch: 30 }
+        turns { joint: CHEST pitch: 30 }
+        turns { joint: RIGHT_ARM pitch: -50 }
+        turns { joint: RIGHT_HAND pitch: 60 }
+        turns { joint: LEFT_ARM pitch: -50 }
+        turns { joint: RIGHT_LEG pitch: -70 }
+        turns { joint: RIGHT_KNEE pitch: 75 }
+        turns { joint: LEFT_LEG pitch: 5 }
+        turns { joint: LEFT_KNEE pitch: 110 }
+      }
+      keys {
+        at_ms: 1250
+        lift: -0.32
+        ahead: 0.5
+        turns { joint: SPINE pitch: 27 }
+        turns { joint: CHEST pitch: 27 }
+        turns { joint: RIGHT_ARM pitch: -52 }
+        turns { joint: RIGHT_HAND pitch: 58 }
+        turns { joint: LEFT_ARM pitch: -52 }
+        turns { joint: RIGHT_LEG pitch: -70 }
+        turns { joint: RIGHT_KNEE pitch: 75 }
+        turns { joint: LEFT_LEG pitch: 5 }
+        turns { joint: LEFT_KNEE pitch: 110 }
+      }
+      keys { at_ms: 1750 }
+    }
+    fx {
+      kind: TRAIL from_ms: 660 for_ms: 260
+      color: 0xFF8A30FF
+    }
+    fx {
+      kind: GLOW from_ms: 870 for_ms: 400
+      color: 0xFF8030FF size: 1.2
+    }
+    fx {
+      kind: RING from_ms: 880 for_ms: 700
+      color: 0xFF7A2EFF size: 4.0
+    }
+    fx {
+      kind: SPIKES from_ms: 880 for_ms: 1300
+      color: 0x8A6A4CFF size: 3.4 count: 20
+    }
+    fx {
+      kind: SHARDS from_ms: 880 for_ms: 1100
+      color: 0x6E5844FF size: 1.4 count: 24
+    }
+    fx {
+      kind: SPARKS from_ms: 880 for_ms: 700
+      color: 0xFF8A30FF size: 2.5 count: 40
+    }
+    fx {
+      kind: SHAKE from_ms: 880 for_ms: 500
+      size: 0.3
+    }
+  }
+}
+skills {
+  id: 7
+  name: "Frost Nova"
+  level: 1
+  cooldown_ms: 18000
+  effect {
+    cast_ms: 1700
+    hit_ms: 820
+    reach: 4
+    damage: 30
+    all: true
+  }
+  look {
+    icon: 0xF2DC
+    move {
+      keys {
+        at_ms: 450
+        lift: 0.03
+        turns { joint: CHEST pitch: -6 }
+        turns { joint: RIGHT_ARM pitch: -160 roll: 5 }
+        turns { joint: RIGHT_FOREARM pitch: -20 }
+        turns { joint: RIGHT_HAND pitch: 75 }
+        turns { joint: LEFT_ARM roll: 40 }
+      }
+      keys {
+        at_ms: 800
+        ease: SNAP
+        lift: -0.32
+        turns { joint: SPINE pitch: 15 }
+        turns { joint: CHEST pitch: 25 }
+        turns { joint: RIGHT_ARM pitch: -55 }
+        turns { joint: RIGHT_HAND pitch: 95 }
+        turns { joint: LEFT_ARM pitch: -20 roll: 35 }
+        turns { joint: RIGHT_LEG pitch: -70 }
+        turns { joint: RIGHT_KNEE pitch: 80 }
+        turns { joint: LEFT_LEG pitch: 5 }
+        turns { joint: LEFT_KNEE pitch: 115 }
+      }
+      keys {
+        at_ms: 1250
+        lift: -0.3
+        turns { joint: SPINE pitch: 13 }
+        turns { joint: CHEST pitch: 22 }
+        turns { joint: RIGHT_ARM pitch: -55 }
+        turns { joint: RIGHT_HAND pitch: 95 }
+        turns { joint: LEFT_ARM pitch: -20 roll: 35 }
+        turns { joint: RIGHT_LEG pitch: -70 }
+        turns { joint: RIGHT_KNEE pitch: 80 }
+        turns { joint: LEFT_LEG pitch: 5 }
+        turns { joint: LEFT_KNEE pitch: 115 }
+      }
+      keys { at_ms: 1650 }
+    }
+    fx {
+      kind: GLOW at: BLADE from_ms: 200 for_ms: 600
+      color: 0xB0E4FFFF size: 0.4
+    }
+    fx {
+      kind: GLOW from_ms: 800 for_ms: 500
+      color: 0x7CC8FFFF size: 1.0
+    }
+    fx {
+      kind: RING from_ms: 800 for_ms: 800
+      color: 0x5AAEFFFF size: 4.4
+    }
+    fx {
+      kind: SPIKES from_ms: 800 for_ms: 1800
+      color: 0xB8F0FFFF size: 4.0 count: 28
+    }
+    fx {
+      kind: MOTES from_ms: 800 for_ms: 1600
+      color: 0xD8F8FFFF size: 1.6 count: 50
+    }
+    fx {
+      kind: SHAKE from_ms: 800 for_ms: 300
+      size: 0.12
     }
   }
 }

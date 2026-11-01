@@ -92,6 +92,10 @@ message Fx {
     MOTES = 4;
     // The camera shakes, by the size in metres.
     SHAKE = 5;
+    // Pieces thrown up, which fall back down.
+    SHARDS = 6;
+    // Spikes out of the ground, in a ring spreading out to the size.
+    SPIKES = 7;
   }
   // Where it is.
   enum Place {

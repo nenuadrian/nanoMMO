@@ -1,5 +1,7 @@
 #include "client/fx.h"
 
+#include <raylib.h>
+
 #include <memory>
 
 #include "absl/status/statusor.h"
@@ -24,7 +26,7 @@ TEST(Fx, LastUntilTheSkillsFxAreOver) {
     }
   )pb");
   ASSERT_TRUE(skills.ok());
-  nanommo::Fx fx(*skills);
+  nanommo::Fx fx(*skills, LoadShader(nullptr, nullptr));
   nanommo::Figure player{
       .id = 1, .to = nanommo::protocol::MOTION_SKILL, .to_skill = 1};
 

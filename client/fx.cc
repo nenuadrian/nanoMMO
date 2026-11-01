@@ -9,6 +9,8 @@
 #include <utility>
 #include <vector>
 
+#include "client/triangles.h"
+
 namespace nanommo {
 
 namespace {
@@ -64,6 +66,13 @@ float Random(uint32_t seed, uint32_t fx, uint32_t i, uint32_t what) {
 }
 
 float EaseOut(float t) { return 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t); }
+
+// Past the end, and back.
+float Overshoot(float t) {
+  constexpr float kBack = 1.7f;
+  const float s = t - 1.0f;
+  return 1.0f + s * s * ((kBack + 1.0f) * s + kBack);
+}
 
 // Towards white as it's hotter, from 0 to 1.
 Color Hot(Color color, float heat) {
@@ -138,11 +147,31 @@ Vector3 Around(const Terrain& terrain, Vector3 at, float distance, float turn,
   return {x, terrain.Height(x, z) + above, z};
 }
 
+// A gem: five sides round its middle, coming to a point at the top and at
+// the bottom, a unit tall.
+Mesh Gem() {
+  Triangles gem;
+  constexpr int kSides = 5;
+  const Vector3 top{0.0f, 0.5f, 0.0f};
+  const Vector3 bottom{0.0f, -0.5f, 0.0f};
+  for (int i = 0; i < kSides; ++i) {
+    auto corner = [](int j) {
+      const float turn = 2.0f * PI * static_cast<float>(j) / kSides;
+      return Vector3{0.5f * std::sin(turn), 0.0f, 0.5f * std::cos(turn)};
+    };
+    gem.Add(corner(i), corner(i + 1), top, WHITE);
+    gem.Add(corner(i + 1), corner(i), bottom, WHITE);
+  }
+  return gem.Upload();
+}
+
 }  // namespace
 
-Fx::Fx(const SkillTable& skills)
+Fx::Fx(const SkillTable& skills, Shader lit)
     : skills_(skills.by_id),
-      light_(LoadShaderFromMemory(kLightVertexShader, kLightFragmentShader)) {
+      light_(LoadShaderFromMemory(kLightVertexShader, kLightFragmentShader)),
+      shard_(LoadModelFromMesh(Gem())) {
+  shard_.materials[0].shader = lit;
   for (const auto& [id, skill] : skills_) {
     float end = 0.0f;
     for (const skills::Fx& fx : skill.look().fx()) {
@@ -155,7 +184,10 @@ Fx::Fx(const SkillTable& skills)
   }
 }
 
-Fx::~Fx() { UnloadShader(light_); }
+Fx::~Fx() {
+  UnloadModel(shard_);
+  UnloadShader(light_);
+}
 
 void Fx::Update(const std::vector<Figure>& figures, float seconds) {
   for (auto& [id, cast] : casts_) {
@@ -338,6 +370,89 @@ void DrawGlow(const Moment& m, const Camera3D& camera, bool lifted) {
 }
 
 }  // namespace
+
+void Fx::DrawSolid(const Terrain& terrain) const {
+  Model piece = shard_;
+  auto draw = [&](Vector3 at, Vector3 axis, float angle, float turn,
+                  Vector3 size, Color color) {
+    piece.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = color;
+    const Matrix transform = MatrixMultiply(
+        MatrixMultiply(MatrixMultiply(MatrixScale(size.x, size.y, size.z),
+                                      MatrixRotateY(turn)),
+                       MatrixRotate(axis, angle)),
+        MatrixTranslate(at.x, at.y, at.z));
+    DrawMesh(piece.meshes[0], piece.materials[0], transform);
+  };
+  for (const auto& [id, cast] : casts_) {
+    const skills::Skill& skill = skills_.at(cast.figure.to_skill);
+    for (int index = 0; index < skill.look().fx_size(); ++index) {
+      const skills::Fx& fx = skill.look().fx(index);
+      const float age = cast.time - static_cast<float>(fx.from_ms()) / 1000.0f;
+      const float span = static_cast<float>(fx.for_ms()) / 1000.0f;
+      const bool there = fx.at() != skills::Fx::TARGET || cast.target;
+      if (age < 0.0f || age > span || !there ||
+          (fx.kind() != skills::Fx::SHARDS &&
+           fx.kind() != skills::Fx::SPIKES)) {
+        continue;
+      }
+      const Vector3 at =
+          fx.at() == skills::Fx::TARGET ? *cast.target : cast.figure.position;
+      const Moment m{.fx = fx,
+                     .at = {at.x, terrain.Height(at.x, at.z), at.z},
+                     .age = age,
+                     .span = span,
+                     .seed = cast.seed,
+                     .index = static_cast<uint32_t>(index),
+                     .color = GetColor(fx.color())};
+      for (uint32_t i = 0; i < fx.count(); ++i) {
+        const float turn = 2.0f * PI * m.Random(i, 0);
+        if (fx.kind() == skills::Fx::SHARDS) {
+          // Thrown up and out, until they land, and shrink away at the end.
+          const float rise = (45.0f + 35.0f * m.Random(i, 1)) * DEG2RAD;
+          const float speed =
+              std::sqrt(fx.size() * kGravity) * (0.6f + 0.6f * m.Random(i, 2));
+          const float up = speed * std::sin(rise);
+          const float landed = 2.0f * up / kGravity;
+          const float t = std::min(age, landed);
+          const float out = speed * std::cos(rise) * t;
+          const Vector3 here =
+              Vector3Add(m.at, Vector3{out * std::sin(turn),
+                                       0.1f + up * t - 0.5f * kGravity * t * t,
+                                       out * std::cos(turn)});
+          const float size = (0.12f + 0.16f * m.Random(i, 3)) *
+                             std::min((span - age) / (0.3f * span), 1.0f);
+          const Vector3 axis = Vector3Normalize(
+              {m.Random(i, 4) - 0.5f, m.Random(i, 5) - 0.5f, 0.3f});
+          draw({here.x, std::max(here.y, terrain.Height(here.x, here.z)),
+                here.z},
+               axis, (6.0f + 10.0f * m.Random(i, 6)) * t, turn,
+               {size, 1.4f * size, size}, m.color);
+        } else {
+          // Out of the ground, nearest first, leaning outwards, and back
+          // into it at the end.
+          const float distance =
+              fx.size() * std::sqrt(0.06f + 0.94f * m.Random(i, 1));
+          const float t = age - 0.35f * span * distance / fx.size();
+          if (t < 0.0f) {
+            continue;
+          }
+          const float grow = Overshoot(std::min(t / 0.12f, 1.0f)) *
+                             std::min((span - age) / (0.25f * span), 1.0f);
+          const float height = (0.8f + 1.0f * m.Random(i, 2)) *
+                               (1.0f - 0.4f * distance / fx.size());
+          const float lean = (15.0f + 20.0f * m.Random(i, 3)) * DEG2RAD;
+          const Vector3 axis{std::cos(turn), 0.0f, -std::sin(turn)};
+          const Vector3 up = Vector3RotateByAxisAngle(kUp, axis, lean);
+          const Vector3 base = Around(terrain, m.at, distance, turn, 0.0f);
+          const float width = 0.3f + 0.25f * m.Random(i, 4);
+          draw(Vector3Add(base, Vector3Scale(up, height * (grow - 0.7f))), axis,
+               lean, 2.0f * PI * m.Random(i, 5), {width, 1.4f * height, width},
+               m.color);
+        }
+      }
+    }
+  }
+}
 
 void Fx::DrawLight(const Camera3D& camera, const Terrain& terrain,
                    const Atmosphere& atmosphere,

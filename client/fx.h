@@ -22,7 +22,8 @@ namespace nanommo {
 /// rate.
 class Fx {
  public:
-  explicit Fx(const SkillTable& skills);
+  /// The shards and the spikes are solid, lit by the world's shader.
+  Fx(const SkillTable& skills, Shader lit);
   ~Fx();
 
   Fx(const Fx&) = delete;
@@ -31,6 +32,9 @@ class Fx {
   /// Follows the skills the players are using, and keeps each going until
   /// its fx are over, as a ring spreads on after the move's done.
   void Update(const std::vector<Figure>& figures, float seconds);
+
+  /// The shards and the spikes.
+  void DrawSolid(const Terrain& terrain) const;
 
   /// The light, which goes over what's behind it, and blooms.
   void DrawLight(const Camera3D& camera, const Terrain& terrain,
@@ -62,6 +66,7 @@ class Fx {
   std::map<uint32_t, Cast> casts_;
   uint32_t seeds_ = 0;
   Shader light_;
+  Model shard_;
 };
 
 }  // namespace nanommo

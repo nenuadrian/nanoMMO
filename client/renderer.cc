@@ -269,7 +269,7 @@ Renderer::Renderer(const Content& content)
       spire_(LoadModelFromMesh(Spire().Upload())),
       characters_(CharactersFolder(), {"x_bot.glb", "y_bot.glb"}, 1.8f,
                   character_shader_, content.figures),
-      fx_(std::make_unique<Fx>(content.skills)) {
+      fx_(std::make_unique<Fx>(content.skills, cube_shader_)) {
   for (Model* model : {&cube_, &disc_, &spire_}) {
     model->materials[0].shader = cube_shader_;
   }
@@ -375,6 +375,9 @@ void Renderer::Draw() const {
   }
   for (const Figure& figure : figures_) {
     DrawFigure(figure);
+  }
+  if (terrain_) {
+    fx_->DrawSolid(*terrain_);
   }
   // The shadows are see-through, and lie on the ground, so they go after
   // what's solid, without hiding what's behind them from what comes next.
