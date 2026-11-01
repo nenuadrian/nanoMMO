@@ -63,6 +63,9 @@ absl::StatusOr<Settings> LoadSettings(const std::string& path) {
   if (sound.has_music() && !std::isnan(sound.music())) {
     loaded.sound.music = std::clamp(sound.music(), 0.0f, 1.0f);
   }
+  if (sound.has_effects() && !std::isnan(sound.effects())) {
+    loaded.sound.effects = std::clamp(sound.effects(), 0.0f, 1.0f);
+  }
   if (sound.has_muted()) {
     loaded.sound.muted = sound.muted();
   }
@@ -83,6 +86,7 @@ absl::Status SaveSettings(const std::string& path, const Settings& player) {
   settings::Settings file;
   file.mutable_sound()->set_master(player.sound.master);
   file.mutable_sound()->set_music(player.sound.music);
+  file.mutable_sound()->set_effects(player.sound.effects);
   file.mutable_sound()->set_muted(player.sound.muted);
   file.mutable_graphics()->set_bloom(player.graphics.bloom);
   file.mutable_graphics()->set_cel_shading(player.graphics.cel_shading);

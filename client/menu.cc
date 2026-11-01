@@ -88,6 +88,7 @@ bool Menu::Build(Window& window, Settings& settings, Atmosphere& atmosphere,
     ImGui::SeparatorText(ICON_FA_VOLUME_HIGH " Sound");
     SliderPercent("Volume", settings.sound.master);
     SliderPercent("Music", settings.sound.music);
+    SliderPercent("Effects", settings.sound.effects);
     ImGui::Checkbox("Mute", &settings.sound.muted);
     ImGui::TextDisabled(ICON_FA_MUSIC
                         " \"Background Music\" by Pavel Bekirov, from Pixabay");

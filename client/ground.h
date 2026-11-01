@@ -9,9 +9,13 @@
 
 namespace nanommo {
 
-/// The ground's colour in the look at the height, where the y of the ground's
-/// normal is up: sand by the sea, snow up high, rock where it's high or
-/// steep, and grass elsewhere.
+/// What the ground is at the height, where the y of the ground's normal is up:
+/// sand by the sea, snow up high, rock where it's high or steep, and grass
+/// elsewhere.
+enum class Surface { kSand, kGrass, kRock, kSnow };
+Surface SurfaceAt(float height, float up);
+
+/// The surface's colour in the look.
 Color GroundColor(const Look& look, float height, float up);
 
 /// The two triangles in each cell of a square of cells, from the cell at

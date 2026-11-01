@@ -18,15 +18,29 @@ constexpr float kSteep = 0.8f;
 
 }  // namespace
 
-Color GroundColor(const Look& look, float height, float up) {
+Surface SurfaceAt(float height, float up) {
   if (height < kBeach) {
-    return look.sand;
+    return Surface::kSand;
   }
   if (height > kSnowLine) {
-    return look.snow;
+    return Surface::kSnow;
   }
   if (height > kTreeLine || up < kSteep) {
-    return look.rock;
+    return Surface::kRock;
+  }
+  return Surface::kGrass;
+}
+
+Color GroundColor(const Look& look, float height, float up) {
+  switch (SurfaceAt(height, up)) {
+    case Surface::kSand:
+      return look.sand;
+    case Surface::kSnow:
+      return look.snow;
+    case Surface::kRock:
+      return look.rock;
+    case Surface::kGrass:
+      return look.grass;
   }
   return look.grass;
 }

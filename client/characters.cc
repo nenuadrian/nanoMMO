@@ -25,6 +25,8 @@ constexpr std::array<const char*, 5> kClips = {"idle", "walk", "run", "attac",
                                                "death"};
 
 constexpr std::string_view kRightHand = "mixamorig:RightHand";
+constexpr std::string_view kLeftFoot = "mixamorig:LeftFoot";
+constexpr std::string_view kRightFoot = "mixamorig:RightFoot";
 
 constexpr float kPalm = 0.08f;
 
@@ -161,10 +163,22 @@ Characters::Characters(const std::string& folder,
     for (int i = 0; i < character.model.materialCount; ++i) {
       character.model.materials[i].shader = shader;
     }
+    int left_foot = -1;
+    int right_foot = -1;
     for (int i = 0; i < character.model.skeleton.boneCount; ++i) {
-      if (character.model.skeleton.bones[i].name == kRightHand) {
+      const std::string_view bone = character.model.skeleton.bones[i].name;
+      if (bone == kRightHand) {
         character.hand = i;
+      } else if (bone == kLeftFoot) {
+        left_foot = i;
+      } else if (bone == kRightFoot) {
+        right_foot = i;
       }
+    }
+    for (const protocol::Motion motion :
+         {protocol::MOTION_WALK, protocol::MOTION_RUN}) {
+      character.footfalls[motion] = Footfalls(
+          character.clips[character.clip_for[motion]], left_foot, right_foot);
     }
     character.joints = FindJoints(character.model);
     // Sized by the model's own mesh, so a figure is as tall as the model.
@@ -306,6 +320,20 @@ Characters::Pose Characters::PoseFor(const Character& character,
   const ModelAnimation& clip = character.clips[character.clip_for[index]];
   return {&clip, FrameAt(clip, time * character.speed[index],
                          index != protocol::MOTION_DEAD)};
+}
+
+std::optional<Gait> Characters::GaitOf(const Figure& figure) const {
+  if (characters_.empty() || (figure.to != protocol::MOTION_WALK &&
+                              figure.to != protocol::MOTION_RUN)) {
+    return std::nullopt;
+  }
+  const Character& character = For(figure);
+  const ModelAnimation& clip = character.clips[character.clip_for[figure.to]];
+  // As FrameAt plays it, sixty frames a second, and the last is the first.
+  const float frames = static_cast<float>(std::max(clip.keyframeCount - 1, 1));
+  return Gait{
+      .loops = figure.to_time * character.speed[figure.to] * 60.0f / frames,
+      .footfalls = character.footfalls[figure.to]};
 }
 
 const Characters::Character& Characters::For(const Figure& figure) const {

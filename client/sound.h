@@ -8,6 +8,8 @@ struct SoundSettings {
   /// Where the sliders are, from nothing to full.
   float master = 1.0f;
   float music = 0.7f;
+  /// The sound effects, apart from the music.
+  float effects = 0.8f;
   bool muted = false;
 
   bool operator==(const SoundSettings&) const = default;

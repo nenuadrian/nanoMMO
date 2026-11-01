@@ -3,6 +3,8 @@
 #include <cmath>
 #include <cstddef>
 
+#include "client/ground.h"
+
 namespace nanommo {
 
 namespace {
@@ -88,6 +90,31 @@ void Echo(Samples& sound, float after, float gain) {
 }
 
 }  // namespace
+
+Ground GroundAt(const Terrain& terrain, int land, float x, float z) {
+  const float height = terrain.Height(x, z);
+  if (height < Terrain::kSeaLevel) {
+    return Ground::kWater;
+  }
+  // How steep it is, from the height half a metre either way.
+  constexpr float kStep = 0.5f;
+  const float dx = terrain.Height(x + kStep, z) - terrain.Height(x - kStep, z);
+  const float dz = terrain.Height(x, z + kStep) - terrain.Height(x, z - kStep);
+  const float up =
+      2.0f * kStep / std::sqrt(dx * dx + dz * dz + 4.0f * kStep * kStep);
+  const LandSound& sound = kLandSounds[land];
+  switch (SurfaceAt(height, up)) {
+    case Surface::kSand:
+      return sound.sand;
+    case Surface::kGrass:
+      return sound.grass;
+    case Surface::kRock:
+      return sound.rock;
+    case Surface::kSnow:
+      return sound.snow;
+  }
+  return sound.grass;
+}
 
 Samples Step(Ground ground, uint32_t seed) {
   Noise noise(seed);

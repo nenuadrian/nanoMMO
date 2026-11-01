@@ -1,9 +1,11 @@
 #include <imgui.h>
 #include <raylib.h>
+#include <raymath.h>
 
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -24,6 +26,7 @@
 #include "client/connection.h"
 #include "client/cursor.h"
 #include "client/death_screen.h"
+#include "client/foley.h"
 #include "client/gate.h"
 #include "client/gui.h"
 #include "client/hotbar.h"
@@ -41,6 +44,8 @@
 #include "client/renderer.h"
 #include "client/settings.h"
 #include "client/sound.h"
+#include "client/soundboard.h"
+#include "client/soundscape.h"
 #include "client/talk_window.h"
 #include "client/trainer_window.h"
 #include "client/window.h"
@@ -143,6 +148,9 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<nanommo::AudioDevice> audio;
   std::unique_ptr<nanommo::Track> music;
   nanommo::Jukebox jukebox;
+  // The steps, made as the game starts.
+  std::unique_ptr<nanommo::Soundboard> soundboard;
+  nanommo::Footsteps footsteps;
   const std::string settings_path = nanommo::SettingsPath();
   nanommo::Settings settings;
   if (absl::StatusOr<nanommo::Settings> loaded =
@@ -165,6 +173,7 @@ int main(int argc, char* argv[]) {
     } else {
       std::cerr << "nanommo client: " << music_or.status() << "\n";
     }
+    soundboard = std::make_unique<nanommo::Soundboard>(*audio);
   } else {
     std::cerr << "nanommo client: " << audio_or.status() << "\n";
   }
@@ -371,6 +380,26 @@ int main(int argc, char* argv[]) {
       }
       renderer.set_figures(std::move(figures));
       renderer.Animate(GetFrameTime());
+      // We hear from where we stand, with the camera's right to our right.
+      if (soundboard) {
+        const Camera3D& eye = camera.camera();
+        const Vector3 right = Vector3Normalize(Vector3CrossProduct(
+            Vector3Subtract(eye.target, eye.position), eye.up));
+        std::map<uint64_t, nanommo::Gait> gaits;
+        std::map<uint64_t, const nanommo::Figure*> walking;
+        for (const nanommo::Figure& figure : renderer.figures()) {
+          if (const std::optional<nanommo::Gait> gait =
+                  renderer.GaitOf(figure)) {
+            gaits[nanommo::Who(figure)] = *gait;
+            walking[nanommo::Who(figure)] = &figure;
+          }
+        }
+        for (const uint64_t who : footsteps.Update(gaits)) {
+          const Vector3& at = walking.at(who)->position;
+          soundboard->Step(nanommo::GroundAt(*terrain, land, at.x, at.z),
+                           nanommo::Hear(at, here, right));
+        }
+      }
       // A click on someone to talk to opens their window, one on a monster
       // picks it, and one on neither lets go of what we'd picked. The cursor
       // says which a click would do.
@@ -579,7 +608,10 @@ int main(int argc, char* argv[]) {
       music->SetVolume(nanommo::Gain(settings.sound.music) * jukebox.volume());
       music->Update();
     }
-    // The master volume covers each sound the game makes, so far the music.
+    if (soundboard) {
+      soundboard->set_volume(nanommo::Gain(settings.sound.effects));
+    }
+    // The master volume covers each sound the game makes.
     if (audio) {
       SetMasterVolume(
           settings.sound.muted ? 0.0f : nanommo::Gain(settings.sound.master));

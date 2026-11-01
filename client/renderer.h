@@ -74,6 +74,10 @@ class Renderer {
     figures_ = std::move(figures);
   }
 
+  /// Where the figure is in its walk or run, as its model's clips have it:
+  /// none, if it's doing neither.
+  std::optional<Gait> GaitOf(const Figure& figure) const;
+
   /// Moves the skills' fx on by the seconds, as the figures are now.
   void Animate(float seconds) { fx_->Update(figures_, seconds); }
 

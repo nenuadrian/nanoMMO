@@ -15,6 +15,7 @@
 #include "client/animator.h"
 #include "client/moves.h"
 #include "client/outline.h"
+#include "client/soundscape.h"
 #include "content/figures.pb.h"
 #include "content/items.pb.h"
 #include "content/skills.pb.h"
@@ -62,6 +63,9 @@ class Characters {
   /// it's posed: none, if it holds nothing.
   std::optional<std::pair<Vector3, Vector3>> Blade(const Figure& figure) const;
 
+  /// Where the figure is in its walk or run: none, if it's doing neither.
+  std::optional<Gait> GaitOf(const Figure& figure) const;
+
  private:
   /// Something over the figure, such as the hair or what it wears, as a model
   /// and its hull, which share the character's bones.
@@ -87,6 +91,8 @@ class Characters {
     int clip_count = 0;
     std::array<int, 5> clip_for{};
     std::array<float, 5> speed{1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    /// Where each foot comes down in each motion's clip.
+    std::array<std::array<float, 2>, 5> footfalls{};
     float scale = 1.0f;
     int hand = -1;
     /// The bones the moves turn.

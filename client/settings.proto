@@ -8,6 +8,7 @@ message Sound {
   optional float master = 1;
   optional float music = 2;
   optional bool muted = 3;
+  optional float effects = 4;
 }
 
 message Graphics {

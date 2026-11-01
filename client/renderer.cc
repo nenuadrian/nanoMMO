@@ -431,6 +431,15 @@ void Renderer::DrawPreview(const Figure& figure, const Camera3D& camera) const {
   EndMode3D();
 }
 
+std::optional<Gait> Renderer::GaitOf(const Figure& figure) const {
+  if (figure.monster) {
+    const auto kind = monsters_.find(figure.kind);
+    return kind != monsters_.end() ? kind->second->GaitOf(figure)
+                                   : std::nullopt;
+  }
+  return characters_.GaitOf(figure);
+}
+
 void Renderer::DrawFigure(const Figure& figure) const {
   const Characters* looks = &characters_;
   if (figure.monster) {
