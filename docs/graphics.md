@@ -162,8 +162,8 @@ the repo: [assets/music/README.md](../assets/music/README.md) says where to get 
 
 ## Sound effects
 
-The steps have sounds the client makes from numbers as it starts, in a fraction of a
-second, so there are no files for them in the repo.
+The steps, the skills and the gates have sounds the client makes from numbers as it
+starts, in about a third of a second, so there are no files for them in the repo.
 
 - `client/synth.h` has what they're made of: samples, 44,100 a second, each where the speaker's cone
   is, from -1 to 1; noise, random numbers from a seed, so that a sound made again from its seed comes
@@ -176,7 +176,18 @@ second, so there are no files for them in the repo.
   knock that echoes on the Crypt's stone, and a splash and bubbles in the sea. `GroundAt` finds the
   ground: the sea, or else the surface the ground's colour comes from (`SurfaceAt` in
   `client/ground.h`), which each land makes a ground of its own (`kLandSounds`).
-- `client/soundboard.h` makes eight takes of each step, and plays a take at a time on
+- A skill's sound is made from its fx (see [Moves and fx](#moves-and-fx)): each kind has a sound,
+  played at the fx's `from_ms`, so a new skill in the skills file sounds without a sound of its own.
+  Fx at the target sound with a monster picked, as they're drawn with one. A trail is a whoosh,
+  sparks ping like metal, with a thud where they fly off a monster, a glow is a chord, a ring thumps
+  and rushes out, motes are notes from a scale with no notes that clash, a shake booms, shards and
+  spikes crack and knock, a bolt buzzes and thunders, and a wave roars. The fx's colour sets the
+  pitch, from 110 hertz for red to 440 for blue, so frost rings higher than fire, and ice shards ring
+  like glass where earth knocks.
+- Going through a gate, a sound rises two octaves as the loading screen covers the world. Coming out,
+  and entering the world, the land's chord is struck like a glockenspiel's bars: C major in the
+  Meadows, A minor in the Ashlands, and a diminished chord in the Crypt.
+- `client/soundboard.h` makes eight takes of each step and three of each skill, and plays a take at a time on
   raylib's sound aliases, which share the take's samples, so that a sound can play again before it's
   over. A take doesn't follow itself, and each plays a little higher or lower, and a little quieter
   or not (`Variety`, in `client/soundscape.h`), so that a hundred steps don't sound like a machine.
@@ -188,7 +199,7 @@ second, so there are no files for them in the repo.
   round.
 - Each sound is heard from where you stand: in full within four metres, then falling as one over the
   distance, and gone at forty, and from the side it's on, as the camera faces.
-- View, Settings has Effects, next to Music, for the steps.
+- View, Settings has Effects, next to Music, for the steps, the skills and the gates.
 - `./build/bin/nanommo_sounds` plays each sound outside the game: up and down pick one, and Space
   plays a new take of it and draws it.
 
