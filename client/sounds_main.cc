@@ -27,7 +27,8 @@ struct Entry {
   std::function<nanommo::Samples(uint32_t)> make;
 };
 
-constexpr std::array<const char*, 1> kGroundNames = {"grass"};
+constexpr std::array<const char*, 7> kGroundNames = {
+    "grass", "sand", "rock", "snow", "ash", "stone", "water"};
 
 std::vector<Entry> Entries() {
   std::vector<Entry> entries;

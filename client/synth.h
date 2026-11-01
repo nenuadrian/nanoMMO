@@ -52,6 +52,17 @@ class Filter {
   float sum2_ = 0.0f;
 };
 
+/// A sine wave whose frequency can glide without a click, as it keeps where it
+/// is in its turn.
+class Oscillator {
+ public:
+  float Next(float hertz);
+
+ private:
+  /// In turns.
+  float phase_ = 0.0f;
+};
+
 /// How loud a sound is, t seconds in: up from nothing over attack, then down
 /// by about two thirds each decay seconds.
 float Envelope(float t, float attack, float decay);

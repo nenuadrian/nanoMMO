@@ -45,6 +45,13 @@ Filter::Out Filter::Run(float in, float hertz, float q) {
   return {.low = low, .band = band, .high = in - k * band - low};
 }
 
+float Oscillator::Next(float hertz) {
+  const float sample = std::sin(2.0f * std::numbers::pi_v<float> * phase_);
+  phase_ += hertz / kRate;
+  phase_ -= std::floor(phase_);
+  return sample;
+}
+
 float Envelope(float t, float attack, float decay) {
   if (t < 0.0f) {
     return 0.0f;

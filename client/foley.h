@@ -9,9 +9,11 @@
 namespace nanommo {
 
 /// What a foot comes down on, which is how the step sounds.
-enum class Ground { kGrass };
+enum class Ground { kGrass, kSand, kRock, kSnow, kAsh, kStone, kWater };
 
-constexpr std::array<Ground, 1> kGrounds = {Ground::kGrass};
+constexpr std::array<Ground, 7> kGrounds = {
+    Ground::kGrass, Ground::kSand,  Ground::kRock, Ground::kSnow,
+    Ground::kAsh,   Ground::kStone, Ground::kWater};
 
 /// One footstep: the heel, then the rest of the foot. Each seed makes one a
 /// little different from the others.
