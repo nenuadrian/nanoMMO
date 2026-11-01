@@ -23,6 +23,13 @@ struct Atmosphere {
   std::array<float, 3> sunlight;
   /// What a face gets even when it's turned away from the sun.
   std::array<float, 3> ambient;
+  /// Overhead, where the sky is deepest. `sky` is its colour at the horizon,
+  /// which the fog fades into.
+  std::array<float, 3> zenith;
+  /// The sun's disc, brighter than white so that the bloom spreads it, and
+  /// how wide it looks across, in degrees.
+  std::array<float, 3> disc;
+  float disc_size = 2.5f;
 };
 
 /// What a land's sea is made of: its colours, its waves and its light.
@@ -66,7 +73,10 @@ constexpr Look kMeadows = {
                    .fog_far = 150.0f,
                    .sun = {0.55f, 0.75f, 0.35f},
                    .sunlight = {0.75f, 0.68f, 0.55f},
-                   .ambient = {0.4f, 0.44f, 0.52f}},
+                   .ambient = {0.4f, 0.44f, 0.52f},
+                   .zenith = {0.3f, 0.5f, 0.84f},
+                   .disc = {4.0f, 3.7f, 3.1f},
+                   .disc_size = 3.0f},
     .sand = {214, 196, 140, 255},
     .grass = {106, 162, 70, 255},
     .rock = {128, 120, 112, 255},
@@ -87,7 +97,11 @@ constexpr Look kAshlands = {
                    .fog_far = 130.0f,
                    .sun = {0.6f, 0.45f, -0.4f},
                    .sunlight = {1.0f, 0.55f, 0.3f},
-                   .ambient = {0.36f, 0.28f, 0.28f}},
+                   .ambient = {0.36f, 0.28f, 0.28f},
+                   // A red sun in the smoke.
+                   .zenith = {0.22f, 0.1f, 0.08f},
+                   .disc = {4.0f, 1.4f, 0.5f},
+                   .disc_size = 5.0f},
     .sand = {60, 54, 52, 255},
     .grass = {124, 112, 104, 255},
     .rock = {84, 74, 72, 255},
@@ -109,7 +123,11 @@ constexpr Look kCrypt = {
                    .fog_far = 90.0f,
                    .sun = {0.3f, 0.9f, 0.2f},
                    .sunlight = {0.45f, 0.42f, 0.6f},
-                   .ambient = {0.26f, 0.24f, 0.32f}},
+                   .ambient = {0.26f, 0.24f, 0.32f},
+                   // Night, with a pale moon in place of a sun.
+                   .zenith = {0.04f, 0.03f, 0.08f},
+                   .disc = {1.6f, 1.7f, 2.2f},
+                   .disc_size = 2.5f},
     .sand = {70, 66, 74, 255},
     .grass = {88, 92, 84, 255},
     .rock = {104, 98, 112, 255},

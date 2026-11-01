@@ -62,9 +62,12 @@ TEST(Renderer, DrawsTheTerrainBelowTheSky) {
 
   target.Render(renderer);
 
-  const nanommo::Pixel background{30, 144, 255, 255};
-  EXPECT_EQ(target.ReadPixel(32, 2), background);
-  EXPECT_NE(target.ReadPixel(32, 48), background);
+  // The sky, which goes from the background at the horizon to the deeper blue
+  // overhead, so it's blue, but not the background's own colour up there.
+  const nanommo::Pixel sky = target.ReadPixel(32, 2);
+  EXPECT_GT(sky.b, sky.r + 100);
+  EXPECT_NE(sky, (nanommo::Pixel{30, 144, 255, 255}));
+  EXPECT_NE(target.ReadPixel(32, 48), sky);
   // The sea, and of the island's 256 squares, the few ahead of us.
   EXPECT_GT(renderer.work().draws, 1);
   EXPECT_LT(renderer.work().draws, 32);

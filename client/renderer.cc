@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "client/scene.h"
+#include "client/sky.h"
 
 namespace nanommo {
 
@@ -269,7 +270,8 @@ Renderer::Renderer(const Content& content)
       spire_(LoadModelFromMesh(Spire().Upload())),
       characters_(CharactersFolder(), {"x_bot.glb", "y_bot.glb"}, 1.8f,
                   character_shader_, content.figures),
-      fx_(std::make_unique<Fx>(content.skills, cube_shader_)) {
+      fx_(std::make_unique<Fx>(content.skills, cube_shader_)),
+      sky_(std::make_unique<Sky>()) {
   for (Model* model : {&cube_, &disc_, &spire_}) {
     model->materials[0].shader = cube_shader_;
   }
@@ -356,6 +358,10 @@ void Renderer::Draw() const {
   camera.position = Vector3Add(camera.position, shake);
   camera.target = Vector3Add(camera.target, shake);
   BeginMode3D(camera);
+  // First, as it's behind everything.
+  if (terrain_) {
+    sky_->Draw(camera, atmosphere);
+  }
   // As BeginMode3D set them up, so we cull with what the GPU will use.
   const Matrix view_projection =
       MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());

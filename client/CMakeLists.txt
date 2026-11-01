@@ -9,7 +9,7 @@ add_library(nanommo_client_core
   character_screen.cc
   chat_window.cc talk_window.cc trainer_window.cc quest_window.cc picking.cc
   animator.cc characters.cc moves.cc fx.cc figures.cc triangles.cc ground.cc trees.cc chunks.cc
-  sea.cc
+  sea.cc sky.cc
   gate.cc
   loading.cc death_screen.cc cube.cc cursor.cc map.cc
 )

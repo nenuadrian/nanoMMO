@@ -20,6 +20,7 @@
 #include "client/fx.h"
 #include "client/outline.h"
 #include "client/sea.h"
+#include "client/sky.h"
 #include "client/trees.h"
 #include "content/content.h"
 #include "terrain/terrain.h"
@@ -41,7 +42,7 @@ class Renderer {
 
   void Clear() const;
 
-  /// The sky's colour.
+  /// The sky's colour at the horizon, which the fog fades into.
   void set_background(const std::array<float, 3>& background) {
     atmosphere_.sky = background;
   }
@@ -134,6 +135,7 @@ class Renderer {
   /// Each kind of monster, by id, as its model at its height.
   std::map<uint32_t, std::unique_ptr<Characters>> monsters_;
   std::unique_ptr<Fx> fx_;
+  std::unique_ptr<Sky> sky_;
 };
 
 }  // namespace nanommo
