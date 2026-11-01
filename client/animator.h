@@ -55,6 +55,9 @@ struct Figure {
   float from_time = 0.0f;
   protocol::Motion to = protocol::MOTION_IDLE;
   uint32_t to_skill = 0;
+  /// While a player uses a skill, how many they've started: a new count is a
+  /// new cast, even of the skill before.
+  uint32_t casts = 0;
   float to_time = 0.0f;
   float blend = 1.0f;
 };

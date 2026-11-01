@@ -33,6 +33,7 @@ absl::StatusOr<SkillTable> ParseSkills(std::string_view text) {
       return absl::InvalidArgumentError(
           absl::StrCat("the ", skill.name(), " lands after it's over"));
     }
+    // A swing's as long as the weapon's, so only the others are checked.
     uint32_t last = 0;
     for (const skills::Key& key : skill.look().move().keys()) {
       if (key.at_ms() < last) {
@@ -41,7 +42,7 @@ absl::StatusOr<SkillTable> ParseSkills(std::string_view text) {
       }
       last = key.at_ms();
     }
-    if (last > skill.effect().cast_ms()) {
+    if (!skill.effect().weapon() && last > skill.effect().cast_ms()) {
       return absl::InvalidArgumentError(absl::StrCat(
           "the ", skill.name(), "'s move runs on after it's over"));
     }
@@ -53,8 +54,17 @@ absl::StatusOr<SkillTable> ParseSkills(std::string_view text) {
           absl::StrCat("there's no skill ", id, " to start with"));
     }
   }
+  // Everyone has the swing, from the start.
+  if (file.attack() != 0) {
+    if (!by_id->contains(file.attack())) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("there's no skill ", file.attack(), " to swing with"));
+    }
+    starting.insert(file.attack());
+  }
   return SkillTable{.by_id = *std::move(by_id),
-                    .starting = std::move(starting)};
+                    .starting = std::move(starting),
+                    .attack = file.attack()};
 }
 
 }  // namespace nanommo

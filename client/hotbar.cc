@@ -62,11 +62,18 @@ void DrawCooldown(ImDrawList* draw, ImVec2 min, ImVec2 max, float share,
 
 Hotbar::Hotbar(const SkillTable& skills) {
   for (const auto& [id, skill] : skills.by_id) {
-    slots_.push_back(skill);
+    if (id != skills.attack) {
+      slots_.push_back(skill);
+    }
   }
   std::ranges::stable_sort(slots_, {}, &skills::Skill::level);
   if (slots_.size() > kMostSlots) {
     slots_.resize(kMostSlots);
+  }
+  const auto swing = skills.by_id.find(skills.attack);
+  if (swing != skills.by_id.end()) {
+    slots_.insert(slots_.begin(), swing->second);
+    swing_ = true;
   }
 }
 
@@ -117,9 +124,14 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
     ImGui::PopFont();
     ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-      ImGui::SetTooltip(
-          "%s\nFrom a trainer, at level %u. Ready again after %u s.",
-          skill.name().c_str(), skill.level(), skill.cooldown_ms() / 1000);
+      if (effect.weapon()) {
+        ImGui::SetTooltip("%s\nA swing of what you hold.",
+                          skill.name().c_str());
+      } else {
+        ImGui::SetTooltip(
+            "%s\nFrom a trainer, at level %u. Ready again after %u s.",
+            skill.name().c_str(), skill.level(), skill.cooldown_ms() / 1000);
+      }
     }
     const ImVec2 min = ImGui::GetItemRectMin();
     const ImVec2 max = ImGui::GetItemRectMax();
@@ -135,9 +147,12 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
                             1.0f),
                    left->second);
     }
+    // The swing's on Space, and the number keys count from the next.
+    const int number = static_cast<int>(slot) + (swing_ ? 0 : 1);
+    const bool swing = swing_ && slot == 0;
     draw->AddText({min.x + 4.0f, min.y + 2.0f}, kKey,
-                  std::to_string(slot + 1).c_str());
-    if (clicked || key == static_cast<int>(slot)) {
+                  swing ? "Space" : std::to_string(number).c_str());
+    if (clicked || (!swing && key == number - 1)) {
       used = skill.id();
     }
     ImGui::PopID();

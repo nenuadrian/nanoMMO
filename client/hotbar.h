@@ -11,8 +11,9 @@
 
 namespace nanommo {
 
-/// The skills along the bottom of the screen, in the order of their levels,
-/// each on a number key: 1 for the first, and so on, up to nine.
+/// The skills along the bottom of the screen: the swing first, on Space, then
+/// the others in the order of their levels, each on a number key: 1 for the
+/// first, and so on, up to nine.
 class Hotbar {
  public:
   static constexpr int kMostSlots = 9;
@@ -31,6 +32,8 @@ class Hotbar {
 
  private:
   std::vector<skills::Skill> slots_;
+  /// Whether the first slot is the swing.
+  bool swing_ = false;
 };
 
 }  // namespace nanommo

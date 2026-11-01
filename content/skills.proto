@@ -16,6 +16,9 @@ message Effect {
   // How far it knocks a monster back, in metres.
   float push = 6;
   uint32 heal = 7;
+  // A swing of the weapon in the player's hand, with its reach, its damage
+  // and its timing, in place of the ones above.
+  bool weapon = 8;
 }
 
 // The joints a move turns, each a bone of the characters.
@@ -141,4 +144,6 @@ message Skills {
   repeated Skill skills = 1;
   // What each new player knows, by id. The others they learn from a trainer.
   repeated uint32 starting = 2;
+  // The swing on Space, which every player knows.
+  uint32 attack = 3;
 }

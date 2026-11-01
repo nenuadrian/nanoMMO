@@ -2,6 +2,7 @@
 # proto-message: nanommo.skills.Skills
 
 starting: 1
+attack: 5
 
 skills {
   id: 1
@@ -72,7 +73,7 @@ skills {
 skills {
   id: 2
   name: "Kick"
-  level: 2
+  level: 1
   cooldown_ms: 6000
   effect {
     cast_ms: 1200
@@ -127,7 +128,7 @@ skills {
 skills {
   id: 3
   name: "Second Wind"
-  level: 3
+  level: 1
   cooldown_ms: 30000
   effect {
     cast_ms: 1200
@@ -172,7 +173,7 @@ skills {
 skills {
   id: 4
   name: "Whirlwind"
-  level: 4
+  level: 1
   cooldown_ms: 12000
   effect {
     cast_ms: 1800
@@ -225,6 +226,65 @@ skills {
     fx {
       kind: SPARKS from_ms: 900 for_ms: 500
       color: 0xFF9A48FF size: 1.5 count: 30
+    }
+  }
+}
+skills {
+  id: 5
+  name: "Strike"
+  level: 1
+  effect {
+    weapon: true
+  }
+  look {
+    icon: 0xE4DC
+    move {
+      keys {
+        at_ms: 500
+        ease: GATHER
+        lift: -0.05
+        turns { joint: CHEST yaw: 40 }
+        turns { joint: RIGHT_ARM pitch: -100 roll: 45 }
+        turns { joint: RIGHT_FOREARM pitch: -70 }
+        turns { joint: RIGHT_HAND pitch: 60 }
+        turns { joint: LEFT_ARM roll: 25 }
+      }
+      keys {
+        at_ms: 860
+        ease: SNAP
+        lift: -0.1
+        ahead: 0.15
+        turns { joint: CHEST yaw: -35 pitch: 8 }
+        turns { joint: RIGHT_ARM pitch: -70 roll: -60 }
+        turns { joint: RIGHT_FOREARM pitch: -10 }
+        turns { joint: RIGHT_HAND pitch: 70 }
+        turns { joint: LEFT_ARM roll: 35 }
+        turns { joint: RIGHT_LEG pitch: -25 }
+        turns { joint: RIGHT_KNEE pitch: 25 }
+        turns { joint: LEFT_LEG pitch: 12 }
+      }
+      keys {
+        at_ms: 1300
+        lift: -0.06
+        ahead: 0.1
+        turns { joint: CHEST yaw: -20 }
+        turns { joint: RIGHT_ARM pitch: -40 roll: -40 }
+        turns { joint: RIGHT_FOREARM pitch: -20 }
+        turns { joint: RIGHT_HAND pitch: 40 }
+        turns { joint: LEFT_ARM roll: 20 }
+        turns { joint: RIGHT_LEG pitch: -15 }
+        turns { joint: RIGHT_KNEE pitch: 15 }
+        turns { joint: LEFT_LEG pitch: 8 }
+      }
+      keys { at_ms: 1850 }
+    }
+    fx {
+      kind: TRAIL from_ms: 560 for_ms: 330
+      color: 0xD8E8FFFF
+    }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 880 for_ms: 400
+      color: 0xFF9A3AFF size: 0.8 count: 12
     }
   }
 }

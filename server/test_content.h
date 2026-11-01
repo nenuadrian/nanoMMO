@@ -81,6 +81,23 @@ inline ItemTable Gear() {
 
 /// Content with these items, skills, monsters and quests, and nothing else,
 /// for a World.
+// The swing on Space, by its id in every test's skills.
+inline constexpr uint32_t kStrike = 100;
+
+// Every world has a swing on Space, a skill with the weapon's reach, damage
+// and timing, as the game's does.
+inline SkillTable WithStrike(SkillTable skills) {
+  skills::Skill strike;
+  strike.set_id(kStrike);
+  strike.set_name("Strike");
+  strike.set_level(1);
+  strike.mutable_effect()->set_weapon(true);
+  skills.by_id[kStrike] = strike;
+  skills.starting.insert(kStrike);
+  skills.attack = kStrike;
+  return skills;
+}
+
 inline std::shared_ptr<const Content> With(
     ItemTable items, SkillTable skills = {}, MonsterTable monsters = {},
     std::map<uint32_t, quests::Quest> quests = {}) {
@@ -88,7 +105,7 @@ inline std::shared_ptr<const Content> With(
       Content{.items = std::move(items),
               .monsters = std::move(monsters),
               .quests = std::move(quests),
-              .skills = std::move(skills)});
+              .skills = WithStrike(std::move(skills))});
 }
 
 /// The first kind of NPC asks for three of the first kind of monster, for

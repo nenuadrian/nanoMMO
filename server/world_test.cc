@@ -157,12 +157,31 @@ TEST(World, SwingsAtTheMonsterTheyPicked) {
   world.SetInput(1, 0.0f, 0.0f, false, true);
   world.Step(kTick);
 
+  // A swing is the skill everyone has.
   const nanommo::Player& player = world.players().at(1);
-  EXPECT_EQ(player.motion, nanommo::Motion::kAttack);
+  EXPECT_EQ(player.motion, nanommo::Motion::kSkill);
+  EXPECT_EQ(player.skill, nanommo::testing::kStrike);
   EXPECT_FLOAT_EQ(player.yaw, std::numbers::pi_v<float>);
   RunOneSecond(world);
   EXPECT_EQ(world.monsters().at(near).health, 50);
   EXPECT_EQ(world.monsters().at(far).health, 50 - 15);
+}
+
+TEST(World, StartsEachSwingAsACastOfItsOwn) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword()));
+  world.Join(1, {});
+
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  world.Step(kTick);
+  EXPECT_EQ(world.players().at(1).casts, 1u);
+  // A swing takes two seconds, and the next one starts as it ends, with the
+  // player using a skill all along.
+  RunOneSecond(world);
+  RunOneSecond(world);
+  world.Step(kTick);
+  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kSkill);
+  EXPECT_EQ(world.players().at(1).casts, 2u);
 }
 
 TEST(World, SwingsAtTheAirWithNothingPicked) {
@@ -174,7 +193,7 @@ TEST(World, SwingsAtTheAirWithNothingPicked) {
 
   world.SetInput(1, 0.0f, 0.0f, false, true);
   world.Step(kTick);
-  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kAttack);
+  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kSkill);
   RunOneSecond(world);
   EXPECT_EQ(world.monsters().at(skeleton).health, 50);
 }
@@ -512,15 +531,15 @@ TEST(World, SwingsOnlyWithAWeaponInHand) {
   world.SetInput(1, 0.0f, 0.0f, false, true);
   world.SetInput(2, 0.0f, 0.0f, false, true);
   world.Step(kTick);
-  EXPECT_NE(world.players().at(1).motion, nanommo::Motion::kAttack);
-  EXPECT_EQ(world.players().at(2).motion, nanommo::Motion::kAttack);
+  EXPECT_NE(world.players().at(1).motion, nanommo::Motion::kSkill);
+  EXPECT_EQ(world.players().at(2).motion, nanommo::Motion::kSkill);
 
   // Putting the sword away ends the swing, before it lands.
   ASSERT_TRUE(world
                   .MoveItem(2, nanommo::Worn(nanommo::items::SLOT_MAIN_HAND),
                             nanommo::InBag(5))
                   .ok());
-  EXPECT_NE(world.players().at(2).motion, nanommo::Motion::kAttack);
+  EXPECT_NE(world.players().at(2).motion, nanommo::Motion::kSkill);
   RunOneSecond(world);
   EXPECT_EQ(world.monsters().at(skeleton).health, 50);
 }

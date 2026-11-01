@@ -146,7 +146,12 @@ Characters::Characters(const std::string& folder,
       character.speed[protocol::MOTION_WALK] = 0.4f;
       character.speed[protocol::MOTION_RUN] = 0.7f;
     }
-    if (idle < 0 || walk < 0 || run < 0 || attack < 0 || death < 0) {
+    // A player's swing is a skill, with a move of its own, so a character
+    // needs no attack, and stands without one.
+    if (attack < 0) {
+      attack = idle;
+    }
+    if (idle < 0 || walk < 0 || run < 0 || death < 0) {
       TraceLog(LOG_WARNING, "%s doesn't have the clips we need", file.c_str());
       UnloadModelAnimations(character.clips, character.clip_count);
       UnloadWithBones(character.model);

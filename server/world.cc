@@ -269,7 +269,8 @@ void World::Dress(Player& player) const {
   // Less to wear can mean less health to have, and a swing with a weapon
   // that's been put away is over.
   player.health = std::min(player.health, MaxHealthOf(player));
-  if (player.motion == Motion::kAttack && player.stats.weapon != before) {
+  if (player.motion == Motion::kSkill && player.stats.weapon != before &&
+      content_->skills.by_id.at(player.skill).effect().weapon()) {
     player.motion = Motion::kIdle;
   }
 }
@@ -490,62 +491,48 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
     return;
   }
   if (player.motion == Motion::kSkill) {
-    const skills::Skill& skill = content_->skills.by_id.at(player.skill);
+    const skills::Effect effect =
+        EffectOf(player, content_->skills.by_id.at(player.skill));
     const auto before = player.cast;
     player.cast += time;
-    const std::chrono::milliseconds hit(skill.effect().hit_ms());
+    const std::chrono::milliseconds hit(effect.hit_ms());
     if (before < hit && player.cast >= hit) {
-      Land(id, player, skill);
+      Land(id, player, effect);
     }
-    if (player.cast < std::chrono::milliseconds(skill.effect().cast_ms())) {
+    if (player.cast < std::chrono::milliseconds(effect.cast_ms())) {
       return;
     }
     player.motion = Motion::kIdle;
   }
-  const items::Weapon* weapon = player.stats.weapon;
-  if (player.motion == Motion::kAttack && weapon != nullptr) {
-    const auto before = player.swing;
-    player.swing += time;
-    const std::chrono::milliseconds hit(weapon->hit_ms());
-    if (before < hit && player.swing >= hit) {
-      Hit(id, player, *weapon);
-    }
-    if (player.swing < std::chrono::milliseconds(weapon->swing_ms())) {
-      return;
-    }
-    player.motion = Motion::kIdle;
+  // Space is the skill everyone has, a swing of what they hold.
+  if (player.input_attack && player.input_skill == 0) {
+    player.input_skill = content_->skills.attack;
   }
   // A skill asked for while the player was busy waits until now, and one they
   // can't use yet goes. A swing or a skill at the monster they picked, out of
   // reach, runs them up to it first, unless they walk off themselves.
   const bool walking = player.input_x != 0.0f || player.input_z != 0.0f;
   // The keys, a swing or a skill call off a walk the player asked for.
-  if (walking || player.input_skill != 0 || player.input_attack) {
+  if (walking || player.input_skill != 0) {
     player.way.clear();
   }
   if (player.input_skill != 0) {
     const skills::Skill* skill = Usable(player, player.input_skill);
-    const bool far = skill != nullptr && OneMonster(skill->effect()) &&
-                     Target(player, skill->effect().reach()) == nullptr;
+    const skills::Effect effect =
+        skill != nullptr ? EffectOf(player, *skill) : skills::Effect();
+    const bool far = OneMonster(effect) &&
+                     Target(player, kAnyDistance) != nullptr &&
+                     Target(player, effect.reach()) == nullptr;
     if (skill != nullptr && !far) {
       player.input_skill = 0;
       Start(player, *skill);
       return;
     }
     if (skill != nullptr && !walking) {
-      Approach(player, skill->effect().reach(), time);
+      Approach(player, effect.reach(), time);
       return;
     }
     player.input_skill = 0;
-  }
-  if (player.input_attack && weapon != nullptr) {
-    if (!walking && Target(player, kAnyDistance) != nullptr &&
-        Target(player, weapon->reach()) == nullptr) {
-      Approach(player, weapon->reach(), time);
-    } else {
-      Swing(player, *weapon);
-    }
-    return;
   }
   if (!player.way.empty()) {
     Follow(player, time);
@@ -633,53 +620,47 @@ void World::Aim(Player& player, float reach) {
   }
 }
 
-void World::Swing(Player& player, const items::Weapon& weapon) {
-  player.motion = Motion::kAttack;
-  player.swing = std::chrono::nanoseconds::zero();
-  Aim(player, weapon.reach());
-}
-
-void World::Hit(uint32_t id, Player& player, const items::Weapon& weapon) {
-  const auto found = monsters_.find(player.target);
-  if (found == monsters_.end()) {
-    return;
-  }
-  Monster& monster = found->second;
-  if (monster.motion == Motion::kDead ||
-      Distance(player, monster) > weapon.reach()) {
-    return;
-  }
-  const int level = LevelFor(player.experience).number;
-  Hurt(id, player, found->first, monster,
-       static_cast<int>(weapon.damage()) + ExtraDamage(level) +
-           player.stats.damage);
-}
-
 const skills::Skill* World::Usable(const Player& player, uint32_t id) const {
   const auto found = content_->skills.by_id.find(id);
   if (found == content_->skills.by_id.end() || !player.skills.contains(id) ||
       player.cooldowns.contains(id)) {
     return nullptr;
   }
-  // One that hits a single monster needs a living one picked, so that its
-  // cooldown isn't spent on the air.
-  if (OneMonster(found->second.effect()) &&
-      Target(player, kAnyDistance) == nullptr) {
+  const skills::Effect& effect = found->second.effect();
+  if (effect.weapon()
+          ? player.stats.weapon == nullptr
+          : OneMonster(effect) && Target(player, kAnyDistance) == nullptr) {
     return nullptr;
   }
   return &found->second;
+}
+
+skills::Effect World::EffectOf(const Player& player,
+                               const skills::Skill& skill) const {
+  skills::Effect effect = skill.effect();
+  const items::Weapon* weapon = player.stats.weapon;
+  if (effect.weapon() && weapon != nullptr) {
+    effect.set_reach(weapon->reach());
+    effect.set_damage(weapon->damage());
+    effect.set_cast_ms(weapon->swing_ms());
+    effect.set_hit_ms(weapon->hit_ms());
+  }
+  return effect;
 }
 
 void World::Start(Player& player, const skills::Skill& skill) {
   player.motion = Motion::kSkill;
   player.skill = skill.id();
   player.cast = std::chrono::nanoseconds::zero();
-  player.cooldowns[skill.id()] = std::chrono::milliseconds(skill.cooldown_ms());
-  Aim(player, skill.effect().reach());
+  ++player.casts;
+  if (skill.cooldown_ms() > 0) {
+    player.cooldowns[skill.id()] =
+        std::chrono::milliseconds(skill.cooldown_ms());
+  }
+  Aim(player, EffectOf(player, skill).reach());
 }
 
-void World::Land(uint32_t id, Player& player, const skills::Skill& skill) {
-  const skills::Effect& effect = skill.effect();
+void World::Land(uint32_t id, Player& player, const skills::Effect& effect) {
   const int level = LevelFor(player.experience).number;
   Heal(id, player, static_cast<int>(effect.heal()));
   if (effect.damage() == 0) {

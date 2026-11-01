@@ -389,3 +389,17 @@ TEST(Content, RefusesMovesThatDontAddUp) {
                 .message(),
             "the Kick's move runs on after it's over");
 }
+
+TEST(Content, GivesEveryoneTheSwing) {
+  const auto skills = nanommo::ParseSkills(
+      "attack: 2 skills { id: 2 name: \"Strike\" level: 1 "
+      "effect { weapon: true } }");
+  ASSERT_TRUE(skills.ok());
+  EXPECT_EQ(skills->attack, 2u);
+  EXPECT_TRUE(skills->starting.contains(2));
+  EXPECT_EQ(nanommo::ParseSkills("attack: 3 skills { id: 2 name: \"Strike\" "
+                                 "level: 1 effect { weapon: true } }")
+                .status()
+                .message(),
+            "there's no skill 3 to swing with");
+}

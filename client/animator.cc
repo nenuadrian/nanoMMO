@@ -21,7 +21,7 @@ float Turn(float from, float to, float step) {
 // A monster uses no skills, so its skill is zero.
 template <typename Unit>
 Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
-              uint32_t skill, float seconds) {
+              uint32_t skill, uint32_t casts, float seconds) {
   const Vector3 target{unit.x(), 0.0f, unit.z()};
   const auto found = figures.find(unit.id());
   const bool back = found != figures.end() &&
@@ -42,8 +42,9 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
 
   figure.from_time += seconds;
   figure.to_time += seconds;
-  // One skill straight after another is a new clip too.
-  if (unit.motion() != figure.to || skill != figure.to_skill) {
+  // One skill straight after another, or after itself, is a new clip too.
+  if (unit.motion() != figure.to || skill != figure.to_skill ||
+      casts != figure.casts) {
     figure.from = figure.to;
     figure.from_skill = figure.to_skill;
     figure.from_time = figure.to_time;
@@ -52,6 +53,7 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
     figure.to_time = 0.0f;
     figure.blend = 0.0f;
   }
+  figure.casts = casts;
   figure.blend = std::min(figure.blend + seconds / Animator::kBlendTime, 1.0f);
 
   const float follow = 1.0f - std::exp(-Animator::kFollowRate * seconds);
@@ -106,7 +108,8 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
   std::map<uint32_t, Figure> npcs;
   std::vector<Figure> figures;
   for (const protocol::Player& player : world.players()) {
-    Figure figure = Follow(players_, player, player.skill(), seconds);
+    Figure figure =
+        Follow(players_, player, player.skill(), player.casts(), seconds);
     figure.name = player.name();
     figure.you = player.id() == world.you();
     figure.weapon = player.weapon();
@@ -116,7 +119,7 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
     figures.push_back(std::move(figure));
   }
   for (const protocol::Monster& monster : world.monsters()) {
-    Figure figure = Follow(monsters_, monster, 0, seconds);
+    Figure figure = Follow(monsters_, monster, 0, 0, seconds);
     figure.monster = true;
     figure.kind = monster.kind();
     const auto kind = content_.monsters.kinds.find(monster.kind());

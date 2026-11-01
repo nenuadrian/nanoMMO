@@ -112,6 +112,9 @@ message Player {
   // While they use a skill, the monster they picked, by its id, so that
   // everyone sees it land there.
   uint32 target = 13;
+  // While they use a skill, how many they've started, so that a skill straight
+  // after itself, such as a swing held down, starts again on everyone's screen.
+  uint32 casts = 14;
 }
 
 message Monster {

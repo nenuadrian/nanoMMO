@@ -139,3 +139,19 @@ TEST(Animator, KnowsWhichQuestsAnNpcGives) {
   ASSERT_EQ(figures.size(), 1u);
   EXPECT_EQ(figures[0].quests, (std::vector<uint32_t>{2}));
 }
+
+TEST(Animator, StartsASkillAgainWhenItsCastAgain) {
+  nanommo::Animator animator;
+  nanommo::protocol::World world;
+  nanommo::protocol::Player* player = world.add_players();
+  player->set_id(1);
+  player->set_motion(nanommo::protocol::MOTION_SKILL);
+  player->set_skill(5);
+  player->set_casts(1);
+  animator.Update(world, 0.0f);
+  EXPECT_FLOAT_EQ(animator.Update(world, 1.5f)[0].to_time, 1.5f);
+
+  // The next swing, straight after: the skill's the same, and its count isn't.
+  player->set_casts(2);
+  EXPECT_FLOAT_EQ(animator.Update(world, 0.1f)[0].to_time, 0.0f);
+}

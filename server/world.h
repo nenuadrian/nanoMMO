@@ -60,11 +60,13 @@ struct Player {
   /// The monster the player picked, by its id, which their swings and skills
   /// go for, or 0 for none.
   uint32_t target = 0;
-  std::chrono::nanoseconds swing{0};
   /// The skill the player's using, by its id in the skills file, and how far
   /// into it they are.
   uint32_t skill = 0;
   std::chrono::nanoseconds cast{0};
+  /// How many skills they've started, so that one straight after itself
+  /// starts again on the clients.
+  uint32_t casts = 0;
   /// How long until each skill they've used is ready again, by its id.
   std::map<uint32_t, std::chrono::nanoseconds> cooldowns;
   /// How long until they can use each item again, by its id in the items
@@ -304,11 +306,17 @@ class World {
   /// nullptr.
   const Monster* Target(const Player& player, float reach) const;
   void Aim(Player& player, float reach);
-  void Swing(Player& player, const items::Weapon& weapon);
-  void Hit(uint32_t id, Player& player, const items::Weapon& weapon);
+  /// What the skill does when this player uses it: a swing's reach, damage
+  /// and timing are the weapon's in their hand.
+  skills::Effect EffectOf(const Player& player,
+                          const skills::Skill& skill) const;
+  /// The skill, if the player can use it now: they know it and it's ready. A
+  /// swing needs a weapon, and a skill that hurts one monster needs a living
+  /// one picked, so that its cooldown isn't spent on the air, while a swing
+  /// goes at the air.
   const skills::Skill* Usable(const Player& player, uint32_t id) const;
   void Start(Player& player, const skills::Skill& skill);
-  void Land(uint32_t id, Player& player, const skills::Skill& skill);
+  void Land(uint32_t id, Player& player, const skills::Effect& effect);
   void Push(const Player& player, Monster& monster, float metres);
   void Hurt(uint32_t id, Player& player, uint32_t monster_id, Monster& monster,
             int damage);
