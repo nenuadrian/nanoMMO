@@ -21,14 +21,17 @@ in vec3 vertexPosition;
 in vec3 vertexNormal;
 in vec4 vertexColor;
 uniform mat4 mvp;
+uniform mat4 matModel;
 uniform mat4 matNormal;
 out vec3 normal;
 out vec4 color;
 out float depth;
+out vec3 world;
 
 void main() {
   normal = mat3(matNormal) * vertexNormal;
   color = vertexColor;
+  world = (matModel * vec4(vertexPosition, 1.0)).xyz;
   gl_Position = mvp * vec4(vertexPosition, 1.0);
   depth = gl_Position.w;
 }
@@ -41,11 +44,13 @@ in vec4 vertexBoneIndices;
 in vec4 vertexBoneWeights;
 in vec4 vertexColor;
 uniform mat4 mvp;
+uniform mat4 matModel;
 uniform mat4 matNormal;
 uniform mat4 boneMatrices[128];
 out vec3 normal;
 out vec4 color;
 out float depth;
+out vec3 world;
 
 void main() {
   mat4 skin = boneMatrices[int(vertexBoneIndices.x)] * vertexBoneWeights.x
@@ -54,18 +59,25 @@ void main() {
             + boneMatrices[int(vertexBoneIndices.w)] * vertexBoneWeights.w;
   normal = mat3(matNormal) * mat3(skin) * vertexNormal;
   color = vertexColor;
+  world = (matModel * skin * vec4(vertexPosition, 1.0)).xyz;
   gl_Position = mvp * skin * vec4(vertexPosition, 1.0);
   depth = gl_Position.w;
 }
 )";
 
 // The light is worked out for each pixel, from the normal the vertex shaders
-// hand on, so that cel shading's bands follow the surface.
+// hand on, so that cel shading's bands follow the surface. Where a cloud is
+// between the pixel and the sun, less of the sun's light gets through.
 constexpr const char* kFragmentShader = R"(#version 330
 in vec3 normal;
 in vec4 color;
 in float depth;
+in vec3 world;
 uniform vec4 colDiffuse;
+// The middle of each ball the clouds are made of, x and z, its height, and
+// how wide it is, or 0 for none.
+uniform vec4 clouds[64];
+uniform float cloudShade;
 uniform vec3 sun;
 uniform vec3 sunlight;
 uniform vec3 ambient;
@@ -76,8 +88,24 @@ uniform float emission;
 uniform float bands;
 out vec4 pixel;
 
+float Shadowed() {
+  vec3 toward = normalize(sun);
+  float shade = 1.0;
+  for (int i = 0; i < 64; ++i) {
+    vec4 cloud = clouds[i];
+    if (cloud.w <= 0.0) {
+      continue;
+    }
+    // Where the line from here to the sun passes the ball's height.
+    vec2 up = world.xz + toward.xz / max(toward.y, 0.2) * (cloud.z - world.y);
+    float far = smoothstep(0.3 * cloud.w, 1.1 * cloud.w, length(up - cloud.xy));
+    shade *= 1.0 - cloudShade * (1.0 - far);
+  }
+  return max(shade, 1.0 - cloudShade);
+}
+
 void main() {
-  float sunlit = max(dot(normalize(normal), normalize(sun)), 0.0);
+  float sunlit = max(dot(normalize(normal), normalize(sun)), 0.0) * Shadowed();
   // Cel shading, like raylib's example: the sun's light in a few flat bands,
   // as a cartoon's colours are, where no bands is smooth.
   if (bands > 0.0) {
@@ -358,6 +386,10 @@ void Renderer::Draw() const {
   const Vector3 shake = fx_->Shake(camera_.position);
   camera.position = Vector3Add(camera.position, shake);
   camera.target = Vector3Add(camera.target, shake);
+  if (terrain_) {
+    sky_->Shade(cube_shader_, camera, atmosphere, clock_);
+    sky_->Shade(character_shader_, camera, atmosphere, clock_);
+  }
   BeginMode3D(camera);
   // First, as it's behind everything.
   if (terrain_) {
@@ -432,6 +464,12 @@ void Renderer::DrawPreview(const Figure& figure, const Camera3D& camera) const {
   SetAtmosphere(character_shader_, preview);
   SetFog(outline_.still, preview);
   SetFog(outline_.skinned, preview);
+  // Nor under the land's clouds, its body or what it holds.
+  constexpr float kNoShade = 0.0f;
+  for (const Shader& shader : {cube_shader_, character_shader_}) {
+    SetShaderValue(shader, GetShaderLocation(shader, "cloudShade"), &kNoShade,
+                   SHADER_UNIFORM_FLOAT);
+  }
   BeginMode3D(camera);
   DrawFigure(figure);
   EndMode3D();

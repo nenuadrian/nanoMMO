@@ -3,6 +3,7 @@
 #include <raymath.h>
 #include <rlgl.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <utility>
@@ -17,6 +18,8 @@ constexpr float kDome = 800.0f;
 // In metres above the sea.
 constexpr float kLowest = 80.0f;
 constexpr float kHighest = 130.0f;
+// How much of the sun's light a cloud's shadow takes away.
+constexpr float kShade = 0.45f;
 
 // Its colour from the horizon up, then the glow around the sun, and the sun.
 constexpr const char* kDomeVertexShader = R"(#version 330
@@ -213,6 +216,33 @@ void Sky::Draw(const Camera3D& camera, const Atmosphere& atmosphere,
                   {0.0f, 1.0f, 0.0f}, 0.0f, puff.size, WHITE);
     }
   }
+}
+
+void Sky::Shade(Shader shader, const Camera3D& camera,
+                const Atmosphere& atmosphere, float seconds) const {
+  std::vector<Vector4> balls;
+  for (const Cloud& cloud : clouds_) {
+    if (cloud.rank >= atmosphere.cloudiness) {
+      continue;
+    }
+    const Vector2 at = Blown(cloud, camera, seconds);
+    for (const Puff& puff : cloud.puffs) {
+      balls.push_back({at.x + puff.offset.x, at.y + puff.offset.z,
+                       cloud.height + puff.offset.y, puff.size.x});
+    }
+  }
+  // Nearest first, to what the camera's looking at.
+  const auto away = [&](const Vector4& ball) {
+    return Vector2Distance({ball.x, ball.y},
+                           {camera.target.x, camera.target.z});
+  };
+  std::ranges::sort(balls, {}, away);
+  std::array<Vector4, kShadows> shadows{};
+  std::copy_n(balls.begin(), std::min<size_t>(balls.size(), kShadows),
+              shadows.begin());
+  SetShaderValueV(shader, GetShaderLocation(shader, "clouds"), shadows.data(),
+                  SHADER_UNIFORM_VEC4, kShadows);
+  SetFloat(shader, "cloudShade", kShade);
 }
 
 }  // namespace nanommo
