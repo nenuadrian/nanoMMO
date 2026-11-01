@@ -79,8 +79,8 @@ class Renderer {
   /// none, if it's doing neither.
   std::optional<Gait> GaitOf(const Figure& figure) const;
 
-  /// Moves the skills' fx and the sea's waves on by the seconds, as the
-  /// figures are now.
+  /// Moves the skills' fx, the sea's waves and the clouds on by the seconds,
+  /// as the figures are now.
   void Animate(float seconds) {
     fx_->Update(figures_, seconds);
     clock_ += seconds;
@@ -113,8 +113,8 @@ class Renderer {
   uint32_t target_ = 0;
   std::optional<Vector3> destination_;
   float clear_ = 1.0f;
-  /// The seconds Animate has moved the world on by, which the sea's waves go
-  /// by.
+  /// The seconds Animate has moved the world on by, which the sea's waves and
+  /// the clouds go by.
   float clock_ = 0.0f;
   // Draw is const, as drawing doesn't change what we draw, but it counts.
   mutable Work work_;

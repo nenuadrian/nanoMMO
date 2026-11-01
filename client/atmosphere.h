@@ -30,6 +30,10 @@ struct Atmosphere {
   /// how wide it looks across, in degrees.
   std::array<float, 3> disc;
   float disc_size = 2.5f;
+  /// The clouds, where the sun's on them, and how many of the land's clouds
+  /// are out, from none to all of them.
+  std::array<float, 3> clouds;
+  float cloudiness = 0.5f;
 };
 
 /// What a land's sea is made of: its colours, its waves and its light.
@@ -76,7 +80,9 @@ constexpr Look kMeadows = {
                    .ambient = {0.4f, 0.44f, 0.52f},
                    .zenith = {0.3f, 0.5f, 0.84f},
                    .disc = {4.0f, 3.7f, 3.1f},
-                   .disc_size = 3.0f},
+                   .disc_size = 3.0f,
+                   .clouds = {1.0f, 1.0f, 1.0f},
+                   .cloudiness = 0.55f},
     .sand = {214, 196, 140, 255},
     .grass = {106, 162, 70, 255},
     .rock = {128, 120, 112, 255},
@@ -98,10 +104,12 @@ constexpr Look kAshlands = {
                    .sun = {0.6f, 0.45f, -0.4f},
                    .sunlight = {1.0f, 0.55f, 0.3f},
                    .ambient = {0.36f, 0.28f, 0.28f},
-                   // A red sun in the smoke.
+                   // A red sun in the smoke, under clouds of ash.
                    .zenith = {0.22f, 0.1f, 0.08f},
                    .disc = {4.0f, 1.4f, 0.5f},
-                   .disc_size = 5.0f},
+                   .disc_size = 5.0f,
+                   .clouds = {0.42f, 0.33f, 0.3f},
+                   .cloudiness = 0.8f},
     .sand = {60, 54, 52, 255},
     .grass = {124, 112, 104, 255},
     .rock = {84, 74, 72, 255},
@@ -127,7 +135,9 @@ constexpr Look kCrypt = {
                    // Night, with a pale moon in place of a sun.
                    .zenith = {0.04f, 0.03f, 0.08f},
                    .disc = {1.6f, 1.7f, 2.2f},
-                   .disc_size = 2.5f},
+                   .disc_size = 2.5f,
+                   .clouds = {0.24f, 0.22f, 0.3f},
+                   .cloudiness = 0.35f},
     .sand = {70, 66, 74, 255},
     .grass = {88, 92, 84, 255},
     .rock = {104, 98, 112, 255},

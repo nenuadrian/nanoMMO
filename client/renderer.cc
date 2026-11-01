@@ -316,6 +316,7 @@ void Renderer::set_terrain(const Terrain& terrain, const Look& look) {
   // The ground and the trees have no bones either.
   chunks_ = LoadChunks(terrain, look, tree_, cube_shader_);
   sea_ = std::make_unique<Sea>(terrain, look);
+  sky_->Gather(terrain.seed());
 }
 
 void Renderer::set_cel_shading(bool on) {
@@ -360,7 +361,7 @@ void Renderer::Draw() const {
   BeginMode3D(camera);
   // First, as it's behind everything.
   if (terrain_) {
-    sky_->Draw(camera, atmosphere);
+    sky_->Draw(camera, atmosphere, clock_);
   }
   // As BeginMode3D set them up, so we cull with what the GPU will use.
   const Matrix view_projection =
