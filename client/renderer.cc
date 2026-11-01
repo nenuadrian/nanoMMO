@@ -350,7 +350,12 @@ void Renderer::Draw() const {
   SetAtmosphere(character_shader_, atmosphere);
   SetFog(outline_.still, atmosphere);
   SetFog(outline_.skinned, atmosphere);
-  BeginMode3D(camera_);
+  // A heavy blow nearby shakes the camera.
+  Camera3D camera = camera_;
+  const Vector3 shake = fx_->Shake(camera_.position);
+  camera.position = Vector3Add(camera.position, shake);
+  camera.target = Vector3Add(camera.target, shake);
+  BeginMode3D(camera);
   // As BeginMode3D set them up, so we cull with what the GPU will use.
   const Matrix view_projection =
       MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
@@ -401,7 +406,9 @@ void Renderer::Draw() const {
     work_.triangles += sea_->triangles();
   }
   // The skills' light goes last, over everything it lights up.
-  fx_->DrawLight(camera_, atmosphere, characters_);
+  if (terrain_) {
+    fx_->DrawLight(camera, *terrain_, atmosphere, characters_);
+  }
   EndMode3D();
 }
 

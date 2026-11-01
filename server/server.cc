@@ -115,6 +115,7 @@ protocol::Player ToProtocol(uint32_t id, const Player& player) {
   }
   if (player.motion == Motion::kSkill) {
     sent.set_skill(player.skill);
+    sent.set_target(player.target);
   }
   return sent;
 }

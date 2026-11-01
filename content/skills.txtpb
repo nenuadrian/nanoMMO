@@ -59,6 +59,14 @@ skills {
       kind: TRAIL from_ms: 330 for_ms: 200
       color: 0x9FD8FFFF
     }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 500 for_ms: 450
+      color: 0xFF9A3AFF size: 1.2 count: 24
+    }
+    fx {
+      kind: GLOW at: TARGET from_ms: 500 for_ms: 300
+      color: 0xFFC070FF size: 0.55
+    }
   }
 }
 skills {
@@ -102,6 +110,18 @@ skills {
       }
       keys { at_ms: 1050 }
     }
+    fx {
+      kind: RING at: TARGET from_ms: 420 for_ms: 500
+      color: 0xFFF2DCFF size: 1.6
+    }
+    fx {
+      kind: GLOW at: TARGET from_ms: 400 for_ms: 250
+      color: 0xFFE0B0FF size: 0.5
+    }
+    fx {
+      kind: SHAKE from_ms: 420 for_ms: 200
+      size: 0.06
+    }
   }
 }
 skills {
@@ -138,6 +158,14 @@ skills {
     fx {
       kind: GLOW from_ms: 0 for_ms: 1100
       color: 0x7CF08CFF size: 0.9
+    }
+    fx {
+      kind: RING from_ms: 200 for_ms: 900
+      color: 0x7CF08CFF size: 2.2
+    }
+    fx {
+      kind: MOTES from_ms: 100 for_ms: 1600
+      color: 0xA8FFB0FF size: 2.4 count: 40
     }
   }
 }
@@ -189,6 +217,14 @@ skills {
     fx {
       kind: TRAIL from_ms: 300 for_ms: 900
       color: 0xFF9A48FF
+    }
+    fx {
+      kind: RING from_ms: 650 for_ms: 700
+      color: 0xFF9A48FF size: 3.0
+    }
+    fx {
+      kind: SPARKS from_ms: 900 for_ms: 500
+      color: 0xFF9A48FF size: 1.5 count: 30
     }
   }
 }

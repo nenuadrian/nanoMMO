@@ -81,6 +81,14 @@ message Fx {
     TRAIL = 0;
     // A ball of light.
     GLOW = 1;
+    // A wave along the ground, spreading out to the size.
+    RING = 2;
+    // Sparks flying out, and falling.
+    SPARKS = 3;
+    // Specks of light rising, and swirling.
+    MOTES = 4;
+    // The camera shakes, by the size in metres.
+    SHAKE = 5;
   }
   // Where it is.
   enum Place {
@@ -88,6 +96,9 @@ message Fx {
     PLAYER = 0;
     // At the tip of the player's blade, where it is now.
     BLADE = 1;
+    // At the feet of the monster the player picked: without one, it's left
+    // out.
+    TARGET = 2;
   }
   Kind kind = 1;
   Place at = 2;
@@ -98,6 +109,8 @@ message Fx {
   uint32 color = 5;
   // In metres.
   float size = 6;
+  // Of sparks, motes, shards or spikes.
+  uint32 count = 7;
 }
 
 // How a skill looks: the client's part.

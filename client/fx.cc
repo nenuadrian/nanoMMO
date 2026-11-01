@@ -45,9 +45,23 @@ void main() {
 
 // How much of the blade's path a trail shows, in seconds.
 constexpr float kTrail = 0.16f;
+constexpr float kGravity = 9.8f;
 constexpr Vector3 kUp{0.0f, 1.0f, 0.0f};
 // Where a ball of light is, above someone's feet: about their middle.
 constexpr float kMiddle = 0.9f;
+
+// The same number in [0, 1) for the same four, every time, so that a spark
+// flies the same way in every frame.
+float Random(uint32_t seed, uint32_t fx, uint32_t i, uint32_t what) {
+  uint32_t h = seed * 0x9E3779B1u ^ (fx + 1) * 0x85EBCA77u ^
+               (i + 1) * 0xC2B2AE3Du ^ (what + 1) * 0x27D4EB2Fu;
+  h ^= h >> 15;
+  h *= 0x2C1B3C6Du;
+  h ^= h >> 12;
+  h *= 0x297A2D39u;
+  h ^= h >> 15;
+  return static_cast<float>(h >> 8) / 16777216.0f;
+}
 
 float EaseOut(float t) { return 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t); }
 
@@ -75,6 +89,20 @@ void Quad(Vector3 a, Color a_color, float a_alpha, Vector3 b, Color b_color,
   Vertex(c, c_color, c_alpha);
 }
 
+// A line from a to b, as wide as `width`, turned to face the camera, bright
+// down its middle.
+void Streak(Vector3 a, Vector3 b, float width, Color color, float alpha,
+            Vector3 eye) {
+  const Vector3 side =
+      Vector3Scale(Vector3Normalize(Vector3CrossProduct(
+                       Vector3Subtract(b, a), Vector3Subtract(eye, a))),
+                   width / 2.0f);
+  Quad(Vector3Subtract(a, side), color, 0.0f, Vector3Subtract(b, side), color,
+       0.0f, a, color, alpha, b, color, alpha);
+  Quad(a, color, alpha, b, color, alpha, Vector3Add(a, side), color, 0.0f,
+       Vector3Add(b, side), color, 0.0f);
+}
+
 // A round patch of light facing the camera: a bright middle, which blooms,
 // fading fast to nothing at its edge.
 void Blob(Vector3 at, float radius, Color color, float alpha,
@@ -100,6 +128,14 @@ void Blob(Vector3 at, float radius, Color color, float alpha,
          0.55f * alpha, edge(i, 1.0f), color, 0.0f, edge(i + 1, 1.0f), color,
          0.0f);
   }
+}
+
+// On the ground, at a distance and a turn from somewhere.
+Vector3 Around(const Terrain& terrain, Vector3 at, float distance, float turn,
+               float above) {
+  const float x = at.x + distance * std::sin(turn);
+  const float z = at.z + distance * std::cos(turn);
+  return {x, terrain.Height(x, z) + above, z};
 }
 
 }  // namespace
@@ -131,9 +167,23 @@ void Fx::Update(const std::vector<Figure>& figures, float seconds) {
         skill == skills_.end()) {
       continue;
     }
-    Cast& cast = casts_[figure.id];
+    auto [found, fresh] = casts_.try_emplace(figure.id);
+    Cast& cast = found->second;
+    // Another skill, or the same one again, is a cast of its own.
+    if (fresh || cast.figure.to_skill != figure.to_skill ||
+        figure.to_time < cast.figure.to_time) {
+      cast.seed = ++seeds_;
+      cast.target.reset();
+    }
     cast.figure = figure;
     cast.time = figure.to_time;
+    // A monster the skill kills is let go of, so the cast keeps where it
+    // fell, and the rest of its fx still land there.
+    for (const Figure& other : figures) {
+      if (other.monster && other.id == figure.target && figure.target != 0) {
+        cast.target = other.position;
+      }
+    }
   }
   std::erase_if(casts_, [&](const auto& entry) {
     const Cast& cast = entry.second;
@@ -151,9 +201,14 @@ struct Moment {
   /// Seconds since it started, and how long it lasts.
   float age;
   float span;
+  uint32_t seed;
+  uint32_t index;
   Color color;
 
   float done() const { return age / span; }
+  float Random(uint32_t i, uint32_t what) const {
+    return nanommo::Random(seed, index, i, what);
+  }
 };
 
 // The blade, posed again at moments just gone, which makes a ribbon through
@@ -195,6 +250,81 @@ void DrawTrail(const Figure& figure, float time, float from, float span,
   rlEnd();
 }
 
+void DrawRing(const Moment& m, const Terrain& terrain) {
+  constexpr int kSides = 48;
+  constexpr float kRim = 0.1f;
+  const float u = m.done();
+  const float radius = std::max(m.fx.size() * EaseOut(u), 0.2f);
+  const float width = std::min(0.3f + 0.6f * (1.0f - u), radius);
+  const float fade = std::pow(1.0f - u, 1.5f);
+  const float wall = 0.4f * (1.0f - u);
+  const Color hot = Hot(m.color, 0.6f * (1.0f - u));
+  for (int i = 0; i < kSides; ++i) {
+    const float turn = 2.0f * PI * static_cast<float>(i) / kSides;
+    const float next = 2.0f * PI * static_cast<float>(i + 1) / kSides;
+    auto at = [&](float distance, float angle) {
+      return Around(terrain, m.at, distance, angle, 0.05f);
+    };
+    // On the ground: fading in from inside, to a bright rim.
+    Quad(at(radius - width, turn), m.color, 0.0f, at(radius - width, next),
+         m.color, 0.0f, at(radius - kRim, turn), m.color, 0.35f * fade,
+         at(radius - kRim, next), m.color, 0.35f * fade);
+    Quad(at(radius - kRim, turn), hot, fade, at(radius - kRim, next), hot, fade,
+         at(radius, turn), hot, fade, at(radius, next), hot, fade);
+    // And a low wall on the rim, fading upwards.
+    Quad(at(radius, turn), hot, 0.7f * fade, at(radius, next), hot, 0.7f * fade,
+         Vector3Add(at(radius, turn), Vector3Scale(kUp, wall)), m.color, 0.0f,
+         Vector3Add(at(radius, next), Vector3Scale(kUp, wall)), m.color, 0.0f);
+  }
+}
+
+void DrawSparks(const Moment& m, const Terrain& terrain, Vector3 eye) {
+  for (uint32_t i = 0; i < m.fx.count(); ++i) {
+    const float life = m.span * (0.45f + 0.55f * m.Random(i, 0));
+    const float t = m.age - 0.1f * m.span * m.Random(i, 1);
+    if (t < 0.0f || t > life) {
+      continue;
+    }
+    const float rise = (15.0f + 60.0f * m.Random(i, 2)) * DEG2RAD;
+    const float turn = 2.0f * PI * m.Random(i, 3);
+    const float speed = m.fx.size() / life * (1.0f + 1.5f * m.Random(i, 4));
+    const Vector3 way{std::cos(rise) * std::sin(turn), std::sin(rise),
+                      std::cos(rise) * std::cos(turn)};
+    auto where = [&](float at) {
+      return Vector3Add(m.at,
+                        Vector3{way.x * speed * at,
+                                way.y * speed * at - 0.5f * kGravity * at * at,
+                                way.z * speed * at});
+    };
+    const Vector3 head = where(t);
+    if (head.y < terrain.Height(head.x, head.z)) {
+      continue;
+    }
+    const float heat = 1.0f - t / life;
+    Streak(where(std::max(t - 0.05f, 0.0f)), head, 0.03f + 0.04f * heat,
+           Hot(m.color, heat), heat, eye);
+  }
+}
+
+void DrawMotes(const Moment& m, const Camera3D& camera) {
+  for (uint32_t i = 0; i < m.fx.count(); ++i) {
+    const float life = 0.5f * m.span;
+    const float t = m.age - 0.5f * m.span * m.Random(i, 0);
+    if (t < 0.0f || t > life) {
+      continue;
+    }
+    const float spin =
+        (m.Random(i, 1) < 0.5f ? -1.0f : 1.0f) * (2.0f + 2.0f * m.Random(i, 2));
+    const float turn = 2.0f * PI * m.Random(i, 3) + spin * t;
+    const float out = (0.3f + 0.6f * m.Random(i, 4)) * (1.0f - 0.4f * t / life);
+    const Vector3 at = Vector3Add(
+        m.at, Vector3{out * std::sin(turn), 0.1f + m.fx.size() * t / life,
+                      out * std::cos(turn)});
+    Blob(at, 0.06f + 0.06f * m.Random(i, 5), m.color, std::sin(PI * t / life),
+         camera);
+  }
+}
+
 // Grows fast and fades slowly.
 void DrawGlow(const Moment& m, const Camera3D& camera, bool lifted) {
   const float u = m.done();
@@ -209,7 +339,8 @@ void DrawGlow(const Moment& m, const Camera3D& camera, bool lifted) {
 
 }  // namespace
 
-void Fx::DrawLight(const Camera3D& camera, const Atmosphere& atmosphere,
+void Fx::DrawLight(const Camera3D& camera, const Terrain& terrain,
+                   const Atmosphere& atmosphere,
                    const Characters& characters) const {
   if (casts_.empty()) {
     return;
@@ -241,17 +372,40 @@ void Fx::DrawLight(const Camera3D& camera, const Atmosphere& atmosphere,
         continue;
       }
       Vector3 at = cast.figure.position;
-      if (fx.at() == skills::Fx::BLADE) {
+      if (fx.at() == skills::Fx::TARGET) {
+        // Without a monster picked, there's nothing for it to land on.
+        if (!cast.target) {
+          continue;
+        }
+        at = *cast.target;
+      } else if (fx.at() == skills::Fx::BLADE) {
         Figure posed = cast.figure;
         posed.blend = 1.0f;
         if (const auto blade = characters.Blade(posed)) {
           at = blade->second;
         }
       }
-      const Moment m{
-          .fx = fx, .at = at, .age = age, .span = span, .color = color};
+      if (fx.at() != skills::Fx::BLADE) {
+        at.y = terrain.Height(at.x, at.z);
+      }
+      const Moment m{.fx = fx,
+                     .at = at,
+                     .age = age,
+                     .span = span,
+                     .seed = cast.seed,
+                     .index = static_cast<uint32_t>(index),
+                     .color = color};
       rlBegin(RL_TRIANGLES);
       switch (fx.kind()) {
+        case skills::Fx::RING:
+          DrawRing(m, terrain);
+          break;
+        case skills::Fx::SPARKS:
+          DrawSparks(m, terrain, camera.position);
+          break;
+        case skills::Fx::MOTES:
+          DrawMotes(m, camera);
+          break;
         case skills::Fx::GLOW:
           DrawGlow(m, camera, fx.at() != skills::Fx::BLADE);
           break;
@@ -265,6 +419,30 @@ void Fx::DrawLight(const Camera3D& camera, const Atmosphere& atmosphere,
   EndBlendMode();
   rlEnableDepthMask();
   rlEnableBackfaceCulling();
+}
+
+Vector3 Fx::Shake(Vector3 camera) const {
+  Vector3 shake{0.0f, 0.0f, 0.0f};
+  for (const auto& [id, cast] : casts_) {
+    for (const skills::Fx& fx : skills_.at(cast.figure.to_skill).look().fx()) {
+      const float age = cast.time - static_cast<float>(fx.from_ms()) / 1000.0f;
+      const float span = static_cast<float>(fx.for_ms()) / 1000.0f;
+      if (fx.kind() != skills::Fx::SHAKE || age < 0.0f || age > span) {
+        continue;
+      }
+      // Full within 15 metres of the camera, and nothing past 40.
+      const float near = std::clamp(
+          1.0f -
+              (Vector3Distance(camera, cast.figure.position) - 15.0f) / 25.0f,
+          0.0f, 1.0f);
+      const float size = fx.size() * std::pow(1.0f - age / span, 2.0f) * near;
+      shake =
+          Vector3Add(shake, Vector3{size * std::sin(age * 71.0f),
+                                    0.6f * size * std::sin(age * 53.0f + 1.3f),
+                                    size * std::sin(age * 67.0f + 2.1f)});
+    }
+  }
+  return shake;
 }
 
 }  // namespace nanommo

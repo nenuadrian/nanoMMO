@@ -109,6 +109,9 @@ message Player {
   // What else the player wears, from the off hand to the feet, by its ids in
   // the items file, so that everyone sees them in it.
   repeated uint32 wearing = 12;
+  // While they use a skill, the monster they picked, by its id, so that
+  // everyone sees it land there.
+  uint32 target = 13;
 }
 
 message Monster {
