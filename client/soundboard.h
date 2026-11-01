@@ -33,6 +33,11 @@ class Soundboard {
   /// monster was picked.
   void Skill(uint32_t skill, bool target, Heard heard);
 
+  void Departure();
+
+  /// Into the land, by its place in the lands.
+  void Arrival(int land);
+
  private:
   using Takes = std::vector<std::unique_ptr<Clip>>;
 
@@ -44,6 +49,8 @@ class Soundboard {
   /// By the skill's id, and whether a monster was picked.
   std::map<std::pair<uint32_t, bool>, Takes> skills_;
   Variety skill_variety_;
+  std::unique_ptr<Clip> departure_;
+  std::vector<std::unique_ptr<Clip>> arrivals_;
 };
 
 }  // namespace nanommo

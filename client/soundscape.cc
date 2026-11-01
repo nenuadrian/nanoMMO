@@ -136,4 +136,16 @@ std::vector<Figure> Casts::Update(const std::vector<Figure>& figures) {
   return started;
 }
 
+Passage::Cue Passage::Update(bool covering, bool in_world) {
+  Cue cue = Cue::kNothing;
+  if (covering && !covering_ && in_world_) {
+    cue = Cue::kDeparture;
+  } else if (!covering && covering_ && in_world) {
+    cue = Cue::kArrival;
+  }
+  covering_ = covering;
+  in_world_ = in_world;
+  return cue;
+}
+
 }  // namespace nanommo

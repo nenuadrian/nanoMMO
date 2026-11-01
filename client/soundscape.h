@@ -96,6 +96,20 @@ class Casts {
   std::map<uint32_t, std::pair<uint32_t, float>> skills_;
 };
 
+/// When a gate's sounds play, from the loading screen: the departure, as its
+/// cover goes up over the world we were in, and the arrival, as it lifts off
+/// the land we came to, which is also how we enter the world.
+class Passage {
+ public:
+  enum class Cue { kNothing, kDeparture, kArrival };
+
+  Cue Update(bool covering, bool in_world);
+
+ private:
+  bool covering_ = false;
+  bool in_world_ = false;
+};
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_SOUNDSCAPE_H_

@@ -20,6 +20,7 @@
 #include "client/synth.h"
 #include "client/window.h"
 #include "content/content.h"
+#include "terrain/lands.h"
 
 namespace {
 
@@ -45,6 +46,13 @@ std::vector<Entry> Entries(const nanommo::SkillTable& skills) {
     entries.push_back({skill.name(), [look](uint32_t seed) {
                          return nanommo::SkillSound(look, seed, true);
                        }});
+  }
+  entries.push_back({"Going through a gate",
+                     [](uint32_t seed) { return nanommo::Departure(seed); }});
+  for (int land = 0; land < static_cast<int>(nanommo::kLands.size()); ++land) {
+    entries.push_back(
+        {absl::StrCat("Arriving in the ", nanommo::kLands[land].name),
+         [land](uint32_t) { return nanommo::Arrival(land); }});
   }
   return entries;
 }

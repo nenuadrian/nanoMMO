@@ -148,10 +148,11 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<nanommo::AudioDevice> audio;
   std::unique_ptr<nanommo::Track> music;
   nanommo::Jukebox jukebox;
-  // The steps and the skills, made as the game starts.
+  // The steps, the skills and the gates, made as the game starts.
   std::unique_ptr<nanommo::Soundboard> soundboard;
   nanommo::Footsteps footsteps;
   nanommo::Casts casts;
+  nanommo::Passage passage;
   const std::string settings_path = nanommo::SettingsPath();
   nanommo::Settings settings;
   if (absl::StatusOr<nanommo::Settings> loaded =
@@ -615,6 +616,16 @@ int main(int argc, char* argv[]) {
     }
     if (soundboard) {
       soundboard->set_volume(nanommo::Gain(settings.sound.effects));
+      switch (passage.Update(loading.covering(), in_world)) {
+        case nanommo::Passage::Cue::kDeparture:
+          soundboard->Departure();
+          break;
+        case nanommo::Passage::Cue::kArrival:
+          soundboard->Arrival(land);
+          break;
+        case nanommo::Passage::Cue::kNothing:
+          break;
+      }
     }
     // The master volume covers each sound the game makes.
     if (audio) {

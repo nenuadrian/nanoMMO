@@ -1,5 +1,6 @@
 #include "client/soundboard.h"
 
+#include <cstddef>
 #include <memory>
 
 namespace nanommo {
@@ -43,6 +44,11 @@ Soundboard::Soundboard(const AudioDevice& device, const SkillTable& skills)
       }
     }
   }
+  departure_ = Clip::Load(device, nanommo::Departure(1), 1);
+  for (std::size_t land = 0; land < kLandSounds.size(); ++land) {
+    arrivals_.push_back(
+        Clip::Load(device, nanommo::Arrival(static_cast<int>(land)), 1));
+  }
 }
 
 void Soundboard::Play(const Takes& takes, Variety& variety, Heard heard) {
@@ -63,6 +69,14 @@ void Soundboard::Skill(uint32_t skill, bool target, Heard heard) {
   const auto takes = skills_.find({skill, target});
   if (takes != skills_.end()) {
     Play(takes->second, skill_variety_, heard);
+  }
+}
+
+void Soundboard::Departure() { departure_->Play(volume_, 0.0f, 1.0f); }
+
+void Soundboard::Arrival(int land) {
+  if (land >= 0 && land < static_cast<int>(arrivals_.size())) {
+    arrivals_[land]->Play(volume_, 0.0f, 1.0f);
   }
 }
 

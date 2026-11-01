@@ -496,4 +496,76 @@ Samples SkillSound(const skills::Look& look, uint32_t seed, bool target) {
   return sound;
 }
 
+namespace {
+
+// The partials of a struck metal bar, as a glockenspiel's: their frequencies
+// over the note's, how loud each is, and how long each rings. They aren't
+// whole multiples, which is why it shimmers where a string doesn't.
+struct Partial {
+  float ratio;
+  float gain;
+  float decay;
+};
+constexpr std::array<Partial, 5> kBell = {{{1.0f, 1.0f, 1.2f},
+                                           {2.0f, 0.5f, 0.8f},
+                                           {2.76f, 0.35f, 0.6f},
+                                           {5.4f, 0.2f, 0.35f},
+                                           {8.93f, 0.12f, 0.25f}}};
+
+Samples Bell(float seconds, float hertz) {
+  Samples bell;
+  for (const Partial& partial : kBell) {
+    Mix(bell,
+        Tone(seconds, hertz * partial.ratio, hertz * partial.ratio, 0.002f,
+             partial.decay),
+        0.0f, partial.gain);
+  }
+  return bell;
+}
+
+}  // namespace
+
+Samples Departure(uint32_t seed) {
+  Noise noise(seed);
+  constexpr float kLength = 1.0f;
+  Samples sound(SamplesIn(kLength));
+  std::array<Oscillator, 3> voices;
+  Filter filter;
+  float wobble = 0.0f;
+  for (std::size_t i = 0; i < sound.size(); ++i) {
+    const float t = Seconds(i) / kLength;
+    // Two octaves up, wobbling faster and faster.
+    const float hertz = 160.0f * std::exp2(2.0f * t);
+    wobble += (4.0f + 14.0f * t) / kRate;
+    const float tremolo = 0.7f + 0.3f * std::sin(2.0f * kPi * wobble);
+    const float tone = voices[0].Next(hertz) + voices[1].Next(hertz * 1.007f) +
+                       0.5f * voices[2].Next(hertz * 1.5f);
+    const float air =
+        filter.Run(noise.Next(), 300.0f * std::exp2(4.0f * t), 1.5f).band /
+        1.5f;
+    const float rise = t * t;
+    const float fall = t > 0.85f ? std::exp(-(t - 0.85f) / 0.05f) : 1.0f;
+    sound[i] = (0.25f * tone * tremolo + 0.6f * air) * rise * fall;
+  }
+  FadeOut(sound);
+  Normalize(sound, 0.55f);
+  return sound;
+}
+
+Samples Arrival(int land) {
+  const LandSound& sound = kLandSounds[land];
+  Samples arrival;
+  // Struck one after the other, low to high, over the root an octave down.
+  for (std::size_t i = 0; i < sound.chord.size(); ++i) {
+    Mix(arrival, Bell(3.0f, sound.chord[i]), 0.06f * static_cast<float>(i));
+  }
+  Mix(arrival,
+      Tone(2.0f, sound.chord[0] / 2.0f, sound.chord[0] / 2.0f, 0.15f, 0.6f),
+      0.0f);
+  Noise noise(static_cast<uint32_t>(land));
+  Mix(arrival, Whoosh(noise, 0.7f, 5000.0f, 800.0f, 0.1f), 0.0f, 1.5f);
+  Normalize(arrival, 0.55f);
+  return arrival;
+}
+
 }  // namespace nanommo
