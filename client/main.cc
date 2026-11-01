@@ -148,9 +148,10 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<nanommo::AudioDevice> audio;
   std::unique_ptr<nanommo::Track> music;
   nanommo::Jukebox jukebox;
-  // The steps, made as the game starts.
+  // The steps and the skills, made as the game starts.
   std::unique_ptr<nanommo::Soundboard> soundboard;
   nanommo::Footsteps footsteps;
+  nanommo::Casts casts;
   const std::string settings_path = nanommo::SettingsPath();
   nanommo::Settings settings;
   if (absl::StatusOr<nanommo::Settings> loaded =
@@ -173,7 +174,7 @@ int main(int argc, char* argv[]) {
     } else {
       std::cerr << "nanommo client: " << music_or.status() << "\n";
     }
-    soundboard = std::make_unique<nanommo::Soundboard>(*audio);
+    soundboard = std::make_unique<nanommo::Soundboard>(*audio, content->skills);
   } else {
     std::cerr << "nanommo client: " << audio_or.status() << "\n";
   }
@@ -398,6 +399,10 @@ int main(int argc, char* argv[]) {
           const Vector3& at = walking.at(who)->position;
           soundboard->Step(nanommo::GroundAt(*terrain, land, at.x, at.z),
                            nanommo::Hear(at, here, right));
+        }
+        for (const nanommo::Figure& figure : casts.Update(renderer.figures())) {
+          soundboard->Skill(figure.to_skill, figure.target != 0,
+                            nanommo::Hear(figure.position, here, right));
         }
       }
       // A click on someone to talk to opens their window, one on a monster

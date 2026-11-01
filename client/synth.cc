@@ -102,4 +102,10 @@ void FadeOut(Samples& samples) {
   }
 }
 
+void Limit(Samples& samples) {
+  for (float& sample : samples) {
+    sample = std::tanh(sample);
+  }
+}
+
 }  // namespace nanommo

@@ -116,4 +116,24 @@ std::vector<uint64_t> Footsteps::Update(const std::map<uint64_t, Gait>& gaits) {
   return stepped;
 }
 
+std::vector<Figure> Casts::Update(const std::vector<Figure>& figures) {
+  std::vector<Figure> started;
+  std::map<uint32_t, std::pair<uint32_t, float>> skills;
+  for (const Figure& figure : figures) {
+    if (figure.monster || figure.npc || figure.to != protocol::MOTION_SKILL) {
+      continue;
+    }
+    skills[figure.id] = {figure.to_skill, figure.to_time};
+    const auto last = skills_.find(figure.id);
+    const bool fresh = last == skills_.end() ||
+                       last->second.first != figure.to_skill ||
+                       figure.to_time < last->second.second;
+    if (fresh) {
+      started.push_back(figure);
+    }
+  }
+  skills_ = std::move(skills);
+  return started;
+}
+
 }  // namespace nanommo

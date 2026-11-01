@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "client/synth.h"
+#include "content/skills.pb.h"
 #include "terrain/lands.h"
 #include "terrain/terrain.h"
 
@@ -49,6 +50,17 @@ Ground GroundAt(const Terrain& terrain, int land, float x, float z);
 /// One footstep: the heel, then the rest of the foot. Each seed makes one a
 /// little different from the others.
 Samples Step(Ground ground, uint32_t seed);
+
+/// How cold the fx's colour is, from -1 for red to 1 for blue: a cold one
+/// rings higher, and a warm one lower.
+float Coldness(uint32_t color);
+
+/// The sound of one of a skill's fx, from when it starts.
+Samples FxSound(const skills::Fx& fx, uint32_t seed);
+
+/// All the sounds of a skill's fx, each at its time: those at the target
+/// with a monster picked, as the fx are drawn.
+Samples SkillSound(const skills::Look& look, uint32_t seed, bool target);
 
 }  // namespace nanommo
 

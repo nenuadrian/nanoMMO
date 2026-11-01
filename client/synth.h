@@ -84,6 +84,10 @@ void Normalize(Samples& samples, float peak);
 /// mid-wave clicks.
 void FadeOut(Samples& samples);
 
+/// Rounds off the loudest parts, so that a mix doesn't go past 1, where the
+/// speaker can't follow it and it crackles.
+void Limit(Samples& samples);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_SYNTH_H_

@@ -6,6 +6,7 @@
 #include <array>
 #include <cstdint>
 #include <map>
+#include <utility>
 #include <vector>
 
 #include "client/animator.h"
@@ -82,6 +83,17 @@ class Footsteps {
 
  private:
   std::map<uint64_t, float> loops_;
+};
+
+/// Which players started a skill since the last update: another skill, or the
+/// one before again, as their time in it starts over.
+class Casts {
+ public:
+  std::vector<Figure> Update(const std::vector<Figure>& figures);
+
+ private:
+  /// Each player's skill, and their time in it, by their id.
+  std::map<uint32_t, std::pair<uint32_t, float>> skills_;
 };
 
 }  // namespace nanommo

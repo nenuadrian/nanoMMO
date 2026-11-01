@@ -15,9 +15,11 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "client/audio.h"
+#include "client/characters.h"
 #include "client/foley.h"
 #include "client/synth.h"
 #include "client/window.h"
+#include "content/content.h"
 
 namespace {
 
@@ -30,12 +32,19 @@ struct Entry {
 constexpr std::array<const char*, 7> kGroundNames = {
     "grass", "sand", "rock", "snow", "ash", "stone", "water"};
 
-std::vector<Entry> Entries() {
+std::vector<Entry> Entries(const nanommo::SkillTable& skills) {
   std::vector<Entry> entries;
   for (const nanommo::Ground ground : nanommo::kGrounds) {
     entries.push_back(
         {absl::StrCat("Step on ", kGroundNames[static_cast<int>(ground)]),
          [ground](uint32_t seed) { return nanommo::Step(ground, seed); }});
+  }
+  for (const auto& [id, skill] : skills.by_id) {
+    const nanommo::skills::Look look = skill.look();
+    // As cast at a monster, so that its fx at the target sound too.
+    entries.push_back({skill.name(), [look](uint32_t seed) {
+                         return nanommo::SkillSound(look, seed, true);
+                       }});
   }
   return entries;
 }
@@ -67,6 +76,12 @@ void DrawWave(const nanommo::Samples& samples, Rectangle box, Color color) {
 }  // namespace
 
 int main() {
+  const absl::StatusOr<nanommo::Content> content =
+      nanommo::ReadContent(nanommo::ContentFolder());
+  if (!content.ok()) {
+    std::cerr << "nanommo sounds: " << content.status() << "\n";
+    return 1;
+  }
   absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
       nanommo::Window::Create("nanoMMO sounds", 960, 540);
   if (!window.ok()) {
@@ -79,7 +94,7 @@ int main() {
     std::cerr << "nanommo sounds: " << audio.status() << "\n";
   }
 
-  const std::vector<Entry> entries = Entries();
+  const std::vector<Entry> entries = Entries(content->skills);
   int picked = 0;
   uint32_t seed = 0;
   nanommo::Samples shown;

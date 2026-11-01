@@ -1,7 +1,10 @@
 #include "client/foley.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 
 #include "client/ground.h"
 
@@ -234,6 +237,263 @@ Samples Step(Ground ground, uint32_t seed) {
   }
   Normalize(step, kStepPeak);
   return step;
+}
+
+namespace {
+
+constexpr float kPi = std::numbers::pi_v<float>;
+
+// Up from nothing to its top at peak, a share of the way through, and back
+// down to nothing at 1.
+float Swell(float t, float peak) {
+  const float s = t < peak ? std::sin(0.5f * kPi * t / peak)
+                           : std::cos(0.5f * kPi * (t - peak) / (1.0f - peak));
+  return std::max(s, 0.0f) * std::max(s, 0.0f);
+}
+
+// Air pushed aside: noise in a band that moves from one frequency towards the
+// other as it swells, and back as it fades.
+Samples Whoosh(Noise& noise, float seconds, float from, float to, float peak) {
+  Samples whoosh(SamplesIn(seconds));
+  Filter filter;
+  constexpr float kQ = 1.4f;
+  for (std::size_t i = 0; i < whoosh.size(); ++i) {
+    const float swell = Swell(Seconds(i) / seconds, peak);
+    const float hertz = from * std::pow(to / from, swell);
+    whoosh[i] = filter.Run(noise.Next(), hertz, kQ).band / kQ * swell;
+  }
+  return whoosh;
+}
+
+// How loud the loudest moment of each kind of fx is: the light's chord stays
+// under the rest, and the shake's boom and the bolt are the loudest.
+float Level(skills::Fx::Kind kind) {
+  switch (kind) {
+    case skills::Fx::GLOW:
+    case skills::Fx::MOTES:
+      return 0.2f;
+    case skills::Fx::SHARDS:
+      return 0.35f;
+    case skills::Fx::SPARKS:
+      return 0.45f;
+    case skills::Fx::TRAIL:
+    case skills::Fx::RING:
+    case skills::Fx::SPIKES:
+    case skills::Fx::WAVE:
+      return 0.5f;
+    case skills::Fx::BOLT:
+    case skills::Fx::SHAKE:
+      return 0.7f;
+    default:
+      return 0.5f;
+  }
+}
+
+}  // namespace
+
+float Coldness(uint32_t color) {
+  const float red = static_cast<float>((color >> 24) & 0xff) / 255.0f;
+  const float blue = static_cast<float>((color >> 8) & 0xff) / 255.0f;
+  return blue - red;
+}
+
+Samples FxSound(const skills::Fx& fx, uint32_t seed) {
+  Noise noise(seed);
+  const float span = static_cast<float>(fx.for_ms()) / 1000.0f;
+  const float size = fx.size() > 0.0f ? fx.size() : 1.0f;
+  const float cold = Coldness(fx.color());
+  // From 110 hertz for red to 440 for blue.
+  const float note = 220.0f * std::exp2(cold);
+  const int count = static_cast<int>(fx.count() > 0 ? fx.count() : 12);
+  Samples sound;
+  switch (fx.kind()) {
+    case skills::Fx::TRAIL:
+      // The blade cutting the air.
+      sound = Whoosh(noise, span + 0.1f, 300.0f, 2000.0f, 0.4f);
+      break;
+    case skills::Fx::GLOW: {
+      // A chord that swells and fades with the light: the note, its fifth and
+      // its octave, each played twice a little apart, so that they beat.
+      sound.resize(SamplesIn(span + 0.5f));
+      std::array<Oscillator, 6> voices;
+      constexpr std::array<float, 6> kRatios = {1.0f,   1.004f, 1.5f,
+                                                1.503f, 2.0f,   2.005f};
+      for (std::size_t i = 0; i < sound.size(); ++i) {
+        float chord = 0.0f;
+        for (std::size_t v = 0; v < voices.size(); ++v) {
+          chord += voices[v].Next(note * kRatios[v]);
+        }
+        sound[i] = chord * Envelope(Seconds(i), 0.4f * span, 0.4f * span);
+      }
+      FadeOut(sound);
+      break;
+    }
+    case skills::Fx::RING: {
+      // A thump, deeper for a bigger ring, and air rushing out along the
+      // ground.
+      const float low = std::clamp(80.0f / std::sqrt(size), 35.0f, 90.0f);
+      Mix(sound, Tone(0.5f, 2.0f * low, low, 0.004f, 0.18f), 0.0f, 0.9f);
+      Samples rush(SamplesIn(span));
+      Filter filter;
+      for (std::size_t i = 0; i < rush.size(); ++i) {
+        const float t = Seconds(i);
+        rush[i] =
+            filter.Run(noise.Next(), 2500.0f * std::pow(0.12f, t / span), 1.0f)
+                .band *
+            Envelope(t, 0.05f * span, 0.35f * span);
+      }
+      FadeOut(rush);
+      Mix(sound, rush, 0.0f, 0.5f);
+      break;
+    }
+    case skills::Fx::SPARKS: {
+      // Each spark a bright ping, high and short, like metal on metal, most
+      // of them as they fly off. Two partials that aren't whole multiples of
+      // each other ring like metal, where one alone would whistle.
+      for (int i = 0; i < std::min(count, 24); ++i) {
+        const float at = 0.6f * span * noise.Uniform() * noise.Uniform();
+        const float hertz = noise.Between(2500.0f, 5000.0f);
+        const float decay = noise.Between(0.01f, 0.03f);
+        const float gain = noise.Between(0.3f, 1.0f);
+        Mix(sound, Tone(0.15f, hertz, 0.97f * hertz, 0.0005f, decay), at, gain);
+        Mix(sound,
+            Tone(0.1f, 2.76f * hertz, 2.7f * hertz, 0.0005f, 0.5f * decay), at,
+            0.3f * gain);
+      }
+      // Where they fly off someone, a blow landed: a low note that drops
+      // fast, like a drum.
+      if (fx.at() == skills::Fx::TARGET) {
+        Mix(sound, Tone(0.3f, 160.0f, 50.0f, 0.001f, 0.07f), 0.0f, 3.0f);
+      }
+      break;
+    }
+    case skills::Fx::MOTES: {
+      // A note for each speck, from a scale with no notes that clash, two
+      // octaves above the colour's, and rising as they do.
+      constexpr std::array<float, 6> kScale = {
+          1.0f, 9.0f / 8.0f, 5.0f / 4.0f, 3.0f / 2.0f, 5.0f / 3.0f, 2.0f};
+      for (int i = 0; i < std::min(count, 32); ++i) {
+        const float hertz =
+            4.0f * note * kScale[static_cast<int>(noise.Uniform() * 5.99f)];
+        const float at = 0.8f * span * std::pow(noise.Uniform(), 0.7f);
+        Mix(sound, Tone(0.5f, hertz, hertz * 1.03f, 0.004f, 0.12f), at);
+      }
+      break;
+    }
+    case skills::Fx::SHAKE:
+      // Felt as much as heard: a boom below the notes, and a rumble.
+      Mix(sound, Tone(span + 0.4f, 60.0f, 32.0f, 0.005f, 0.5f * span + 0.1f),
+          0.0f, 1.0f);
+      Mix(sound,
+          Hiss(noise, span + 0.4f, 100.0f, 0.7f, Pass::kLow, 0.01f,
+               0.5f * span),
+          0.0f, 1.0f);
+      break;
+    case skills::Fx::SHARDS:
+      // A crack as the ground breaks, and the pieces coming back down: ice
+      // rings like glass, and earth knocks.
+      Mix(sound, Click(noise, 2500.0f), 0.0f, 1.0f);
+      for (int i = 0; i < std::min(count, 32); ++i) {
+        const float at = span * noise.Between(0.4f, 0.95f);
+        if (cold > 0.2f) {
+          const float hertz = noise.Between(2500.0f, 6000.0f);
+          Mix(sound, Tone(0.2f, hertz, hertz, 0.0005f, 0.035f), at, 0.3f);
+        } else {
+          const float hertz = noise.Between(400.0f, 900.0f);
+          Mix(sound, Tone(0.08f, hertz, 0.7f * hertz, 0.0005f, 0.015f), at,
+              0.8f);
+        }
+      }
+      break;
+    case skills::Fx::SPIKES: {
+      // The ground heaves, with a rumble below the notes, and bursts open
+      // spike by spike as the ring goes out: each a thunk, a low note that
+      // drops fast, and a short knock above it. Ice rings like glass, too.
+      Mix(sound, Tone(span, 55.0f, 40.0f, 0.15f * span, 0.4f * span), 0.0f,
+          0.8f);
+      Mix(sound,
+          Hiss(noise, span, 90.0f, 0.7f, Pass::kLow, 0.15f * span, 0.4f * span),
+          0.0f, 1.0f);
+      const int spikes = std::min(count, 24);
+      for (int i = 0; i < spikes; ++i) {
+        const float at = 0.35f * span * static_cast<float>(i) / spikes +
+                         noise.Between(0.0f, 0.02f);
+        const float thunk = noise.Between(150.0f, 220.0f);
+        Mix(sound, Tone(0.15f, thunk, 0.35f * thunk, 0.001f, 0.035f), at, 0.6f);
+        const float knock = noise.Between(700.0f, 1200.0f);
+        Mix(sound, Tone(0.06f, knock, 0.8f * knock, 0.0005f, 0.008f), at,
+            0.25f);
+        if (cold > 0.2f) {
+          const float hertz = noise.Between(2000.0f, 4000.0f);
+          Mix(sound, Tone(0.2f, hertz, hertz, 0.0005f, 0.06f), at, 0.15f);
+        }
+      }
+      break;
+    }
+    case skills::Fx::BOLT: {
+      // A crack, the buzz of the bolt, which jumps from one pitch to another,
+      // and thunder rolling after it.
+      Mix(sound, Click(noise, 2500.0f), 0.0f, 1.0f);
+      Samples buzz(SamplesIn(span));
+      Filter high;
+      Filter low;
+      float phase = 0.0f;
+      float hertz = 100.0f;
+      float level = 1.0f;
+      int jump = 0;
+      for (std::size_t i = 0; i < buzz.size(); ++i) {
+        if (--jump <= 0) {
+          jump = SamplesIn(noise.Between(0.008f, 0.025f));
+          hertz = noise.Between(50.0f, 160.0f);
+          level = noise.Between(0.3f, 1.0f);
+        }
+        phase += hertz / kRate;
+        phase -= std::floor(phase);
+        // A sawtooth, which is rich in overtones, and some noise, between
+        // 400 hertz and 5,000.
+        const float raw = 2.0f * phase - 1.0f + 0.5f * noise.Next();
+        buzz[i] = low.Run(high.Run(raw, 400.0f).high, 5000.0f).low * level *
+                  Envelope(Seconds(i), 0.003f, 0.6f * span);
+      }
+      FadeOut(buzz);
+      Mix(sound, buzz, 0.0f, 0.5f);
+      Mix(sound, Hiss(noise, 1.6f, 120.0f, 0.7f, Pass::kLow, 0.05f, 0.5f),
+          0.03f, 1.6f);
+      break;
+    }
+    case skills::Fx::WAVE: {
+      // Fire roaring past, and popping.
+      Samples roar(SamplesIn(span + 0.2f));
+      Filter filter;
+      for (std::size_t i = 0; i < roar.size(); ++i) {
+        const float swell = Swell(Seconds(i) / (span + 0.2f), 0.3f);
+        roar[i] =
+            filter.Run(noise.Next(), 400.0f + 1600.0f * swell).low * swell;
+      }
+      Mix(sound, roar, 0.0f, 1.2f);
+      Mix(sound, Crackle(noise, span, 60.0f, 1500.0f, 3.0f, 0.05f, 0.5f * span),
+          0.0f, 0.6f);
+      break;
+    }
+    default:
+      break;
+  }
+  Normalize(sound, Level(fx.kind()));
+  return sound;
+}
+
+Samples SkillSound(const skills::Look& look, uint32_t seed, bool target) {
+  Samples sound;
+  for (int i = 0; i < look.fx_size(); ++i) {
+    const skills::Fx& fx = look.fx(i);
+    if (fx.at() == skills::Fx::TARGET && !target) {
+      continue;
+    }
+    Mix(sound, FxSound(fx, seed * 31u + static_cast<uint32_t>(i)),
+        static_cast<float>(fx.from_ms()) / 1000.0f);
+  }
+  Limit(sound);
+  return sound;
 }
 
 }  // namespace nanommo
