@@ -1,5 +1,6 @@
 # The trailer's shots, in the order they're cut together. Times in a camera
-# key are the film's seconds.
+# key or a pace are the film's seconds; times in a cast, a leg or a fall are the
+# game's.
 
 # Up at the sun, and down to the land under it.
 shots {
@@ -20,4 +21,25 @@ shots {
   ease: 0.6
   camera { at: 0 eye { x: 3 z: -3 up: 1.4 } look { x: 0 z: -10 up: 1.6 } fov: 50 }
   camera { at: 8 eye { x: 0 z: -20 up: 42 sea: true } look { x: -15 z: -200 up: 6 sea: true } }
+}
+
+# Earthsplitter in a ring of skeletons, slowed to a fifth from the leap to the
+# spikes, with the camera going round at the film's own pace. They fall as the
+# spikes come up.
+shots {
+  id: "earthsplitter"
+  land: "Meadows"
+  seconds: 7
+  ease: 0.3
+  orbit { center { x: 0 z: 8.6 up: 1.0 } radius: 5.5 up: 0.4 from: 55 to: 110 fov: 40 }
+  pace { at: 1.2 speed: 1 }
+  pace { at: 1.6 speed: 0.2 }
+  pace { at: 5.2 speed: 0.2 }
+  pace { at: 5.8 speed: 1 }
+  players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: 0 z: 8 } casts { at: 0.8 skill: 6 target: 101 } }
+  monsters { id: 101 kind: 1 at { x: 0.3 z: 10.6 } face: 1 dies: 1.74 }
+  monsters { id: 102 kind: 1 at { x: 1.7 z: 10.3 } face: 1 dies: 1.8 }
+  monsters { id: 103 kind: 1 at { x: -2.2 z: 9.6 } face: 1 dies: 1.77 }
+  monsters { id: 104 kind: 1 at { x: 0.5 z: 5.5 } face: 1 dies: 1.86 }
+  monsters { id: 105 kind: 1 at { x: -2.4 z: 7.0 } face: 1 dies: 1.83 }
 }

@@ -1,5 +1,6 @@
-// A film made in the game: shots of the lands, and where the camera goes in
-// each.
+// A film made in the game: shots of the lands, each with who's in it, what
+// they do and when, where the camera goes, and how fast the game's clock runs
+// against the film's.
 syntax = "proto3";
 
 package nanommo.cinema;
@@ -26,16 +27,85 @@ message Key {
   float fov = 4;
 }
 
+// The camera going round a point, looking at it.
+message Orbit {
+  Point center = 1;
+  // In metres, out from the center along the ground, and up from it.
+  float radius = 2;
+  float up = 3;
+  // In degrees round from the north (+z) towards the east (+x), at the shot's
+  // start and at its end.
+  float from = 4;
+  float to = 5;
+  float fov = 6;
+}
+
+// How fast the game runs from a moment of the film: 1 as fast as the film,
+// 0.25 four times slower. It eases from one pace to the next.
+message Pace {
+  float at = 1;
+  float speed = 2;
+}
+
+// A skill used, at a moment of the game's clock.
+message Cast {
+  float at = 1;
+  uint32 skill = 2;
+  // The monster it's at, by its id here, or 0 for none.
+  uint32 target = 3;
+}
+
+// A walk or a run to a place, from a moment of the game's clock, at the
+// game's own speeds.
+message Leg {
+  float at = 1;
+  Point to = 2;
+  bool run = 3;
+}
+
+message Player {
+  uint32 id = 1;
+  string name = 2;
+  Point at = 3;
+  // In degrees round from the north towards the east.
+  float yaw = 4;
+  uint32 level = 5;
+  uint32 weapon = 6;
+  repeated uint32 wearing = 7;
+  repeated Cast casts = 8;
+  repeated Leg legs = 9;
+}
+
+message Monster {
+  uint32 id = 1;
+  // By its id in the monsters file.
+  uint32 kind = 2;
+  Point at = 3;
+  // Faces this player, by id, or `yaw` when it's 0.
+  uint32 face = 4;
+  float yaw = 5;
+  uint32 level = 6;
+  // When it falls, on the game's clock, or never at 0.
+  float dies = 7;
+  repeated Leg legs = 8;
+}
+
 message Shot {
   string id = 1;
   // By its name: Meadows, Ashlands or Crypt.
   string land = 2;
   // How long, in seconds of the film.
   float seconds = 3;
+  // Where the game's clock starts.
+  float from = 4;
   repeated Key camera = 5;
+  Orbit orbit = 6;
   // Eases the camera in at the start and out at the end, from 0, not at all,
   // to 1.
   float ease = 9;
+  repeated Pace pace = 10;
+  repeated Player players = 11;
+  repeated Monster monsters = 12;
 }
 
 message Film {

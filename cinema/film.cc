@@ -3,6 +3,7 @@
 #include <raymath.h>
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,9 @@ namespace {
 constexpr uint32_t kWorldSeed = 1;
 // The lens when no key says.
 constexpr float kFov = 45.0f;
+// In metres a second, as the server's World moves players and monsters.
+constexpr float kWalkSpeed = 1.8f;
+constexpr float kRunSpeed = 3.1f;
 
 float Smooth(float s) { return s * s * (3.0f - 2.0f * s); }
 
@@ -39,6 +43,8 @@ Vector3 CatmullRom(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float u) {
   return {term(a.x, b.x, c.x, d.x), term(a.y, b.y, c.y, d.y),
           term(a.z, b.z, c.z, d.z)};
 }
+
+float Radians(float degrees) { return degrees * DEG2RAD; }
 
 Camera3D Lens(Vector3 eye, Vector3 look, float fov) {
   return {.position = eye,
@@ -85,6 +91,53 @@ Camera3D Along(const google::protobuf::RepeatedPtrField<Key>& keys,
   return Lens(curve(eyes), curve(looks), Lerp(fovs[i], fovs[i + 1], u));
 }
 
+Camera3D Round(const Orbit& orbit, float share, const Terrain& terrain) {
+  const Vector3 center = Place(orbit.center(), terrain);
+  const float angle = Radians(Lerp(orbit.from(), orbit.to(), share));
+  const Vector3 eye = {center.x + orbit.radius() * std::sin(angle),
+                       center.y + orbit.up(),
+                       center.z + orbit.radius() * std::cos(angle)};
+  return Lens(eye, center, orbit.fov() > 0.0f ? orbit.fov() : kFov);
+}
+
+// Where someone is, which way they face, and whether they're on their way
+// somewhere, at a moment of the game, after the legs they started by then.
+struct Spot {
+  Vector2 at;
+  float yaw = 0.0f;
+  protocol::Motion motion = protocol::MOTION_IDLE;
+};
+
+Spot Walked(const Point& start, float yaw,
+            const google::protobuf::RepeatedPtrField<Leg>& legs, float game) {
+  Spot spot{.at = {start.x(), start.z()}, .yaw = yaw};
+  // When they're free to set off on the next leg: once they've arrived from
+  // the one before.
+  float free = -1e9f;
+  for (const Leg& leg : legs) {
+    const float off = std::max(leg.at(), free);
+    if (game < off) {
+      break;
+    }
+    const Vector2 to = {leg.to().x(), leg.to().z()};
+    const Vector2 way = Vector2Subtract(to, spot.at);
+    const float distance = Vector2Length(way);
+    const float speed = leg.run() ? kRunSpeed : kWalkSpeed;
+    const float arrive = off + distance / speed;
+    if (distance > 1e-3f) {
+      spot.yaw = std::atan2(way.x, way.y);
+    }
+    if (game < arrive) {
+      spot.at = Vector2Lerp(spot.at, to, (game - off) / (arrive - off));
+      spot.motion = leg.run() ? protocol::MOTION_RUN : protocol::MOTION_WALK;
+      return spot;
+    }
+    spot.at = to;
+    free = arrive;
+  }
+  return spot;
+}
+
 }  // namespace
 
 absl::StatusOr<Film> ReadFilm(const std::string& path) {
@@ -102,9 +155,9 @@ absl::StatusOr<Film> ReadFilm(const std::string& path) {
       return absl::InvalidArgumentError(
           absl::StrCat(shot.id(), ": no land called ", shot.land()));
     }
-    if (shot.camera().empty()) {
+    if (shot.camera().empty() && !shot.has_orbit()) {
       return absl::InvalidArgumentError(
-          absl::StrCat(shot.id(), ": no camera keys"));
+          absl::StrCat(shot.id(), ": no camera keys and no orbit"));
     }
   }
   return film;
@@ -116,6 +169,38 @@ Terrain TerrainOf(int land) {
   return Terrain(kWorldSeed + kLands[land].seed, kLands[land].wading);
 }
 
+float SpeedAt(const Shot& shot, float seconds) {
+  const auto& pace = shot.pace();
+  if (pace.empty()) {
+    return 1.0f;
+  }
+  if (seconds <= pace[0].at()) {
+    return pace[0].speed();
+  }
+  for (int i = 0; i + 1 < pace.size(); ++i) {
+    const Pace& from = pace[i];
+    const Pace& to = pace[i + 1];
+    if (seconds < to.at()) {
+      const float share = (seconds - from.at()) / (to.at() - from.at());
+      return Lerp(from.speed(), to.speed(), Smooth(share));
+    }
+  }
+  return pace[pace.size() - 1].speed();
+}
+
+float Clock::Advance(float seconds) {
+  // In small steps, as the pace can change within a frame.
+  constexpr int kSteps = 16;
+  const float step = seconds / kSteps;
+  float moved = 0.0f;
+  for (int i = 0; i < kSteps; ++i) {
+    moved += step * SpeedAt(shot_, film_ + (i + 0.5f) * step);
+  }
+  film_ += seconds;
+  game_ += moved;
+  return moved;
+}
+
 Vector3 Place(const Point& point, const Terrain& terrain) {
   const float base =
       point.sea() ? Terrain::kSeaLevel : terrain.Height(point.x(), point.z());
@@ -123,7 +208,140 @@ Vector3 Place(const Point& point, const Terrain& terrain) {
 }
 
 Camera3D CameraAt(const Shot& shot, float seconds, const Terrain& terrain) {
-  return Along(shot.camera(), seconds, shot.ease(), terrain);
+  if (!shot.camera().empty()) {
+    return Along(shot.camera(), seconds, shot.ease(), terrain);
+  }
+  return Round(shot.orbit(), Eased(seconds / shot.seconds(), shot.ease()),
+               terrain);
+}
+
+Stage::Stage(const Shot& shot, const Content& content)
+    : shot_(shot), content_(content) {
+  for (const Monster& monster : shot.monsters()) {
+    foes_.push_back({.spec = monster,
+                     .at = {monster.at().x(), monster.at().z()},
+                     .yaw = Radians(monster.yaw())});
+  }
+}
+
+Stage::Blow Stage::BlowOf(const Player& player, const Cast& cast) const {
+  const auto skill = content_.skills.by_id.find(cast.skill());
+  if (skill == content_.skills.by_id.end()) {
+    return {};
+  }
+  const skills::Effect& effect = skill->second.effect();
+  if (effect.weapon()) {
+    const auto item = content_.items.by_id.find(player.weapon());
+    if (item == content_.items.by_id.end()) {
+      return {};
+    }
+    return {.lasts = item->second.weapon().swing_ms() / 1000.0f};
+  }
+  return {.lasts = effect.cast_ms() / 1000.0f};
+}
+
+Vector2 Stage::PlayerAt(int player, float game) const {
+  const Player& who = shot_.players(player);
+  return Walked(who.at(), Radians(who.yaw()), who.legs(), game).at;
+}
+
+void Stage::Step(float to) {
+  for (Foe& foe : foes_) {
+    const Monster& spec = foe.spec;
+    if (spec.dies() > 0.0f && to >= spec.dies()) {
+      foe.fallen = true;
+    }
+    foe.motion = protocol::MOTION_IDLE;
+    if (foe.fallen) {
+      continue;
+    }
+    if (!spec.legs().empty()) {
+      const Spot spot = Walked(spec.at(), Radians(spec.yaw()), spec.legs(), to);
+      foe.at = spot.at, foe.yaw = spot.yaw, foe.motion = spot.motion;
+    }
+    for (int p = 0; p < shot_.players_size(); ++p) {
+      if (shot_.players(p).id() == spec.face() && spec.legs().empty()) {
+        const Vector2 at = PlayerAt(p, to);
+        foe.yaw = std::atan2(at.x - foe.at.x, at.y - foe.at.y);
+      }
+    }
+  }
+}
+
+protocol::World Stage::At(float game) {
+  // In small steps, as the monsters' walks and falls happen between frames.
+  constexpr float kStep = 1.0f / 120.0f;
+  while (now_ < game) {
+    const float to = std::min(game, now_ + kStep);
+    Step(to);
+    now_ = to;
+  }
+
+  protocol::World world;
+  const int land = LandOf(shot_);
+  world.set_seed(kWorldSeed + kLands[land].seed);
+  world.set_land(land);
+  for (int i = 0; i < shot_.players_size(); ++i) {
+    const Player& who = shot_.players(i);
+    Spot spot = Walked(who.at(), Radians(who.yaw()), who.legs(), game);
+    protocol::Player* player = world.add_players();
+    player->set_id(who.id());
+    player->set_name(who.name());
+    const uint32_t level = who.level() > 0 ? who.level() : 10;
+    player->set_level(level);
+    // As the server's levels have it.
+    player->set_max_health(100 + 20 * (level - 1));
+    player->set_health(player->max_health());
+    player->set_weapon(who.weapon());
+    for (const uint32_t item : who.wearing()) {
+      player->add_wearing(item);
+    }
+    const auto facing = [&](uint32_t id) {
+      for (const Foe& foe : foes_) {
+        if (foe.spec.id() == id) {
+          spot.yaw = std::atan2(foe.at.x - spot.at.x, foe.at.y - spot.at.y);
+        }
+      }
+    };
+    // The last skill they started, while it lasts.
+    uint32_t casts = 0;
+    for (const Cast& cast : who.casts()) {
+      if (cast.at() > game) {
+        continue;
+      }
+      ++casts;
+      if (game < cast.at() + BlowOf(who, cast).lasts) {
+        spot.motion = protocol::MOTION_SKILL;
+        player->set_skill(cast.skill());
+        player->set_target(cast.target());
+        facing(cast.target());
+      }
+    }
+    player->set_casts(casts);
+    player->set_x(spot.at.x);
+    player->set_z(spot.at.y);
+    player->set_yaw(spot.yaw);
+    player->set_motion(spot.motion);
+  }
+  if (shot_.players_size() > 0) {
+    world.set_you(shot_.players(0).id());
+  }
+  for (const Foe& foe : foes_) {
+    protocol::Monster* monster = world.add_monsters();
+    monster->set_id(foe.spec.id());
+    monster->set_kind(foe.spec.kind());
+    monster->set_level(foe.spec.level() > 0 ? foe.spec.level() : 5);
+    const auto kind = content_.monsters.kinds.find(foe.spec.kind());
+    const uint32_t health =
+        kind != content_.monsters.kinds.end() ? kind->second.max_health() : 80;
+    monster->set_max_health(health);
+    monster->set_health(foe.fallen ? 0 : health);
+    monster->set_x(foe.at.x);
+    monster->set_z(foe.at.y);
+    monster->set_yaw(foe.yaw);
+    monster->set_motion(foe.fallen ? protocol::MOTION_DEAD : foe.motion);
+  }
+  return world;
 }
 
 }  // namespace nanommo::cinema

@@ -9,7 +9,7 @@ target_include_directories(nanommo_cinema_core PUBLIC
   ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}
 )
 target_link_libraries(nanommo_cinema_core PUBLIC
-  raylib nanommo_content nanommo_terrain
+  raylib nanommo_protocol nanommo_content nanommo_terrain
   protobuf::libprotobuf absl::status absl::statusor absl::strings
 )
 

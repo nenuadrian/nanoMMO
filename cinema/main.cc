@@ -1,6 +1,7 @@
 // Films a film's shots through the game's own renderer, a frame at a time
-// rather than as fast as the screen goes, so that each frame is drawn as long
-// as it takes, at any size. Each shot goes into a video.
+// rather than as fast as the screen goes, so that the game's clock can run
+// slower than the film's and each frame is drawn as long as it takes. Each
+// shot goes into a video.
 //
 //   nanommo_cinema <film.txtpb> <out dir> [shots=a,b] [size=1920x1080]
 //                  [fps=30] [still=seconds] [cel=0|1]
@@ -13,11 +14,13 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "cinema/film.h"
+#include "client/animator.h"
 #include "client/atmosphere.h"
 #include "client/characters.h"
 #include "client/gate.h"
@@ -49,6 +52,7 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
   renderer.set_cel_shading(options.cel);
   renderer.set_terrain(terrain, nanommo::kLooks[land]);
   renderer.set_cubes(nanommo::GateCubes(terrain, land));
+  nanommo::Animator animator(content);
   nanommo::PostProcess post;
   const nanommo::GraphicsSettings graphics{.cel_shading = options.cel};
   const RenderTexture2D picture =
@@ -69,17 +73,26 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
     }
   }
 
+  nanommo::cinema::Clock clock(shot);
+  nanommo::cinema::Stage stage(shot, content);
   const int frames =
       static_cast<int>(std::lround(shot.seconds() * options.fps));
   const int still =
       options.still < 0.0f
           ? -1
           : static_cast<int>(std::lround(options.still * options.fps));
+  float moved = 0.0f;
   for (int frame = 0; frame < frames && (still < 0 || frame <= still);
        ++frame) {
-    const float now = frame / options.fps;
-    // The sea's waves and anything else that moves by itself, a frame on.
-    renderer.Animate(1.0f / options.fps);
+    const float now = clock.film();
+    const float game = clock.game();
+    std::vector<nanommo::Figure> figures =
+        animator.Update(stage.At(game), moved);
+    for (nanommo::Figure& figure : figures) {
+      figure.position.y = terrain.Height(figure.position.x, figure.position.z);
+    }
+    renderer.set_figures(std::move(figures));
+    renderer.Animate(moved);
     const Camera3D camera = nanommo::cinema::CameraAt(shot, now, terrain);
     renderer.set_camera(camera);
 
@@ -98,6 +111,7 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
       }
       UnloadImage(image);
     }
+    moved = clock.Advance(1.0f / options.fps);
   }
   UnloadRenderTexture(picture);
   if (video != nullptr) {
@@ -107,7 +121,8 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
       std::chrono::duration<float>(std::chrono::steady_clock::now() - started)
           .count();
   std::cout << shot.id() << ": " << frames << " frames, " << shot.seconds()
-            << " s, drawn in " << took << " s\n";
+            << " s of film, " << clock.game() - shot.from()
+            << " s of game, drawn in " << took << " s\n";
   return 0;
 }
 
