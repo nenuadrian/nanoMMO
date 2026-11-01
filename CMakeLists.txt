@@ -214,7 +214,7 @@ if(DOXYGEN_FOUND)
   # the order the README lists them.
   doxygen_add_docs(docs
     README.md
-    docs/gameplay.md docs/content.md docs/npcs.md docs/graphics.md
+    docs/gameplay.md docs/content.md docs/npcs.md docs/graphics.md docs/cinema.md
     docs/island.md docs/worlds.md docs/networking.md docs/accounts.md
     docs/saving.md docs/website.md docs/monitoring.md docs/benchmarking.md
     docs/deployment.md docs/checks.md

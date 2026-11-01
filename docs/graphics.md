@@ -203,6 +203,29 @@ starts, in about a third of a second, so there are no files for them in the repo
 - `./build/bin/nanommo_sounds` plays each sound outside the game: up and down pick one, and Space
   plays a new take of it and draws it.
 
+## The sky
+
+The sky over each land is drawn first, behind everything else, as a ball around the camera
+(`client/sky.h`): its colour goes from the land's `sky` at the horizon, which the fog fades into, to
+its `zenith` overhead, and the sun is a disc brighter than white, so the bloom spreads it, with a glow
+around it. Each land's `Atmosphere` (`client/atmosphere.h`) sets them: a white sun over the Meadows,
+a big red one low in the Ashlands' smoke, and a pale moon over the Crypt.
+
+- Clouds are rows of a few low-poly balls, biggest in the middle, made from the land's seed, so a
+  land's clouds are its own and the same each time. The wind blows them along at two and a half
+  metres a second, through a square 900 metres wide around the camera: one that leaves it comes back
+  in on the other side, after fading into the horizon. `cloudiness` says how many of a land's forty
+  are out.
+- Each face is lit by the sun from its own slope, worked out in the shader from how the position
+  changes across the pixel, so the clouds are as faceted as everything else. A face smaller than a
+  pixel has no slope to speak of, and is lit as if it faced up, as normalizing nothing gives NaN,
+  which the bloom would spread over the whole picture.
+- Their shadows drift over the land, too: the world's shader takes the 64 balls nearest to what the
+  camera looks at, and for each pixel follows the line to the sun up to each ball's height, taking
+  some of the sun's light away where it passes through one.
+- The sea's waves and the clouds go by the renderer's own clock, which `Animate` moves on, rather
+  than the window's, so that a film can run it slower (see [Cinema](cinema.md)).
+
 ## Post-processing
 
 The client draws the world into a frame of its own, a render texture, and puts the frame on the
