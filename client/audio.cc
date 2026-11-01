@@ -49,4 +49,40 @@ void Track::SetVolume(float volume) { SetMusicVolume(music_, volume); }
 
 void Track::Update() { UpdateMusicStream(music_); }
 
+std::unique_ptr<Clip> Clip::Load(const AudioDevice& /*device*/,
+                                 const Samples& samples, int voices) {
+  // raylib copies the samples into its own format as it loads them.
+  Wave wave = {
+      .frameCount = static_cast<unsigned int>(samples.size()),
+      .sampleRate = kRate,
+      .sampleSize = 32,
+      .channels = 1,
+      .data = const_cast<float*>(samples.data()),
+  };
+  auto clip = absl::WrapUnique(new Clip(LoadSoundFromWave(wave)));
+  for (int i = 0; i < voices; ++i) {
+    clip->voices_.push_back(LoadSoundAlias(clip->sound_));
+  }
+  return clip;
+}
+
+Clip::~Clip() {
+  for (const Sound& voice : voices_) {
+    UnloadSoundAlias(voice);
+  }
+  UnloadSound(sound_);
+}
+
+void Clip::Play(float volume, float pan, float pitch) {
+  if (voices_.empty()) {
+    return;
+  }
+  const Sound& voice = voices_[next_];
+  next_ = (next_ + 1) % voices_.size();
+  SetSoundVolume(voice, volume);
+  SetSoundPan(voice, pan);
+  SetSoundPitch(voice, pitch);
+  PlaySound(voice);
+}
+
 }  // namespace nanommo

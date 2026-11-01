@@ -1,6 +1,7 @@
 add_library(nanommo_client_core
   settings.proto
-  window.cc audio.cc jukebox.cc sound.cc settings.cc gui.cc menu.cc renderer.cc
+  window.cc audio.cc jukebox.cc sound.cc synth.cc foley.cc
+  settings.cc gui.cc menu.cc renderer.cc
   offscreen.cc postprocess.cc outline.cc
   camera.cc scene.cc input.cc connection.cc
   login_screen.cc nameplates.cc combat_text.cc player_frame.cc hotbar.cc
@@ -52,6 +53,10 @@ add_custom_target(nanommo_client_assets ALL
 add_executable(nanommo_client main.cc)
 target_link_libraries(nanommo_client PRIVATE nanommo_client_core)
 add_dependencies(nanommo_client nanommo_client_assets)
+
+add_executable(nanommo_sounds sounds_main.cc)
+target_link_libraries(nanommo_sounds PRIVATE nanommo_client_core)
+add_dependencies(nanommo_sounds nanommo_client_assets)
 
 add_executable(nanommo_client_bench bench_main.cc)
 target_link_libraries(nanommo_client_bench PRIVATE nanommo_client_core)

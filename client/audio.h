@@ -3,10 +3,13 @@
 
 #include <raylib.h>
 
+#include <cstddef>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/statusor.h"
+#include "client/synth.h"
 
 namespace nanommo {
 
@@ -59,6 +62,31 @@ class Track {
   explicit Track(Music music) : music_(music) {}
 
   Music music_;
+};
+
+/// A sound we made, ready to play, on a few voices that share its samples, so
+/// that it can play again before it's over, as steps do.
+class Clip {
+ public:
+  static std::unique_ptr<Clip> Load(const AudioDevice& device,
+                                    const Samples& samples, int voices);
+  ~Clip();
+
+  Clip(const Clip&) = delete;
+  Clip& operator=(const Clip&) = delete;
+
+  /// On the voice that started longest ago: at a volume from 0 to 1, a pan
+  /// from -1 for the left to 1 for the right, and a pitch, where 2 is an
+  /// octave up.
+  void Play(float volume, float pan, float pitch);
+
+ private:
+  explicit Clip(Sound sound) : sound_(sound) {}
+
+  Sound sound_;
+  /// raylib's aliases of the sound, which play its samples without copies.
+  std::vector<Sound> voices_;
+  std::size_t next_ = 0;
 };
 
 }  // namespace nanommo
