@@ -145,7 +145,8 @@ the repo: [assets/music/README.md](../assets/music/README.md) says where to get 
   time, whether you're in the world and whether the track is playing, apart from raylib, so that its
   test needs no sound card. raylib loops a music stream by default, so the track turns that off.
 - View, Settings has the sound: Volume, which raylib's master volume applies to each sound the game
-  makes, so far the music, Music, and Mute, with the track's credit under them. Each slider goes
+  makes, Music, Effects (see [Sound effects](#sound-effects)), and Mute, with the track's credit
+  under them. Each slider goes
   through 40 decibels, from a tenth of the amplitude at the middle to full, and its bottom is
   silence, as we hear loudness on a logarithmic scale: a slider that moved the amplitude in a
   straight line would do nearly all of its work at its bottom end.
@@ -158,6 +159,38 @@ the repo: [assets/music/README.md](../assets/music/README.md) says where to get 
   its default. The client writes the file once a slider lets go, to `settings.txtpb.new` first, and
   renames that over the old file, which replaces it in one step, so a crash halfway through leaves
   the old file whole.
+
+## Sound effects
+
+The steps have sounds the client makes from numbers as it starts, in a fraction of a
+second, so there are no files for them in the repo.
+
+- `client/synth.h` has what they're made of: samples, 44,100 a second, each where the speaker's cone
+  is, from -1 to 1; noise, random numbers from a seed, so that a sound made again from its seed comes
+  out as it did; a state variable filter, which passes what's below a frequency, around it, or above
+  it, and can sweep from one sample to the next; a sine whose pitch can glide; and an envelope, which
+  rises and then dies away.
+- `client/foley.h` has the sounds. A step is the heel, then the rest of the foot 40 to 70
+  milliseconds later, and what's underfoot makes the rest: a soft thud and a brush on grass, a hiss of
+  grains on sand, a crunch on snow, a dry crack on the Ashlands' ash, a knock and some grit on rock, a
+  knock that echoes on the Crypt's stone, and a splash and bubbles in the sea. `GroundAt` finds the
+  ground: the sea, or else the surface the ground's colour comes from (`SurfaceAt` in
+  `client/ground.h`), which each land makes a ground of its own (`kLandSounds`).
+- `client/soundboard.h` makes eight takes of each step, and plays a take at a time on
+  raylib's sound aliases, which share the take's samples, so that a sound can play again before it's
+  over. A take doesn't follow itself, and each plays a little higher or lower, and a little quieter
+  or not (`Variety`, in `client/soundscape.h`), so that a hundred steps don't sound like a machine.
+- A step comes when the walk or the run puts a foot down. As a character loads, the client finds
+  when each foot's bone comes down to near its lowest in each clip: Mixamo's walk puts the left foot
+  down about 27% of the way through and the right about 76%, and its run about a fifth and two thirds
+  of the way through. The skeleton has no foot bones, so it steps at the start and halfway.
+  `Footsteps` follows how far each figure is through its clip, and steps when a foot's moment comes
+  round.
+- Each sound is heard from where you stand: in full within four metres, then falling as one over the
+  distance, and gone at forty, and from the side it's on, as the camera faces.
+- View, Settings has Effects, next to Music, for the steps.
+- `./build/bin/nanommo_sounds` plays each sound outside the game: up and down pick one, and Space
+  plays a new take of it and draws it.
 
 ## Post-processing
 

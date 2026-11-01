@@ -108,7 +108,7 @@ How each part of the game works is in `docs/`, a page each, which the
 - [Gameplay](docs/gameplay.md): monsters, health and levels, fighting, skills, items, quests and chat.
 - [Content](docs/content.md): the items, monsters, NPCs, quests and skills, as data the servers, the client and the bots read.
 - [NPCs](docs/npcs.md): who stands where, and the storyteller, which tells stories with mvGPT.
-- [Graphics and sound](docs/graphics.md): the characters, the music, and the post-processing: bloom, cel shading and anti-aliasing.
+- [Graphics and sound](docs/graphics.md): the characters, the music, the sound effects, made from numbers, and the post-processing: bloom, cel shading and anti-aliasing.
 - [The island](docs/island.md): the ground, the trees and the sea, made from a seed, and drawing them fast.
 - [Worlds and lands](docs/worlds.md): the game servers, which Consul lists, and each world's lands and dungeons.
 - [Networking](docs/networking.md): TCP and UDP when packets are lost, what each player gets, and what happens near them.
