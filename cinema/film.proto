@@ -1,0 +1,43 @@
+// A film made in the game: shots of the lands, and where the camera goes in
+// each.
+syntax = "proto3";
+
+package nanommo.cinema;
+
+// A place in a land, in metres. `up` is how far above the ground beneath it,
+// or above the sea's still surface when `sea` is set, so that the keys of a
+// camera flying over hills can be at one height.
+message Point {
+  float x = 1;
+  float z = 2;
+  float up = 3;
+  bool sea = 4;
+}
+
+// Where the camera is, at a moment of the film, and what it looks at. A key
+// with no `look` looks where the key before it did.
+message Key {
+  // In seconds of the film, from the shot's start.
+  float at = 1;
+  Point eye = 2;
+  Point look = 3;
+  // The lens, as the angle from the bottom of the picture to its top, in
+  // degrees. 0 keeps the key before's (45 at first).
+  float fov = 4;
+}
+
+message Shot {
+  string id = 1;
+  // By its name: Meadows, Ashlands or Crypt.
+  string land = 2;
+  // How long, in seconds of the film.
+  float seconds = 3;
+  repeated Key camera = 5;
+  // Eases the camera in at the start and out at the end, from 0, not at all,
+  // to 1.
+  float ease = 9;
+}
+
+message Film {
+  repeated Shot shots = 1;
+}

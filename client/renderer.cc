@@ -403,8 +403,7 @@ void Renderer::Draw() const {
   }
   // Last, as we see the ground under it through the water.
   if (sea_) {
-    sea_->Draw(camera_, atmosphere, cel_shading_ ? kBands : 0.0f,
-               static_cast<float>(GetTime()));
+    sea_->Draw(camera_, atmosphere, cel_shading_ ? kBands : 0.0f, clock_);
     ++work_.draws;
     work_.triangles += sea_->triangles();
   }

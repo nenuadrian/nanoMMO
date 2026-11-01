@@ -1,0 +1,23 @@
+# The trailer's shots, in the order they're cut together. Times in a camera
+# key are the film's seconds.
+
+# Up at the sun, and down to the land under it.
+shots {
+  id: "sky-up"
+  land: "Meadows"
+  seconds: 8
+  ease: 0.7
+  camera { at: 0 eye { x: 0 z: 0 up: 30 sea: true } look { x: 110 z: 70 up: 181 sea: true } fov: 55 }
+  camera { at: 8 eye { x: 0 z: -10 up: 24 sea: true } look { x: 120 z: 80 up: 6 sea: true } }
+}
+
+# Up from the stones of the gate to the Ashlands, to the Meadows' hills and the
+# snow beyond them.
+shots {
+  id: "meadows-rise"
+  land: "Meadows"
+  seconds: 8
+  ease: 0.6
+  camera { at: 0 eye { x: 3 z: -3 up: 1.4 } look { x: 0 z: -10 up: 1.6 } fov: 50 }
+  camera { at: 8 eye { x: 0 z: -20 up: 42 sea: true } look { x: -15 z: -200 up: 6 sea: true } }
+}

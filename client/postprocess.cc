@@ -169,11 +169,14 @@ PostProcess::~PostProcess() {
 }
 
 void PostProcess::Begin(const GraphicsSettings& graphics) {
-  graphics_ = graphics;
   // In pixels, as a high-DPI screen has more of them than points. It's made
   // again when the window changes size.
-  const int width = GetRenderWidth();
-  const int height = GetRenderHeight();
+  Begin(graphics, GetRenderWidth(), GetRenderHeight());
+}
+
+void PostProcess::Begin(const GraphicsSettings& graphics, int width,
+                        int height) {
+  graphics_ = graphics;
   if (frame_.texture.width != width || frame_.texture.height != height) {
     Resize(width, height);
   }
@@ -227,7 +230,11 @@ void PostProcess::Bloom() {
   EndBlendMode();
 }
 
-void PostProcess::Draw() {
+void PostProcess::Draw() { Show(nullptr); }
+
+void PostProcess::DrawOnto(const RenderTexture2D& into) { Show(&into); }
+
+void PostProcess::Show(const RenderTexture2D* into) {
   if (graphics_.bloom) {
     Bloom();
   }
@@ -239,6 +246,14 @@ void PostProcess::Draw() {
             static_cast<float>(picture_.texture.height));
     EndTextureMode();
   }
+  const float width = into != nullptr ? static_cast<float>(into->texture.width)
+                                      : static_cast<float>(GetScreenWidth());
+  const float height = into != nullptr
+                           ? static_cast<float>(into->texture.height)
+                           : static_cast<float>(GetScreenHeight());
+  if (into != nullptr) {
+    BeginTextureMode(*into);
+  }
   // The frame to the screen, fitted to its points, as raylib draws on the
   // screen in points. The sea and the glows leave the frame see-through where
   // they are, and both shaders write it opaque, so that it covers what's on the
@@ -249,12 +264,13 @@ void PostProcess::Draw() {
                            1.0f / static_cast<float>(picture_.texture.height)};
     SetShaderValue(fxaa_, GetShaderLocation(fxaa_, "pixel"), &pixel,
                    SHADER_UNIFORM_VEC2);
-    DrawOver(picture_.texture, static_cast<float>(GetScreenWidth()),
-             static_cast<float>(GetScreenHeight()));
+    DrawOver(picture_.texture, width, height);
     EndShaderMode();
   } else {
-    Combine(static_cast<float>(GetScreenWidth()),
-            static_cast<float>(GetScreenHeight()));
+    Combine(width, height);
+  }
+  if (into != nullptr) {
+    EndTextureMode();
   }
 }
 

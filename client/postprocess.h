@@ -24,16 +24,25 @@ class PostProcess {
   /// What's drawn from here goes into the frame, until End, and Draw puts it
   /// on the screen as the settings say.
   void Begin(const GraphicsSettings& graphics);
+  /// Into a frame of that many pixels, whatever the window's size, as for a
+  /// film's.
+  void Begin(const GraphicsSettings& graphics, int width, int height);
   void End();
 
   /// Draws the frame to the screen, with bloom if it's on.
   void Draw();
+  /// Draws the frame into the render texture instead, at its size, as for a
+  /// film's frame. The passes before the last switch to frames of their own,
+  /// so this one picks the render texture itself.
+  void DrawOnto(const RenderTexture2D& into);
 
  private:
   /// The bloom's halves of the frame, each half the size of the one before.
   static constexpr int kHalves = 5;
 
   void Resize(int width, int height);
+  /// Draws the frame to the render texture, or to the screen without one.
+  void Show(const RenderTexture2D* into);
   void Bloom();
   /// Draws the frame with the bloom on top, at a width and a height.
   void Combine(float width, float height);
