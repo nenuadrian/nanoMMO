@@ -48,8 +48,10 @@ class Clock {
 /// sea.
 Vector3 Place(const Point& point, const Terrain& terrain);
 
-/// Where the camera is at that second of the shot, and what it looks at.
-Camera3D CameraAt(const Shot& shot, float seconds, const Terrain& terrain);
+/// Where the camera is at that second of the shot, and what it looks at: the
+/// tall camera's, for a tall picture.
+Camera3D CameraAt(const Shot& shot, float seconds, bool tall,
+                  const Terrain& terrain);
 
 /// A shot's world, played out on the game's clock. Players go where their
 /// legs take them and use their skills when the shot says. Monsters stand,

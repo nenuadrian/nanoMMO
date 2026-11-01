@@ -113,6 +113,31 @@ message Pack {
   float charge_at = 8;
   uint32 hits = 9;
   uint32 level = 10;
+  // Which way they face, in degrees round from the north towards the east,
+  // when they face no one.
+  float yaw = 11;
+  // When those still standing fall, a little apart, or 0 for when the
+  // skills' hits have taken their last.
+  float dies = 12;
+}
+
+// Which way, as from a point towards the sun.
+message Direction {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+// Changes to the land's sky for this shot.
+message Sky {
+  float fog_near = 1;
+  float fog_far = 2;
+  Direction sun = 3;
+  // How many of the land's clouds are out, from none to all.
+  optional float cloudiness = 4;
+  // More of the sun's and the sky's light on everything, or less: 1 as the
+  // land has it.
+  float light = 5;
 }
 
 message Shot {
@@ -125,12 +150,17 @@ message Shot {
   float from = 4;
   repeated Key camera = 5;
   Orbit orbit = 6;
+  // The camera for a tall picture, such as a short's, when it needs to be
+  // somewhere else to frame the shot: keys, or an orbit.
+  repeated Key tall = 7;
+  Orbit tall_orbit = 8;
   // Eases the camera in at the start and out at the end, from 0, not at all,
   // to 1.
   float ease = 9;
   repeated Pace pace = 10;
   repeated Player players = 11;
   repeated Monster monsters = 12;
+  Sky sky = 13;
   repeated Pack packs = 14;
 }
 

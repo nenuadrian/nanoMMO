@@ -207,12 +207,19 @@ Vector3 Place(const Point& point, const Terrain& terrain) {
   return {point.x(), base + point.up(), point.z()};
 }
 
-Camera3D CameraAt(const Shot& shot, float seconds, const Terrain& terrain) {
+Camera3D CameraAt(const Shot& shot, float seconds, bool tall,
+                  const Terrain& terrain) {
+  const float share = Eased(seconds / shot.seconds(), shot.ease());
+  if (tall && !shot.tall().empty()) {
+    return Along(shot.tall(), seconds, shot.ease(), terrain);
+  }
+  if (tall && shot.has_tall_orbit()) {
+    return Round(shot.tall_orbit(), share, terrain);
+  }
   if (!shot.camera().empty()) {
     return Along(shot.camera(), seconds, shot.ease(), terrain);
   }
-  return Round(shot.orbit(), Eased(seconds / shot.seconds(), shot.ease()),
-               terrain);
+  return Round(shot.orbit(), share, terrain);
 }
 
 Stage::Stage(const Shot& shot, const Content& content)
@@ -236,13 +243,18 @@ Stage::Stage(const Shot& shot, const Content& content)
       monster.mutable_at()->set_x(pack.center().x() + out * std::sin(turn));
       monster.mutable_at()->set_z(pack.center().z() + out * std::cos(turn));
       monster.set_face(pack.face());
+      monster.set_yaw(pack.yaw());
       monster.set_charge(pack.charge());
       // Not all at once: each a little after the one inside it.
       monster.set_charge_at(pack.charge_at() + 0.04f * static_cast<float>(i));
       monster.set_hits(pack.hits());
       monster.set_level(pack.level());
+      if (pack.dies() > 0.0f) {
+        monster.set_dies(pack.dies() + 0.13f * (i % 7));
+      }
       foes_.push_back({.spec = monster,
                        .at = {monster.at().x(), monster.at().z()},
+                       .yaw = Radians(pack.yaw()),
                        .hits = std::max(monster.hits(), 1u)});
     }
   }

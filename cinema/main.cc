@@ -4,7 +4,8 @@
 // shot goes into a video with the game's sounds, heard from the camera.
 //
 //   nanommo_cinema <film.txtpb> <out dir> [shots=a,b] [size=1920x1080]
-//                  [fps=30] [still=seconds] [cel=0|1]
+//                  [fps=30] [tall=0|1] [still=seconds] [cel=0|1]
+//   nanommo_cinema scout <land> <radius>
 #include <raylib.h>
 #include <raymath.h>
 
@@ -35,6 +36,7 @@
 #include "client/soundscape.h"
 #include "client/synth.h"
 #include "content/content.h"
+#include "terrain/lands.h"
 
 namespace {
 
@@ -45,6 +47,7 @@ struct Options {
   int width = 1920;
   int height = 1080;
   float fps = 30.0f;
+  bool tall = false;
   bool cel = true;
   /// A single frame, at this second of each shot, as a picture: -1 for none.
   float still = -1.0f;
@@ -136,13 +139,36 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
   renderer.set_cel_shading(options.cel);
   renderer.set_terrain(terrain, nanommo::kLooks[land]);
   renderer.set_cubes(nanommo::GateCubes(terrain, land));
+  nanommo::Atmosphere* sky = renderer.mutable_atmosphere();
+  if (shot.sky().fog_near() > 0.0f) {
+    sky->fog_near = shot.sky().fog_near();
+  }
+  if (shot.sky().fog_far() > 0.0f) {
+    sky->fog_far = shot.sky().fog_far();
+  }
+  if (shot.sky().has_sun()) {
+    const auto& sun = shot.sky().sun();
+    sky->sun = {sun.x(), sun.y(), sun.z()};
+  }
+  if (shot.sky().light() > 0.0f) {
+    for (float& c : sky->sunlight) {
+      c *= shot.sky().light();
+    }
+    for (float& c : sky->ambient) {
+      c *= shot.sky().light();
+    }
+  }
+  if (shot.sky().has_cloudiness()) {
+    sky->cloudiness = shot.sky().cloudiness();
+  }
   nanommo::Animator animator(content);
   nanommo::PostProcess post;
   const nanommo::GraphicsSettings graphics{.cel_shading = options.cel};
   const RenderTexture2D picture =
       LoadRenderTexture(options.width, options.height);
 
-  const std::string name = absl::StrCat(options.out, "/", shot.id());
+  const std::string name =
+      absl::StrCat(options.out, "/", shot.id(), options.tall ? "-tall" : "");
   FILE* video = nullptr;
   if (options.still < 0.0f) {
     const std::string encode = absl::StrCat(
@@ -182,7 +208,8 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
     }
     renderer.set_figures(std::move(figures));
     renderer.Animate(moved);
-    const Camera3D camera = nanommo::cinema::CameraAt(shot, now, terrain);
+    const Camera3D camera =
+        nanommo::cinema::CameraAt(shot, now, options.tall, terrain);
     renderer.set_camera(camera);
 
     // What the game would play now, heard where the camera looks, with the
@@ -277,17 +304,77 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
   return 0;
 }
 
+// The flattest open places in a land, with no tree and no water within the
+// radius, for a fight to be staged on, best first.
+int Scout(const std::string& name, float radius) {
+  if (!nanommo::IsLand(name)) {
+    std::cerr << "nanommo_cinema: no land called " << name << '\n';
+    return 2;
+  }
+  const int land = nanommo::LandNamed(name);
+  const nanommo::Terrain terrain = nanommo::cinema::TerrainOf(land);
+  struct Place {
+    float x, z, rise;
+  };
+  std::vector<Place> places;
+  const float edge = terrain.half_size() - radius - 4.0f;
+  for (float x = -edge; x <= edge; x += 2.0f) {
+    for (float z = -edge; z <= edge; z += 2.0f) {
+      float low = 1e9f, high = -1e9f;
+      bool open = true;
+      for (float dx = -radius; dx <= radius && open; dx += 1.0f) {
+        for (float dz = -radius; dz <= radius && open; dz += 1.0f) {
+          if (dx * dx + dz * dz > radius * radius) {
+            continue;
+          }
+          open = terrain.Walkable(x + dx, z + dz) &&
+                 terrain.Height(x + dx, z + dz) > 0.3f;
+          low = std::min(low, terrain.Height(x + dx, z + dz));
+          high = std::max(high, terrain.Height(x + dx, z + dz));
+        }
+      }
+      if (open) {
+        places.push_back({x, z, high - low});
+      }
+    }
+  }
+  std::ranges::sort(places, {}, &Place::rise);
+  // Not two places on top of each other.
+  std::vector<Place> kept;
+  for (const Place& place : places) {
+    if (std::ranges::none_of(kept, [&](const Place& k) {
+          return std::hypot(k.x - place.x, k.z - place.z) < 2.0f * radius;
+        })) {
+      kept.push_back(place);
+    }
+    if (kept.size() == 12) {
+      break;
+    }
+  }
+  for (const Place& place : kept) {
+    std::cout << name << " x " << place.x << " z " << place.z << " rise "
+              << place.rise << " height " << terrain.Height(place.x, place.z)
+              << '\n';
+  }
+  return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
+  if (argc == 4 && std::string(argv[1]) == "scout") {
+    return Scout(argv[2], std::strtof(argv[3], nullptr));
+  }
   if (argc < 3) {
     std::cerr
-        << "usage: nanommo_cinema <film.txtpb> <out dir> [key=value ...]\n";
+        << "usage: nanommo_cinema <film.txtpb> <out dir> [key=value ...]\n"
+           "       nanommo_cinema scout <land> <radius>\n";
     return 2;
   }
   Options options;
   options.out = argv[2];
   std::set<std::string> wanted;
+  bool sized = false;
   for (int i = 3; i < argc; ++i) {
     const std::vector<std::string> pair = absl::StrSplit(argv[i], '=');
     if (pair.size() != 2) {
@@ -301,9 +388,12 @@ int main(int argc, char** argv) {
         wanted.emplace(id);
       }
     } else if (key == "size") {
-      std::sscanf(value.c_str(), "%dx%d", &options.width, &options.height);
+      sized = std::sscanf(value.c_str(), "%dx%d", &options.width,
+                          &options.height) == 2;
     } else if (key == "fps") {
       options.fps = std::strtof(value.c_str(), nullptr);
+    } else if (key == "tall") {
+      options.tall = value == "1";
     } else if (key == "cel") {
       options.cel = value == "1";
     } else if (key == "still") {
@@ -313,6 +403,11 @@ int main(int argc, char** argv) {
       return 2;
     }
   }
+  if (options.tall && !sized) {
+    options.width = 1080;
+    options.height = 1920;
+  }
+
   const absl::StatusOr<nanommo::cinema::Film> film =
       nanommo::cinema::ReadFilm(argv[1]);
   if (!film.ok()) {

@@ -2,25 +2,230 @@
 # key or a pace are the film's seconds; times in a cast, a leg or a charge are
 # the game's.
 
-# Up at the sun, and down to the land under it.
+# ---- The world --------------------------------------------------------------
+
+# Down from a low sun through the clouds to the Meadows.
 shots {
-  id: "sky-up"
+  id: "sky-open"
   land: "Meadows"
   seconds: 8
   ease: 0.7
-  camera { at: 0 eye { x: 0 z: 0 up: 30 sea: true } look { x: 110 z: 70 up: 181 sea: true } fov: 55 }
-  camera { at: 8 eye { x: 0 z: -10 up: 24 sea: true } look { x: 120 z: 80 up: 6 sea: true } }
+  sky { fog_near: 250 fog_far: 700 sun { x: -0.3 y: 0.42 z: -0.9 } cloudiness: 0.7 }
+  camera { at: 0 eye { x: 0 z: 30 up: 40 sea: true } look { x: -89 z: -237 up: 160 sea: true } fov: 55 }
+  camera { at: 8 eye { x: 0 z: 12 up: 34 sea: true } look { x: -30 z: -200 up: 8 sea: true } }
+  tall { at: 0 eye { x: 0 z: 30 up: 40 sea: true } look { x: -89 z: -237 up: 160 sea: true } fov: 65 }
+  tall { at: 8 eye { x: 0 z: 12 up: 34 sea: true } look { x: -30 z: -200 up: 0 sea: true } }
 }
 
-# Up from the stones of the gate to the Ashlands, to the Meadows' hills and the
-# snow beyond them.
+# Up from the stones of the gate to the Ashlands, as two players run through,
+# to the Meadows' hills and the snow beyond them.
 shots {
   id: "meadows-rise"
   land: "Meadows"
   seconds: 8
   ease: 0.6
+  sky { fog_near: 200 fog_far: 650 cloudiness: 0.65 }
   camera { at: 0 eye { x: 3 z: -3 up: 1.4 } look { x: 0 z: -10 up: 1.6 } fov: 50 }
   camera { at: 8 eye { x: 0 z: -20 up: 42 sea: true } look { x: -15 z: -200 up: 6 sea: true } }
+  tall { at: 0 eye { x: 3 z: -2 up: 1.6 } look { x: 0 z: -10 up: 1.6 } fov: 60 }
+  tall { at: 8 eye { x: 0 z: -18 up: 48 sea: true } look { x: -15 z: -200 up: 0 sea: true } }
+  players { id: 2 name: "elaine" at { x: 0.6 z: -7.5 } level: 11 weapon: 1 wearing: [8, 9, 10]
+    legs { at: 0.2 to { x: -2 z: -34 } run: true } }
+  players { id: 3 name: "gawain" at { x: 2.0 z: -7 } level: 12 weapon: 6 wearing: [4, 5, 11]
+    legs { at: 0.5 to { x: 0.5 z: -33 } run: true } }
+}
+
+# Four of them on their way, with the camera alongside, under the clouds.
+shots {
+  id: "travellers"
+  land: "Meadows"
+  seconds: 7
+  ease: 0.3
+  sky { cloudiness: 0.7 }
+  camera { at: 0 eye { x: 5 z: -34.5 up: 1.2 } look { x: 6 z: -27.5 up: 1.1 } fov: 34 }
+  camera { at: 7 eye { x: 15 z: -37.5 up: 1.4 } look { x: 16 z: -30.5 up: 1.1 } }
+  tall { at: 0 eye { x: 3 z: -38 up: 1.4 } look { x: 5 z: -27 up: 1.6 } fov: 55 }
+  tall { at: 7 eye { x: 15 z: -41 up: 1.8 } look { x: 17 z: -30 up: 1.6 } }
+  players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: 3 z: -27 } legs { at: 0 to { x: 18 z: -30.5 } } }
+  players { id: 2 name: "elaine" level: 11 weapon: 1 wearing: [8, 9, 10] at { x: 1.6 z: -25.6 } legs { at: 0.15 to { x: 16.6 z: -29.1 } } }
+  players { id: 3 name: "gawain" level: 12 weapon: 6 wearing: [4, 5, 11] at { x: 1.2 z: -28.3 } legs { at: 0.3 to { x: 16.2 z: -31.8 } } }
+  players { id: 4 name: "morgan" level: 12 weapon: 1 wearing: [5, 9, 11, 7] at { x: -0.4 z: -26.6 } legs { at: 0.1 to { x: 14.6 z: -30.1 } } }
+}
+
+# Along the lava, with the Ash Skeletons standing at its edge and the red sun
+# low in the smoke beyond.
+shots {
+  id: "ashlands-lava"
+  land: "Ashlands"
+  seconds: 7
+  ease: 0.4
+  sky { fog_near: 200 fog_far: 600 sun { x: -0.95 y: 0.2 z: -0.12 } light: 1.3 }
+  camera { at: 0 eye { x: 49 z: -80 up: 2.6 } look { x: -30 z: -92 up: 3 sea: true } fov: 45 }
+  camera { at: 7 eye { x: 47 z: -97 up: 4.5 } look { x: -30 z: -100 up: 3 sea: true } }
+  tall { at: 0 eye { x: 49 z: -82 up: 3 } look { x: -30 z: -92 up: 6 sea: true } fov: 60 }
+  tall { at: 7 eye { x: 47 z: -95 up: 5 } look { x: -30 z: -100 up: 6 sea: true } }
+  packs { kind: 2 center { x: 36 z: -89 } radius: 5 count: 7 first: 201 yaw: -90 }
+}
+
+shots {
+  id: "crypt-gate"
+  land: "Crypt"
+  seconds: 7
+  ease: 0.4
+  sky { sun { x: 0.1 y: 0.3 z: -0.95 } cloudiness: 0.5 light: 1.9 }
+  camera { at: 0 eye { x: 3 z: 5 up: 1.6 } look { x: 0 z: -10 up: 1.6 } fov: 42 }
+  camera { at: 7 eye { x: 1.4 z: -1.5 up: 2.2 } look { x: 0 z: -11 up: 1.4 } }
+  tall { at: 0 eye { x: 2.5 z: 6 up: 2.0 } look { x: 0 z: -10 up: 1.8 } fov: 55 }
+  tall { at: 7 eye { x: 1.2 z: -0.5 up: 2.8 } look { x: 0 z: -11 up: 1.4 } }
+  players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: 1.2 z: 1.5 } legs { at: 0.3 to { x: 0.3 z: -6.5 } } }
+  monsters { id: 201 kind: 3 at { x: -2.4 z: -12.5 } face: 1 }
+  monsters { id: 202 kind: 3 at { x: 2.6 z: -12 } face: 1 }
+  monsters { id: 203 kind: 3 at { x: 0.2 z: -14.2 } face: 1 }
+}
+
+# ---- The call ---------------------------------------------------------------
+
+# The Crypt's skeletons turn, and come for arthur, from behind his shoulder.
+shots {
+  id: "crypt-wake"
+  land: "Crypt"
+  seconds: 4.5
+  sky { sun { x: 0.1 y: 0.3 z: 0.95 } cloudiness: 0.5 light: 1.9 }
+  camera { at: 0 eye { x: -2.4 z: 0.4 up: 1.0 } look { x: -0.6 z: 14 up: 1.6 } fov: 40 }
+  camera { at: 4.5 eye { x: -2.0 z: 1.6 up: 1.1 } look { x: -0.6 z: 12 up: 1.4 } }
+  tall { at: 0 eye { x: -2.0 z: -0.5 up: 1.2 } look { x: -0.8 z: 14 up: 1.8 } fov: 55 }
+  tall { at: 4.5 eye { x: -1.8 z: 0.8 up: 1.3 } look { x: -0.8 z: 12 up: 1.5 } }
+  players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: -1 z: 4 } face: 401 casts { at: 3.3 skill: 7 } }
+  packs { kind: 3 center { x: -1 z: 15 } radius: 4 count: 11 first: 401 face: 1 charge: 1 charge_at: 1.0 }
+}
+
+# Five of them running for the fight, past the gate, with the camera beside
+# them.
+shots {
+  id: "charge"
+  land: "Meadows"
+  seconds: 6
+  sky { cloudiness: 0.65 }
+  camera { at: 0 eye { x: 5 z: -1 up: 1.0 } look { x: -0.5 z: -4 up: 1.1 } fov: 45 }
+  camera { at: 6 eye { x: 15 z: -17 up: 1.4 } look { x: 9.5 z: -20 up: 1.1 } }
+  tall { at: 0 eye { x: 6 z: 0 up: 1.4 } look { x: -0.5 z: -4 up: 1.3 } fov: 60 }
+  tall { at: 6 eye { x: 16 z: -16 up: 1.8 } look { x: 9.5 z: -20 up: 1.3 } }
+  players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: -1 z: -3 } legs { at: 0.1 to { x: 9 z: -19 } run: true } }
+  players { id: 2 name: "elaine" level: 11 weapon: 1 wearing: [8, 9, 10] at { x: 0.5 z: -4.5 } legs { at: 0.3 to { x: 10.5 z: -20.5 } run: true } }
+  players { id: 3 name: "gawain" level: 12 weapon: 6 wearing: [4, 5, 11] at { x: -2.5 z: -2 } legs { at: 0.2 to { x: 7.5 z: -18 } run: true } }
+  players { id: 4 name: "morgan" level: 12 weapon: 1 wearing: [5, 9, 11, 7] at { x: -0.5 z: -1 } legs { at: 0.45 to { x: 9.5 z: -17 } run: true } }
+  players { id: 5 name: "percival" level: 10 weapon: 1 wearing: [4, 8, 9, 10] at { x: -3 z: -4 } legs { at: 0.0 to { x: 7 z: -20 } run: true } }
+}
+
+# ---- The skills -------------------------------------------------------------
+
+# Thrust, slowed as the blade goes in.
+shots {
+  id: "thrust"
+  land: "Meadows"
+  seconds: 4.5
+  pace { at: 0.9 speed: 1 }
+  pace { at: 1.1 speed: 0.22 }
+  pace { at: 2.6 speed: 0.22 }
+  pace { at: 3.0 speed: 1 }
+  camera { at: 0 eye { x: 0.4 z: 15.4 up: 1.2 } look { x: -3 z: 16.2 up: 1.1 } fov: 36 }
+  camera { at: 4.5 eye { x: 0.2 z: 16.6 up: 1.1 } look { x: -3 z: 16.4 up: 1.0 } }
+  tall { at: 0 eye { x: 1.0 z: 15.4 up: 1.4 } look { x: -3 z: 16.2 up: 1.1 } fov: 50 }
+  tall { at: 4.5 eye { x: 0.8 z: 16.6 up: 1.3 } look { x: -3 z: 16.4 up: 1.0 } }
+  players { id: 2 name: "elaine" level: 11 weapon: 1 wearing: [8, 9, 10] at { x: -3 z: 14.8 } face: 501 casts { at: 0.6 skill: 1 target: 501 } }
+  monsters { id: 501 kind: 1 at { x: -3 z: 16.9 } face: 2 }
+  monsters { id: 502 kind: 1 at { x: -4.6 z: 18.6 } face: 2 }
+  monsters { id: 503 kind: 1 at { x: -1.4 z: 19.2 } face: 2 }
+}
+
+# Kick, slowed as the skeleton flies back.
+shots {
+  id: "kick"
+  land: "Meadows"
+  seconds: 4.5
+  pace { at: 0.8 speed: 1 }
+  pace { at: 0.95 speed: 0.2 }
+  pace { at: 2.6 speed: 0.2 }
+  pace { at: 3.0 speed: 1 }
+  camera { at: 0 eye { x: -21.2 z: -62.4 up: 0.9 } look { x: -24.6 z: -61.8 up: 1.0 } fov: 42 }
+  camera { at: 4.5 eye { x: -21.0 z: -61.2 up: 1.0 } look { x: -24.6 z: -61.0 up: 0.9 } }
+  tall { at: 0 eye { x: -20.6 z: -62.4 up: 1.2 } look { x: -25 z: -61.2 up: 1.0 } fov: 55 }
+  tall { at: 4.5 eye { x: -20.4 z: -61.2 up: 1.3 } look { x: -24.6 z: -61.0 up: 0.9 } }
+  players { id: 3 name: "gawain" level: 12 weapon: 6 wearing: [4, 5, 11] at { x: -25 z: -63 } face: 511 casts { at: 0.5 skill: 2 target: 511 } }
+  monsters { id: 511 kind: 1 at { x: -25 z: -61.8 } face: 3 hits: 2 }
+  monsters { id: 512 kind: 1 at { x: -27 z: -58.5 } face: 3 }
+}
+
+# Second Wind, against the red sun.
+shots {
+  id: "second-wind"
+  land: "Ashlands"
+  seconds: 4.5
+  sky { sun { x: 0.6 y: 0.2 z: -0.4 } light: 1.5 }
+  pace { at: 0.6 speed: 1 }
+  pace { at: 0.9 speed: 0.35 }
+  orbit { center { x: 7 z: -1 up: 1.3 } radius: 4 up: 0.1 from: 290 to: 318 fov: 42 }
+  tall_orbit { center { x: 7 z: -1 up: 1.3 } radius: 5 up: 0.3 from: 292 to: 316 fov: 55 }
+  players { id: 4 name: "morgan" level: 12 weapon: 1 wearing: [5, 9, 11, 7] at { x: 7 z: -1 } yaw: 124 casts { at: 0.5 skill: 3 } }
+}
+
+# Whirlwind in a ring of skeletons, from above.
+shots {
+  id: "whirlwind"
+  land: "Meadows"
+  seconds: 5.5
+  ease: 0.3
+  pace { at: 1.1 speed: 1 }
+  pace { at: 1.35 speed: 0.2 }
+  pace { at: 3.8 speed: 0.2 }
+  pace { at: 4.3 speed: 1 }
+  orbit { center { x: 31 z: 45 up: 0.8 } radius: 5.5 up: 2.6 from: -10 to: 45 fov: 42 }
+  tall_orbit { center { x: 31 z: 45 up: 0.8 } radius: 5.5 up: 3.4 from: -40 to: -5 fov: 58 }
+  players { id: 3 name: "gawain" level: 12 weapon: 6 wearing: [4, 5, 11] at { x: 31 z: 45 } face: 521 casts { at: 0.6 skill: 4 } }
+  monsters { id: 521 kind: 1 at { x: 31.52 z: 46.93 } face: 3 }
+  monsters { id: 522 kind: 1 at { x: 32.93 z: 45.52 } face: 3 }
+  monsters { id: 523 kind: 1 at { x: 32.41 z: 43.59 } face: 3 }
+  monsters { id: 524 kind: 1 at { x: 30.48 z: 43.07 } face: 3 }
+  monsters { id: 525 kind: 1 at { x: 29.07 z: 44.48 } face: 3 }
+  monsters { id: 526 kind: 1 at { x: 29.59 z: 46.41 } face: 3 }
+}
+
+# Frost Nova as the Crypt's skeletons reach arthur: the same moment as
+# crypt-wake, a little later, from above.
+shots {
+  id: "frost-nova"
+  land: "Crypt"
+  seconds: 5.5
+  from: 2.6
+  ease: 0.3
+  sky { sun { x: 0.1 y: 0.3 z: 0.95 } cloudiness: 0.5 light: 2.3 }
+  pace { at: 0.9 speed: 1 }
+  pace { at: 1.2 speed: 0.2 }
+  pace { at: 3.9 speed: 0.2 }
+  pace { at: 4.4 speed: 1 }
+  orbit { center { x: -1 z: 4.8 up: 0.9 } radius: 5 up: 2.2 from: 200 to: 245 fov: 45 }
+  tall_orbit { center { x: -1 z: 4.8 up: 0.9 } radius: 6 up: 2.8 from: 205 to: 240 fov: 55 }
+  players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: -1 z: 4 } face: 401 casts { at: 3.3 skill: 7 } }
+  packs { kind: 3 center { x: -1 z: 15 } radius: 4 count: 11 first: 401 face: 1 charge: 1 charge_at: 1.0 }
+}
+
+# Searing Arc into a charge of Ash Skeletons, over nimue's shoulder, with the
+# sun beyond them.
+shots {
+  id: "searing-arc"
+  land: "Ashlands"
+  seconds: 5
+  sky { sun { x: 0.1 y: 0.18 z: -0.95 } light: 1.5 }
+  pace { at: 1.3 speed: 1 }
+  pace { at: 1.5 speed: 0.22 }
+  pace { at: 3.9 speed: 0.22 }
+  pace { at: 4.3 speed: 1 }
+  camera { at: 0 eye { x: 8.6 z: 1.2 up: 1.9 } look { x: 6 z: -9 up: 1.0 } fov: 44 }
+  camera { at: 5 eye { x: 8.2 z: 0.2 up: 1.7 } look { x: 6 z: -9 up: 1.1 } }
+  tall { at: 0 eye { x: 8.4 z: 1.8 up: 2.2 } look { x: 6 z: -9 up: 1.2 } fov: 58 }
+  tall { at: 5 eye { x: 8.0 z: 0.8 up: 2.0 } look { x: 6 z: -9 up: 1.3 } }
+  players { id: 6 name: "nimue" level: 13 weapon: 6 wearing: [8, 9, 11] at { x: 7 z: -2.5 } face: 531 casts { at: 1.0 skill: 8 target: 531 } }
+  packs { kind: 2 center { x: 6.5 z: -12 } radius: 3.2 count: 8 first: 531 charge: 6 charge_at: 0.1 }
 }
 
 # Earthsplitter in a ring of skeletons, slowed to a fifth from the leap to the
@@ -31,6 +236,7 @@ shots {
   seconds: 7
   ease: 0.3
   orbit { center { x: 0 z: 8.6 up: 1.0 } radius: 5.5 up: 0.4 from: 55 to: 110 fov: 40 }
+  tall_orbit { center { x: 0 z: 8.6 up: 1.0 } radius: 7 up: 0.9 from: 65 to: 100 fov: 50 }
   pace { at: 1.2 speed: 1 }
   pace { at: 1.6 speed: 0.2 }
   pace { at: 5.2 speed: 0.2 }
@@ -43,17 +249,76 @@ shots {
   monsters { id: 105 kind: 1 at { x: -2.4 z: 7.0 } face: 1 }
 }
 
+# Swords at full speed, by the gate to the Crypt: two of them and the
+# skeletons that come at them, which take three blows each.
+shots {
+  id: "strikes"
+  land: "Meadows"
+  seconds: 5
+  camera { at: 0 eye { x: 19.5 z: 7.5 up: 1.5 } look { x: 15 z: 4.5 up: 1.0 } fov: 40 }
+  camera { at: 5 eye { x: 19.8 z: 5.2 up: 1.3 } look { x: 15 z: 4.2 up: 1.0 } }
+  tall { at: 0 eye { x: 20 z: 7.5 up: 1.8 } look { x: 15 z: 4.5 up: 1.1 } fov: 55 }
+  tall { at: 5 eye { x: 20.3 z: 5.2 up: 1.6 } look { x: 15 z: 4.2 up: 1.1 } }
+  players { id: 5 name: "percival" level: 10 weapon: 1 wearing: [4, 8, 9, 10] at { x: 15.5 z: 5.5 } face: 541 casts { at: 0.6 skill: 5 target: 541 } casts { at: 2.6 skill: 5 target: 541 } casts { at: 4.6 skill: 5 target: 541 } }
+  players { id: 2 name: "elaine" level: 11 weapon: 1 wearing: [8, 9, 10] at { x: 16.5 z: 3.4 } face: 543 casts { at: 1.2 skill: 5 target: 543 } casts { at: 3.2 skill: 5 target: 543 } }
+  monsters { id: 541 kind: 1 at { x: 14 z: 8 } charge: 5 hits: 3 }
+  monsters { id: 542 kind: 1 at { x: 13 z: 6.5 } charge: 5 charge_at: 0.4 hits: 3 }
+  monsters { id: 543 kind: 1 at { x: 14 z: 1.5 } charge: 2 hits: 3 }
+  monsters { id: 544 kind: 1 at { x: 12.5 z: 3 } charge: 2 charge_at: 0.3 hits: 3 }
+}
+
+# Two packs of Ash Skeletons running at nimue and morgan, from the ground
+# between them, with the red sun beyond.
+shots {
+  id: "ash-charge"
+  land: "Ashlands"
+  seconds: 4
+  sky { sun { x: 0.1 y: 0.16 z: -0.95 } light: 1.5 }
+  camera { at: 0 eye { x: 7.4 z: 2.6 up: 0.5 } look { x: 7 z: -10 up: 1.8 } fov: 48 }
+  camera { at: 4 eye { x: 7.3 z: 1.6 up: 0.45 } look { x: 7 z: -10 up: 1.9 } }
+  tall { at: 0 eye { x: 7.4 z: 3.2 up: 0.6 } look { x: 7 z: -10 up: 2.4 } fov: 62 }
+  tall { at: 4 eye { x: 7.3 z: 2.2 up: 0.5 } look { x: 7 z: -10 up: 2.5 } }
+  players { id: 6 name: "nimue" level: 13 weapon: 6 wearing: [8, 9, 11] at { x: 5.8 z: -0.6 } face: 571 casts { at: 2.6 skill: 5 target: 571 } }
+  players { id: 4 name: "morgan" level: 12 weapon: 1 wearing: [5, 9, 11, 7] at { x: 8.6 z: -0.2 } face: 561 casts { at: 2.4 skill: 5 target: 561 } }
+  packs { kind: 2 center { x: 9 z: -15 } radius: 4 count: 7 first: 561 charge: 4 charge_at: 0 }
+  packs { kind: 2 center { x: 4.5 z: -16 } radius: 4 count: 7 first: 571 charge: 6 charge_at: 0.15 }
+}
+
+# Stormcaller, from the ground, looking up at the bolt out of the sky.
+shots {
+  id: "stormcaller"
+  land: "Meadows"
+  seconds: 7.2
+  sky { cloudiness: 0.85 }
+  pace { at: 1.5 speed: 1 }
+  pace { at: 1.75 speed: 0.18 }
+  pace { at: 5.6 speed: 0.18 }
+  pace { at: 6.2 speed: 1 }
+  camera { at: 0 eye { x: -6.8 z: -10.2 up: 0.5 } look { x: -2.6 z: 1 up: 3.0 } fov: 50 }
+  camera { at: 7.2 eye { x: -7.2 z: -9.2 up: 0.4 } look { x: -2.6 z: 1 up: 3.6 } }
+  tall { at: 0 eye { x: -6.2 z: -10.8 up: 0.5 } look { x: -2.6 z: 1 up: 4.0 } fov: 65 }
+  tall { at: 7.2 eye { x: -6.6 z: -10 up: 0.4 } look { x: -2.6 z: 1 up: 4.6 } }
+  players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: -3.4 z: -6.2 } face: 551 casts { at: 0.8 skill: 9 target: 551 } }
+  monsters { id: 551 kind: 1 at { x: -3 z: 2.5 } level: 9 charge: 1 charge_at: 0.2 }
+  monsters { id: 552 kind: 1 at { x: -5.5 z: 4.5 } charge: 1 charge_at: 0.4 }
+  monsters { id: 553 kind: 1 at { x: -0.8 z: 5 } charge: 1 charge_at: 0.5 }
+}
+
+# ---- The battle -------------------------------------------------------------
+
 # Six of them and nineteen skeletons, eight skills at once, from above.
 shots {
   id: "battle"
   land: "Meadows"
   seconds: 9
   ease: 0.2
+  sky { cloudiness: 0.7 }
   pace { at: 2.5 speed: 1 }
   pace { at: 3.0 speed: 0.4 }
   pace { at: 6.5 speed: 0.4 }
   pace { at: 7.2 speed: 1 }
   orbit { center { x: 0 z: 2 up: 1 } radius: 10 up: 12 from: 200 to: 240 fov: 50 }
+  tall_orbit { center { x: 0 z: 2 up: 1 } radius: 11 up: 14 from: 205 to: 235 fov: 60 }
   players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: -2 z: 4 } face: 301 casts { at: 3.6 skill: 6 target: 301 } }
   players { id: 2 name: "elaine" level: 11 weapon: 1 wearing: [8, 9, 10] at { x: 1 z: 5.5 } face: 321 casts { at: 2.2 skill: 8 target: 321 } casts { at: 5.2 skill: 5 target: 321 } }
   players { id: 3 name: "gawain" level: 12 weapon: 6 wearing: [4, 5, 11] at { x: 3.5 z: 2 } face: 301 casts { at: 2.9 skill: 4 } casts { at: 5.0 skill: 5 target: 302 } }
@@ -63,4 +328,28 @@ shots {
   packs { kind: 1 center { x: 8 z: -8 } radius: 4 count: 7 first: 301 charge: 3 charge_at: 0.6 }
   packs { kind: 1 center { x: -8 z: -9 } radius: 3.5 count: 6 first: 311 charge: 5 charge_at: 0.8 }
   packs { kind: 1 center { x: 4 z: 15 } radius: 3.5 count: 6 first: 321 charge: 2 charge_at: 0.7 }
+}
+
+# After it: the six of them among the fallen, as the camera rises away to the
+# land and the sky.
+shots {
+  id: "aftermath"
+  land: "Meadows"
+  seconds: 9
+  from: 9
+  ease: 0.7
+  sky { fog_near: 200 fog_far: 650 cloudiness: 0.7 }
+  camera { at: 0 eye { x: 0 z: 10 up: 1.4 } look { x: 0 z: 1 up: 1.3 } fov: 45 }
+  camera { at: 9 eye { x: 9 z: 31 up: 34 sea: true } look { x: -3 z: -29 up: 2 } }
+  tall { at: 0 eye { x: 0 z: 11 up: 1.6 } look { x: 0 z: 1 up: 1.3 } fov: 58 }
+  tall { at: 9 eye { x: 9 z: 33 up: 40 sea: true } look { x: -3 z: -29 up: 0 } }
+  players { id: 1 name: "arthur" level: 14 weapon: 6 wearing: [4, 5, 7, 11] at { x: -2 z: 4 } face: 301 casts { at: 3.6 skill: 6 target: 301 } }
+  players { id: 2 name: "elaine" level: 11 weapon: 1 wearing: [8, 9, 10] at { x: 1 z: 5.5 } face: 321 casts { at: 2.2 skill: 8 target: 321 } casts { at: 5.2 skill: 5 target: 321 } }
+  players { id: 3 name: "gawain" level: 12 weapon: 6 wearing: [4, 5, 11] at { x: 3.5 z: 2 } face: 301 casts { at: 2.9 skill: 4 } casts { at: 5.0 skill: 5 target: 302 } }
+  players { id: 4 name: "morgan" level: 12 weapon: 1 wearing: [5, 9, 11, 7] at { x: -1 z: -0.5 } face: 311 casts { at: 3.1 skill: 7 } }
+  players { id: 5 name: "percival" level: 10 weapon: 1 wearing: [4, 8, 9, 10] at { x: -4.5 z: 1.5 } face: 311 casts { at: 2.4 skill: 1 target: 311 } casts { at: 4.3 skill: 2 target: 312 } }
+  players { id: 6 name: "nimue" level: 13 weapon: 6 wearing: [8, 9, 11] at { x: 2 z: -1.5 } face: 301 casts { at: 4.0 skill: 9 target: 305 } }
+  packs { kind: 1 center { x: 8 z: -8 } radius: 4 count: 7 first: 301 charge: 3 charge_at: 0.6 dies: 7 }
+  packs { kind: 1 center { x: -8 z: -9 } radius: 3.5 count: 6 first: 311 charge: 5 charge_at: 0.8 dies: 7 }
+  packs { kind: 1 center { x: 4 z: 15 } radius: 3.5 count: 6 first: 321 charge: 2 charge_at: 0.7 dies: 7 }
 }
