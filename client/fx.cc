@@ -230,6 +230,8 @@ struct Moment {
   const skills::Fx& fx;
   /// Where it is.
   Vector3 at;
+  /// Which way the player faces.
+  float yaw;
   /// Seconds since it started, and how long it lasts.
   float age;
   float span;
@@ -357,6 +359,75 @@ void DrawMotes(const Moment& m, const Camera3D& camera) {
   }
 }
 
+void DrawBolt(const Moment& m, Vector3 eye) {
+  constexpr int kSteps = 16;
+  constexpr float kFlicker = 0.07f;
+  // A new path every flicker, as lightning strikes again and again.
+  const uint32_t strike = static_cast<uint32_t>(m.age / kFlicker);
+  const bool lit = std::fmod(m.age, kFlicker) < 0.65f * kFlicker;
+  const float bright = std::sqrt(1.0f - m.done()) * (lit ? 1.0f : 0.35f);
+  auto jag = [&](uint32_t i, uint32_t what) {
+    return m.Random(strike * 101 + i, what) - 0.5f;
+  };
+  const Vector3 sky =
+      Vector3Add(m.at, Vector3{3.0f * jag(0, 0), 16.0f, 3.0f * jag(0, 1)});
+  std::array<Vector3, kSteps + 1> path{};
+  for (int i = 0; i <= kSteps; ++i) {
+    const float along = static_cast<float>(i) / kSteps;
+    const float wander = 1.1f * std::sqrt(std::sin(PI * along));
+    path[i] = Vector3Add(
+        Vector3Lerp(sky, m.at, along),
+        Vector3{wander * jag(i + 1, 2), 0.0f, wander * jag(i + 1, 3)});
+  }
+  for (int i = 0; i < kSteps; ++i) {
+    Streak(path[i], path[i + 1], 0.45f, m.color, 0.7f * bright, eye);
+    Streak(path[i], path[i + 1], 0.12f, WHITE, bright, eye);
+  }
+  // Forks, off the path partway down.
+  for (uint32_t fork = 0; fork < 3; ++fork) {
+    Vector3 at = path[5 + 3 * fork];
+    for (uint32_t i = 0; i < 4; ++i) {
+      const Vector3 next =
+          Vector3Add(at, Vector3{1.6f * jag(20 + fork * 4 + i, 4), -1.1f,
+                                 1.6f * jag(20 + fork * 4 + i, 5)});
+      Streak(at, next, 0.22f, m.color, 0.5f * bright, eye);
+      Streak(at, next, 0.06f, WHITE, 0.8f * bright, eye);
+      at = next;
+    }
+  }
+}
+
+void DrawWave(const Moment& m) {
+  constexpr int kSteps = 24;
+  constexpr float kHalf = 60.0f * DEG2RAD;
+  const float u = m.done();
+  const float reach = 0.8f + m.fx.size() * u;
+  const float fade = std::min(u / 0.1f, 1.0f) * (1.0f - u * u * u);
+  const Vector3 middle = Vector3Add(m.at, Vector3Scale(kUp, kMiddle));
+  auto at = [&](float turn, float distance, float up) {
+    return Vector3Add(middle, Vector3{distance * std::sin(m.yaw + turn), up,
+                                      distance * std::cos(m.yaw + turn)});
+  };
+  const Color hot = Hot(m.color, 0.7f);
+  for (int i = 0; i < kSteps; ++i) {
+    const float a = -kHalf + 2.0f * kHalf * static_cast<float>(i) / kSteps;
+    const float b = -kHalf + 2.0f * kHalf * static_cast<float>(i + 1) / kSteps;
+    // Thickest in the middle, and thin at its horns.
+    const float thick_a = 0.55f * std::sqrt(std::cos(a / kHalf * PI / 2.0f));
+    const float thick_b = 0.55f * std::sqrt(std::cos(b / kHalf * PI / 2.0f));
+    // Flat, from nothing behind to bright at the front.
+    Quad(at(a, reach - thick_a, 0.0f), m.color, 0.0f,
+         at(b, reach - thick_b, 0.0f), m.color, 0.0f, at(a, reach, 0.0f), hot,
+         fade, at(b, reach, 0.0f), hot, fade);
+    // And standing, bright along the middle.
+    for (const float side : {-1.0f, 1.0f}) {
+      Quad(at(a, reach, 0.0f), hot, fade, at(b, reach, 0.0f), hot, fade,
+           at(a, reach - 0.3f * thick_a, side * 0.6f * thick_a), m.color, 0.0f,
+           at(b, reach - 0.3f * thick_b, side * 0.6f * thick_b), m.color, 0.0f);
+    }
+  }
+}
+
 // Grows fast and fades slowly.
 void DrawGlow(const Moment& m, const Camera3D& camera, bool lifted) {
   const float u = m.done();
@@ -399,6 +470,7 @@ void Fx::DrawSolid(const Terrain& terrain) const {
           fx.at() == skills::Fx::TARGET ? *cast.target : cast.figure.position;
       const Moment m{.fx = fx,
                      .at = {at.x, terrain.Height(at.x, at.z), at.z},
+                     .yaw = cast.figure.yaw,
                      .age = age,
                      .span = span,
                      .seed = cast.seed,
@@ -505,6 +577,7 @@ void Fx::DrawLight(const Camera3D& camera, const Terrain& terrain,
       }
       const Moment m{.fx = fx,
                      .at = at,
+                     .yaw = cast.figure.yaw,
                      .age = age,
                      .span = span,
                      .seed = cast.seed,
@@ -520,6 +593,12 @@ void Fx::DrawLight(const Camera3D& camera, const Terrain& terrain,
           break;
         case skills::Fx::MOTES:
           DrawMotes(m, camera);
+          break;
+        case skills::Fx::BOLT:
+          DrawBolt(m, camera.position);
+          break;
+        case skills::Fx::WAVE:
+          DrawWave(m);
           break;
         case skills::Fx::GLOW:
           DrawGlow(m, camera, fx.at() != skills::Fx::BLADE);

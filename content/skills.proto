@@ -19,6 +19,9 @@ message Effect {
   // A swing of the weapon in the player's hand, with its reach, its damage
   // and its timing, in place of the ones above.
   bool weapon = 8;
+  // In degrees, how wide a slice in front of the player it hits, or all the
+  // way round, without one.
+  float arc = 9;
 }
 
 // The joints a move turns, each a bone of the characters.
@@ -96,6 +99,10 @@ message Fx {
     SHARDS = 6;
     // Spikes out of the ground, in a ring spreading out to the size.
     SPIKES = 7;
+    // Lightning, from the sky.
+    BOLT = 8;
+    // A crescent of light, flying forward to the size.
+    WAVE = 9;
   }
   // Where it is.
   enum Place {

@@ -475,3 +475,162 @@ skills {
     }
   }
 }
+skills {
+  id: 8
+  name: "Searing Arc"
+  level: 1
+  cooldown_ms: 14000
+  effect {
+    cast_ms: 1400
+    hit_ms: 760
+    reach: 7
+    damage: 35
+    all: true
+    arc: 100
+  }
+  look {
+    icon: 0xF06D
+    move {
+      keys {
+        at_ms: 320
+        ease: GATHER
+        lift: -0.06
+        turns { joint: CHEST yaw: 55 }
+        turns { joint: RIGHT_ARM pitch: -70 roll: 70 }
+        turns { joint: RIGHT_FOREARM pitch: -50 }
+        turns { joint: LEFT_ARM roll: 30 }
+      }
+      keys {
+        at_ms: 520
+        ease: SNAP
+        lift: -0.12
+        ahead: 0.25
+        turns { joint: CHEST yaw: -50 pitch: 10 }
+        turns { joint: RIGHT_ARM pitch: -75 roll: -85 }
+        turns { joint: LEFT_ARM roll: 50 }
+        turns { joint: RIGHT_LEG pitch: -35 }
+        turns { joint: RIGHT_KNEE pitch: 35 }
+        turns { joint: LEFT_LEG pitch: 20 }
+      }
+      keys {
+        at_ms: 900
+        lift: -0.1
+        ahead: 0.22
+        turns { joint: CHEST yaw: -45 pitch: 8 }
+        turns { joint: RIGHT_ARM pitch: -70 roll: -80 }
+        turns { joint: LEFT_ARM roll: 45 }
+        turns { joint: RIGHT_LEG pitch: -30 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 18 }
+      }
+      keys { at_ms: 1350 }
+    }
+    fx {
+      kind: TRAIL from_ms: 320 for_ms: 220
+      color: 0xFF7A2EFF
+    }
+    fx {
+      kind: WAVE from_ms: 460 for_ms: 650
+      color: 0xFF6A20FF size: 6.5
+    }
+    fx {
+      kind: GLOW at: TARGET from_ms: 760 for_ms: 400
+      color: 0xFF8030FF size: 1.1
+    }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 760 for_ms: 600
+      color: 0xFF8A30FF size: 1.6 count: 36
+    }
+  }
+}
+skills {
+  id: 9
+  name: "Stormcaller"
+  level: 1
+  cooldown_ms: 20000
+  effect {
+    cast_ms: 1800
+    hit_ms: 1100
+    reach: 10
+    damage: 60
+  }
+  look {
+    icon: 0xF0E7
+    move {
+      keys {
+        at_ms: 550
+        lift: 0.02
+        turns { joint: CHEST pitch: -8 }
+        turns { joint: HEAD pitch: -12 }
+        turns { joint: RIGHT_ARM pitch: -165 roll: -8 }
+        turns { joint: RIGHT_FOREARM pitch: -5 }
+        turns { joint: RIGHT_HAND pitch: 75 }
+        turns { joint: LEFT_ARM pitch: -15 roll: 40 }
+      }
+      keys {
+        at_ms: 1000
+        lift: 0.03
+        turns { joint: CHEST pitch: -10 }
+        turns { joint: HEAD pitch: -15 }
+        turns { joint: RIGHT_ARM pitch: -170 roll: -8 }
+        turns { joint: RIGHT_FOREARM pitch: -5 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM pitch: -18 roll: 45 }
+      }
+      keys {
+        at_ms: 1150
+        ease: SNAP
+        lift: -0.08
+        ahead: 0.15
+        turns { joint: CHEST pitch: 12 }
+        turns { joint: RIGHT_ARM pitch: -95 }
+        turns { joint: RIGHT_HAND pitch: 60 }
+        turns { joint: LEFT_ARM pitch: 20 roll: 25 }
+        turns { joint: RIGHT_LEG pitch: -30 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 15 }
+      }
+      keys {
+        at_ms: 1450
+        lift: -0.07
+        ahead: 0.13
+        turns { joint: CHEST pitch: 10 }
+        turns { joint: RIGHT_ARM pitch: -92 }
+        turns { joint: RIGHT_HAND pitch: 55 }
+        turns { joint: LEFT_ARM pitch: 18 roll: 25 }
+        turns { joint: RIGHT_LEG pitch: -28 }
+        turns { joint: RIGHT_KNEE pitch: 28 }
+        turns { joint: LEFT_LEG pitch: 14 }
+      }
+      keys { at_ms: 1750 }
+    }
+    fx {
+      kind: BOLT at: BLADE from_ms: 650 for_ms: 350
+      color: 0x8FB8FFFF
+    }
+    fx {
+      kind: GLOW at: BLADE from_ms: 650 for_ms: 500
+      color: 0xA8C0FFFF size: 0.5
+    }
+    fx {
+      kind: BOLT at: TARGET from_ms: 1080 for_ms: 380
+      color: 0x8FB8FFFF
+    }
+    fx {
+      kind: GLOW at: TARGET from_ms: 1080 for_ms: 500
+      color: 0x9DB4FFFF size: 1.2
+    }
+    fx {
+      kind: RING at: TARGET from_ms: 1090 for_ms: 600
+      color: 0x86A6FFFF size: 2.6
+    }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 1090 for_ms: 700
+      color: 0xBFD6FFFF size: 2.0 count: 40
+    }
+    fx {
+      kind: SHAKE from_ms: 1090 for_ms: 400
+      size: 0.22
+    }
+  }
+}

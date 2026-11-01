@@ -264,6 +264,37 @@ TEST(World, UsesTheSkillsTheyKnowOnceTheyreReady) {
   EXPECT_EQ(world.players().at(2).motion, nanommo::Motion::kSkill);
 }
 
+TEST(World, SkillsWithAnArcHitOnlyWhatsInFront) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword(),
+                                              *nanommo::ParseSkills(R"pb(
+                                                skills {
+                                                  id: 1
+                                                  name: "Searing Arc"
+                                                  level: 1
+                                                  effect {
+                                                    cast_ms: 1000
+                                                    hit_ms: 500
+                                                    reach: 5
+                                                    damage: 20
+                                                    all: true
+                                                    arc: 90
+                                                  }
+                                                }
+                                              )pb")));
+  world.Join(1, {.skills = {1}});
+  // The player faces along z, so one's in front of them and one's behind.
+  const uint32_t ahead =
+      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 0.0f, 3.0f));
+  const uint32_t behind = world.Spawn(
+      nanommo::MonsterOf(nanommo::testing::Skeleton(), 0.0f, -3.0f));
+
+  world.UseSkill(1, 1);
+  RunOneSecond(world);
+  EXPECT_EQ(world.monsters().at(ahead).health, 50 - 20);
+  EXPECT_EQ(world.monsters().at(behind).health, 50);
+}
+
 TEST(World, SkillsThatHitOneMonsterRunUpToTheOnePicked) {
   nanommo::World world(1, nanommo::Terrain(),
                        nanommo::testing::With(nanommo::testing::Sword(),

@@ -7,6 +7,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <numbers>
 #include <random>
 #include <string>
 #include <string_view>
@@ -33,6 +34,18 @@ bool OneMonster(const skills::Effect& effect) {
 
 float Distance(const Player& player, const Monster& monster) {
   return std::hypot(monster.x - player.x, monster.z - player.z);
+}
+
+// Whether the monster's within the slice in front of the player, as wide as
+// the arc, in degrees. Without one, it's all the way round.
+bool InArc(const Player& player, const Monster& monster, float arc) {
+  if (arc <= 0.0f) {
+    return true;
+  }
+  const float toward = std::atan2(monster.x - player.x, monster.z - player.z);
+  const float off =
+      std::remainder(toward - player.yaw, 2.0f * std::numbers::pi_v<float>);
+  return std::abs(off) <= arc / 2.0f * std::numbers::pi_v<float> / 180.0f;
 }
 
 void RunDown(std::map<uint32_t, std::chrono::nanoseconds>& cooldowns,
@@ -671,7 +684,8 @@ void World::Land(uint32_t id, Player& player, const skills::Effect& effect) {
   for (auto& [monster_id, monster] : monsters_) {
     if ((effect.all() || monster_id == player.target) &&
         monster.motion != Motion::kDead &&
-        Distance(player, monster) <= effect.reach()) {
+        Distance(player, monster) <= effect.reach() &&
+        InArc(player, monster, effect.arc())) {
       Push(player, monster, effect.push());
       Hurt(id, player, monster_id, monster, damage);
     }
