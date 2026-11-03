@@ -21,6 +21,9 @@ class QuestWindow {
 
   void Open(uint32_t npc, std::string name, std::vector<uint32_t> quests);
 
+  bool open() const { return npc_.has_value(); }
+  void Close() { npc_.reset(); }
+
   /// Draws the window, while it's open: what the NPC says giving each quest,
   /// what it asks for and what it gives, with a button to take it, how far
   /// the player is with it, or a button to turn it in once it's done. Returns

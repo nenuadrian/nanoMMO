@@ -120,9 +120,8 @@ void DrawQuestTracker(const Content& content, const protocol::Quests& yours) {
   }
   constexpr float kMargin = 10.0f;
   const ImVec2 display = ImGui::GetIO().DisplaySize;
-  ImGui::SetNextWindowPos(
-      {display.x - kMargin, ImGui::GetFrameHeight() + kMargin},
-      ImGuiCond_Always, {1.0f, 0.0f});
+  ImGui::SetNextWindowPos({display.x - kMargin, kMargin}, ImGuiCond_Always,
+                          {1.0f, 0.0f});
   ImGui::SetNextWindowBgAlpha(0.4f);
   ImGui::Begin("Quests", nullptr,
                ImGuiWindowFlags_NoDecoration |

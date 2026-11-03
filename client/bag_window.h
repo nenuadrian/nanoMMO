@@ -38,12 +38,13 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
                                              const protocol::Place& place,
                                              float size);
 
-/// The bag, in a window of its own, which I or View, Bag opens and closes.
+/// The bag, in a window of its own, which I, or its button, opens and closes.
 class BagWindow {
  public:
   explicit BagWindow(ItemTable items) : items_(std::move(items)) {}
 
   bool* mutable_visible() { return &visible_; }
+  bool visible() const { return visible_; }
   void Toggle() { visible_ = !visible_; }
 
   std::optional<protocol::ItemAction> Build(const protocol::Inventory& bag);

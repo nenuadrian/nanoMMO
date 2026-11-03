@@ -442,4 +442,27 @@ bool GameButton(const char* label, ImVec2 size, bool primary, bool enabled) {
   return clicked;
 }
 
+void DrawSlot(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 edge) {
+  draw->AddRectFilled({min.x + Ui(1.0f), min.y + Ui(2.0f)},
+                      {max.x + Ui(1.0f), max.y + Ui(2.0f)},
+                      Faded(IM_COL32_BLACK, 0.5f));
+  // Darker at the top, as a well's shadow falls.
+  draw->AddRectFilledMultiColor(
+      min, max, IM_COL32(6, 3, 4, 240), IM_COL32(6, 3, 4, 240),
+      IM_COL32(34, 16, 18, 240), IM_COL32(34, 16, 18, 240));
+  draw->AddRect(min, max, colors::kBrass, 0.0f, 0, std::max(1.0f, Ui(1.4f)));
+  const float inset = Ui(2.5f);
+  draw->AddRect({min.x + inset, min.y + inset}, {max.x - inset, max.y - inset},
+                Faded(colors::kNight, 0.9f), 0.0f, 0, std::max(1.0f, Ui(1.0f)));
+  if (((edge >> IM_COL32_A_SHIFT) & 0xFF) != 0) {
+    draw->AddRect({min.x - Ui(1.0f), min.y - Ui(1.0f)},
+                  {max.x + Ui(1.0f), max.y + Ui(1.0f)}, edge, 0.0f, 0,
+                  Ui(2.2f));
+    draw->AddRectFilledMultiColor({min.x + inset, min.y + inset},
+                                  {max.x - inset, max.y - inset},
+                                  Faded(edge, 0.0f), Faded(edge, 0.0f),
+                                  Faded(edge, 0.22f), Faded(edge, 0.22f));
+  }
+}
+
 }  // namespace nanommo

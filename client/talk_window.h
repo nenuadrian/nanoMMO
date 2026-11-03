@@ -17,6 +17,9 @@ class TalkWindow {
  public:
   void Open(uint32_t npc, std::string name);
 
+  bool open() const { return npc_.has_value(); }
+  void Close() { npc_.reset(); }
+
   /// Draws the window, while it's open. Returns what the player says to the
   /// NPC, once they ask, and closes.
   std::optional<protocol::Talk> Build();

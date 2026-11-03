@@ -21,6 +21,9 @@ class TrainerWindow {
 
   void Open(uint32_t npc, std::string name, std::vector<uint32_t> teaches);
 
+  bool open() const { return npc_.has_value(); }
+  void Close() { npc_.reset(); }
+
   /// Draws the window, while it's open: each skill, with a button to learn
   /// it, once the player has reached its level. Returns the skill the player
   /// asks for.

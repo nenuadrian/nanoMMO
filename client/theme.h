@@ -116,6 +116,11 @@ void EndPanel();
 bool GameButton(const char* label, ImVec2 size, bool primary = false,
                 bool enabled = true);
 
+/// A slot, as the bag's and the hotbar's are: a dark well in brass, which a
+/// colour lights round its edge, such as gold while the mouse is over it, or
+/// green or red while something dragged over it would go there or not.
+void DrawSlot(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 edge);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_THEME_H_

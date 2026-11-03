@@ -435,11 +435,28 @@ int main(int argc, char* argv[]) {
           }
         }
       }
+      // Escape closes what's on top, then lets go of the monster picked, and
+      // then opens the menu.
       if (IsKeyPressed(KEY_ESCAPE) && !nanommo::Typing()) {
-        if (map_open) {
+        if (menu.settings_open()) {
+          menu.CloseSettings();
+        } else if (menu.open()) {
+          menu.Toggle();
+        } else if (map_open) {
           map_open = false;
-        } else {
+        } else if (talk_window.open() || trainer_window.open() ||
+                   quest_window.open()) {
+          talk_window.Close();
+          trainer_window.Close();
+          quest_window.Close();
+        } else if (bag_window.visible()) {
+          bag_window.Toggle();
+        } else if (*character_screen.mutable_visible()) {
+          character_screen.Toggle();
+        } else if (target != 0) {
           target = 0;
+        } else {
+          menu.Toggle();
         }
       }
       if (IsKeyPressed(KEY_M) && !nanommo::Typing()) {
@@ -545,11 +562,18 @@ int main(int argc, char* argv[]) {
         *ask.mutable_item() = *item;
         connection->Send(ask);
       }
-      if (menu.Build(*window, settings, *renderer.mutable_atmosphere(),
-                     nanommo::kLooks[land].atmosphere,
-                     character_screen.mutable_visible(),
-                     bag_window.mutable_visible())) {
-        connection.reset();
+      menu.BuildButtons(character_screen.mutable_visible(),
+                        bag_window.mutable_visible(), &map_open);
+      switch (menu.Build(settings, *renderer.mutable_atmosphere(),
+                         nanommo::kLooks[land].atmosphere)) {
+        case nanommo::Menu::Choice::kLogOut:
+          connection.reset();
+          break;
+        case nanommo::Menu::Choice::kQuit:
+          window->Close();
+          break;
+        case nanommo::Menu::Choice::kNothing:
+          break;
       }
     } else if (!connection && !entering) {
       if (const auto request = login_screen.Build()) {

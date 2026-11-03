@@ -44,7 +44,7 @@ float DrawPlayerFrame(const std::vector<Figure>& figures,
   if (you == figures.end() || you->level == 0) {
     return 0.0f;
   }
-  ImGui::SetNextWindowPos({kMargin, ImGui::GetFrameHeight() + kMargin});
+  ImGui::SetNextWindowPos({kMargin, kMargin});
   ImGui::Begin("You", nullptr, kFrame);
   ImGui::Text("%s", you->name.c_str());
   ImGui::SameLine();
@@ -65,7 +65,7 @@ void DrawTargetFrame(const std::vector<Figure>& figures, uint32_t target,
   if (target == 0 || picked == figures.end() || picked->name.empty()) {
     return;
   }
-  ImGui::SetNextWindowPos({left + kMargin, ImGui::GetFrameHeight() + kMargin});
+  ImGui::SetNextWindowPos({left + kMargin, kMargin});
   ImGui::Begin("Target", nullptr, kFrame);
   ImGui::TextColored(kMonster, "%s", picked->name.c_str());
   ImGui::SameLine();
