@@ -9,12 +9,12 @@ class RankingController extends Controller
 {
     public function __invoke()
     {
+        // Each character, by its own name: an account can have several.
         $players = DB::table('players')
-            ->join('accounts', 'accounts.id', '=', 'players.account_id')
-            ->orderByDesc('players.experience')
-            ->orderBy('accounts.username')
+            ->orderByDesc('experience')
+            ->orderBy('name')
             ->limit(100)
-            ->get(['players.account_id', 'accounts.username', 'players.world', 'players.experience']);
+            ->get(['account_id', 'name', 'world', 'experience']);
 
         foreach ($players as $player) {
             $player->level = Level::for($player->experience);

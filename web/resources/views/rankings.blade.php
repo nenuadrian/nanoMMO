@@ -16,9 +16,9 @@
                     <td>{{ $loop->iteration }}</td>
                     <td>
                         @if ($player->account_id === auth()->id())
-                            <mark>{{ $player->username }}</mark>
+                            <mark>{{ $player->name }}</mark>
                         @else
-                            {{ $player->username }}
+                            {{ $player->name }}
                         @endif
                     </td>
                     <td>{{ $player->world }}</td>
