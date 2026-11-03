@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <set>
+#include <string>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
@@ -146,6 +147,84 @@ TEST(Content, UnfoldsMirroredPartsOntoTheRight) {
   EXPECT_EQ(parts[1].bone(), "RightHand");
   EXPECT_FLOAT_EQ(parts[1].from_offset().x(), -0.04f);
   EXPECT_EQ(parts[2].bone(), "Head");
+}
+
+TEST(Content, RefusesRigsThatDontAddUp) {
+  constexpr char kLegs[] =
+      "joints { name: \"Hips\" at { y: 1 } } "
+      "joints { name: \"LeftUpLeg\" parent: \"Hips\" "
+      "at { x: 0.1 y: 0.95 } mirrored: true } ";
+  constexpr char kWalk[] = "walk { speed: 1.8 cycle_ms: 1000 stance: 0.6 } ";
+  constexpr char kRun[] = "run { speed: 3.1 cycle_ms: 750 stance: 0.4 } ";
+  EXPECT_TRUE(nanommo::ParseRig(absl::StrCat(kLegs, kWalk, kRun)).ok());
+  auto refused = [&](const std::string& text) {
+    return std::string(nanommo::ParseRig(text).status().message());
+  };
+  EXPECT_EQ(refused(absl::StrCat("joints { name: \"LeftUpLeg\" parent: "
+                                 "\"Hips\" } joints { name: \"Hips\" } ",
+                                 kWalk, kRun)),
+            "the LeftUpLeg hangs from a joint that isn't before it");
+  EXPECT_EQ(
+      refused(absl::StrCat(kLegs, "joints { name: \"Tail\" } ", kWalk, kRun)),
+      "the Tail hangs from a joint that isn't before it");
+  EXPECT_EQ(refused(absl::StrCat(kLegs,
+                                 "joints { name: \"RightUpLeg\" parent: "
+                                 "\"Hips\" } ",
+                                 kWalk, kRun)),
+            "there are two joints called RightUpLeg");
+  EXPECT_EQ(refused(absl::StrCat(kLegs,
+                                 "builds { shifts { joint: \"LeftArm\" "
+                                 "by { x: 0.03 } } } ",
+                                 kWalk, kRun)),
+            "a build moves a joint LeftArm the rig doesn't have");
+  EXPECT_TRUE(
+      nanommo::ParseRig(absl::StrCat(kLegs,
+                                     "builds { shifts { joint: "
+                                     "\"RightUpLeg\" by { x: 0.01 } } }",
+                                     kWalk, kRun))
+          .ok());
+  EXPECT_EQ(refused(absl::StrCat(
+                kLegs, "walk { speed: 1.8 cycle_ms: 1000 stance: 1 } ", kRun)),
+            "the walk's feet are down for none of its cycle, or all of it");
+  EXPECT_EQ(
+      refused(absl::StrCat(kLegs, kWalk, "run { cycle_ms: 750 stance: 0.4 }")),
+      "the run needs a speed and a cycle");
+  EXPECT_EQ(refused(absl::StrCat(kLegs, kWalk, kRun,
+                                 "idle { keys { at_ms: 500 } "
+                                 "keys { at_ms: 100 } }")),
+            "the idle goes back in time");
+}
+
+TEST(Content, BuildsEachOfTheRigsBuilds) {
+  const nanommo::rig::Rig rig = *nanommo::ParseRig(
+      "joints { name: \"Hips\" at { y: 1 } } "
+      "joints { name: \"LeftArm\" parent: \"Hips\" at { x: 0.2 y: 1.4 } "
+      "mirrored: true } "
+      "joints { name: \"LeftHand\" parent: \"LeftArm\" "
+      "at { x: 0.7 y: 1.4 } mirrored: true } "
+      "builds {} "
+      "builds { shifts { joint: \"LeftArm\" by { x: 0.03 } } } "
+      "walk { speed: 1.8 cycle_ms: 1000 stance: 0.6 } "
+      "run { speed: 3.1 cycle_ms: 750 stance: 0.4 }");
+
+  // Each twin on the right comes after its own on the left, and hangs from
+  // the right's.
+  const std::vector<nanommo::rig::Joint> joints = nanommo::Skeleton(rig, 0);
+  ASSERT_EQ(joints.size(), 5u);
+  EXPECT_EQ(joints[2].name(), "RightArm");
+  EXPECT_EQ(joints[2].parent(), "Hips");
+  EXPECT_EQ(joints[4].name(), "RightHand");
+  EXPECT_EQ(joints[4].parent(), "RightArm");
+  EXPECT_FLOAT_EQ(joints[4].at().x(), -0.7f);
+
+  // The second build's shoulders are wider, and so are its hands, which
+  // hang from them, and the hips stay where they are.
+  const std::vector<nanommo::rig::Joint> broad = nanommo::Skeleton(rig, 1);
+  EXPECT_FLOAT_EQ(broad[0].at().x(), 0.0f);
+  EXPECT_FLOAT_EQ(broad[1].at().x(), 0.23f);
+  EXPECT_FLOAT_EQ(broad[2].at().x(), -0.23f);
+  EXPECT_FLOAT_EQ(broad[3].at().x(), 0.73f);
+  EXPECT_FLOAT_EQ(broad[4].at().x(), -0.73f);
 }
 
 TEST(Content, RefusesItemsThatDontAddUp) {

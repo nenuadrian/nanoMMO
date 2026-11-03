@@ -11,6 +11,7 @@
 #include "content/monsters.h"
 #include "content/npcs.h"
 #include "content/quests.h"
+#include "content/rig.h"
 #include "content/skills.h"
 
 namespace nanommo {
@@ -24,6 +25,8 @@ struct Content {
   NpcTable npcs;
   /// By id.
   std::map<uint32_t, quests::Quest> quests;
+  /// The skeleton every person is built on, and how it moves.
+  rig::Rig rig;
   SkillTable skills;
 };
 

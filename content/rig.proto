@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package nanommo.rig;
+
+import "content/figures.proto";
+import "content/skills.proto";
+
+// One of the skeleton's joints, where its bone starts. Its bone goes from it
+// to the joints that hang from it.
+message Joint {
+  // Such as "LeftArm", the name the figures' and the items' parts move with.
+  string name = 1;
+  // The joint it hangs from, listed before it, or none for the one that
+  // carries the rest: the hips.
+  string parent = 2;
+  // Where it is, in metres, along the figure's own axes as it stands with its
+  // arms out to the sides: x to its left, y up from the ground and z forward.
+  figures.Offset at = 3;
+  // On the left, and the same again on the right, named Right for Left, x the
+  // other way across.
+  bool mirrored = 4;
+}
+
+// A joint, and every joint that hangs from it, moved: one on the left moves
+// its twin on the right too, the other way across.
+message Shift {
+  string joint = 1;
+  figures.Offset by = 2;
+}
+
+// A build of body: the rig, with some of its joints moved, such as the
+// shoulders out wider. Each player has one, which their id picks.
+message Build {
+  repeated Shift shifts = 1;
+}
+
+// A walk or a run. The client works out where each foot is as the cycle goes
+// round, and bends the legs to reach it. A foot that's down goes back under the
+// body exactly as fast as the server moves the body forward, so it stays where
+// it was put down, then it lifts and swings forward, to land for its next step.
+message Gait {
+  // In metres a second: the server's speed.
+  float speed = 1;
+  // A step with each foot, in milliseconds.
+  uint32 cycle_ms = 2;
+  // The share of the cycle each foot is down: over a half in a walk, so that
+  // both are down for a moment, and under a half in a run, so that for a
+  // moment neither is.
+  float stance = 3;
+  // How high a foot lifts as it swings forward, at most, in metres.
+  float lift = 4;
+  // How far apart the feet are, from the middle of one to the other, in
+  // metres.
+  float width = 5;
+  // How far the hips are below where they are in the rig, in metres, and how
+  // far they rise as each foot passes under them, or, when it's below zero,
+  // sink, as a runner lands on a bent knee.
+  float crouch = 6;
+  float bob = 7;
+  // How far the hips go over to the side of the foot that's down, in metres.
+  float sway = 8;
+  // In degrees: how far the body leans forward, how far the hips turn with the
+  // leg that's forward, and the chest back the other way, how far each arm
+  // swings either way, and how far the elbows bend, more as an arm comes
+  // forward. The sword hand bends back as its elbow does, to keep the blade
+  // pointing ahead.
+  float lean = 9;
+  float hips_turn = 10;
+  float chest_turn = 11;
+  float arm_swing = 12;
+  float elbow = 13;
+  // In degrees: how far a foot tips onto its toes as it leaves the ground, and
+  // back onto its heel as it lands.
+  float toe_off = 14;
+  float heel_strike = 15;
+  // In degrees: how far behind the body the arms are held, as they swing.
+  float arms_back = 16;
+}
+
+// The skeleton every person is built on, and how it moves. The client builds
+// each player's body on it, from the figures' parts, and works out each
+// motion's poses from it.
+message Rig {
+  // Parent first.
+  repeated Joint joints = 1;
+  // At least one: the rig as it is takes none.
+  repeated Build builds = 2;
+  // How a figure stands, from the rig's pose, with its arms out: its turns,
+  // such as the arms down by its sides.
+  skills.Key stance = 3;
+  // Each over the stance. The idle loops, so its last key is its first again.
+  // Its feet stay where they are, and the legs bend to keep them there.
+  skills.Move idle = 4;
+  Gait walk = 5;
+  Gait run = 6;
+  // Holds its last key, where the figure lies.
+  skills.Move death = 7;
+}
