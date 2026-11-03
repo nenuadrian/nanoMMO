@@ -1,5 +1,9 @@
 #include "server/metrics.h"
 
+#include <string>
+
+#include "protocol/version.h"
+
 namespace nanommo {
 
 namespace {
@@ -58,7 +62,16 @@ Metrics::Metrics()
                          .Name("nanommo_story_duration_seconds")
                          .Help("Time from asking for a story to its telling")
                          .Register(*registry_)
-                         .Add({}, StoryBuckets())) {}
+                         .Add({}, StoryBuckets())) {
+  // The version goes in a label, the way Prometheus gives its own, so that
+  // a query can tell the worlds a deploy has reached from the others.
+  prometheus::BuildGauge()
+      .Name("nanommo_build_info")
+      .Help("The server's version, in its label; always 1")
+      .Register(*registry_)
+      .Add({{"version", std::string(kVersion)}})
+      .Set(1);
+}
 
 void Metrics::SetPlayers(const char* land, std::size_t count) {
   // Add returns the land's gauge if it has one already.

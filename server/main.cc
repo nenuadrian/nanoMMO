@@ -28,6 +28,7 @@
 #include "prometheus/exposer.h"
 #include "protocol/settings.h"
 #include "protocol/tls.h"
+#include "protocol/version.h"
 #include "server/consul.h"
 #include "server/database.h"
 #include "server/metrics.h"
@@ -51,6 +52,7 @@ std::optional<uint16_t> ParsePort(std::string_view text) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
+  std::cout << "nanommo server: version " << nanommo::kVersion << std::endl;
   constexpr int kTicksPerSecond = 20;
   const absl::StatusOr<std::chrono::nanoseconds> interval =
       nanommo::TickInterval(kTicksPerSecond);

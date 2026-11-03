@@ -1,0 +1,14 @@
+#ifndef NANOMMO_PROTOCOL_VERSION_H_
+#define NANOMMO_PROTOCOL_VERSION_H_
+
+#include <string_view>
+
+namespace nanommo {
+
+/// The game's version, MAJOR.MINOR.PATCH, from the project() in the top
+/// CMakeLists.txt, which CMake writes in here as it configures the build.
+inline constexpr std::string_view kVersion = "@PROJECT_VERSION@";
+
+}  // namespace nanommo
+
+#endif  // NANOMMO_PROTOCOL_VERSION_H_

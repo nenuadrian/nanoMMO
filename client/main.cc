@@ -53,6 +53,7 @@
 #include "protocol/login_client.h"
 #include "protocol/settings.h"
 #include "protocol/tls.h"
+#include "protocol/version.h"
 #include "terrain/lands.h"
 #include "terrain/terrain.h"
 
@@ -105,6 +106,7 @@ std::unique_ptr<nanommo::Connection> Enter(
 }  // namespace
 
 int main(int argc, char* argv[]) {
+  std::cout << "nanommo client: version " << nanommo::kVersion << '\n';
   const std::string host = argc > 1 ? argv[1] : "localhost";
   const std::string transport = argc > 2 ? argv[2] : "udp";
   absl::StatusOr<asio::ssl::context> tls =

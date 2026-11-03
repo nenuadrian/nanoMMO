@@ -11,6 +11,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "extras/IconsFontAwesome6.h"
+#include "protocol/version.h"
 
 namespace nanommo {
 
@@ -26,6 +27,9 @@ constexpr float kTurnPerPixel = 0.012f;
 constexpr float kNearest = 2.2f;
 constexpr float kFarthest = 5.5f;
 constexpr float kZoomStep = 0.3f;
+
+// In pixels, from the corner of the window to the version.
+constexpr float kCornerMargin = 12.0f;
 
 void ShowErrorText(const std::string& error) {
   if (!error.empty()) {
@@ -72,6 +76,16 @@ Figure LoginScreen::FigureOf(const protocol::CharacterListing& character,
 }
 
 std::optional<protocol::LoginRequest> LoginScreen::Build() {
+  // The version, in the corner, as most other games show it, so a player can
+  // tell which one they have.
+  const std::string version = absl::StrCat("nanoMMO ", kVersion);
+  const ImGuiViewport* viewport = ImGui::GetMainViewport();
+  const ImVec2 size = ImGui::CalcTextSize(version.c_str());
+  ImGui::GetBackgroundDrawList()->AddText(
+      {viewport->WorkPos.x + viewport->WorkSize.x - size.x - kCornerMargin,
+       viewport->WorkPos.y + viewport->WorkSize.y - size.y - kCornerMargin},
+      ImGui::GetColorU32(ImGuiCol_TextDisabled), version.c_str());
+
   ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(),
                           ImGuiCond_Always, {0.5f, 0.5f});
   switch (step_) {

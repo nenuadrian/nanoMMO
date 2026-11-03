@@ -10,6 +10,7 @@
 #include "asio/ssl/context.hpp"
 #include "protocol/settings.h"
 #include "protocol/tls.h"
+#include "protocol/version.h"
 #include "server/accounts.h"
 #include "server/characters.h"
 #include "server/consul.h"
@@ -19,6 +20,7 @@
 #include "server/tokens.h"
 
 int main() {
+  std::cout << "nanommo login: version " << nanommo::kVersion << std::endl;
   constexpr uint16_t kPort = 7778;
   absl::StatusOr<asio::ssl::context> tls = nanommo::ServerTls(
       nanommo::Setting("NANOMMO_TLS_CERTIFICATE", "tls/server.crt"),

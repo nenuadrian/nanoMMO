@@ -7,6 +7,8 @@ protobuf_generate(TARGET nanommo_protocol
 set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/nanommo.pb.cc
   PROPERTIES COMPILE_OPTIONS -w
 )
+# The version, from project(), as a header next to the generated protocol.
+configure_file(version.h.in version.h @ONLY)
 target_include_directories(nanommo_protocol PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
 target_link_libraries(nanommo_protocol PUBLIC
   nanommo_content protobuf::libprotobuf absl::status absl::statusor absl::strings
