@@ -22,7 +22,8 @@ include(FetchContent)
 set(ABSL_PROPAGATE_CXX_STD ON)
 FetchContent_Declare(
   abseil
-  URL https://github.com/abseil/abseil-cpp/archive/refs/tags/20250512.1.tar.gz
+  URL https://github.com/abseil/abseil-cpp/archive/refs/tags/20260817.0.tar.gz
+  URL_HASH SHA256=f7e05179df39c45434cad433f5783840bb3788ef322976f9138bc6b72b3a107d
   SYSTEM
   EXCLUDE_FROM_ALL
 )
@@ -31,22 +32,26 @@ FetchContent_MakeAvailable(abseil)
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/refs/tags/v1.18.0.tar.gz
+  URL_HASH SHA256=6e3191c1455468b3fc35a417fb565c1c5071aee1b7e7f85e30cf48a98d37d8b5
 )
 FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 FetchContent_Declare(
   raylib
-  URL https://github.com/raysan5/raylib/archive/refs/tags/6.0.tar.gz
+  URL https://github.com/raysan5/raylib/archive/refs/tags/6.2.tar.gz
+  URL_HASH SHA256=df7a13129b1bec9e73a6962efff170beba310ee6eab8f94cd000b7316b4db5ee
   SYSTEM
 )
 FetchContent_Declare(
   imgui
-  URL https://github.com/ocornut/imgui/archive/refs/tags/v1.92.9b.tar.gz
+  URL https://github.com/ocornut/imgui/archive/refs/tags/v1.93.0.tar.gz
+  URL_HASH SHA256=f7bf6bc76e5d79d40d751096663e6c5d18daf08129dd52e7f7b09e4251c8eeee
 )
 FetchContent_Declare(
   rlimgui
   URL https://github.com/raylib-extras/rlImGui/archive/1550009359ad975927f7f0e4a3f47e3f27123ea9.tar.gz
+  URL_HASH SHA256=7d04ff0c996a89190e1050d3c4448ad784479723c76893efea2d731bd5eb839f
 )
 FetchContent_MakeAvailable(raylib imgui rlimgui)
 # By default, raylib skins on the CPU. This leaves it to our vertex shader.
@@ -57,6 +62,7 @@ set(protobuf_WITH_ZLIB OFF)
 FetchContent_Declare(
   protobuf
   URL https://github.com/protocolbuffers/protobuf/archive/refs/tags/v36.2.tar.gz
+  URL_HASH SHA256=7e7eaf580ec77f1a392ff1ab1013c13d3b04a6716f002f697f67f3c1113f0530
   SYSTEM
 )
 FetchContent_MakeAvailable(protobuf)
@@ -65,6 +71,7 @@ include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
 FetchContent_Declare(
   asio
   URL https://github.com/chriskohlhoff/asio/archive/refs/tags/asio-1-38-2.tar.gz
+  URL_HASH SHA256=9f2648fa483e58a6bf848d970ee0ea650ca19ed7769dfa520ed4f7b8d27af1db
 )
 FetchContent_MakeAvailable(asio)
 add_library(asio INTERFACE)
@@ -76,6 +83,7 @@ set(TRACY_ON_DEMAND ON)
 FetchContent_Declare(
   tracy
   URL https://github.com/wolfpld/tracy/archive/refs/tags/v0.14.1.tar.gz
+  URL_HASH SHA256=bf4af567e9c7524d07f3caa745fad02fb33bd5694f11910750382d1efbb251c1
   SYSTEM
 )
 FetchContent_MakeAvailable(tracy)
@@ -86,6 +94,7 @@ set(ENABLE_TESTING OFF)
 FetchContent_Declare(
   prometheus-cpp
   URL https://github.com/jupp0r/prometheus-cpp/releases/download/v1.3.0/prometheus-cpp-with-submodules.tar.gz
+  URL_HASH SHA256=62bc2cc9772db2314dbaae506ae2a75c8ee897dab053d8729e86a637b018fdb6
   PATCH_COMMAND patch -p1 -i ${PROJECT_SOURCE_DIR}/patches/civetweb-stop-flag.patch
   SYSTEM
 )
@@ -98,7 +107,8 @@ set(BUILD_SHARED_LIBS OFF)
 set(DISABLE_TESTS ON)
 FetchContent_Declare(
   hiredis
-  URL https://github.com/redis/hiredis/archive/refs/tags/v1.4.1.tar.gz
+  URL https://github.com/redis/hiredis/archive/refs/tags/v1.5.0.tar.gz
+  URL_HASH SHA256=eec7ef8641d221e144a58d5ef8d733c8c75c7fd487097a233aacb4fa33981cfb
   SYSTEM
 )
 FetchContent_MakeAvailable(hiredis)
@@ -106,6 +116,7 @@ FetchContent_MakeAvailable(hiredis)
 FetchContent_Declare(
   json
   URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+  URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
   SYSTEM
 )
 FetchContent_MakeAvailable(json)
@@ -124,7 +135,8 @@ if(NANOMMO_SANITIZE MATCHES "thread")
 endif()
 FetchContent_Declare(
   httplib
-  URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.57.1.tar.gz
+  URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.64.0.tar.gz
+  URL_HASH SHA256=1ada413782af5e67e80452c39b7c90beb6fa4fc8341e18c0896bf95684b9a620
   SYSTEM
 )
 FetchContent_MakeAvailable(httplib)
@@ -189,6 +201,7 @@ if(DOXYGEN_FOUND)
   FetchContent_Declare(
     doxygen_awesome
     URL https://github.com/jothepro/doxygen-awesome-css/archive/refs/tags/v2.5.0.tar.gz
+    URL_HASH SHA256=959b6e9369a0f5c7c0a9beba34b18a02bc5e788e68f6733975908f133a784dd5
   )
   FetchContent_MakeAvailable(doxygen_awesome)
 
