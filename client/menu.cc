@@ -63,7 +63,7 @@ void SliderPercent(const char* label, float& value) {
 }
 
 // The keys, and what each does, for the keys' page.
-constexpr std::array<std::pair<const char*, const char*>, 14> kKeys = {{
+constexpr std::array<std::pair<const char*, const char*>, 15> kKeys = {{
     {"W A S D, or the arrows", "Walk"},
     {"Shift", "Run"},
     {"Space", "Swing what you hold"},
@@ -78,6 +78,7 @@ constexpr std::array<std::pair<const char*, const char*>, 14> kKeys = {{
     {"I", "Your bag"},
     {"Enter", "Chat"},
     {"Escape", "Close what's open, or this menu"},
+    {"Drag an item out of the bag", "Throw it away"},
 }};
 
 // A button in the bottom right row, with an icon, square.

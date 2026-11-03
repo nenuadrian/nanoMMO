@@ -345,13 +345,26 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
 
 std::optional<protocol::ItemAction> BagWindow::Build(
     const protocol::Inventory& bag) {
+  std::optional<protocol::ItemAction> action;
+  // Let go of over nothing, from the bag or from what's worn, it's thrown
+  // away, once the player says so.
+  if (const std::optional<Dragged> held = Held();
+      held && ImGui::IsMouseReleased(ImGuiMouseButton_Left) &&
+      !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow |
+                              ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
+    throwing_ = PlaceOf(*held);
+  }
+  if (throwing_) {
+    if (std::optional<protocol::ItemAction> done = BuildThrowAway(bag)) {
+      action = std::move(done);
+    }
+  }
   if (!visible_) {
-    return std::nullopt;
+    return action;
   }
   const ImVec2 display = ImGui::GetIO().DisplaySize;
   ImGui::SetNextWindowPos({display.x - Ui(18.0f), display.y * 0.55f},
                           ImGuiCond_FirstUseEver, {1.0f, 0.5f});
-  std::optional<protocol::ItemAction> action;
   if (BeginPanel("Bag", &visible_,
                  ImGuiWindowFlags_AlwaysAutoResize |
                      ImGuiWindowFlags_NoSavedSettings)) {
@@ -368,9 +381,53 @@ std::optional<protocol::ItemAction> BagWindow::Build(
     }
     ImGui::PopStyleVar();
     const std::size_t used = bag.bag().size();
-    ImGui::TextDisabled("%zu of %u slots used.", used, kBagSlots);
+    ImGui::TextDisabled(
+        "%zu of %u slots used. Drag an item out to throw it "
+        "away.",
+        used, kBagSlots);
   }
   EndPanel();
+  return action;
+}
+
+std::optional<protocol::ItemAction> BagWindow::BuildThrowAway(
+    const protocol::Inventory& bag) {
+  const items::Stack* stack = StackAt(bag, *throwing_);
+  const items::Item* item =
+      stack != nullptr ? Find(items_, stack->item()) : nullptr;
+  if (stack == nullptr) {
+    throwing_.reset();
+    return std::nullopt;
+  }
+  const ImVec2 display = ImGui::GetIO().DisplaySize;
+  ImGui::SetNextWindowPos({display.x / 2.0f, display.y * 0.42f},
+                          ImGuiCond_Always, {0.5f, 0.5f});
+  bool open = true;
+  std::optional<protocol::ItemAction> action;
+  BeginPanel("Throw away?", &open,
+             ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
+                 ImGuiWindowFlags_NoSavedSettings);
+  const std::string name = item != nullptr ? item->name() : "this item";
+  if (stack->count() > 1) {
+    ImGui::Text("Throw away all %u of the %s, for good?", stack->count(),
+                name.c_str());
+  } else {
+    ImGui::Text("Throw away the %s, for good?", name.c_str());
+  }
+  ImGui::Spacing();
+  if (GameButton("Throw away", {Ui(150.0f), 0.0f}, true)) {
+    *action.emplace().mutable_destroy() = *throwing_;
+    open = false;
+  }
+  ImGui::SameLine();
+  if (GameButton("Keep it", {Ui(150.0f), 0.0f}) ||
+      ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+    open = false;
+  }
+  EndPanel();
+  if (!open) {
+    throwing_.reset();
+  }
   return action;
 }
 

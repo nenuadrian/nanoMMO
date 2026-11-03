@@ -39,7 +39,10 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
                                              const protocol::Place& place,
                                              float size);
 
-/// The bag, in a window of its own, which I, or its button, opens and closes.
+/// The bag, in a window of its own, which I opens and closes. An item dragged
+/// out of it, or off the player, and let go of over nothing is thrown away,
+/// once the player says so. Build it each frame, open or not, so that it sees
+/// an item let go of from what's worn too.
 class BagWindow {
  public:
   explicit BagWindow(ItemTable items) : items_(std::move(items)) {}
@@ -51,8 +54,13 @@ class BagWindow {
   std::optional<protocol::ItemAction> Build(const protocol::Inventory& bag);
 
  private:
+  /// Asks whether to throw away what's at throwing_.
+  std::optional<protocol::ItemAction> BuildThrowAway(
+      const protocol::Inventory& bag);
+
   ItemTable items_;
   bool visible_ = false;
+  std::optional<protocol::Place> throwing_;
 };
 
 }  // namespace nanommo
