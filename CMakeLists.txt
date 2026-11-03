@@ -230,6 +230,6 @@ if(DOXYGEN_FOUND)
     docs/gameplay.md docs/content.md docs/npcs.md docs/graphics.md docs/cinema.md
     docs/island.md docs/worlds.md docs/networking.md docs/accounts.md
     docs/saving.md docs/website.md docs/monitoring.md docs/benchmarking.md
-    docs/deployment.md docs/checks.md
+    docs/deployment.md docs/checks.md docs/releases.md
     protocol content terrain server bot client)
 endif()

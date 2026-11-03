@@ -124,3 +124,4 @@ How each part of the game works is in `docs/`, a page each, which the
 - [Benchmarking and profiling](docs/benchmarking.md): the load test, flame graphs, Pyroscope and Tracy.
 - [Deployment](docs/deployment.md): a server with Docker Compose, handing players over without downtime, and deploying on push.
 - [Code style and checks](docs/checks.md): clang-format and cpplint, the sanitizers, the fuzzers, clang-tidy and the coverage report.
+- [Versions and dependencies](docs/releases.md): the game's version, which clients the login server lets in, releases, and keeping the libraries, images and packages up to date.
