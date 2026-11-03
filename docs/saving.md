@@ -14,13 +14,14 @@ its 50 ms at around 50 players: each save is two round trips, to prepare the sta
 it, and a commit that waits for the disk.
 
 `nanommo_saver` takes the unsaved players out of the set every five seconds, and writes them to the
-`players` table, 500 to an `INSERT`, and their skills to the `player_skills` table, from V6, a row
-for each skill a player knows in a world. A learned skill stays learned, so the saver inserts each
-of a player's skills each time, and `INSERT IGNORE` skips the rows MySQL has already. A player's
-skills go with their row in `players`: deleting the account deletes both. If MySQL fails, they go
-back into the set, for the next try. A
-player whose account was deleted, or whose hash is gone, is skipped, so that one player can't hold
-back the others. It saves what's left when it stops.
+`players` table, 500 to an `UPDATE` of the characters' rows, which the login server made (see
+[Characters](accounts.md#characters)), joined to a table of the batch's rows, and their skills to the
+`player_skills` table, from V6, a row for each skill a character knows. A learned skill stays
+learned, so the saver inserts each of a character's skills each time, and `INSERT IGNORE` skips the
+rows MySQL has already. A character's skills go with its row in `players`: deleting it deletes both.
+If MySQL fails, they go back into the set, for the next try. A character that was deleted has no
+row to join, and one whose hash is gone, or saved by its account before characters, is skipped, so
+that one player can't hold back the others. It saves what's left when it stops.
 
 The saver writes a player's bag again only when it's changed, and not each time they take a step:
 it takes each player's mark off `items:unsaved` before it reads their hash, so that a bag that

@@ -3,14 +3,33 @@
 - The login server, `nanommo_login`, listens on TCP port 7778. It creates accounts and checks passwords,
   against the `accounts` table. Passwords are hashed with Argon2id, through libsodium, so the
   database never holds a password itself.
-- Once you're logged in, it puts a token in Redis, which works once, within 30 seconds, and sends
-  it to the client.
-- The client takes the token to the world you picked, a game server, `nanommo_server`. The game
-  server takes the token out of Redis, and loads your player in that world: your name from the
-  `accounts` table, and where you are and your experience from Redis, or from the `players` table if
-  Redis doesn't have you.
+- Once you're logged in, it opens a session in Redis, `session:<hex>`, which lasts 30 minutes after
+  your last request, and sends it to the client with your characters and the worlds that are up.
+  The client asks for the rest with the session in place of the password, which it doesn't keep.
+- With the session, it makes characters and deletes them (see [Characters](#characters)), and gives
+  you a token for the one you pick: it checks the character is yours, puts the token in Redis,
+  which works once, within 30 seconds, and sends it to the client.
+- The client takes the token to the character's world, a game server, `nanommo_server`. The game
+  server takes the token out of Redis, and loads that character, if it's in this world: its name
+  and where it is from the `players` table, with what Redis has on top, as that's newer.
 
-The password and the token go over TLS, so nobody between the client and the servers can read
+## Characters
+
+An account has up to four characters in each world (`Characters::kPerWorld`), each a row in
+`players` with an id and a name of its own, which other players see. A name is unique in its world,
+and follows an account name's rules: 3 to 16 letters, digits and underscores. `players` has a unique
+key on the world and the name, and making a character counts and inserts in one statement, so two
+requests at once can't take one name, or the last place, between them. A new character has no bag
+yet, so it gets the starting kit as it first enters its world, and the client's preview dresses it in
+that kit before then. Deleting one deletes its skills and its bag with it, and deleting an account
+deletes its characters.
+
+The world plays a character by its id, so Redis keeps it as `player:<world>:<id>`, and its skills
+and bag go by that id (see [Saving players](saving.md)). V10 made characters from the players there
+were, one per account and world, named after the account: Ember's kept their account's id, which
+their looks come from, and the others' came after the largest account id.
+
+The password, the session and the token go over TLS, so nobody between the client and the servers can read
 them (see [TLS](#tls)).
 
 The servers find MySQL, Redis and Consul on `127.0.0.1`, or wherever `NANOMMO_MYSQL_HOST`,
@@ -26,7 +45,7 @@ docker compose run --rm tests
 
 The world server's test starts a server inside the test, on a port the system picks, and has
 players join it over TLS, with the protocol tests' certificates: they see each other until one of
-them leaves, and an account can't play twice at once. The server and the players run on the test's
+them leaves, and a character can't play twice at once. The server and the players run on the test's
 thread, one handler at a time, until what the test waits for happens, or for five seconds at most.
 
 MySQL keeps its data in the `mysql` volume, and Redis in the `redis` volume, so they survive `docker

@@ -65,11 +65,15 @@ Then, in another terminal, the game server, and in one or two more, the client:
 ./build/bin/nanommo_client
 ```
 
-The client opens on the worlds that are up, with how many players each has. Pick one with the arrow
-keys and Enter, or a click, and F5 or Refresh asks for the list again. Then type a name and a
-password, and Create account the first time, and Log in after that. The client asks the login
-server on `localhost`, or on the host you give it (`./build/bin/nanommo_client 192.168.1.20`), and
-connects to the world at the host and port that world registered, behind a loading screen until the
+The client opens on a login: type a name and a password, and Create account the first time, and Log
+in after that. Then come the worlds that are up, with how many players each has, and how many of
+your characters are there. Pick one with the arrow keys and Enter, or a click, and F5 or Refresh
+asks for the list again. In the world you picked, your characters are listed, and the one picked is
+drawn beside them as it looks, which you drag to turn and scroll to come closer to: Enter the world
+as it, Delete it, or type a name and make a New character, up to four in each world (see
+[Characters](docs/accounts.md#characters)). The client asks the login server on `localhost`, or on the
+host you give it (`./build/bin/nanommo_client 192.168.1.20`), and connects to the world at the host
+and port that world registered, behind a loading screen until the
 land is built (see [The loading screen](docs/graphics.md#the-loading-screen)). It gets the world over UDP, unless you put `tcp` after the
 host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP](docs/networking.md#packet-loss-tcp-and-udp).
 Each player is an animated person, in their own skin and hair, and in a shirt of their own colour,
@@ -94,7 +98,7 @@ Press C, or choose View, Character, to open your character screen. It shows your
 health, experience and position, next to an idle preview of your character facing the camera, and
 what you wear. The client renders that preview into a texture with a camera of its own, then ImGui
 draws the texture in the window. View, Settings changes the sound, and the sky, which is the colour of the fog too, and Game, Log out
-takes you back to the login screen. Next time you log in to that world, you're where you left off.
+takes you back to your characters. Next time you enter as that character, it's where it left off.
 
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
 it, and all sides use the C++ it generates. Items, monsters and NPCs are data (see
