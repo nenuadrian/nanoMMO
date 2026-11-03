@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstddef>
 
+#include "client/theme.h"
 #include "extras/IconsFontAwesome6.h"
 
 namespace nanommo {
@@ -83,8 +84,9 @@ bool Menu::Build(Window& window, Settings& settings, Atmosphere& atmosphere,
   }
 
   if (show_settings_) {
-    ImGui::Begin("Settings", &show_settings_,
-                 ImGuiWindowFlags_AlwaysAutoResize);
+    BeginPanel(
+        "Settings", &show_settings_,
+        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
     ImGui::SeparatorText(ICON_FA_TABLE_COLUMNS " Interface");
     if (!ImGui::IsAnyItemActive() || scale_ == 0.0f) {
       scale_ = settings.ui.scale;
@@ -127,7 +129,7 @@ bool Menu::Build(Window& window, Settings& settings, Atmosphere& atmosphere,
     if (ImGui::Button(ICON_FA_ROTATE_LEFT " Reset")) {
       atmosphere = land;
     }
-    ImGui::End();
+    EndPanel();
   }
 
   if (show_demo_) {

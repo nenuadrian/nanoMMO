@@ -12,6 +12,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "client/icon.h"
+#include "client/theme.h"
 #include "protocol/places.h"
 
 namespace nanommo {
@@ -300,9 +301,9 @@ std::optional<protocol::ItemAction> BagWindow::Build(
   ImGui::SetNextWindowPos({display.x - kMargin, display.y * 0.5f},
                           ImGuiCond_FirstUseEver, {1.0f, 0.5f});
   std::optional<protocol::ItemAction> action;
-  if (ImGui::Begin(
-          "Bag", &visible_,
-          ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse)) {
+  if (BeginPanel("Bag", &visible_,
+                 ImGuiWindowFlags_AlwaysAutoResize |
+                     ImGuiWindowFlags_NoSavedSettings)) {
     for (uint32_t slot = 0; slot < kBagSlots; ++slot) {
       if (slot % kColumns != 0) {
         ImGui::SameLine();
@@ -313,7 +314,7 @@ std::optional<protocol::ItemAction> BagWindow::Build(
       }
     }
   }
-  ImGui::End();
+  EndPanel();
   return action;
 }
 

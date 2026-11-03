@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "client/icon.h"
+#include "client/theme.h"
 #include "extras/IconsFontAwesome6.h"
 
 namespace nanommo {
@@ -45,15 +46,17 @@ std::optional<protocol::Input> QuestWindow::Build(
   const ImVec2 display = ImGui::GetIO().DisplaySize;
   ImGui::SetNextWindowPos({display.x / 2, display.y * 0.6f},
                           ImGuiCond_Appearing, {0.5f, 0.5f});
-  ImGui::SetNextWindowSize({380.0f, 0.0f});
+  ImGui::SetNextWindowSize({Ui(400.0f), 0.0f});
   bool open = true;
-  ImGui::Begin(name_.c_str(), &open,
-               ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+  BeginPanel(name_.c_str(), &open,
+             ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
   std::optional<protocol::Input> ask;
   for (const uint32_t id : quests_) {
     const quests::Quest& quest = content_.quests.at(id);
     ImGui::PushID(static_cast<int>(id));
+    ImGui::PushFont(GetFonts().title, 17.0f);
     ImGui::TextColored(kTitle, "%s", quest.name().c_str());
+    ImGui::PopFont();
     ImGui::TextWrapped("%s", quest.text().c_str());
     ImGui::Spacing();
     ImGui::Text("%s  Kill %s", ICON_FA_SKULL,
@@ -69,22 +72,22 @@ std::optional<protocol::Input> QuestWindow::Build(
     if (std::ranges::find(yours.done(), id) != yours.done().end()) {
       ImGui::TextDisabled("Done");
     } else if (on == yours.on().end()) {
-      if (ImGui::Button("Take")) {
+      if (GameButton("Take the quest", {0.0f, 0.0f}, true)) {
         ask.emplace();
         ask->mutable_take()->set_npc(*npc_);
         ask->mutable_take()->set_quest(id);
       }
     } else if (on->second < quest.kill().count()) {
       ImGui::TextDisabled("%u of %u killed", on->second, quest.kill().count());
-    } else if (ImGui::Button("Turn in")) {
+    } else if (GameButton("Turn it in", {0.0f, 0.0f}, true)) {
       ask.emplace();
       ask->mutable_turn_in()->set_npc(*npc_);
       ask->mutable_turn_in()->set_quest(id);
     }
     ImGui::PopID();
-    ImGui::Separator();
+    ImGui::Spacing();
   }
-  ImGui::End();
+  EndPanel();
   if (!open) {
     npc_.reset();
   }

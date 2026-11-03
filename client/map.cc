@@ -13,6 +13,7 @@
 
 #include "client/atmosphere.h"
 #include "client/ground.h"
+#include "client/theme.h"
 
 namespace nanommo {
 
@@ -250,10 +251,9 @@ std::optional<Place> LandMap::DrawMap(const std::vector<Figure>& figures,
   ImGui::SetNextWindowPos({screen.x / 2, screen.y / 2}, ImGuiCond_Always,
                           {0.5f, 0.5f});
   const std::string title = std::string("The ") + kLands[land_].name + "###Map";
-  ImGui::Begin(title.c_str(), open,
-               ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
-                   ImGuiWindowFlags_NoCollapse |
-                   ImGuiWindowFlags_NoSavedSettings);
+  BeginPanel(title.c_str(), open,
+             ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
+                 ImGuiWindowFlags_NoSavedSettings);
   ImGui::Image(static_cast<ImTextureID>(texture_.id), {size, size});
   const ImVec2 min = ImGui::GetItemRectMin();
   const ImVec2 max = ImGui::GetItemRectMax();
@@ -274,7 +274,7 @@ std::optional<Place> LandMap::DrawMap(const std::vector<Figure>& figures,
   DrawMarkers(draw, view, land_, figures, target, destination);
   draw->PopClipRect();
   ImGui::TextDisabled("Click somewhere to walk there. M closes the map.");
-  ImGui::End();
+  EndPanel();
   return clicked;
 }
 

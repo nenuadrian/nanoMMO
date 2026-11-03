@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-#include "extras/IconsFontAwesome6.h"
+#include "client/theme.h"
 
 namespace nanommo {
 
@@ -24,10 +24,10 @@ std::optional<protocol::Talk> TalkWindow::Build() {
   const ImVec2 display = ImGui::GetIO().DisplaySize;
   ImGui::SetNextWindowPos({display.x / 2, display.y * 0.75f},
                           ImGuiCond_Appearing, {0.5f, 0.5f});
-  ImGui::SetNextWindowSize({360.0f, 0.0f});
+  ImGui::SetNextWindowSize({Ui(380.0f), 0.0f});
   bool open = true;
-  ImGui::Begin(name_.c_str(), &open,
-               ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+  BeginPanel(name_.c_str(), &open,
+             ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
   ImGui::TextWrapped("Give me a few words, and I'll tell you a story.");
   // So that the player can type straight away.
   if (focus_) {
@@ -38,7 +38,7 @@ std::optional<protocol::Talk> TalkWindow::Build() {
   const bool entered = ImGui::InputTextWithHint(
       "##words", "dragon, castle, gold", words_.data(), words_.size(),
       ImGuiInputTextFlags_EnterReturnsTrue);
-  const bool asked = ImGui::Button(ICON_FA_BOOK_OPEN " Tell me a story");
+  const bool asked = GameButton("Tell me a story", {-1.0f, 0.0f}, true);
   std::optional<protocol::Talk> talk;
   if ((entered || asked) && words_[0] != '\0') {
     talk.emplace();
@@ -47,7 +47,7 @@ std::optional<protocol::Talk> TalkWindow::Build() {
     words_.fill('\0');
     open = false;
   }
-  ImGui::End();
+  EndPanel();
   if (!open) {
     npc_.reset();
   }

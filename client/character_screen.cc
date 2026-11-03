@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "client/bag_window.h"
+#include "client/theme.h"
 #include "extras/IconsFontAwesome6.h"
 #include "protocol/places.h"
 
@@ -57,9 +58,9 @@ std::optional<protocol::ItemAction> CharacterScreen::Build(
     return std::nullopt;
   }
   std::optional<protocol::ItemAction> action;
-  // Wide enough for the preview and a row of six worn slots beside it.
-  ImGui::SetNextWindowSize({720.0f, 400.0f}, ImGuiCond_FirstUseEver);
-  if (ImGui::Begin("Character", &visible_)) {
+  if (BeginPanel("Character", &visible_,
+                 ImGuiWindowFlags_AlwaysAutoResize |
+                     ImGuiWindowFlags_NoSavedSettings)) {
     // OpenGL keeps the rows bottom up, so the UVs turn the picture over.
     ImGui::Image(static_cast<ImTextureID>(preview_.texture().id),
                  {kPreviewPixels, kPreviewPixels}, {0.0f, 1.0f}, {1.0f, 0.0f});
@@ -88,7 +89,7 @@ std::optional<protocol::ItemAction> CharacterScreen::Build(
     }
     ImGui::EndGroup();
   }
-  ImGui::End();
+  EndPanel();
   return action;
 }
 

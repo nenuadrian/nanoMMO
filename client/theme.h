@@ -70,6 +70,52 @@ inline ImVec2 Ui(ImVec2 points) { return {Ui(points.x), Ui(points.y)}; }
 /// ImGui's style in our colours, with its sizes and its text at the scale.
 void ApplyTheme(float scale);
 
+/// A panel's shape: a rectangle with its corners cut off.
+void PathPanel(ImDrawList* draw, ImVec2 min, ImVec2 max, float cut);
+
+/// A panel, as every window has: dark, in a shape with its corners cut, a red
+/// glow under its title, trimmed in brass with a thin light inside it, and a
+/// gem at its top corners.
+void DrawPanel(ImDrawList* draw, ImVec2 min, ImVec2 max, float alpha = 0.96f);
+
+/// A diamond, filled, with an outline.
+void DrawDiamond(ImDrawList* draw, ImVec2 centre, float radius, ImU32 fill,
+                 ImU32 outline);
+
+/// A line that fades in from its ends, with a diamond in its middle, under a
+/// title.
+void DrawDivider(ImDrawList* draw, ImVec2 left, float width);
+
+/// Text with a shadow under it.
+void DrawShadowedText(ImDrawList* draw, ImFont* font, float size, ImVec2 at,
+                      ImU32 color, const char* text);
+
+/// Text that goes from one colour at its top to another at its bottom, with
+/// a shadow, as titles have in gold.
+void DrawGradientText(ImDrawList* draw, ImFont* font, float size, ImVec2 at,
+                      ImU32 top, ImU32 bottom, const char* text);
+
+/// A title in carved gold capitals, centred on the point at its top.
+void DrawTitle(ImDrawList* draw, ImVec2 top_centre, float size,
+               const char* text);
+
+/// The part of an ImGui label that's shown: what's before any "##".
+std::string Shown(const char* label);
+
+/// Begins a window drawn as one of our panels, with its title at the top and a
+/// close button that sets open to false, if open isn't null. Always call
+/// EndPanel after it, as ImGui's End.
+bool BeginPanel(const char* name, bool* open, ImGuiWindowFlags flags = 0,
+                float alpha = 0.96f);
+void EndPanel();
+
+/// A button with its corners cut, in a dark red, or, for what a screen is
+/// there for, such as entering the world, in the colours of a fire. Returns
+/// whether it was clicked. A width of zero fits the label, and one below zero
+/// takes the rest of the line.
+bool GameButton(const char* label, ImVec2 size, bool primary = false,
+                bool enabled = true);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_THEME_H_
