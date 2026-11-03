@@ -23,6 +23,7 @@
 #include "client/character_screen.h"
 #include "client/chat_window.h"
 #include "client/combat_text.h"
+#include "client/compass.h"
 #include "client/connection.h"
 #include "client/cursor.h"
 #include "client/death_screen.h"
@@ -507,6 +508,9 @@ int main(int argc, char* argv[]) {
         respawn.set_respawn(true);
         connection->Send(respawn);
       }
+      nanommo::DrawCompass(
+          nanommo::Heading(renderer.camera()),
+          nanommo::CompassMarks(renderer.figures(), land, target, destination));
       player_frame.Draw(renderer.figures(), connection->world());
       nanommo::DrawTargetFrame(renderer.figures(), target);
       nanommo::DrawQuestTracker(*content, connection->quests());

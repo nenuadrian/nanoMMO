@@ -32,7 +32,7 @@ class PlayerFrame {
 };
 
 /// The monster you picked, by its id, its name, level and health, at the top
-/// in the middle, while there's one.
+/// in the middle, under the compass, while there's one.
 void DrawTargetFrame(const std::vector<Figure>& figures, uint32_t target);
 
 }  // namespace nanommo

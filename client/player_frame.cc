@@ -158,7 +158,7 @@ void DrawTargetFrame(const std::vector<Figure>& figures, uint32_t target) {
     return;
   }
   const float radius = Ui(26.0f);
-  // In the middle, with room above it along the top.
+  // Under the compass, and the distance under it.
   const float middle = Ui(kTargetTop) + Ui(kPlateHeight) / 2.0f;
   const float width = radius + Ui(250.0f);
   const ImVec2 centre{(ImGui::GetIO().DisplaySize.x - width) / 2.0f + radius,
