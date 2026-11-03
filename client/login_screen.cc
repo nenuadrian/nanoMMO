@@ -182,6 +182,7 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildAccount() {
   request.set_username(username_.data());
   request.set_password(password_.data());
   request.set_new_account(create);
+  request.set_version(kVersion);
   // We don't keep the password once it's on its way: the session the reply
   // brings stands in for it.
   password_.fill('\0');

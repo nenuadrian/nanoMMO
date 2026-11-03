@@ -2,9 +2,12 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "gtest/gtest.h"
+#include "protocol/version.h"
 #include "server/characters.h"
 #include "server/test_services.h"
 
@@ -40,12 +43,14 @@ class LoginTest : public ::testing::Test {
     return reply.value_or(nanommo::protocol::LoginReply());
   }
 
-  nanommo::protocol::LoginReply LogIn(const std::string& password,
-                                      bool new_account = false) {
+  nanommo::protocol::LoginReply LogIn(
+      const std::string& password, bool new_account = false,
+      std::string_view version = nanommo::kVersion) {
     nanommo::protocol::LoginRequest request;
     request.set_username(name_);
     request.set_password(password);
     request.set_new_account(new_account);
+    request.set_version(version);
     return Ask(request);
   }
 
@@ -166,4 +171,24 @@ TEST_F(LoginTest, RefusesANameThatIsTaken) {
   ASSERT_TRUE(LogIn("correct horse", true).ok());
 
   EXPECT_EQ(LogIn("battery staple", true).error(), "That name is taken.");
+}
+
+TEST_F(LoginTest, TurnsAwayAClientOfAnotherVersion) {
+  ASSERT_TRUE(LogIn("correct horse", true).ok());
+
+  const auto reply = LogIn("correct horse", false, "0.1.0");
+  EXPECT_FALSE(reply.ok());
+  EXPECT_TRUE(reply.session().empty());
+  EXPECT_EQ(reply.error(),
+            absl::StrCat("This client is 0.1.0, and the servers are ",
+                         nanommo::kVersion, ". Get the ", nanommo::kVersion,
+                         " client to play."));
+}
+
+TEST_F(LoginTest, TurnsAwayAClientFromBeforeVersions) {
+  const auto reply = LogIn("correct horse", true, "");
+  EXPECT_FALSE(reply.ok());
+  EXPECT_EQ(reply.error(),
+            absl::StrCat("This client is too old for the servers, which are ",
+                         nanommo::kVersion, ". Get the new one to play."));
 }

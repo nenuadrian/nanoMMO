@@ -28,6 +28,7 @@
 #include "protocol/nanommo.pb.h"
 #include "protocol/settings.h"
 #include "protocol/tls.h"
+#include "protocol/version.h"
 
 namespace {
 
@@ -63,6 +64,7 @@ absl::StatusOr<std::string> LogIn(const std::string& host,
   nanommo::protocol::LoginRequest request;
   request.set_username(name);
   request.set_password("bot-password");
+  request.set_version(nanommo::kVersion);
   absl::StatusOr<nanommo::protocol::LoginReply> reply =
       Ask(host, tls, request);
   if (absl::IsPermissionDenied(reply.status())) {

@@ -248,6 +248,9 @@ message LoginRequest {
   bool delete_character = 9;
   bool enter = 10;
   uint32 character = 11;
+  // The client's version, for the login server to turn away one that doesn't
+  // speak its protocol. A client from before versions sends none.
+  string version = 12;
 }
 
 // One of an account's characters, as the login server knows it, enough to

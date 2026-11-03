@@ -9,6 +9,11 @@ namespace nanommo {
 /// CMakeLists.txt, which CMake writes in here as it configures the build.
 inline constexpr std::string_view kVersion = "@PROJECT_VERSION@";
 
+/// Whether a client of one version can play on servers of the other: they
+/// speak one protocol when their major and minor versions match, as a patch
+/// only fixes what's there. One that isn't MAJOR.MINOR.PATCH can't.
+bool Compatible(std::string_view client, std::string_view server);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_PROTOCOL_VERSION_H_

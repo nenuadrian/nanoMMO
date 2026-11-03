@@ -8,7 +8,9 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
+#include "absl/strings/str_cat.h"
 #include "protocol/framing.h"
+#include "protocol/version.h"
 #include "server/characters.h"
 #include "server/listen.h"
 #include "server/password.h"
@@ -76,6 +78,19 @@ absl::StatusOr<protocol::LoginReply> HandleLogin(
   protocol::LoginReply reply;
   uint32_t account = 0;
   if (request.session().empty()) {
+    // A client of another version would log in, then fail to make sense of
+    // what the world sends it: it's told which version to get instead.
+    if (!Compatible(request.version(), kVersion)) {
+      reply.set_error(
+          request.version().empty()
+              ? absl::StrCat("This client is too old for the servers, which "
+                             "are ",
+                             kVersion, ". Get the new one to play.")
+              : absl::StrCat("This client is ", request.version(),
+                             ", and the servers are ", kVersion, ". Get the ",
+                             kVersion, " client to play."));
+      return reply;
+    }
     // Logging in, or making an account: a session for what comes next.
     const absl::StatusOr<uint32_t> id =
         Authenticate(request, accounts, reply);
