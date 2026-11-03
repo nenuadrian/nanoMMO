@@ -126,6 +126,10 @@ void DrawBar(ImDrawList* draw, ImVec2 min, ImVec2 max, float share, ImU32 color,
 /// green or red while something dragged over it would go there or not.
 void DrawSlot(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 edge);
 
+/// An icon in the middle of a slot, in its colour, on a glow of that colour.
+void DrawSlotIcon(ImDrawList* draw, ImVec2 min, ImVec2 max, const char* icon,
+                  ImU32 color, float alpha = 1.0f);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_THEME_H_

@@ -493,4 +493,21 @@ void DrawSlot(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 edge) {
   }
 }
 
+void DrawSlotIcon(ImDrawList* draw, ImVec2 min, ImVec2 max, const char* icon,
+                  ImU32 color, float alpha) {
+  const ImVec2 middle{(min.x + max.x) / 2.0f, (min.y + max.y) / 2.0f};
+  const float size = (max.y - min.y) * 0.48f;
+  // A glow of the icon's colour behind it, fading out from the middle.
+  const float glow = (max.y - min.y) * 0.42f;
+  for (int ring = 4; ring >= 1; --ring) {
+    draw->AddCircleFilled(middle, glow * static_cast<float>(ring) / 4.0f,
+                          Faded(color, 0.05f * alpha));
+  }
+  ImFont* font = GetFonts().text;
+  const ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0.0f, icon);
+  DrawShadowedText(draw, font, size,
+                   {middle.x - extent.x / 2.0f, middle.y - extent.y / 2.0f},
+                   Faded(color, alpha), icon);
+}
+
 }  // namespace nanommo
