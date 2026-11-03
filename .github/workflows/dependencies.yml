@@ -1,0 +1,45 @@
+name: Dependencies
+
+# Once a week, dependencies.py moves the C++ libraries to their newest
+# versions, in a pull request that CI checks like any other. Only in the
+# public repository: the updates that pass go into the game in an episode.
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+jobs:
+  update:
+    if: github.repository == 'nenuadrian/nanoMMO'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: dependencies/cmake
+      TITLE: Move the C++ libraries to their newest versions
+    steps:
+      - uses: actions/checkout@v7
+      - run: ./dependencies.py --update | tee updates.txt
+      - name: Open the pull request, or bring it up to date
+        run: |
+          if git diff --quiet; then
+            echo "Each library is at its newest."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git commit -qam "$TITLE"
+          git push --force origin "$BRANCH"
+          { echo '```'; cat updates.txt; echo '```'; } > body.md
+          gh pr create --head "$BRANCH" --title "$TITLE" --body-file body.md ||
+            gh pr edit "$BRANCH" --body-file body.md
+          # A push or a pull request made with the workflow's own token starts
+          # no other workflow, so that workflows can't start each other
+          # forever. One started by hand still runs, so we start CI that way.
+          gh workflow run ci.yml --ref "$BRANCH"

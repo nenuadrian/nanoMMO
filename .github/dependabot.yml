@@ -1,0 +1,48 @@
+# Once a week, Dependabot looks for newer versions of what it can read: the
+# actions CI uses, the images the Dockerfiles and compose files start from, the
+# website's PHP packages and the storyteller's Python ones. For each kind, it
+# opens a pull request with the minor and patch updates together, and one for
+# each major update, as that's the kind that breaks things. It can't read
+# CMake's FetchContent, so the C++ libraries are dependencies.py's.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: docker
+    directories: [/, /web, /storyteller, /runner]
+    schedule:
+      interval: weekly
+    groups:
+      images:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      services:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: composer
+    directory: /web
+    schedule:
+      interval: weekly
+    groups:
+      website:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: pip
+    directory: /storyteller
+    schedule:
+      interval: weekly
+    groups:
+      storyteller:
+        patterns: ["*"]
+        update-types: [minor, patch]
