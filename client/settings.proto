@@ -20,6 +20,7 @@ message Graphics {
 // How the interface looks and is laid out.
 message Interface {
   optional float scale = 1;
+  optional bool minimap_turns = 2;
 }
 
 // What the player sets, which the client keeps between runs.

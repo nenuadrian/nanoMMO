@@ -187,6 +187,9 @@ void Menu::BuildSettings(Settings& settings, Atmosphere& atmosphere,
       }
       ImGui::TextDisabled(
           "On top of its size for your screen, which grows with it.");
+      ImGui::Spacing();
+      ImGui::Checkbox("Turn the minimap with the camera",
+                      &settings.ui.minimap_turns);
       break;
     }
     case Page::kSound:

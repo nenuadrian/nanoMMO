@@ -15,6 +15,9 @@ struct InterfaceSettings {
   /// How much bigger or smaller than its size for the screen the interface
   /// is drawn, from half to twice.
   float scale = 1.0f;
+  /// Whether the minimap turns with the camera, so that what's ahead is up,
+  /// rather than north.
+  bool minimap_turns = false;
 
   bool operator==(const InterfaceSettings&) const = default;
 };

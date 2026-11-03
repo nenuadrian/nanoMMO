@@ -83,6 +83,9 @@ absl::StatusOr<Settings> LoadSettings(const std::string& path) {
   if (ui.has_scale() && !std::isnan(ui.scale())) {
     loaded.ui.scale = std::clamp(ui.scale(), 0.5f, 2.0f);
   }
+  if (ui.has_minimap_turns()) {
+    loaded.ui.minimap_turns = ui.minimap_turns();
+  }
   return loaded;
 }
 
@@ -96,6 +99,7 @@ absl::Status SaveSettings(const std::string& path, const Settings& player) {
   file.mutable_graphics()->set_cel_shading(player.graphics.cel_shading);
   file.mutable_graphics()->set_antialias(player.graphics.antialias);
   file.mutable_ui()->set_scale(player.ui.scale);
+  file.mutable_ui()->set_minimap_turns(player.ui.minimap_turns);
   std::string text;
   if (!google::protobuf::TextFormat::PrintToString(file, &text)) {
     return absl::InternalError("couldn't print the settings");

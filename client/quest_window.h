@@ -42,9 +42,10 @@ class QuestWindow {
 void MarkQuestGivers(std::vector<Figure>& figures, const Content& content,
                      const protocol::Quests& yours);
 
-/// The quests the player's on, in the top right corner, with how many
-/// they've killed for each.
-void DrawQuestTracker(const Content& content, const protocol::Quests& yours);
+/// The quests the player's on, on the right, from top down, under the
+/// minimap, with how many they've killed for each.
+void DrawQuestTracker(const Content& content, const protocol::Quests& yours,
+                      float top);
 
 }  // namespace nanommo
 

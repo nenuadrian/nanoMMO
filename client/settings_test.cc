@@ -20,7 +20,7 @@ TEST(Settings, KeepsThemBetweenRuns) {
   const nanommo::Settings settings = {
       .sound = {.master = 0.5f, .music = 0.25f, .muted = true},
       .graphics = {.bloom = false, .cel_shading = true, .antialias = false},
-      .ui = {.scale = 1.25f}};
+      .ui = {.scale = 1.25f, .minimap_turns = true}};
   ASSERT_TRUE(nanommo::SaveSettings(path, settings).ok());
 
   const absl::StatusOr<nanommo::Settings> loaded = nanommo::LoadSettings(path);

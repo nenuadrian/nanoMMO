@@ -513,7 +513,6 @@ int main(int argc, char* argv[]) {
           nanommo::CompassMarks(renderer.figures(), land, target, destination));
       player_frame.Draw(renderer.figures(), connection->world());
       nanommo::DrawTargetFrame(renderer.figures(), target);
-      nanommo::DrawQuestTracker(*content, connection->quests());
       if (const std::optional<uint32_t> skill =
               hotbar.Build(renderer.figures(), connection->world(), target)) {
         nanommo::protocol::Input use = sent;
@@ -521,7 +520,15 @@ int main(int argc, char* argv[]) {
         connection->Send(use);
         destination.reset();
       }
-      land_map.DrawMinimap(renderer.figures(), target, destination);
+      if (land_map.DrawMinimap(renderer.figures(), target, destination,
+                               nanommo::Heading(renderer.camera()),
+                               settings.ui.minimap_turns
+                                   ? nanommo::MinimapTurn::kWithCamera
+                                   : nanommo::MinimapTurn::kNorthUp)) {
+        map_open = !map_open;
+      }
+      nanommo::DrawQuestTracker(*content, connection->quests(),
+                                land_map.minimap_bottom());
       if (const std::optional<nanommo::Place> place = land_map.DrawMap(
               renderer.figures(), target, destination, &map_open);
           place && terrain->Walkable(place->x, place->z)) {

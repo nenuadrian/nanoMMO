@@ -3,6 +3,7 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <cfloat>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -10,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "client/icon.h"
 #include "client/theme.h"
 #include "extras/IconsFontAwesome6.h"
@@ -19,7 +21,6 @@ namespace nanommo {
 namespace {
 
 constexpr ImVec4 kTitle{1.0f, 0.82f, 0.3f, 1.0f};
-constexpr ImVec4 kDone{0.45f, 0.85f, 0.45f, 1.0f};
 
 // "3 Skeletons", by the monster's kind.
 std::string Monsters(const Content& content, const quests::Kill& kill) {
@@ -114,20 +115,27 @@ void MarkQuestGivers(std::vector<Figure>& figures, const Content& content,
   }
 }
 
-void DrawQuestTracker(const Content& content, const protocol::Quests& yours) {
+void DrawQuestTracker(const Content& content, const protocol::Quests& yours,
+                      float top) {
   if (yours.on().empty()) {
     return;
   }
-  constexpr float kMargin = 10.0f;
-  const ImVec2 display = ImGui::GetIO().DisplaySize;
-  ImGui::SetNextWindowPos({display.x - kMargin, kMargin}, ImGuiCond_Always,
-                          {1.0f, 0.0f});
-  ImGui::SetNextWindowBgAlpha(0.4f);
-  ImGui::Begin("Quests", nullptr,
-               ImGuiWindowFlags_NoDecoration |
-                   ImGuiWindowFlags_AlwaysAutoResize |
-                   ImGuiWindowFlags_NoFocusOnAppearing |
-                   ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoInputs);
+  // Words with shadows, without a window, lined up on the right, so that
+  // they read on any ground, and hide as little of it as they can.
+  ImDrawList* draw = ImGui::GetBackgroundDrawList();
+  const Fonts& fonts = GetFonts();
+  const float right = ImGui::GetIO().DisplaySize.x - Ui(24.0f);
+  float y = top + Ui(10.0f);
+  const auto line = [&](ImFont* font, float size, ImU32 color,
+                        const std::string& text) {
+    const ImVec2 extent =
+        font->CalcTextSizeA(size, FLT_MAX, 0.0f, text.c_str());
+    DrawShadowedText(draw, font, size, {right - extent.x, y}, color,
+                     text.c_str());
+    y += extent.y + Ui(2.0f);
+  };
+  line(fonts.title, Ui(16.0f), colors::kGold, "Quests");
+  y += Ui(4.0f);
   // In the order of their ids, as a protobuf map has none.
   const std::map<uint32_t, uint32_t> on(yours.on().begin(), yours.on().end());
   for (const auto& [id, kills] : on) {
@@ -135,17 +143,18 @@ void DrawQuestTracker(const Content& content, const protocol::Quests& yours) {
     if (quest == content.quests.end()) {
       continue;
     }
-    ImGui::TextColored(kTitle, "%s", quest->second.name().c_str());
+    line(fonts.bold, Ui(17.0f), colors::kGoldLight, quest->second.name());
     const std::string wanted = Monsters(content, quest->second.kill());
     // Done, it says so, until it's turned in.
     if (kills >= quest->second.kill().count()) {
-      ImGui::TextColored(kDone, "  %s  %u / %s", ICON_FA_CHECK, kills,
-                         wanted.c_str());
+      line(fonts.text, Ui(16.0f), colors::kGood,
+           absl::StrCat(ICON_FA_CHECK " ", kills, " / ", wanted, ", done"));
     } else {
-      ImGui::Text("  %u / %s", kills, wanted.c_str());
+      line(fonts.text, Ui(16.0f), colors::kPaper,
+           absl::StrCat(kills, " / ", wanted));
     }
+    y += Ui(6.0f);
   }
-  ImGui::End();
 }
 
 }  // namespace nanommo
