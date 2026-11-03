@@ -2,6 +2,8 @@
 
 #include <imgui.h>
 
+#include <algorithm>
+#include <cfloat>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -14,26 +16,38 @@
 #include "client/icon.h"
 #include "client/theme.h"
 #include "protocol/places.h"
+#include "server/inventory.h"
 
 namespace nanommo {
 
 namespace {
 
 constexpr char kPayload[] = "ITEM";
-constexpr float kIconSize = 24.0f;
-constexpr float kBagSlot = 48.0f;
+// In points, at a scale of one.
+constexpr float kBagSlot = 52.0f;
 constexpr int kColumns = 6;
-constexpr ImU32 kShadow = IM_COL32(0, 0, 0, 255);
-constexpr ImU32 kCount = IM_COL32(240, 240, 240, 255);
 // Font Awesome's circle-question, for an item this client doesn't have.
 constexpr uint32_t kUnknownIcon = 0xF059;
 
-// Where a dragged item comes from. ImGui copies a payload byte for byte, so
-// it's plain data, not the Place message.
+// Where a dragged item comes from, and where in its slot the mouse took hold
+// of it. ImGui copies a payload byte for byte, so it's plain data, not the
+// Place message.
 struct Dragged {
   bool worn = false;
   uint32_t slot = 0;
+  ImVec2 grab;
 };
+
+// The item the player's holding, while they drag one.
+std::optional<Dragged> Held() {
+  const ImGuiPayload* payload = ImGui::GetDragDropPayload();
+  if (payload == nullptr || !payload->IsDataType(kPayload)) {
+    return std::nullopt;
+  }
+  Dragged dragged;
+  std::memcpy(&dragged, payload->Data, sizeof(dragged));
+  return dragged;
+}
 
 protocol::Place PlaceOf(const Dragged& dragged) {
   return dragged.worn ? Worn(static_cast<items::Slot>(dragged.slot))
@@ -98,12 +112,14 @@ uint32_t SlotIcon(items::Slot slot) {
   }
 }
 
-// 0xRRGGBBAA, as the content has colours.
-ImVec4 ColorOf(uint32_t rgba) {
-  return {static_cast<float>((rgba >> 24) & 0xFF) / 255.0f,
-          static_cast<float>((rgba >> 16) & 0xFF) / 255.0f,
-          static_cast<float>((rgba >> 8) & 0xFF) / 255.0f,
-          static_cast<float>(rgba & 0xFF) / 255.0f};
+// The item's icon's colour, from its tint, as 0xRRGGBBAA, or the paper's.
+ImU32 TintOf(const items::Item* item) {
+  if (item == nullptr || !item->look().has_tint()) {
+    return colors::kPaper;
+  }
+  const uint32_t rgba = item->look().tint();
+  return IM_COL32((rgba >> 24) & 0xFF, (rgba >> 16) & 0xFF, (rgba >> 8) & 0xFF,
+                  rgba & 0xFF);
 }
 
 protocol::ItemAction MoveTo(const protocol::Place& from,
@@ -113,6 +129,14 @@ protocol::ItemAction MoveTo(const protocol::Place& from,
   *action.mutable_move()->mutable_to() = to;
   action.mutable_move()->set_count(count);
   return action;
+}
+
+// Whether the server would move what's at from to to: the bag's own rules,
+// which it keeps, tried on a copy.
+bool Fits(const ItemTable& items, const protocol::Inventory& bag,
+          const protocol::Place& from, const protocol::Place& to) {
+  Inventory copy(bag);
+  return copy.Move(items, from, to).ok();
 }
 
 }  // namespace
@@ -193,64 +217,89 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
   ImGui::PushID(place.has_bag() ? static_cast<int>(place.bag())
                                 : 100 + static_cast<int>(place.worn()));
 
-  ImVec4 color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
-  uint32_t icon = kUnknownIcon;
-  if (item != nullptr) {
-    icon = item->look().icon();
-    if (item->look().has_tint()) {
-      color = ColorOf(item->look().tint());
-    }
-  } else if (stack == nullptr) {
-    icon = place.has_worn() ? SlotIcon(place.worn()) : 0;
-    color = ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
-  }
-  ImGui::PushStyleColor(ImGuiCol_Text, color);
-  ImGui::PushFont(nullptr, kIconSize);
-  ImGui::Button(absl::StrCat(icon != 0 ? Icon(icon) : "", "##slot").c_str(),
-                {size, size});
-  ImGui::PopFont();
-  ImGui::PopStyleColor();
+  ImGui::InvisibleButton("##slot", {size, size});
+  const bool hovered = ImGui::IsItemHovered();
+  const ImVec2 min = ImGui::GetItemRectMin();
+  const ImVec2 max = ImGui::GetItemRectMax();
 
-  if (stack != nullptr && stack->count() > 1) {
-    const std::string count = absl::StrCat(stack->count());
-    const ImVec2 max = ImGui::GetItemRectMax();
-    const ImVec2 extent = ImGui::CalcTextSize(count.c_str());
-    const ImVec2 corner{max.x - extent.x - 3.0f, max.y - extent.y - 1.0f};
-    ImDrawList* draw = ImGui::GetWindowDrawList();
-    draw->AddText({corner.x + 1, corner.y + 1}, kShadow, count.c_str());
-    draw->AddText(corner, kCount, count.c_str());
-  }
-
-  if (stack != nullptr && ImGui::BeginDragDropSource()) {
-    const Dragged dragged{.worn = place.has_worn(), .slot = Key(place)};
-    ImGui::SetDragDropPayload(kPayload, &dragged, sizeof(dragged));
-    ImGui::Text("%s", item != nullptr ? item->name().c_str() : "Unknown item");
+  // Taken hold of, it follows the mouse, from where it was held.
+  if (stack != nullptr &&
+      ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
+    const ImVec2 down = ImGui::GetIO().MouseClickedPos[ImGuiMouseButton_Left];
+    const Dragged dragged{.worn = place.has_worn(),
+                          .slot = Key(place),
+                          .grab = {down.x - min.x, down.y - min.y}};
+    ImGui::SetDragDropPayload(kPayload, &dragged, sizeof(dragged),
+                              ImGuiCond_Once);
     ImGui::EndDragDropSource();
   }
-  if (ImGui::BeginDragDropTarget()) {
-    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kPayload)) {
-      Dragged dragged;
-      std::memcpy(&dragged, payload->Data, sizeof(dragged));
-      const protocol::Place from = PlaceOf(dragged);
+  const std::optional<Dragged> held = Held();
+  const bool source = held && SamePlace(PlaceOf(*held), place);
+
+  // Lit green where what's held would go, by the server's own rules, and red
+  // where it wouldn't.
+  ImU32 edge = 0;
+  if (held && !source && ImGui::BeginDragDropTarget()) {
+    const protocol::Place from = PlaceOf(*held);
+    const bool fits = Fits(items, bag, from, place);
+    edge = fits ? colors::kGood : colors::kHealth;
+    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+            kPayload, ImGuiDragDropFlags_AcceptBeforeDelivery |
+                          ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
+        payload != nullptr && payload->IsDelivery() && fits) {
       // With Shift, half the stack goes, and the rest stays.
       const items::Stack* moving = StackAt(bag, from);
       const uint32_t count =
           ImGui::GetIO().KeyShift && moving != nullptr && moving->count() > 1
               ? moving->count() / 2
               : 0;
-      if (!SamePlace(from, place)) {
-        action = MoveTo(from, place, count);
-      }
+      action = MoveTo(from, place, count);
     }
     ImGui::EndDragDropTarget();
+  } else if (hovered && !held) {
+    edge = colors::kGold;
   }
 
-  if (stack != nullptr && ImGui::IsItemHovered() &&
+  DrawSlot(ImGui::GetWindowDrawList(), min, max, edge);
+  ImDrawList* draw = ImGui::GetWindowDrawList();
+  // What's held is drawn over the slot under it, so the verdict goes round the
+  // slot as well, where it still shows.
+  if (held && !source && edge != 0) {
+    const float out = Ui(3.0f);
+    draw->AddRect({min.x - out, min.y - out}, {max.x + out, max.y + out}, edge,
+                  Ui(2.0f), 0, Ui(2.0f));
+  }
+  if (stack != nullptr) {
+    const ImU32 tint = TintOf(item);
+    const std::string icon =
+        Icon(item != nullptr ? item->look().icon() : kUnknownIcon);
+    // Its place stays, faint, while it's held.
+    DrawSlotIcon(draw, min, max, icon.c_str(), tint, source ? 0.25f : 1.0f);
+    if (stack->count() > 1 && !source) {
+      const std::string count = absl::StrCat(stack->count());
+      ImFont* bold = GetFonts().bold;
+      const float count_size = Ui(14.0f);
+      const ImVec2 extent =
+          bold->CalcTextSizeA(count_size, FLT_MAX, 0.0f, count.c_str());
+      DrawShadowedText(
+          draw, bold, count_size,
+          {max.x - extent.x - Ui(4.0f), max.y - extent.y - Ui(2.0f)},
+          colors::kPaper, count.c_str());
+    }
+    if (source) {
+      DrawDragged(icon.c_str(), tint, size, held->grab);
+    }
+  } else if (place.has_worn()) {
+    // An empty slot that's worn shows what goes in it, faint.
+    DrawSlotIcon(draw, min, max, Icon(SlotIcon(place.worn())).c_str(),
+                 colors::kMuted, 0.3f);
+  }
+
+  if (stack != nullptr && hovered &&
       ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
     action = QuickAction(items, bag, place);
   }
-  if (ImGui::IsItemHovered() && ImGui::GetDragDropPayload() == nullptr &&
-      !ImGui::IsPopupOpen("menu")) {
+  if (hovered && !held && !ImGui::IsPopupOpen("menu")) {
     ImGui::BeginTooltip();
     if (stack == nullptr) {
       ImGui::TextDisabled(
@@ -258,7 +307,10 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
                                  : "Empty");
     } else {
       const std::vector<std::string> lines = ItemLines(items, *stack);
-      ImGui::Text("%s", lines.front().c_str());
+      ImGui::PushFont(GetFonts().title, 15.0f);
+      ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGoldLight),
+                         "%s", lines.front().c_str());
+      ImGui::PopFont();
       for (std::size_t i = 1; i < lines.size(); ++i) {
         ImGui::TextDisabled("%s", lines[i].c_str());
       }
@@ -296,23 +348,27 @@ std::optional<protocol::ItemAction> BagWindow::Build(
   if (!visible_) {
     return std::nullopt;
   }
-  constexpr float kMargin = 10.0f;
   const ImVec2 display = ImGui::GetIO().DisplaySize;
-  ImGui::SetNextWindowPos({display.x - kMargin, display.y * 0.5f},
+  ImGui::SetNextWindowPos({display.x - Ui(18.0f), display.y * 0.55f},
                           ImGuiCond_FirstUseEver, {1.0f, 0.5f});
   std::optional<protocol::ItemAction> action;
   if (BeginPanel("Bag", &visible_,
                  ImGuiWindowFlags_AlwaysAutoResize |
                      ImGuiWindowFlags_NoSavedSettings)) {
-    for (uint32_t slot = 0; slot < kBagSlots; ++slot) {
-      if (slot % kColumns != 0) {
+    const float slot = Ui(kBagSlot);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Ui(ImVec2{5.0f, 5.0f}));
+    for (uint32_t index = 0; index < kBagSlots; ++index) {
+      if (index % kColumns != 0) {
         ImGui::SameLine();
       }
       if (std::optional<protocol::ItemAction> done =
-              ItemSlot(items_, bag, InBag(slot), kBagSlot)) {
+              ItemSlot(items_, bag, InBag(index), slot)) {
         action = std::move(done);
       }
     }
+    ImGui::PopStyleVar();
+    const std::size_t used = bag.bag().size();
+    ImGui::TextDisabled("%zu of %u slots used.", used, kBagSlots);
   }
   EndPanel();
   return action;

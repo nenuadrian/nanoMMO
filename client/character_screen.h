@@ -13,6 +13,9 @@
 
 namespace nanommo {
 
+/// You, as others see you, on C: standing on a lit stage, with a slot round
+/// you for each thing you wear, and your health, experience and where you are
+/// under it.
 class CharacterScreen {
  public:
   explicit CharacterScreen(ItemTable items) : items_(std::move(items)) {}
@@ -33,11 +36,12 @@ class CharacterScreen {
                                             const protocol::Inventory& bag);
 
  private:
-  static constexpr int kPreviewPixels = 360;
+  static constexpr int kPreviewWidth = 360;
+  static constexpr int kPreviewHeight = 472;
 
   ItemTable items_;
   bool visible_ = false;
-  Offscreen preview_{kPreviewPixels, kPreviewPixels};
+  Offscreen preview_{kPreviewWidth, kPreviewHeight};
 };
 
 }  // namespace nanommo

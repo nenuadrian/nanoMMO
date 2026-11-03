@@ -1,12 +1,20 @@
+# The bag's rules, which the client runs too, to show a move before the
+# server's done it.
+add_library(nanommo_inventory inventory.cc)
+target_include_directories(nanommo_inventory PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(nanommo_inventory PUBLIC
+  nanommo_protocol nanommo_content absl::status absl::strings
+)
+
 add_library(nanommo_server_core
-  tick.cc listen.cc inventory.cc world.cc copies.cc monsters.cc npcs.cc levels.cc session.cc interest.cc
+  tick.cc listen.cc world.cc copies.cc monsters.cc npcs.cc levels.cc session.cc interest.cc
   server.cc metrics.cc password.cc database.cc events.cc
   accounts.cc characters.cc players.cc redis.cc tokens.cc
   login_server.cc consul.cc token_bucket.cc stories.cc storyteller.cc recorder.cc
 )
 target_include_directories(nanommo_server_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_server_core PUBLIC
-  nanommo_protocol nanommo_content nanommo_terrain asio prometheus-cpp::core Tracy::TracyClient
+  nanommo_inventory nanommo_protocol nanommo_content nanommo_terrain asio prometheus-cpp::core Tracy::TracyClient
   PkgConfig::sodium PkgConfig::mysqlclient hiredis
   httplib::httplib nlohmann_json::nlohmann_json
   absl::memory absl::status absl::statusor absl::strings absl::time absl::absl_check

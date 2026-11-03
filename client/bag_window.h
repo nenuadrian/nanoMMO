@@ -27,12 +27,13 @@ std::optional<protocol::ItemAction> QuickAction(const ItemTable& items,
                                                 const protocol::Inventory& bag,
                                                 const protocol::Place& place);
 
-/// Draws a slot of the bag, or one that's worn, as a button of the size: the
-/// item's icon in its tint, with how many there are. A player drags an item
-/// from one slot onto another to move it, wear it or take it off, with Shift
-/// for half the stack, double-clicks it to use, wear or take it off, and
-/// right-clicks it for a menu that throws it away too. Returns what they ask
-/// for, which the server does or refuses.
+/// Draws a slot of the bag, or one that's worn, of the size: the item's icon
+/// in its tint, with how many there are. A player drags an item from one slot
+/// onto another to move it, wear it or take it off, with Shift for half the
+/// stack: it follows the mouse, and each slot it's over lights green if the
+/// server would let it go there, and red if not. They double-click it to use,
+/// wear or take it off, and right-click it for a menu that throws it away
+/// too. Returns what they ask for, which the server does or refuses.
 std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
                                              const protocol::Inventory& bag,
                                              const protocol::Place& place,
