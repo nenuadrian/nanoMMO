@@ -82,21 +82,21 @@ Bend BendAt(const skills::Move& move, float ms) {
   return bend;
 }
 
-void Apply(const Bend& bend, const Joints& joints, float metre, Model& model) {
-  const int count = model.skeleton.boneCount;
+void Turn(const Bend& bend, const Joints& joints, float metre,
+          const ModelSkeleton& skeleton, Transform* pose) {
+  const int count = static_cast<int>(skeleton.boneCount);
   std::vector<Quaternion> turn(count, QuaternionIdentity());
   for (std::size_t joint = 0; joint < joints.size(); ++joint) {
     if (joints[joint] >= 0) {
       turn[joints[joint]] = bend.turns[joint];
     }
   }
-  Transform* pose = model.currentPose;
   const std::vector<Transform> clip(pose, pose + count);
   // Each bone comes after the one it hangs from, so by the time we get to a
   // bone, its parent's in place, and turned by every joint above it.
   std::vector<Quaternion> turned(count, QuaternionIdentity());
   for (int bone = 0; bone < count; ++bone) {
-    const int parent = model.skeleton.bones[bone].parent;
+    const int parent = skeleton.bones[bone].parent;
     if (parent < 0) {
       pose[bone].translation =
           Vector3Add(clip[bone].translation, Vector3Scale(bend.shift, metre));
@@ -110,10 +110,17 @@ void Apply(const Bend& bend, const Joints& joints, float metre, Model& model) {
       turned[bone] = QuaternionMultiply(turned[parent], turn[bone]);
     }
     pose[bone].rotation = QuaternionMultiply(turned[bone], clip[bone].rotation);
+  }
+}
+
+void Apply(const Bend& bend, const Joints& joints, float metre, Model& model) {
+  Turn(bend, joints, metre, model.skeleton, model.currentPose);
+  for (int bone = 0; bone < static_cast<int>(model.skeleton.boneCount);
+       ++bone) {
     // What the GPU skins with: from where the bone was bound to where it is.
     model.boneMatrices[bone] =
         MatrixMultiply(MatrixInvert(ToMatrix(model.skeleton.bindPose[bone])),
-                       ToMatrix(pose[bone]));
+                       ToMatrix(model.currentPose[bone]));
   }
 }
 

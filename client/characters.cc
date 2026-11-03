@@ -13,7 +13,9 @@
 
 #include "absl/strings/str_cat.h"
 #include "client/figures.h"
+#include "client/rig.h"
 #include "content/figures.h"
+#include "content/rig.h"
 
 namespace nanommo {
 
@@ -24,11 +26,13 @@ namespace {
 constexpr std::array<const char*, 5> kClips = {"idle", "walk", "run", "attac",
                                                "death"};
 
-constexpr std::string_view kRightHand = "mixamorig:RightHand";
-constexpr std::string_view kLeftFoot = "mixamorig:LeftFoot";
-constexpr std::string_view kRightFoot = "mixamorig:RightFoot";
+constexpr std::string_view kRightHand = "RightHand";
+constexpr std::string_view kLeftFoot = "LeftFoot";
+constexpr std::string_view kRightFoot = "RightFoot";
 
-constexpr float kPalm = 0.08f;
+// The middle of the fist, from the wrist: along the fingers, and a little
+// towards the palm, in metres.
+constexpr Vector3 kFist = {-0.06f, -0.01f, 0.0f};
 
 // raylib cuts clip names at 31 characters, so the skeleton's run ends in
 // Runni, which still has the word run in it.
@@ -94,10 +98,6 @@ void ReadBindPose(const std::string& path, Model& model) {
 
 }  // namespace
 
-std::string CharactersFolder() {
-  return std::string(GetApplicationDirectory()) + "characters";
-}
-
 std::string MonstersFolder() {
   return std::string(GetApplicationDirectory()) + "monsters";
 }
@@ -110,10 +110,35 @@ std::string ContentFolder() {
   return std::string(GetApplicationDirectory()) + "content";
 }
 
+Characters::Characters(const rig::Rig& rig, Shader shader,
+                       const figures::Figures& figures)
+    : figures_(figures) {
+  // The rig as it is, without a build.
+  for (int build = 0; build < std::max(rig.builds_size(), 1); ++build) {
+    const std::vector<rig::Joint> joints = Skeleton(rig, build);
+    if (joints.empty()) {
+      return;
+    }
+    Character character{.model = RigModel(joints)};
+    // The body first, before the clips are baked for the model.
+    Dress(character, figures);
+    character.clips = Bake(rig, character.model, &character.clip_count);
+    if (character.clip_count < 4) {
+      TraceLog(LOG_WARNING, "the rig doesn't have the legs it needs to move");
+      Unload(character);
+      return;
+    }
+    // A player's swing is a skill, with a move of its own, so it stands
+    // without one.
+    character.clip_for = {0, 1, 2, 0, 3};
+    Ready(character, shader);
+    characters_.push_back(character);
+  }
+}
+
 Characters::Characters(const std::string& folder,
                        const std::vector<std::string>& files, float height,
-                       Shader shader, const figures::Figures& figures)
-    : figures_(figures) {
+                       Shader shader) {
   for (const std::string& file : files) {
     const std::string path = absl::StrCat(folder, "/", file);
     if (!FileExists(path.c_str())) {
@@ -141,8 +166,7 @@ Characters::Characters(const std::string& folder,
       character.speed[protocol::MOTION_WALK] = 0.4f;
       character.speed[protocol::MOTION_RUN] = 0.7f;
     }
-    // A player's swing is a skill, with a move of its own, so a character
-    // needs no attack, and stands without one.
+    // Without an attack, it stands as it strikes.
     if (attack < 0) {
       attack = idle;
     }
@@ -156,7 +180,7 @@ Characters::Characters(const std::string& folder,
     // Sized by the model's own mesh, so a figure is as tall as the model.
     const BoundingBox box = GetModelBoundingBox(character.model);
     character.scale = height / (box.max.y - box.min.y);
-    Dress(character, figures);
+    character.hull = character.model;
     characters_.push_back(character);
   }
 }
@@ -272,14 +296,13 @@ void Characters::Hold(uint32_t id, const items::Look& look, Shader shader) {
   const Matrix sized = MatrixMultiply(
       MatrixTranslate(0.0f, -(box.min.y + look.grip() * height), 0.0f),
       MatrixScale(scale, scale, scale));
-  // Mixamo's hand: y along the fingers, x along the knuckles, palm facing z.
-  // The fist holds the blade along x, leaning 20 degrees towards the fingers.
-  const Matrix along = MatrixRotateZ(-(90.0f - 20.0f) * DEG2RAD);
-  // Mixamo's clips turn the hands in, so we turn the blade 40 degrees out,
-  // clear of the legs.
-  const Matrix out = MatrixRotateY(40.0f * DEG2RAD);
-  const Matrix in_hand = MatrixMultiply(MatrixMultiply(along, out),
-                                        MatrixTranslate(0.0f, kPalm, 0.0f));
+  // The rig's right hand rests with its fingers out to the right, the palm
+  // down and the thumb ahead. The fist holds the blade out past the thumb,
+  // leaning 20 degrees towards the fingers.
+  const Matrix along = MatrixMultiply(MatrixRotateX(90.0f * DEG2RAD),
+                                      MatrixRotateY(-20.0f * DEG2RAD));
+  const Matrix in_hand =
+      MatrixMultiply(along, MatrixTranslate(kFist.x, kFist.y, kFist.z));
   // The blade runs up the middle of the model, from the grip to the top.
   const float middle_x = (box.min.x + box.max.x) / 2.0f;
   const float middle_z = (box.min.z + box.max.z) / 2.0f;

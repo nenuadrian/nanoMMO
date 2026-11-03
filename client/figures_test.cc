@@ -5,9 +5,11 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "client/characters.h"
+#include "client/rig.h"
 #include "client/window.h"
+#include "content/content.h"
 #include "content/figures.h"
+#include "content/rig.h"
 #include "gtest/gtest.h"
 
 namespace {
@@ -24,16 +26,13 @@ int BoneNamed(const Model& model, const std::string& name) {
 }  // namespace
 
 TEST(Figures, BindsEachCornerToItsPartsBone) {
-  const std::string path = nanommo::CharactersFolder() + "/x_bot.glb";
-  if (!FileExists(path.c_str())) {
-    GTEST_SKIP() << "no characters: see assets/mixamo/README.md";
-  }
   const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
       nanommo::Window::Create("test", 64, 64,
                               nanommo::Window::Visibility::kHidden);
   ASSERT_TRUE(window.ok());
-  Model model = LoadModel(path.c_str());
-  // An arm, a head, and a tail, which Mixamo's rig doesn't have.
+  Model model = nanommo::RigModel(
+      nanommo::Skeleton(nanommo::ReadContent(NANOMMO_CONTENT)->rig, 0));
+  // An arm, a head, and a tail, which the rig doesn't have.
   const nanommo::figures::Figures figures = *nanommo::ParseFigures(R"pb(
     body {
       shape: SHAPE_LIMB
@@ -61,8 +60,8 @@ TEST(Figures, BindsEachCornerToItsPartsBone) {
   ASSERT_EQ(model.meshCount, 1);
   const Mesh& mesh = model.meshes[0];
   ASSERT_EQ(mesh.triangleCount, 64 + 80);
-  const int arm = BoneNamed(model, "mixamorig:LeftArm");
-  const int head = BoneNamed(model, "mixamorig:Head");
+  const int arm = BoneNamed(model, "LeftArm");
+  const int head = BoneNamed(model, "Head");
   for (int i = 0; i < mesh.vertexCount; ++i) {
     EXPECT_EQ(mesh.boneIndices[4 * i], i < 64 * 3 ? arm : head);
     EXPECT_FLOAT_EQ(mesh.boneWeights[4 * i], 1.0f);

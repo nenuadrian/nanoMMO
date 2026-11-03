@@ -296,8 +296,7 @@ Renderer::Renderer(const Content& content)
       cube_(LoadModelFromMesh(GenMeshCube(1.0f, 1.0f, 1.0f))),
       disc_(LoadModelFromMesh(Disc().Upload())),
       spire_(LoadModelFromMesh(Spire().Upload())),
-      characters_(CharactersFolder(), {"x_bot.glb", "y_bot.glb"}, 1.8f,
-                  character_shader_, content.figures),
+      characters_(content.rig, character_shader_, content.figures),
       fx_(std::make_unique<Fx>(content.skills, cube_shader_)),
       sky_(std::make_unique<Sky>()) {
   for (Model* model : {&cube_, &disc_, &spire_}) {

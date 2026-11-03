@@ -18,11 +18,10 @@
 #include "client/soundscape.h"
 #include "content/figures.pb.h"
 #include "content/items.pb.h"
+#include "content/rig.pb.h"
 #include "content/skills.pb.h"
 
 namespace nanommo {
-
-std::string CharactersFolder();
 
 std::string MonstersFolder();
 
@@ -32,10 +31,15 @@ std::string ContentFolder();
 
 class Characters {
  public:
-  /// With the figures, each model is dressed in their body in place of its
-  /// mesh, and each player is drawn in their own skin and hair.
+  /// People: one for each of the rig's builds, with its motions, in the
+  /// figures' body, and each player in their own skin and hair.
+  Characters(const rig::Rig& rig, Shader shader,
+             const figures::Figures& figures);
+
+  /// Monsters: each model in the folder's files, with the clips in it, as
+  /// tall as the height.
   Characters(const std::string& folder, const std::vector<std::string>& files,
-             float height, Shader shader, const figures::Figures& figures = {});
+             float height, Shader shader);
   ~Characters();
 
   Characters(const Characters&) = delete;

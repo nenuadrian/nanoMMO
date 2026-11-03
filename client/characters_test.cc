@@ -1,5 +1,6 @@
 #include "client/characters.h"
 
+#include <cstddef>
 #include <memory>
 
 #include "absl/status/statusor.h"
@@ -7,30 +8,28 @@
 #include "client/offscreen.h"
 #include "client/renderer.h"
 #include "client/window.h"
+#include "content/content.h"
 #include "gtest/gtest.h"
 
 namespace {
 
-bool HaveCharacters() {
-  return FileExists((nanommo::CharactersFolder() + "/x_bot.glb").c_str());
+nanommo::Content GamesContent() {
+  return *nanommo::ReadContent(NANOMMO_CONTENT);
 }
 
 }  // namespace
 
-TEST(Characters, LoadsBothBotsWithTheirClips) {
-  if (!HaveCharacters()) {
-    GTEST_SKIP() << "no characters: see assets/mixamo/README.md";
-  }
+TEST(Characters, BuildsAPersonForEachOfTheRigsBuilds) {
   const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
       nanommo::Window::Create("test", 64, 64,
                               nanommo::Window::Visibility::kHidden);
   ASSERT_TRUE(window.ok());
   const Shader shader = LoadShaderFromMemory(nullptr, nullptr);
+  const nanommo::Content content = GamesContent();
 
-  const nanommo::Characters characters(
-      nanommo::CharactersFolder(), {"x_bot.glb", "y_bot.glb"}, 1.8f, shader);
+  const nanommo::Characters people(content.rig, shader, content.figures);
 
-  EXPECT_EQ(characters.size(), 2u);
+  EXPECT_EQ(people.size(), static_cast<std::size_t>(content.rig.builds_size()));
 }
 
 TEST(Characters, LoadsTheSkeletonWithAWalkMadeFromItsRun) {
@@ -77,32 +76,27 @@ TEST(Characters, DrawsTheSkeletonWithItsArmsDown) {
 }
 
 TEST(Characters, DrawsAPlayerStandingInTheMiddle) {
-  if (!HaveCharacters()) {
-    GTEST_SKIP() << "no characters: see assets/mixamo/README.md";
-  }
   const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
       nanommo::Window::Create("test", 64, 64,
                               nanommo::Window::Visibility::kHidden);
   ASSERT_TRUE(window.ok());
   nanommo::Offscreen target(64, 64);
-  nanommo::Renderer renderer;
+  nanommo::Renderer renderer(GamesContent());
   renderer.set_background({30 / 255.0f, 144 / 255.0f, 255 / 255.0f});
-  renderer.set_figures({{.id = 1}});
+  // In the Linen Shirt, which is dyed in each player's colour.
+  renderer.set_figures({{.id = 1, .wearing = {8}}});
 
   target.Render(renderer);
 
-  // Chest height, higher than a cube reaches, is orange: player one's colour.
+  // At the chest, the shirt is orange: player one's colour.
   const Vector2 chest =
-      GetWorldToScreenEx({0.0f, 1.4f, 0.0f}, nanommo::GameCamera(), 64, 64);
+      GetWorldToScreenEx({0.0f, 1.3f, 0.0f}, nanommo::GameCamera(), 64, 64);
   const nanommo::Pixel body = target.ReadPixel(chest.x, chest.y);
   EXPECT_GT(body.r, body.g);
   EXPECT_GT(body.g, body.b);
 }
 
 TEST(Characters, DrawsWhatAPlayerWearsOverTheirFigure) {
-  if (!HaveCharacters()) {
-    GTEST_SKIP() << "no characters: see assets/mixamo/README.md";
-  }
   const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
       nanommo::Window::Create("test", 64, 64,
                               nanommo::Window::Visibility::kHidden);
@@ -110,8 +104,9 @@ TEST(Characters, DrawsWhatAPlayerWearsOverTheirFigure) {
   nanommo::Offscreen target(256, 256);
   // A figure that's just a body, thick enough to cover a few pixels from the
   // game's camera, in a green skin, and a blue tunic, a ball round the
-  // chest.
+  // chest, on the game's rig.
   nanommo::Content content;
+  content.rig = GamesContent().rig;
   content.figures = *nanommo::ParseFigures(R"pb(
     body {
       shape: SHAPE_LIMB

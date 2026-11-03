@@ -8,7 +8,7 @@ add_library(nanommo_client_core
   bag_window.cc
   character_screen.cc
   chat_window.cc talk_window.cc trainer_window.cc quest_window.cc picking.cc
-  animator.cc characters.cc moves.cc fx.cc figures.cc triangles.cc ground.cc trees.cc chunks.cc
+  animator.cc characters.cc rig.cc moves.cc fx.cc figures.cc triangles.cc ground.cc trees.cc chunks.cc
   sea.cc sky.cc
   gate.cc
   loading.cc death_screen.cc cube.cc cursor.cc map.cc
@@ -64,7 +64,7 @@ add_dependencies(nanommo_client_bench nanommo_client_assets)
 
 add_executable(nanommo_client_tests
   renderer_test.cc sea_test.cc animator_test.cc characters_test.cc
-  moves_test.cc fx_test.cc
+  moves_test.cc rig_test.cc fx_test.cc
   figures_test.cc picking_test.cc
   jukebox_test.cc sound_test.cc settings_test.cc bag_window_test.cc
   quest_window_test.cc combat_text_test.cc nameplates_test.cc
