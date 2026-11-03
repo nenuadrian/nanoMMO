@@ -12,7 +12,7 @@ add_library(nanommo_client_core
   sea.cc sky.cc
   gate.cc
   loading.cc death_screen.cc cube.cc cursor.cc map.cc
-  theme.cc compass.cc
+  theme.cc compass.cc predicted_bag.cc
 )
 protobuf_generate(TARGET nanommo_client_core
   IMPORT_DIRS ${PROJECT_SOURCE_DIR} PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}
@@ -71,7 +71,7 @@ add_executable(nanommo_client_tests
   quest_window_test.cc combat_text_test.cc nameplates_test.cc
   login_screen_test.cc
   loading_test.cc death_screen_test.cc gate_test.cc map_test.cc
-  theme_test.cc compass_test.cc
+  theme_test.cc compass_test.cc predicted_bag_test.cc
 )
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)
 add_dependencies(nanommo_client_tests nanommo_client_assets)

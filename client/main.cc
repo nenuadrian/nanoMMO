@@ -41,6 +41,7 @@
 #include "client/picking.h"
 #include "client/player_frame.h"
 #include "client/postprocess.h"
+#include "client/predicted_bag.h"
 #include "client/quest_window.h"
 #include "client/renderer.h"
 #include "client/settings.h"
@@ -180,6 +181,7 @@ int main(int argc, char* argv[]) {
   nanommo::Hotbar hotbar(content->skills);
   hotbar.Arrange(settings.ui.hotbar);
   nanommo::PlayerFrame player_frame;
+  nanommo::PredictedBag predicted_bag(content->items);
   nanommo::LoginScreen login_screen(content_hash, content->items);
   nanommo::Renderer renderer(*content);
   nanommo::PostProcess post;
@@ -565,18 +567,21 @@ int main(int argc, char* argv[]) {
       }
       // What the player does with their items, in either window, goes with
       // what we sent last, like a line of chat.
+      // The bag as it'll be, with what we've just done in it already.
+      const nanommo::protocol::Inventory bag =
+          predicted_bag.Shown(connection->inventory(), GetFrameTime());
       std::optional<nanommo::protocol::ItemAction> item =
           character_screen.Build(renderer.figures(), connection->world(),
-                                 nanommo::kLands[land].name,
-                                 connection->inventory());
+                                 nanommo::kLands[land].name, bag);
       if (std::optional<nanommo::protocol::ItemAction> in_bag =
-              bag_window.Build(connection->inventory())) {
+              bag_window.Build(bag)) {
         item = std::move(in_bag);
       }
       if (item) {
         nanommo::protocol::Input ask = sent;
         *ask.mutable_item() = *item;
         connection->Send(ask);
+        predicted_bag.Act(bag, *item);
       }
       menu.BuildButtons(character_screen.mutable_visible(),
                         bag_window.mutable_visible(), &map_open);
