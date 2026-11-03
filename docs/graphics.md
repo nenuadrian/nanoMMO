@@ -2,36 +2,54 @@
 
 ## Characters
 
-The players are people, posed by Mixamo's X Bot and Y Bot, with an idle, a walk, a run and a death.
-The skills, Strike on Space too, are moves of our own (see [Moves and fx](#moves-and-fx)).
-Mixamo's terms don't let us share its files, so they're not in the repo:
-[assets/mixamo/README.md](../assets/mixamo/README.md) lists what to download from mixamo.com. Then make
-the characters:
+The players are people, built on a skeleton of our own, which moves in ways of our own: an idle, a
+walk, a run and a death, and the skills, Strike on Space too (see [Moves and fx](#moves-and-fx)).
+All of it is in the repo, as numbers, in [content/rig.txtpb](../content/rig.txtpb), so a clone has
+everything it needs to draw them.
 
-```bash
-docker build --target characters --output assets/characters .
-```
+The rig is a list of joints, each with the joint it hangs from and where it is, in metres, along
+the figure's own axes as it stands with its arms out to the sides: the hips, which carry the rest,
+three joints up the spine, the neck and the head, and on each side the collarbone, the shoulder, the
+elbow and the wrist, and the hip, the knee, the ankle, the ball of the foot and the tip of the toes.
+The lengths are an adult's, as shares of their height. A joint on the left can be mirrored onto the
+right. A build moves some joints, and the ones that hang from them, such as the shoulders out
+wider, and each player's id picks one of the builds (`client/rig.cc` makes a raylib model of each,
+a bone for each joint, resting where it is, unturned).
 
-The `characters` stage converts the FBX files to glTF with FBX2glTF, and
-[assets/tools/merge.mjs](../assets/tools/merge.mjs) puts each character and the clips into one `.glb`
-that raylib can load: one skeleton, the walk and the run in place, and a tenth of the triangles. The
-death keeps its motion, so a player falls back as it dies. The build copies
-`assets/characters` next to the client, which loads them from there. Without them, the players are
-cubes, and the client's character tests skip themselves.
+How a figure stands is a key like a skill's, turning the joints from the arms out to arms down by
+the sides, with the sword hand turned so the blade points ahead. The idle and the death are moves
+like a skill's, over the stance: the idle breathes, and shifts the weight from one foot to the other,
+and loops; the death jerks back, doubles over, sits down hard, rolls onto its back and lies there.
+The ground holds the dying body up: whatever a key puts under it is lifted out of it.
 
-The client draws neither bot's mesh. A player's figure is made of parts, in
-[content/figures.txtpb](../content/figures.txtpb): limbs with round ends, from one joint of the rig to
-another, and low-poly balls at a joint, each in metres, along the figure's own axes as it stands in
-the rig's T-pose. A part on the left can be mirrored onto the right. The client builds the parts'
-triangles where the bones rest, and binds each corner to its part's bone alone, so the clips pose the
-parts as they posed the mesh, rigidly, like a jointed doll. The body's parts are white, which takes
+The walk and the run are numbers rather than keys: the speed, how long a step with each foot takes,
+the share of it each foot is down, how high a foot lifts, how far apart the feet are, how far the
+hips drop, bob and sway, how far the body leans, the hips and the chest turn and the arms swing, and
+how far a foot rolls off its heel as it lands and onto its toes as it leaves the ground. A foot
+that's down goes back under the body exactly as fast as the server moves the body forward, so it
+stays where it was put down, then it lifts and swings forward to land again; and the middle of its
+time down is where the leg reaches as far forward to land as it does back to push off. The legs
+reach the feet by bending at the knee, in the plane of the hip, the ankle and the way the foot
+points, as two bones of fixed lengths do, and past most of the leg's length the foot falls a little
+short, more so the further it is, so the knee straightens smoothly. The sword hand bends back as its
+elbow does, so the blade keeps pointing ahead.
+
+As it loads, the client works out each motion, sixty frames a second, into raylib's own clips, which
+it plays and blends as it would any model's.
+
+A player's figure is made of parts, in [content/figures.txtpb](../content/figures.txtpb): limbs with
+round ends, from one joint of the rig to another, and low-poly balls at a joint, each in metres,
+along the figure's own axes as it stands with its arms out. A part on the left can be mirrored onto
+the right. The client builds the parts' triangles where the bones rest, and binds each corner to its
+part's bone alone, so the clips pose the parts rigidly, like a jointed doll. The content's checks
+refuse a part on a joint the rig doesn't have. The body's parts are white, which takes
 on the player's skin, with dark eyes. The file lists the skins, the hair colours and the ways to wear
 the hair, and each player's id picks one of each, the same on every client. An item's look can have
 parts too, which a player who wears it has over their figure, in their own colours, or for a dyed
 one, such as the Linen Shirt, in the player's colour (see [Items](gameplay.md#items)). Each player in the
 world's message says what they wear, so everyone sees each other in it. NPCs are people too, but
 their kind in the NPCs file says their skin, hair and clothes, which a player's id doesn't pick, and
-which of the two bots they're on (see [NPCs](npcs.md)). With cel shading on, the
+their kind's id picks their build (see [NPCs](npcs.md)). With cel shading on, the
 outline is drawn with each figure's hull, the same parts with smooth normals, so it stays whole
 around the parts, but for those flush with a bigger one, such as the eyes. Nothing casts a shadow,
 so each figure has a soft dark patch under it, on the ground.
@@ -40,7 +58,8 @@ Each player holds the weapon in their main hand (see [Items](gameplay.md#items))
 [Poly Pizza](https://poly.pizza/m/ajOJ2NLz5m), which is public domain and in the repo, as it was
 downloaded, in `assets/weapons`. The client scales it to its length in the file, a metre, holds it
 where the file says, a sixth of the way up, and, each frame, puts it where the right hand's bone is
-in the pose: along the knuckles, with the blade out past the index finger. glTF colours are linear,
+in the pose: along the knuckles, with the blade out past the thumb, leaning a little towards the
+fingers. glTF colours are linear,
 so the client turns the sword's into sRGB, as our shader writes colours out as they are. An item's
 tint goes over them, so the Ash Blade is the sword in another colour.
 
@@ -192,9 +211,9 @@ starts, in about a third of a second, so there are no files for them in the repo
   over. A take doesn't follow itself, and each plays a little higher or lower, and a little quieter
   or not (`Variety`, in `client/soundscape.h`), so that a hundred steps don't sound like a machine.
 - A step comes when the walk or the run puts a foot down. As a character loads, the client finds
-  when each foot's bone comes down to near its lowest in each clip: Mixamo's walk puts the left foot
-  down about 27% of the way through and the right about 76%, and its run about a fifth and two thirds
-  of the way through. The skeleton has no foot bones, so it steps at the start and halfway.
+  when each foot's bone comes down to near its lowest in each clip: our walk and run put the left
+  foot down as each cycle starts, and the right halfway. The skeleton has no foot bones, so it steps
+  at the start and halfway.
   `Footsteps` follows how far each figure is through its clip, and steps when a foot's moment comes
   round.
 - Each sound is heard from where you stand: in full within four metres, then falling as one over the

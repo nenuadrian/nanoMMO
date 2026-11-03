@@ -2,10 +2,11 @@
 
 The game's content is data, in the `content` folder, which the world servers, the client and the
 bots read, so that there's one place to change it: `figures.txtpb`, `items.txtpb`,
-`monsters.txtpb`, `npcs.txtpb`, `quests.txtpb` and `skills.txtpb`, in protobuf's text format, each
-with its schema next to it, in `figures.proto`, `items.proto`, `monsters.proto`, `npcs.proto`,
-`quests.proto` and `skills.proto`. The figures are the players' bodies and hair (see
-[Characters](graphics.md#characters)). There are eleven items: the sword, a health potion, a bone, a leather
+`monsters.txtpb`, `npcs.txtpb`, `quests.txtpb`, `rig.txtpb` and `skills.txtpb`, in protobuf's text
+format, each with its schema next to it, in `figures.proto`, `items.proto`, `monsters.proto`,
+`npcs.proto`, `quests.proto`, `rig.proto` and `skills.proto`. The figures are the players' bodies and
+hair, and the rig is the skeleton they're built on, and how it stands, idles, walks, runs and dies
+(see [Characters](graphics.md#characters)). There are eleven items: the sword, a health potion, a bone, a leather
 cap and tunic, the Ashlands' blade and buckler, the clothes a new player starts in, a linen shirt,
 cloth trousers and plain shoes, and leather boots, three kinds of monster, the skeleton, the Ash
 Skeleton and the Crypt Skeleton, six kinds of NPC, three quests (see [Quests](gameplay.md#quests)) and four
@@ -44,8 +45,8 @@ skills (see [Skills](gameplay.md#skills)).
   and each quest has a giver, asks for some kills, and gives some of each of its prizes. Once every
   file is read, `CheckContent` checks what no file can on its own: that each item a monster drops is
   in the items file, each skill a trainer teaches is in the skills file, each NPC's hair is in the
-  figures file and its clothes in the items file, and each quest's giver, monster and prizes are in
-  theirs. The server, the client and the bots don't start without good content.
+  figures file and its clothes in the items file, each quest's giver, monster and prizes are in
+  theirs, and each part of a figure, a way to wear the hair or an item is on a joint of the rig. The server, the client and the bots don't start without good content.
 - Ids start at one, and an item or a kind keeps its id for good, as they're saved and sent by id.
   Protobuf leaves a zero out, so the client takes a missing weapon or kind as one it already knows.
 - Each player's bag holds its items by their ids (see [Items](gameplay.md#items)), saved with the rest of the

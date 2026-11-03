@@ -7,6 +7,21 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.60.0 (2026-11-03)
+
+- The people are built on a rig of our own, in `content/rig.txtpb`: a skeleton of 24 joints, with an
+  adult's proportions, in two builds, the second broader at the shoulders, and how a person stands,
+  idles, walks, runs and dies. The client works out the motions as it loads, so there's nothing to
+  download, and a fresh clone draws everyone as a person, never as a cube.
+- The walk and the run come from where the feet go: a foot that's down stays where it was put down,
+  as the server moves the body on, and the legs bend at the knee to reach it, so the feet don't
+  slide.
+- In the death, the person falls back, sits down hard and lies on the ground, never under it.
+- The content's checks refuse a part of a figure, a way to wear the hair or an item on a joint the
+  rig doesn't have, and the rig is in the clients' content hash.
+- Mixamo's files, the Dockerfile's `characters` stage and `assets/tools`, which converted them, are
+  gone.
+
 ## 0.59.0 (2026-11-03)
 
 - The game has a version, one for the client and the servers. The login screen shows it in its

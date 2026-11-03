@@ -77,8 +77,8 @@ and port that world registered, behind a loading screen until the
 land is built (see [The loading screen](docs/graphics.md#the-loading-screen)). It gets the world over UDP, unless you put `tcp` after the
 host (`./build/bin/nanommo_client localhost tcp`); see [Packet loss: TCP and UDP](docs/networking.md#packet-loss-tcp-and-udp).
 Each player is an animated person, in their own skin and hair, and in a shirt of their own colour,
-with a sword, on an island of hills, woods and beaches, with its level, name and health over it, or
-a cube until you've made the characters (see [Characters](docs/graphics.md#characters)).
+with a sword, on an island of hills, woods and beaches, with its level, name and health over it (see
+[Characters](docs/graphics.md#characters)).
 Skeletons wander around the middle, and in camps around the island, and a few NPCs stand near the
 middle, each a person with its name over it (see [NPCs](docs/npcs.md)). Click the storyteller, in purple,
 to ask it for a story (see [The storyteller](docs/npcs.md#the-storyteller)), the trainer, in grey, to learn
