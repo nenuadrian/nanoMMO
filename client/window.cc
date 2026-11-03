@@ -14,7 +14,8 @@ absl::StatusOr<std::unique_ptr<Window>> Window::Create(const std::string& title,
                                                        int width, int height,
                                                        Visibility visibility) {
   SetTraceLogLevel(LOG_WARNING);
-  unsigned int flags = FLAG_WINDOW_HIGHDPI;
+  // Any size the player drags it to, as the interface follows its height.
+  unsigned int flags = FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_RESIZABLE;
   if (visibility == Visibility::kHidden) {
     flags |= FLAG_WINDOW_HIDDEN;
   }

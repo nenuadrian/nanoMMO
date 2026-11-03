@@ -85,6 +85,18 @@ bool Menu::Build(Window& window, Settings& settings, Atmosphere& atmosphere,
   if (show_settings_) {
     ImGui::Begin("Settings", &show_settings_,
                  ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::SeparatorText(ICON_FA_TABLE_COLUMNS " Interface");
+    if (!ImGui::IsAnyItemActive() || scale_ == 0.0f) {
+      scale_ = settings.ui.scale;
+    }
+    int percent = static_cast<int>(std::lround(scale_ * 100.0f));
+    if (ImGui::SliderInt("Size", &percent, 75, 150, "%d%%",
+                         ImGuiSliderFlags_AlwaysClamp)) {
+      scale_ = static_cast<float>(percent) / 100.0f;
+    }
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+      settings.ui.scale = scale_;
+    }
     ImGui::SeparatorText(ICON_FA_VOLUME_HIGH " Sound");
     SliderPercent("Volume", settings.sound.master);
     SliderPercent("Music", settings.sound.music);

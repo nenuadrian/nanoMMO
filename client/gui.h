@@ -11,9 +11,14 @@ class Gui {
   Gui(const Gui&) = delete;
   Gui& operator=(const Gui&) = delete;
 
-  void Begin();
+  /// Starts the frame's interface, at the scale for the screen's height times
+  /// the player's own.
+  void Begin(float player_scale = 1.0f);
 
   void End();
+
+ private:
+  float applied_ = 0.0f;
 };
 
 }  // namespace nanommo

@@ -18,6 +18,9 @@ class Menu {
  private:
   bool show_settings_ = false;
   bool show_demo_ = false;
+  // The interface's scale while its slider's held, which takes effect once
+  // it's let go, as the slider itself would grow and shrink under the mouse.
+  float scale_ = 0.0f;
 };
 
 }  // namespace nanommo

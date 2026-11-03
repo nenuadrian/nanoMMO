@@ -17,8 +17,14 @@ message Graphics {
   optional bool antialias = 3;
 }
 
+// How the interface looks and is laid out.
+message Interface {
+  optional float scale = 1;
+}
+
 // What the player sets, which the client keeps between runs.
 message Settings {
   Sound sound = 1;
   Graphics graphics = 2;
+  Interface ui = 3;
 }

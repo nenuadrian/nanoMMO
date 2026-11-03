@@ -477,7 +477,7 @@ int main(int argc, char* argv[]) {
     } else {
       renderer.Clear();
     }
-    gui.Begin();
+    gui.Begin(settings.ui.scale);
     if (in_world) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera());
       nanommo::DrawCombatText(combat_text, renderer.figures(),

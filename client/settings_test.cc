@@ -19,7 +19,8 @@ TEST(Settings, KeepsThemBetweenRuns) {
   const std::string path = TestPath("kept.txtpb");
   const nanommo::Settings settings = {
       .sound = {.master = 0.5f, .music = 0.25f, .muted = true},
-      .graphics = {.bloom = false, .cel_shading = true, .antialias = false}};
+      .graphics = {.bloom = false, .cel_shading = true, .antialias = false},
+      .ui = {.scale = 1.25f}};
   ASSERT_TRUE(nanommo::SaveSettings(path, settings).ok());
 
   const absl::StatusOr<nanommo::Settings> loaded = nanommo::LoadSettings(path);
@@ -39,6 +40,7 @@ TEST(Settings, TakesTheDefaultsForWhatTheFileLeavesOut) {
   EXPECT_EQ(loaded->sound.music, 0.25f);
   EXPECT_EQ(loaded->sound.master, nanommo::SoundSettings().master);
   EXPECT_EQ(loaded->graphics, nanommo::GraphicsSettings());
+  EXPECT_EQ(loaded->ui, nanommo::InterfaceSettings());
 
   std::ofstream(path) << "sound { musik: 0.25 }";
   EXPECT_FALSE(nanommo::LoadSettings(path).ok());

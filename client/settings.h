@@ -10,10 +10,20 @@
 
 namespace nanommo {
 
+/// How the interface looks, as the player sets it.
+struct InterfaceSettings {
+  /// How much bigger or smaller than its size for the screen the interface
+  /// is drawn, from half to twice.
+  float scale = 1.0f;
+
+  bool operator==(const InterfaceSettings&) const = default;
+};
+
 /// What the player sets, which the client keeps between runs.
 struct Settings {
   SoundSettings sound;
   GraphicsSettings graphics;
+  InterfaceSettings ui;
 
   bool operator==(const Settings&) const = default;
 };
