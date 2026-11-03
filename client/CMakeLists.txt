@@ -68,6 +68,7 @@ add_executable(nanommo_client_tests
   figures_test.cc picking_test.cc
   jukebox_test.cc sound_test.cc settings_test.cc bag_window_test.cc
   quest_window_test.cc combat_text_test.cc nameplates_test.cc
+  login_screen_test.cc
   loading_test.cc death_screen_test.cc gate_test.cc map_test.cc
 )
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)

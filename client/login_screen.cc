@@ -1,8 +1,10 @@
 #include "client/login_screen.h"
 
 #include <imgui.h>
+#include <raylib.h>
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <utility>
 #include <vector>
@@ -18,6 +20,13 @@ constexpr ImGuiWindowFlags kWindowFlags = ImGuiWindowFlags_AlwaysAutoResize |
                                           ImGuiWindowFlags_NoCollapse |
                                           ImGuiWindowFlags_NoMove;
 
+// How far a pixel of a drag turns the character, in radians, and how near and
+// far the preview's camera goes, in metres.
+constexpr float kTurnPerPixel = 0.012f;
+constexpr float kNearest = 2.2f;
+constexpr float kFarthest = 5.5f;
+constexpr float kZoomStep = 0.3f;
+
 void ShowErrorText(const std::string& error) {
   if (!error.empty()) {
     ImGui::TextColored({1.0f, 0.45f, 0.4f, 1.0f},
@@ -26,6 +35,41 @@ void ShowErrorText(const std::string& error) {
 }
 
 }  // namespace
+
+Figure LoginScreen::FigureOf(const protocol::CharacterListing& character,
+                             const ItemTable& items) {
+  Figure figure;
+  figure.id = character.id();
+  figure.name = character.name();
+  figure.level = static_cast<int>(character.level());
+  figure.weapon = character.weapon();
+  figure.wearing = {character.wearing().begin(), character.wearing().end()};
+  // A character that's never entered gets the kit as it does: it's shown in
+  // it now, the way the world will dress it.
+  if (character.fresh()) {
+    std::vector<items::Slot> taken;
+    for (const items::Stack& stack : items.starting) {
+      const auto item = items.by_id.find(stack.item());
+      if (item == items.by_id.end() || !item->second.has_equip()) {
+        continue;
+      }
+      const items::Slot slot = item->second.equip().slot();
+      if (std::ranges::find(taken, slot) != taken.end()) {
+        continue;
+      }
+      taken.push_back(slot);
+      if (slot == items::SLOT_MAIN_HAND) {
+        figure.weapon = stack.item();
+      } else {
+        figure.wearing.push_back(stack.item());
+      }
+    }
+  }
+  figure.from = protocol::MOTION_IDLE;
+  figure.to = protocol::MOTION_IDLE;
+  figure.blend = 1.0f;
+  return figure;
+}
 
 std::optional<protocol::LoginRequest> LoginScreen::Build() {
   ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(),
@@ -255,15 +299,33 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCharacters() {
       ImGui::Button(ICON_FA_USER_PLUS " New character") || named;
   ImGui::EndGroup();
 
-  // The one picked, on the right.
+  // The one picked, to turn and look at, on the right.
   ImGui::SameLine();
   ImGui::BeginGroup();
   bool enter = false;
   bool delete_it = false;
   if (character != nullptr) {
+    const ImVec2 at = ImGui::GetCursorScreenPos();
+    const ImVec2 size{static_cast<float>(kPreviewWidth),
+                      static_cast<float>(kPreviewHeight)};
+    ImGui::InvisibleButton("##preview", size);
+    // OpenGL keeps the rows bottom up, so the UVs turn the picture over.
+    ImGui::GetWindowDrawList()->AddImage(
+        static_cast<ImTextureID>(preview_.texture().id), at,
+        {at.x + size.x, at.y + size.y}, {0.0f, 1.0f}, {1.0f, 0.0f});
+    const ImGuiIO& io = ImGui::GetIO();
+    if (ImGui::IsItemActive()) {
+      turn_ += io.MouseDelta.x * kTurnPerPixel;
+    }
+    if (ImGui::IsItemHovered()) {
+      ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+      distance_ = std::clamp(distance_ - io.MouseWheel * kZoomStep, kNearest,
+                             kFarthest);
+    }
     ImGui::Text("%s", character->name().c_str());
     ImGui::TextDisabled("Level %u, in the %s", character->level(),
                         character->land().c_str());
+    ImGui::TextDisabled("Drag to turn, scroll to come closer.");
     if (!deleting_) {
       enter = ImGui::Button(ICON_FA_PLAY " Enter the world") ||
               (!typing && ImGui::IsKeyPressed(ImGuiKey_Enter));
@@ -308,6 +370,35 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCharacters() {
   }
   error_.clear();
   return request;
+}
+
+void LoginScreen::Render(const Renderer& renderer) {
+  if (step_ != Step::kCharacters || !world_) {
+    return;
+  }
+  const auto found = std::ranges::find_if(
+      characters_, [&](const auto& c) { return c.id() == picked_; });
+  if (found == characters_.end()) {
+    return;
+  }
+  Figure figure = FigureOf(*found, items_);
+  figure.yaw = turn_;
+  // Its idle, from when the client started: it breathes, and looks round.
+  figure.to_time = static_cast<float>(GetTime());
+  // The camera looks at the middle, and closer up, higher, so that the top of
+  // the picture stays two metres up and the head stays in it.
+  constexpr float kFov = 35.0f;
+  constexpr float kTop = 2.0f;
+  const float height =
+      std::max(0.9f, kTop - distance_ * std::tan(kFov / 2.0f * DEG2RAD));
+  const Camera3D camera{
+      .position = {0.0f, height + 0.1f, distance_},
+      .target = {0.0f, height, 0.0f},
+      .up = {0.0f, 1.0f, 0.0f},
+      .fovy = kFov,
+      .projection = CAMERA_PERSPECTIVE,
+  };
+  preview_.RenderPreview(renderer, figure, camera);
 }
 
 }  // namespace nanommo

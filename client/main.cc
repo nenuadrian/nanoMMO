@@ -175,7 +175,7 @@ int main(int argc, char* argv[]) {
   nanommo::TrainerWindow trainer_window(content->skills);
   nanommo::QuestWindow quest_window(*content);
   nanommo::Hotbar hotbar(content->skills);
-  nanommo::LoginScreen login_screen(content_hash);
+  nanommo::LoginScreen login_screen(content_hash, content->items);
   nanommo::Renderer renderer(*content);
   nanommo::PostProcess post;
   nanommo::Animator animator(*content);
@@ -449,6 +449,9 @@ int main(int argc, char* argv[]) {
         bag_window.Toggle();
       }
       character_screen.Render(renderer);
+    } else if (!entering) {
+      // The character picked on the login screen, drawn before the frame.
+      login_screen.Render(renderer);
     }
 
     // Before the frame is drawn, so that the frame we're back in is the dark
