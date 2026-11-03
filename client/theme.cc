@@ -442,6 +442,34 @@ bool GameButton(const char* label, ImVec2 size, bool primary, bool enabled) {
   return clicked;
 }
 
+void DrawBar(ImDrawList* draw, ImVec2 min, ImVec2 max, float share, ImU32 color,
+             ImU32 dark, const char* text) {
+  share = std::clamp(share, 0.0f, 1.0f);
+  draw->AddRectFilled(min, max, Faded(colors::kNight, 0.9f));
+  if (share > 0.0f) {
+    const ImVec2 full{min.x + (max.x - min.x) * share, max.y};
+    draw->AddRectFilledMultiColor(min, full, color, color, dark, dark);
+    // Light along the top of what's filled.
+    draw->AddRectFilledMultiColor(
+        min, {full.x, min.y + (max.y - min.y) * 0.45f},
+        Faded(IM_COL32_WHITE, 0.25f), Faded(IM_COL32_WHITE, 0.25f),
+        Faded(IM_COL32_WHITE, 0.0f), Faded(IM_COL32_WHITE, 0.0f));
+    // A bright edge where it ends.
+    draw->AddLine({full.x, min.y}, {full.x, max.y},
+                  Faded(colors::kGoldLight, 0.6f), std::max(1.0f, Ui(1.0f)));
+  }
+  draw->AddRect(min, max, colors::kBrass, 0.0f, 0, std::max(1.0f, Ui(1.0f)));
+  if (text != nullptr && text[0] != '\0') {
+    ImFont* font = GetFonts().bold;
+    const float size = std::min(Ui(15.0f), (max.y - min.y) * 0.95f);
+    const ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0.0f, text);
+    DrawShadowedText(
+        draw, font, size,
+        {(min.x + max.x - extent.x) / 2.0f, (min.y + max.y - extent.y) / 2.0f},
+        colors::kPaper, text);
+  }
+}
+
 void DrawSlot(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 edge) {
   draw->AddRectFilled({min.x + Ui(1.0f), min.y + Ui(2.0f)},
                       {max.x + Ui(1.0f), max.y + Ui(2.0f)},

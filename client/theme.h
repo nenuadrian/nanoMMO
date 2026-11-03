@@ -116,6 +116,11 @@ void EndPanel();
 bool GameButton(const char* label, ImVec2 size, bool primary = false,
                 bool enabled = true);
 
+/// A bar that's full by the share, in its colour, in a dark trough with brass
+/// round it and its words in the middle.
+void DrawBar(ImDrawList* draw, ImVec2 min, ImVec2 max, float share, ImU32 color,
+             ImU32 dark, const char* text);
+
 /// A slot, as the bag's and the hotbar's are: a dark well in brass, which a
 /// colour lights round its edge, such as gold while the mouse is over it, or
 /// green or red while something dragged over it would go there or not.

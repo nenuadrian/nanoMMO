@@ -185,7 +185,7 @@ void main() {
 // figure's arms are about 12 centimetres across, so it's a third of that.
 constexpr float kOutlineThickness = 0.04f;
 
-constexpr std::array<float, 3> kPreviewBackground = {0.12f, 0.14f, 0.19f};
+constexpr std::array<float, 3> kPreviewBackground = {0.1f, 0.04f, 0.05f};
 
 // The sun's light in three bands: in shadow, half lit and lit.
 constexpr float kBands = 3.0f;
@@ -461,9 +461,10 @@ void Renderer::Draw() const {
 }
 
 void Renderer::DrawPreview(const Figure& figure, const Camera3D& camera) const {
+  // Clear, so that the interface's own background shows round the figure.
   ClearBackground(
       ColorFromNormalized({kPreviewBackground[0], kPreviewBackground[1],
-                           kPreviewBackground[2], 1.0f}));
+                           kPreviewBackground[2], 0.0f}));
   // Lit like the Meadows, wherever we are.
   Atmosphere preview = kMeadows.atmosphere;
   preview.sky = kPreviewBackground;

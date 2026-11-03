@@ -177,6 +177,7 @@ int main(int argc, char* argv[]) {
   nanommo::TrainerWindow trainer_window(content->skills);
   nanommo::QuestWindow quest_window(*content);
   nanommo::Hotbar hotbar(content->skills);
+  nanommo::PlayerFrame player_frame;
   nanommo::LoginScreen login_screen(content_hash, content->items);
   nanommo::Renderer renderer(*content);
   nanommo::PostProcess post;
@@ -471,6 +472,7 @@ int main(int argc, char* argv[]) {
         bag_window.Toggle();
       }
       character_screen.Render(renderer);
+      player_frame.Render(renderer);
     } else if (!entering) {
       // The character picked on the login screen, drawn before the frame.
       login_screen.Render(renderer);
@@ -505,9 +507,8 @@ int main(int argc, char* argv[]) {
         respawn.set_respawn(true);
         connection->Send(respawn);
       }
-      const float right =
-          nanommo::DrawPlayerFrame(renderer.figures(), connection->world());
-      nanommo::DrawTargetFrame(renderer.figures(), target, right);
+      player_frame.Draw(renderer.figures(), connection->world());
+      nanommo::DrawTargetFrame(renderer.figures(), target);
       nanommo::DrawQuestTracker(*content, connection->quests());
       if (const std::optional<uint32_t> skill =
               hotbar.Build(renderer.figures(), connection->world(), target)) {
