@@ -134,6 +134,15 @@ void DrawSlotIcon(ImDrawList* draw, ImVec2 min, ImVec2 max, const char* icon,
 /// icon in a slot of the size, where the mouse took hold of it.
 void DrawDragged(const char* icon, ImU32 color, float size, ImVec2 grab);
 
+/// The screens before the world: the dark of a fire gone low, red at the
+/// bottom, with embers rising through it, and darker at the edges. Time is in
+/// seconds, which the embers rise by.
+void DrawBackdrop(ImDrawList* draw, ImVec2 size, float time);
+
+/// The game's name, in gold capitals, with a glow behind it, centred on the
+/// point at its top, as tall as the size.
+void DrawLogo(ImDrawList* draw, ImVec2 top_centre, float size);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_THEME_H_

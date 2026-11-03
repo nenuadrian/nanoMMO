@@ -18,12 +18,14 @@ namespace nanommo {
 
 /// Before the world: the account's login, then the worlds, then the
 /// account's characters in the world picked, each drawn as it is, turned with
-/// the mouse, to pick one to enter as, make a new one or delete one.
+/// the mouse, to pick one to enter as, make a new one or delete one. All of it
+/// over embers rising in the dark, under the game's name.
 class LoginScreen {
  public:
-  /// The preview's size, in pixels.
-  static constexpr int kPreviewWidth = 300;
-  static constexpr int kPreviewHeight = 380;
+  /// The preview's size, in pixels: enough for it to be sharp at its size on
+  /// a 4K screen.
+  static constexpr int kPreviewWidth = 760;
+  static constexpr int kPreviewHeight = 1012;
 
   /// With the ClientHash of this client's content, to tell the worlds that
   /// have other content apart, and its items, to dress a new character in

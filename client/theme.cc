@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -521,6 +523,83 @@ void DrawDragged(const char* icon, ImU32 color, float size, ImVec2 grab) {
                       Faded(IM_COL32_BLACK, 0.45f));
   DrawSlot(draw, min, max, colors::kGold);
   DrawSlotIcon(draw, min, max, icon, color);
+}
+
+namespace {
+
+// A number from 0 to 1 that looks random, the same for each seed.
+float Scatter(uint32_t seed) {
+  seed ^= seed >> 16;
+  seed *= 0x7feb352dU;
+  seed ^= seed >> 15;
+  seed *= 0x846ca68bU;
+  seed ^= seed >> 16;
+  return static_cast<float>(seed & 0xFFFFFF) / static_cast<float>(0xFFFFFF);
+}
+
+}  // namespace
+
+void DrawBackdrop(ImDrawList* draw, ImVec2 size, float time) {
+  draw->AddRectFilledMultiColor({0.0f, 0.0f}, size, colors::kNight,
+                                colors::kNight, IM_COL32(40, 8, 12, 255),
+                                IM_COL32(40, 8, 12, 255));
+  // The fire's glow, from below the middle of the bottom edge.
+  const ImVec2 fire{size.x / 2.0f, size.y * 1.05f};
+  for (int ring = 10; ring >= 1; --ring) {
+    const float share = static_cast<float>(ring) / 10.0f;
+    draw->AddEllipseFilled(fire,
+                           {size.x * 0.7f * share, size.y * 0.55f * share},
+                           Faded(colors::kCrimson, 0.045f));
+  }
+  // Embers, each rising at its own pace, drifting, and flickering.
+  constexpr int kEmbers = 90;
+  for (int i = 0; i < kEmbers; ++i) {
+    const auto seed = static_cast<uint32_t>(i) * 4u;
+    const float speed = 0.03f + 0.07f * Scatter(seed);
+    const float rise = std::fmod(time * speed + Scatter(seed + 1), 1.0f);
+    const float x = size.x * Scatter(seed + 2) +
+                    std::sin(time * 0.7f + static_cast<float>(i)) * Ui(14.0f);
+    const float y = size.y * (1.05f - 1.1f * rise);
+    const float radius = Ui(1.0f + 2.2f * Scatter(seed + 3));
+    // Brightest low down, gone by the top.
+    const float flicker =
+        0.6f + 0.4f * std::sin(time * 6.0f + static_cast<float>(i) * 1.7f);
+    const float alpha = (1.0f - rise) * flicker;
+    const ImU32 color =
+        Scatter(seed + 3) > 0.5f ? colors::kEmber : colors::kFlame;
+    draw->AddCircleFilled({x, y}, radius * 3.0f, Faded(color, 0.12f * alpha));
+    draw->AddCircleFilled({x, y}, radius, Faded(color, alpha));
+  }
+  // Darker at the edges, so that the eye goes to the middle.
+  const float edge = std::min(size.x, size.y) * 0.25f;
+  const ImU32 dark = Faded(IM_COL32_BLACK, 0.6f);
+  const ImU32 clear = Faded(IM_COL32_BLACK, 0.0f);
+  draw->AddRectFilledMultiColor({0.0f, 0.0f}, {edge, size.y}, dark, clear,
+                                clear, dark);
+  draw->AddRectFilledMultiColor({size.x - edge, 0.0f}, size, clear, dark, dark,
+                                clear);
+  draw->AddRectFilledMultiColor({0.0f, 0.0f}, {size.x, edge}, dark, dark, clear,
+                                clear);
+}
+
+void DrawLogo(ImDrawList* draw, ImVec2 top_centre, float size) {
+  ImFont* font = GetFonts().title;
+  constexpr const char* kName = "nanoMMO";
+  const ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0.0f, kName);
+  const ImVec2 at{top_centre.x - extent.x / 2.0f, top_centre.y};
+  // A glow behind it, like the light of the embers on it.
+  const ImVec2 middle{top_centre.x, top_centre.y + extent.y * 0.55f};
+  for (int ring = 6; ring >= 1; --ring) {
+    const float share = static_cast<float>(ring) / 6.0f;
+    draw->AddEllipseFilled(middle,
+                           {extent.x * 0.75f * share, extent.y * 0.7f * share},
+                           Faded(colors::kEmber, 0.035f));
+  }
+  DrawGradientText(draw, font, size, at, colors::kGoldLight, colors::kGoldDark,
+                   kName);
+  DrawDivider(draw,
+              {middle.x - extent.x * 0.6f, at.y + extent.y + size * 0.05f},
+              extent.x * 1.2f);
 }
 
 }  // namespace nanommo
