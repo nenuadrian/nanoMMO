@@ -19,6 +19,8 @@ namespace nanommo {
 struct Result {
   std::vector<std::vector<std::string>> rows;
   uint64_t insert_id = 0;
+  /// How many rows an INSERT, UPDATE or DELETE changed.
+  uint64_t affected_rows = 0;
 };
 
 class Database {

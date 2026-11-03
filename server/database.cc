@@ -135,6 +135,7 @@ absl::StatusOr<Result> Database::Run(std::string_view sql,
 
   Result result;
   result.insert_id = mysql_stmt_insert_id(statement.get());
+  result.affected_rows = mysql_stmt_affected_rows(statement.get());
   const unsigned int columns = mysql_stmt_field_count(statement.get());
   if (columns == 0) {
     return result;

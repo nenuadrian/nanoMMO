@@ -11,6 +11,7 @@
 #include "protocol/settings.h"
 #include "protocol/tls.h"
 #include "server/accounts.h"
+#include "server/characters.h"
 #include "server/consul.h"
 #include "server/database.h"
 #include "server/login_server.h"
@@ -47,11 +48,13 @@ int main() {
   const std::unique_ptr<nanommo::Redis> redis = *std::move(redis_or);
   nanommo::Accounts accounts(*database);
   nanommo::Tokens tokens(*redis);
+  nanommo::Characters characters(*database);
   nanommo::Consul consul(nanommo::Setting("NANOMMO_CONSUL_HOST", "127.0.0.1"));
 
   asio::io_context io;
   absl::StatusOr<std::unique_ptr<nanommo::LoginServer>> server_or =
-      nanommo::LoginServer::Create(io, kPort, *tls, accounts, tokens, consul);
+      nanommo::LoginServer::Create(io, kPort, *tls, accounts, tokens,
+                                   characters, consul);
   if (!server_or.ok()) {
     std::cerr << "nanommo login: " << server_or.status() << "\n";
     return 1;

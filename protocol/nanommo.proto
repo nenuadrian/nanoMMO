@@ -231,11 +231,39 @@ message World {
   uint32 respawn = 19;
 }
 
+// To the login server: log in with a name and password, or make an account,
+// and then, with the session the reply gave in their place, make, delete or
+// pick a character to enter a world as.
 message LoginRequest {
   string username = 1;
   string password = 2;
   bool new_account = 3;
   bool list_worlds = 4;
+  string session = 5;
+  // A new character in the world, with the name.
+  bool create_character = 6;
+  string world = 7;
+  string name = 8;
+  // The character to delete, or to enter its world as, by its id.
+  bool delete_character = 9;
+  bool enter = 10;
+  uint32 character = 11;
+}
+
+// One of an account's characters, as the login server knows it, enough to
+// list it and draw it.
+message CharacterListing {
+  uint32 id = 1;
+  string name = 2;
+  string world = 3;
+  uint32 level = 4;
+  string land = 5;
+  // What's in its main hand, and what else it wears, by their ids in the
+  // items file.
+  uint32 weapon = 6;
+  repeated uint32 wearing = 7;
+  // One that's never entered its world, where it gets the starting kit.
+  bool fresh = 8;
 }
 
 message WorldListing {
@@ -250,9 +278,14 @@ message WorldListing {
 
 message LoginReply {
   bool ok = 1;
+  // To enter the world with, once a character's picked.
   string token = 2;
   string error = 3;
   repeated WorldListing worlds = 4;
+  // Once logged in: the session to ask with next, and the account's
+  // characters in all the worlds.
+  string session = 5;
+  repeated CharacterListing characters = 6;
 }
 
 message Hello {

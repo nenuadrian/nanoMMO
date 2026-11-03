@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <csignal>
 #include <cstddef>
@@ -38,24 +39,68 @@ constexpr uint16_t kMetricsPort = 9465;
 // fifty, so the frames land all over the tick, like a client's would.
 constexpr std::chrono::milliseconds kFrame(16);
 
+// The world on kGamePort, which the bots play in.
+constexpr char kWorld[] = "Ember";
+
+// The login server's answer, or why there's none: it couldn't be reached, or
+// it said no.
+absl::StatusOr<nanommo::protocol::LoginReply> Ask(
+    const std::string& host, asio::ssl::context& tls,
+    const nanommo::protocol::LoginRequest& request) {
+  absl::StatusOr<nanommo::protocol::LoginReply> reply =
+      nanommo::LogIn(host, kLoginPort, tls, request);
+  if (reply.ok() && !reply->ok()) {
+    return absl::PermissionDeniedError(reply->error());
+  }
+  return reply;
+}
+
+// Logs bot `number` in, making its account the first time, and its
+// character in kWorld, named after it, and returns a token to enter as it.
 absl::StatusOr<std::string> LogIn(const std::string& host,
                                   asio::ssl::context& tls, int number) {
+  const std::string name = "bot" + std::to_string(number);
   nanommo::protocol::LoginRequest request;
-  request.set_username("bot" + std::to_string(number));
+  request.set_username(name);
   request.set_password("bot-password");
-  absl::StatusOr<nanommo::protocol::LoginReply> reply_or =
-      nanommo::LogIn(host, kLoginPort, tls, request);
-  if (reply_or.ok() && !reply_or->ok()) {
+  absl::StatusOr<nanommo::protocol::LoginReply> reply =
+      Ask(host, tls, request);
+  if (absl::IsPermissionDenied(reply.status())) {
     request.set_new_account(true);
-    reply_or = nanommo::LogIn(host, kLoginPort, tls, request);
+    reply = Ask(host, tls, request);
   }
-  if (!reply_or.ok()) {
-    return reply_or.status();
+  if (!reply.ok()) {
+    return reply.status();
   }
-  if (!reply_or->ok()) {
-    return absl::PermissionDeniedError(reply_or->error());
+  nanommo::protocol::LoginRequest next;
+  next.set_session(reply->session());
+  const auto mine = [](const nanommo::protocol::LoginReply& listed) {
+    const auto found = std::ranges::find_if(
+        listed.characters(),
+        [](const nanommo::protocol::CharacterListing& character) {
+          return character.world() == kWorld;
+        });
+    return found != listed.characters().end() ? found->id() : 0u;
+  };
+  uint32_t character = mine(*reply);
+  if (character == 0) {
+    nanommo::protocol::LoginRequest create = next;
+    create.set_create_character(true);
+    create.set_world(kWorld);
+    create.set_name(name);
+    reply = Ask(host, tls, create);
+    if (!reply.ok()) {
+      return reply.status();
+    }
+    character = mine(*reply);
   }
-  return reply_or->token();
+  next.set_enter(true);
+  next.set_character(character);
+  reply = Ask(host, tls, next);
+  if (!reply.ok()) {
+    return reply.status();
+  }
+  return reply->token();
 }
 
 class Swarm {
