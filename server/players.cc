@@ -24,8 +24,8 @@ constexpr char kUnsaved[] = "players:unsaved";
 // The players whose bags changed, which are in kUnsaved too.
 constexpr char kItemsUnsaved[] = "items:unsaved";
 
-std::string Key(const std::string& world, uint32_t account_id) {
-  return absl::StrCat("player:", world, ":", account_id);
+std::string Key(const std::string& world, uint32_t id) {
+  return absl::StrCat("player:", world, ":", id);
 }
 
 // In words, as lands are, so that the rows read well: "bag 0" to "bag 23", or
@@ -115,23 +115,18 @@ absl::StatusOr<protocol::Inventory> BagOf(const Result& rows,
 
 }  // namespace
 
-absl::StatusOr<Player> Players::Load(const std::string& world,
-                                     uint32_t account_id) {
+absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
+  // A character in another world is no player of this one's.
   const absl::StatusOr<Result> result = database_.Run(
-      "SELECT accounts.username, COALESCE(players.x, 0), "
-      "COALESCE(players.z, 0), COALESCE(players.experience, 0), "
-      "players.health, COALESCE(players.land, 'Meadows'), "
-      "players.items_revision, players.quests "
-      "FROM accounts "
-      "LEFT JOIN players ON players.account_id = accounts.id "
-      "AND players.world = ? "
-      "WHERE accounts.id = ?",
-      {world, std::to_string(account_id)});
+      "SELECT name, x, z, experience, health, land, items_revision, quests "
+      "FROM players WHERE id = ? AND world = ?",
+      {std::to_string(id), world});
   if (!result.ok()) {
     return result.status();
   }
   if (result->rows.empty()) {
-    return absl::NotFoundError(absl::StrCat("no account ", account_id));
+    return absl::NotFoundError(
+        absl::StrCat("no character ", id, " in ", world));
   }
   const std::vector<std::string>& row = result->rows.front();
   Player player{.name = row[0]};
@@ -139,8 +134,7 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
   std::vector<std::string> saved(row.begin() + 1, row.begin() + 6);
   // A row for each skill, which we join the way Redis keeps them.
   const absl::StatusOr<Result> skills = database_.Run(
-      "SELECT skill FROM player_skills WHERE account_id = ? AND world = ?",
-      {std::to_string(account_id), world});
+      "SELECT skill FROM player_skills WHERE player = ?", {std::to_string(id)});
   if (!skills.ok()) {
     return skills.status();
   }
@@ -151,9 +145,8 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
   saved.push_back(absl::StrJoin(known, ","));
   // And a row for each stack in the bag, and each item worn.
   const absl::StatusOr<Result> items = database_.Run(
-      "SELECT place, item, count, state FROM player_items "
-      "WHERE account_id = ? AND world = ?",
-      {std::to_string(account_id), world});
+      "SELECT place, item, count, state FROM player_items WHERE player = ?",
+      {std::to_string(id)});
   if (!items.ok()) {
     return items.status();
   }
@@ -172,7 +165,7 @@ absl::StatusOr<Player> Players::Load(const std::string& world,
   }
 
   const absl::StatusOr<std::vector<std::vector<std::string>>> newer =
-      redis_.Pipeline({{"HMGET", Key(world, account_id), "x", "z", "experience",
+      redis_.Pipeline({{"HMGET", Key(world, id), "x", "z", "experience",
                         "health", "land", "skills", "items", "quests"}});
   if (!newer.ok()) {
     return newer.status();
@@ -228,7 +221,7 @@ absl::Status Players::Save(
         commands.emplace_back(std::vector<std::string>{
             "HSET",       Key(world, id),
             "world",      world,
-            "account",    absl::StrCat(id),
+            "player",     absl::StrCat(id),
             "x",          absl::StrCat(progress.x),
             "z",          absl::StrCat(progress.z),
             "experience", absl::StrCat(progress.experience),
@@ -283,15 +276,9 @@ absl::StatusOr<int> Players::Flush() {
       reads.push_back({"SREM", kItemsUnsaved, key});
     }
     for (const std::string& key : keys) {
-      // Before worlds, the set held account IDs, for hashes with no world.
-      if (key.starts_with("player:")) {
-        reads.push_back({"HMGET", key, "world", "account", "x", "z",
-                         "experience", "health", "land", "weapon", "skills",
-                         "items", "quests"});
-      } else {
-        reads.push_back({"HMGET", absl::StrCat("player:", key), "x", "z",
-                         "experience", "health", "land", "weapon"});
-      }
+      reads.push_back({"HMGET", key, "world", "player", "x", "z", "experience",
+                       "health", "land", "weapon", "skills", "items",
+                       "quests"});
     }
     const absl::StatusOr<std::vector<std::vector<std::string>>> replies =
         redis_.Pipeline(reads);
@@ -299,61 +286,57 @@ absl::StatusOr<int> Players::Flush() {
       return replies.status();
     }
 
-    // IGNORE skips a player whose account is gone, with a warning, so that one
-    // row MySQL refuses doesn't hold back the batch on each flush.
-    std::string sql =
-        "INSERT IGNORE INTO players (world, account_id, x, z, experience, "
-        "health, land, weapon, items_revision, quests) VALUES ";
+    // The characters' rows are there already, from the login server, so a
+    // batch updates them, as a table of its rows joined to theirs: a character
+    // deleted since leaves nothing to join, and its row stays gone.
+    std::string sql = "UPDATE players JOIN (VALUES ";
     std::vector<std::string> values;
     int rows = 0;
+    // IGNORE skips the skills and the bags of a character that's gone, with a
+    // warning, so that one row MySQL refuses doesn't hold back the batch.
     std::string skills_sql =
-        "INSERT IGNORE INTO player_skills (account_id, world, skill) VALUES ";
+        "INSERT IGNORE INTO player_skills (player, skill) VALUES ";
     std::vector<std::string> skill_values;
     // The bags that changed: their old rows go, and their new ones go in.
     std::vector<std::string> bag_keys;
-    std::string gone_sql =
-        "DELETE FROM player_items WHERE (account_id, world) IN (";
+    std::string gone_sql = "DELETE FROM player_items WHERE player IN (";
     std::vector<std::string> gone_values;
-    // Six values a row.
+    // Five values a row.
     std::vector<std::string> item_values;
     for (std::size_t i = 0; i < keys.size(); ++i) {
       const bool bag_changed = (*replies)[i] == std::vector<std::string>{"1"};
       const std::vector<std::string>& hash = (*replies)[keys.size() + i];
-      // A player whose hash is gone has nothing to save.
-      if (hash[0].empty()) {
+      // A player whose hash is gone has nothing to save, and one from before
+      // characters, saved by its account, has nothing to say which character
+      // it was: the saver flushed those before the characters came.
+      if (hash[0].empty() || hash[1].empty()) {
         continue;
       }
       // A hash saved before we kept health or weapons has none, which goes in
       // as NULL, and one saved before lands is in the Meadows. A bag that
       // hasn't changed keeps the revision MySQL has.
       absl::StrAppend(&sql, rows == 0 ? "" : ", ",
-                      "(?, ?, ?, ?, ?, NULLIF(?, ''), "
+                      "ROW(?, ?, ?, ?, ?, NULLIF(?, ''), "
                       "COALESCE(NULLIF(?, ''), 'Meadows'), NULLIF(?, ''), "
                       "NULLIF(?, ''), NULLIF(?, ''))");
       ++rows;
-      if (!keys[i].starts_with("player:")) {
-        values.push_back("Ember");
-        values.push_back(keys[i]);
-        values.insert(values.end(), hash.begin(), hash.end());
-        values.insert(values.end(), {"", ""});
-        continue;
-      }
       const std::string& world = hash[0];
-      const std::string& account = hash[1];
-      values.insert(values.end(), hash.begin(), hash.begin() + 8);
+      const std::string& player = hash[1];
+      values.insert(values.end(), {player, world});
+      values.insert(values.end(), hash.begin() + 2, hash.begin() + 8);
       protocol::Inventory bag;
       if (!bag_changed || hash[9].empty() || !bag.ParseFromString(hash[9])) {
         values.push_back("");
       } else {
         values.push_back(absl::StrCat(bag.revision()));
         bag_keys.push_back(keys[i]);
-        absl::StrAppend(&gone_sql, gone_values.empty() ? "" : ", ", "(?, ?)");
-        gone_values.insert(gone_values.end(), {account, world});
+        absl::StrAppend(&gone_sql, gone_values.empty() ? "" : ", ", "?");
+        gone_values.push_back(player);
         const auto add = [&](const protocol::Place& place,
                              const items::Stack& stack) {
           item_values.insert(
               item_values.end(),
-              {account, world, PlaceName(place), absl::StrCat(stack.item()),
+              {player, PlaceName(place), absl::StrCat(stack.item()),
                absl::StrCat(stack.count()), StateOf(stack)});
         };
         for (const auto& [slot, stack] : bag.bag()) {
@@ -376,21 +359,24 @@ absl::StatusOr<int> Players::Flush() {
       for (const std::string_view skill :
            absl::StrSplit(hash[8], ',', absl::SkipEmpty())) {
         absl::StrAppend(&skills_sql, skill_values.empty() ? "" : ", ",
-                        "(?, ?, ?)");
-        skill_values.insert(skill_values.end(),
-                            {account, world, std::string(skill)});
+                        "(?, ?)");
+        skill_values.insert(skill_values.end(), {player, std::string(skill)});
       }
     }
     if (rows == 0) {
       continue;
     }
-    absl::StrAppend(&sql,
-                    " AS saved ON DUPLICATE KEY UPDATE x = saved.x, "
-                    "z = saved.z, experience = saved.experience, "
-                    "health = saved.health, land = saved.land, "
-                    "weapon = saved.weapon, items_revision = "
-                    "COALESCE(saved.items_revision, players.items_revision), "
-                    "quests = COALESCE(saved.quests, players.quests)");
+    absl::StrAppend(
+        &sql,
+        ") AS saved (id, world, x, z, experience, health, land, weapon, "
+        "items_revision, quests) "
+        "ON players.id = saved.id AND players.world = saved.world "
+        "SET players.x = saved.x, players.z = saved.z, "
+        "players.experience = saved.experience, players.health = saved.health, "
+        "players.land = saved.land, players.weapon = saved.weapon, "
+        "players.items_revision = "
+        "COALESCE(saved.items_revision, players.items_revision), "
+        "players.quests = COALESCE(saved.quests, players.quests)");
     absl::StrAppend(&gone_sql, ")");
     // A bag's rows can't go without the rows that take their place, or a
     // failure between the two would empty it, so the batch is a transaction.
@@ -407,17 +393,17 @@ absl::StatusOr<int> Players::Flush() {
       }
       // A statement takes up to 65,535 values, and the rows of 500 full bags
       // have more, so they go in statements of kItemRows rows.
-      constexpr std::size_t kRowValues = 6;
+      constexpr std::size_t kRowValues = 5;
       for (std::size_t first = 0; result.ok() && first < item_values.size();
            first += kItemRows * kRowValues) {
         const std::size_t last =
             std::min(item_values.size(), first + kItemRows * kRowValues);
         std::string items_sql =
-            "INSERT IGNORE INTO player_items (account_id, world, place, item, "
+            "INSERT IGNORE INTO player_items (player, place, item, "
             "count, state) VALUES ";
         for (std::size_t row = first; row < last; row += kRowValues) {
           absl::StrAppend(&items_sql, row == first ? "" : ", ",
-                          "(?, ?, ?, ?, ?, NULLIF(?, ''))");
+                          "(?, ?, ?, ?, NULLIF(?, ''))");
         }
         result = database_.Run(items_sql, {item_values.begin() + first,
                                            item_values.begin() + last});

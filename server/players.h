@@ -47,9 +47,10 @@ class Players {
   Players(Database& database, Redis& redis)
       : database_(database), redis_(redis) {}
 
-  /// The account's player in the world, from MySQL, with what Redis has on
-  /// top, as that's newer.
-  absl::StatusOr<Player> Load(const std::string& world, uint32_t account_id);
+  /// The character, by its id, in the world, from MySQL, with what Redis has
+  /// on top, as that's newer. A NotFound error says there's no such character
+  /// in this world.
+  absl::StatusOr<Player> Load(const std::string& world, uint32_t id);
 
   /// Into Redis, all of them in a single round trip, and marked unsaved, with
   /// the bags of those whose bags changed, which are marked unsaved apart.

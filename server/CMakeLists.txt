@@ -1,7 +1,7 @@
 add_library(nanommo_server_core
   tick.cc listen.cc inventory.cc world.cc copies.cc monsters.cc npcs.cc levels.cc session.cc interest.cc
   server.cc metrics.cc password.cc database.cc events.cc
-  accounts.cc players.cc redis.cc tokens.cc
+  accounts.cc characters.cc players.cc redis.cc tokens.cc
   login_server.cc consul.cc token_bucket.cc stories.cc storyteller.cc recorder.cc
 )
 target_include_directories(nanommo_server_core PUBLIC ${PROJECT_SOURCE_DIR})

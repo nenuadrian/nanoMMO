@@ -22,6 +22,7 @@
 #include "asio/write.hpp"
 #include "gtest/gtest.h"
 #include "server/accounts.h"
+#include "server/characters.h"
 #include "server/inventory.h"
 #include "server/test_content.h"
 #include "server/test_services.h"
@@ -184,7 +185,7 @@ class ServerTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    for (const uint32_t id : accounts_) {
+    for (const uint32_t id : characters_) {
       const std::string key = absl::StrCat("player:", world_, ":", id);
       // The server saved the player in Redis, for the saver to take to MySQL.
       EXPECT_TRUE(redis_
@@ -192,6 +193,9 @@ class ServerTest : public ::testing::Test {
                                   {"SREM", "players:unsaved", key},
                                   {"SREM", "items:unsaved", key}})
                       .ok());
+    }
+    // Their characters go with them.
+    for (const uint32_t id : accounts_) {
       EXPECT_TRUE(
           database_
               ->Run("DELETE FROM accounts WHERE id = ?", {absl::StrCat(id)})
@@ -199,13 +203,19 @@ class ServerTest : public ::testing::Test {
     }
   }
 
+  // A new account, with a character in this world, named after it, whose id
+  // it returns.
   uint32_t NewAccount() {
     nanommo::Accounts accounts(*database_);
-    const absl::StatusOr<uint32_t> id =
-        accounts.Create(nanommo::testing::TestName(), "hash");
+    const std::string name = nanommo::testing::TestName();
+    const absl::StatusOr<uint32_t> account = accounts.Create(name, "hash");
+    EXPECT_TRUE(account.ok()) << account.status();
+    accounts_.push_back(account.value_or(0));
+    const absl::StatusOr<uint32_t> id = nanommo::Characters(*database_).Create(
+        accounts_.back(), world_, name);
     EXPECT_TRUE(id.ok()) << id.status();
-    accounts_.push_back(id.value_or(0));
-    return accounts_.back();
+    characters_.push_back(id.value_or(0));
+    return characters_.back();
   }
 
   std::string Token(uint32_t account) {
@@ -233,6 +243,7 @@ class ServerTest : public ::testing::Test {
   std::unique_ptr<nanommo::Database> database_;
   std::unique_ptr<nanommo::Redis> redis_;
   std::vector<uint32_t> accounts_;
+  std::vector<uint32_t> characters_;
   uint32_t alice_ = 0;
   uint32_t bob_ = 0;
   std::unique_ptr<nanommo::Tokens> tokens_;
@@ -423,7 +434,8 @@ TEST_F(ServerTest, SendsEachPlayerTheirQuestsAsTheyChange) {
 
 TEST_F(ServerTest, ShowsEachHitToThePlayersNearIt) {
   // A skeleton a step from where new players start, and a sword for each.
-  nanommo::Content content{.items = nanommo::testing::Sword()};
+  nanommo::Content content{.items = nanommo::testing::Sword(),
+                           .skills = nanommo::testing::WithStrike({})};
   content.monsters.kinds[1] = nanommo::testing::Skeleton();
   nanommo::monsters::Spawn spawn;
   spawn.set_kind(1);

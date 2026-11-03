@@ -12,6 +12,7 @@
 #include "gtest/gtest.h"
 #include "protocol/nanommo.pb.h"
 #include "server/accounts.h"
+#include "server/characters.h"
 #include "server/test_services.h"
 
 namespace {
@@ -25,10 +26,20 @@ class PlayersTest : public ::testing::Test {
       GTEST_SKIP() << "set NANOMMO_MYSQL_HOST and NANOMMO_REDIS_HOST to test "
                       "against MySQL and Redis";
     }
-    const absl::StatusOr<uint32_t> id =
+    const absl::StatusOr<uint32_t> account =
         nanommo::Accounts(*database_).Create(name_, "hash");
-    ASSERT_TRUE(id.ok());
+    ASSERT_TRUE(account.ok());
+    account_ = *account;
+    // A character in Ember, named after the account, and one in Frost.
+    nanommo::Characters characters(*database_);
+    const absl::StatusOr<uint32_t> id =
+        characters.Create(account_, "Ember", name_);
+    const absl::StatusOr<uint32_t> frost =
+        characters.Create(account_, "Frost", name_);
+    ASSERT_TRUE(id.ok()) << id.status();
+    ASSERT_TRUE(frost.ok()) << frost.status();
     id_ = *id;
+    frost_ = *frost;
   }
 
   void TearDown() override {
@@ -38,28 +49,28 @@ class PlayersTest : public ::testing::Test {
               .ok());
     }
     if (redis_) {
-      const std::string id = std::to_string(id_);
+      const std::string ember = "player:Ember:" + std::to_string(id_);
+      const std::string frost = "player:Frost:" + std::to_string(frost_);
       for (const std::string& key :
-           {"player:Ember:" + id, "player:Frost:" + id, "player:" + id}) {
+           {ember, frost, std::string("player:Frost:0")}) {
         EXPECT_TRUE(redis_->Command({"DEL", key}).ok());
       }
-      EXPECT_TRUE(redis_->Command({"DEL", "player:Frost:0"}).ok());
-      EXPECT_TRUE(
-          redis_
-              ->Command({"SREM", "players:unsaved", "player:Ember:" + id,
-                         "player:Frost:" + id, id, "player:Frost:0"})
-              .ok());
       EXPECT_TRUE(redis_
-                      ->Command({"SREM", "items:unsaved", "player:Ember:" + id,
-                                 "player:Frost:" + id})
+                      ->Command({"SREM", "players:unsaved", ember, frost,
+                                 "player:Frost:0"})
                       .ok());
+      EXPECT_TRUE(
+          redis_->Command({"SREM", "items:unsaved", ember, frost}).ok());
     }
   }
 
   std::unique_ptr<nanommo::Database> database_;
   std::unique_ptr<nanommo::Redis> redis_;
   const std::string name_ = nanommo::testing::TestName();
+  uint32_t account_ = 0;
+  // The account's characters, in Ember and in Frost.
   uint32_t id_ = 0;
+  uint32_t frost_ = 0;
 };
 
 // Twelve bones in the bag, and a blade in hand that rolled three more damage.
@@ -117,7 +128,10 @@ TEST_F(PlayersTest, LoadsWhereThePlayerWasSavedInThatWorld) {
   EXPECT_EQ(player->land, 1);
   EXPECT_EQ(player->skills, (std::set<uint32_t>{1, 3}));
 
-  const absl::StatusOr<nanommo::Player> elsewhere = players.Load("Frost", id_);
+  // Ember's character is no player of Frost's, and the one in Frost is new.
+  EXPECT_TRUE(absl::IsNotFound(players.Load("Frost", id_).status()));
+  const absl::StatusOr<nanommo::Player> elsewhere =
+      players.Load("Frost", frost_);
   ASSERT_TRUE(elsewhere.ok());
   EXPECT_EQ(elsewhere->x, 0.0f);
   EXPECT_EQ(elsewhere->experience, 0u);
@@ -132,34 +146,36 @@ TEST_F(PlayersTest, FlushesThePlayersToMySQL) {
                                       .land = 1,
                                       .weapon = 1,
                                       .skills = {1, 2}};
-  ASSERT_TRUE(players.Save("Frost", {{id_, progress}}).ok());
-  // No account has the id zero, so MySQL refuses this one, and it holds back
-  // nobody.
+  ASSERT_TRUE(players.Save("Frost", {{frost_, progress}}).ok());
+  // No character has the id zero, so there's no row to update, and it holds
+  // back nobody.
   ASSERT_TRUE(players.Save("Frost", {{0, {.x = 1.0f}}}).ok());
-  // A player saved before worlds: an account ID in the set, and its hash.
-  const std::string id = std::to_string(id_);
+  // A player saved by its account, before characters, says which account
+  // and not which character, so it's left: Ember's row stays as it was.
+  const std::string ember = "player:Ember:" + std::to_string(id_);
   ASSERT_TRUE(redis_
-                  ->Pipeline({{"HSET", "player:" + id, "x", "3", "z", "4",
-                               "experience", "5", "health", "6"},
-                              {"SADD", "players:unsaved", id}})
+                  ->Pipeline({{"HSET", ember, "world", "Ember", "account",
+                               std::to_string(account_), "x", "3", "z", "4"},
+                              {"SADD", "players:unsaved", ember}})
                   .ok());
 
   const absl::StatusOr<int> saved = players.Flush();
-  ASSERT_TRUE(saved.ok());
-  EXPECT_GE(*saved, 2);
+  ASSERT_TRUE(saved.ok()) << saved.status();
+  EXPECT_GE(*saved, 1);
   const absl::StatusOr<nanommo::Result> rows = database_->Run(
       "SELECT world, x, z, experience, health, land, weapon FROM players "
       "WHERE account_id = ? ORDER BY world",
-      {id});
+      {std::to_string(account_)});
   ASSERT_TRUE(rows.ok());
   EXPECT_EQ(rows->rows,
             (std::vector<std::vector<std::string>>{
-                {"Ember", "3", "4", "5", "6", "Meadows", ""},
+                {"Ember", "0", "0", "0", "", "Meadows", ""},
                 {"Frost", "1.5", "2", "70", "60", "Ashlands", "1"}}));
 
   // With Redis's copy gone, the skills come back from MySQL's rows.
-  ASSERT_TRUE(redis_->Command({"DEL", "player:Frost:" + id}).ok());
-  const absl::StatusOr<nanommo::Player> player = players.Load("Frost", id_);
+  ASSERT_TRUE(
+      redis_->Command({"DEL", "player:Frost:" + std::to_string(frost_)}).ok());
+  const absl::StatusOr<nanommo::Player> player = players.Load("Frost", frost_);
   ASSERT_TRUE(player.ok());
   EXPECT_EQ(player->skills, (std::set<uint32_t>{1, 2}));
 }
@@ -192,7 +208,7 @@ TEST_F(PlayersTest, FlushesTheBagsThatChangedToMySQL) {
     return database_
         ->Run(
             "SELECT place, item, count, state FROM player_items "
-            "WHERE account_id = ? AND world = 'Ember' ORDER BY place",
+            "WHERE player = ? ORDER BY place",
             {id})
         ->rows;
   };
@@ -216,8 +232,8 @@ TEST_F(PlayersTest, FlushesTheBagsThatChangedToMySQL) {
   // A save of where they are alone doesn't write the rows again: one we
   // change by hand stays as it is.
   ASSERT_TRUE(database_
-                  ->Run("UPDATE player_items SET count = 7 WHERE account_id = "
-                        "? AND place = 'bag 0'",
+                  ->Run("UPDATE player_items SET count = 7 WHERE player = ? "
+                        "AND place = 'bag 0'",
                         {id})
                   .ok());
   ASSERT_TRUE(
@@ -245,11 +261,17 @@ TEST_F(PlayersTest, FlushesMoreRowsOfBagsThanAStatementTakes) {
   // Forty players, each with a stack in every slot of the bag, and an item
   // in every slot that's worn: more rows than go in one statement.
   constexpr int kPlayers = 40;
+  std::vector<uint32_t> accounts_made;
   std::vector<uint32_t> ids;
   nanommo::Accounts accounts(*database_);
+  nanommo::Characters characters(*database_);
   for (int i = 0; i < kPlayers; ++i) {
+    const std::string name = nanommo::testing::TestName();
+    const absl::StatusOr<uint32_t> account = accounts.Create(name, "hash");
+    ASSERT_TRUE(account.ok()) << account.status();
+    accounts_made.push_back(*account);
     const absl::StatusOr<uint32_t> id =
-        accounts.Create(nanommo::testing::TestName(), "hash");
+        characters.Create(*account, "Ember", name);
     ASSERT_TRUE(id.ok()) << id.status();
     ids.push_back(*id);
   }
@@ -278,16 +300,18 @@ TEST_F(PlayersTest, FlushesMoreRowsOfBagsThanAStatementTakes) {
   std::vector<std::string> keys = {"DEL"};
   for (const uint32_t id : ids) {
     const absl::StatusOr<nanommo::Result> rows =
-        database_->Run("SELECT COUNT(*) FROM player_items WHERE account_id = ?",
+        database_->Run("SELECT COUNT(*) FROM player_items WHERE player = ?",
                        {std::to_string(id)});
     ASSERT_TRUE(rows.ok()) << rows.status();
     EXPECT_EQ(rows->rows.front().front(),
               std::to_string(nanommo::Inventory::kBagSlots + 5));
     keys.push_back("player:Ember:" + std::to_string(id));
-    EXPECT_TRUE(
-        database_
-            ->Run("DELETE FROM accounts WHERE id = ?", {std::to_string(id)})
-            .ok());
+  }
+  for (const uint32_t account : accounts_made) {
+    EXPECT_TRUE(database_
+                    ->Run("DELETE FROM accounts WHERE id = ?",
+                          {std::to_string(account)})
+                    .ok());
   }
   EXPECT_TRUE(redis_->Command(keys).ok());
 }
@@ -305,7 +329,7 @@ TEST_F(PlayersTest, KeepsTheQuestsTheyreOnAndHaveDone) {
   // MySQL keeps them as JSON, with the player's row.
   ASSERT_TRUE(players.Flush().ok());
   const absl::StatusOr<nanommo::Result> rows = database_->Run(
-      "SELECT quests FROM players WHERE account_id = ? AND world = 'Ember'",
+      "SELECT quests FROM players WHERE id = ?",
       {id});
   ASSERT_TRUE(rows.ok());
   EXPECT_EQ(rows->rows, (std::vector<std::vector<std::string>>{
