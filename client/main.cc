@@ -67,46 +67,33 @@ constexpr float kThere = 0.6f;
 // we got there, or something stopped us.
 constexpr float kSetOff = 0.5f;
 
-void ListWorlds(const std::string& host, asio::ssl::context& tls,
-                const nanommo::protocol::LoginRequest& request,
-                nanommo::LoginScreen& screen) {
+// The login server's answer to the request, which the screen shows, or why
+// there's none.
+std::optional<nanommo::protocol::LoginReply> Ask(
+    const std::string& host, asio::ssl::context& tls,
+    const nanommo::protocol::LoginRequest& request,
+    nanommo::LoginScreen& screen) {
   absl::StatusOr<nanommo::protocol::LoginReply> reply =
       nanommo::LogIn(host, kLoginPort, tls, request);
   if (!reply.ok()) {
     screen.ShowError(
         absl::StrCat("Couldn't reach the server: ", reply.status().message()));
-    return;
+    return std::nullopt;
   }
-  if (!reply->ok()) {
-    screen.ShowError(reply->error());
-    return;
-  }
-  screen.ShowWorlds({reply->worlds().begin(), reply->worlds().end()});
+  return *std::move(reply);
 }
 
+// Into the world, as the character the token's for.
 std::unique_ptr<nanommo::Connection> Enter(
-    const std::string& host, const nanommo::protocol::WorldListing& world,
-    bool udp, asio::ssl::context& tls,
-    const nanommo::protocol::LoginRequest& request,
+    const nanommo::protocol::WorldListing& world, bool udp,
+    asio::ssl::context& tls, const std::string& token,
     nanommo::LoginScreen& screen) {
-  absl::StatusOr<nanommo::protocol::LoginReply> reply_or =
-      nanommo::LogIn(host, kLoginPort, tls, request);
-  if (!reply_or.ok()) {
-    screen.ShowError(absl::StrCat("Couldn't reach the server: ",
-                                  reply_or.status().message()));
-    return nullptr;
-  }
-  const nanommo::protocol::LoginReply& reply = *reply_or;
-  if (!reply.ok()) {
-    screen.ShowError(reply.error());
-    return nullptr;
-  }
-  std::cout << "nanommo client: logged in as " << request.username()
-            << ", entering " << world.name() << '\n';
+  std::cout << "nanommo client: entering " << world.name() << " as "
+            << screen.character_name() << '\n';
   absl::StatusOr<std::unique_ptr<nanommo::Connection>> connection_or =
       nanommo::Connection::Create(world.host(),
                                   static_cast<uint16_t>(world.port()), tls,
-                                  reply.token(), udp);
+                                  token, udp);
   if (!connection_or.ok()) {
     screen.ShowError(absl::StrCat("Couldn't reach the server: ",
                                   connection_or.status().message()));
@@ -204,8 +191,8 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<nanommo::Connection> connection;
   // The world's next instance, while we move to it.
   std::unique_ptr<nanommo::Connection> next;
-  // The login we enter the world with, once the loading screen's up.
-  std::optional<nanommo::protocol::LoginRequest> entering;
+  // The token we enter the world with, once the loading screen's up.
+  std::optional<std::string> entering;
   std::string world_name;
   nanommo::protocol::Input sent;
   // The monster the player picked, by its id.
@@ -221,8 +208,8 @@ int main(int argc, char* argv[]) {
     if (entering && loading.covered()) {
       if (const std::optional<nanommo::protocol::WorldListing>& world =
               login_screen.world()) {
-        connection = Enter(host, *world, transport == "udp", *tls, *entering,
-                           login_screen);
+        connection =
+            Enter(*world, transport == "udp", *tls, *entering, login_screen);
       }
       entering.reset();
       sent.Clear();
@@ -558,13 +545,17 @@ int main(int argc, char* argv[]) {
       }
     } else if (!connection && !entering) {
       if (const auto request = login_screen.Build()) {
-        if (request->list_worlds()) {
-          ListWorlds(host, *tls, *request, login_screen);
-        } else if (const std::optional<nanommo::protocol::WorldListing>& world =
-                       login_screen.world()) {
-          entering = *request;
-          world_name = world->name();
-          loading.Cover();
+        if (const std::optional<nanommo::protocol::LoginReply> reply =
+                Ask(host, *tls, *request, login_screen)) {
+          // A token for the character picked: into its world, behind the
+          // loading screen. Anything else, the screen shows.
+          if (request->enter() && reply->ok()) {
+            entering = reply->token();
+            world_name = login_screen.world()->name();
+            loading.Cover();
+          } else {
+            login_screen.Show(*reply);
+          }
         }
       }
     }
