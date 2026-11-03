@@ -209,6 +209,8 @@ if(DOXYGEN_FOUND)
   set(DOXYGEN_PROJECT_BRIEF "Building an MMO: The Engineering Series")
   set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/docs)
   set(DOXYGEN_USE_MDFILE_AS_MAINPAGE README.md)
+  # The README's screens, which Doxygen copies into the API docs.
+  set(DOXYGEN_IMAGE_PATH ${CMAKE_SOURCE_DIR}/docs/screens)
   set(DOXYGEN_EXTRACT_ALL YES)
   set(DOXYGEN_EXCLUDE_PATTERNS *_test.cc)
   set(DOXYGEN_GENERATE_TREEVIEW YES)

@@ -4,6 +4,12 @@ The game built in the YouTube series *Building an MMO: The Engineering Series*: 
 C++ client, and everything around them. Each episode's code is a git tag (`ep001/end`,
 `ep002/end`, ...).
 
+![Playing nanoMMO: arthur's portrait and his target at the top, the compass and the round minimap, the chat and the hotbar](docs/screens/playing.jpg)
+
+![A crowd of bots in the Meadows, around the spires](docs/screens/interface.jpg)
+
+More screens, and every episode, are on [the series' website](https://nanommo.nenuadrian.com).
+
 ## Build, test and run
 
 You need CMake, Ninja and a C++20 compiler, and three libraries from your system's package manager:
@@ -65,12 +71,13 @@ Then, in another terminal, the game server, and in one or two more, the client:
 ./build/bin/nanommo_client
 ```
 
-The client opens on a login: type a name and a password, and Create account the first time, and Log
-in after that. Then come the worlds that are up, with how many players each has, and how many of
-your characters are there. Pick one with the arrow keys and Enter, or a click, and F5 or Refresh
-asks for the list again. In the world you picked, your characters are listed, and the one picked is
-drawn beside them as it looks, which you drag to turn and scroll to come closer to: Enter the world
-as it, Delete it, or type a name and make a New character, up to four in each world (see
+The client opens on a login, over embers rising in the dark: type a name and a password, and Make an
+account the first time, and Log in after that. Then come the worlds that are up, with how many
+players each has, and how many of your characters are there. Pick one with the arrow keys and Enter,
+or a click, and F5 or Refresh asks for the list again. In the world you picked, your characters are
+listed on the right, and the one picked stands on a stage in the middle, as it looks, which you drag
+to turn and scroll to come closer to: Enter the world as it, Delete it, or type a name and make a
+new one, up to four in each world (see
 [Characters](docs/accounts.md#characters)). The client asks the login server on `localhost`, or on the
 host you give it (`./build/bin/nanommo_client 192.168.1.20`), and connects to the world at the host
 and port that world registered, behind a loading screen until the

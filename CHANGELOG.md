@@ -7,6 +7,20 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.64.0 (2026-11-03)
+
+- The hotbar's skills are in slots of brass, each icon in its skill's colour, and dragging one onto
+  another swaps them. The client keeps the order in its settings.
+- The chat closes into a button, which counts the lines that have come since.
+- Items drag for real: the item follows the mouse, each slot lights green where the server would
+  take it and red where it wouldn't, and one let go of over no window is thrown away once you say
+  so. The client links the server's bag rules for that, and shows a move as soon as it's made,
+  until the server's bag comes back.
+- The character window lays out what you wear round you, on a lit stage.
+- The login, the worlds and the characters are drawn over embers rising in the dark, under the
+  game's name, with the character picked on a stage in the middle.
+- Loading and dying are in the interface's look.
+
 ## 0.63.0 (2026-11-03)
 
 - The interface has a look of its own, in the game's colours and two fonts, Cinzel and Alegreya

@@ -150,8 +150,8 @@ says which land you're in, the land's (`client/loading.h`).
 - A frame that took long, such as the one that built the land, counts as a thirtieth of a second, so
   the fade and the fog don't jump.
 - `Loading` is kept apart from raylib and ImGui, so its tests need no window, and
-  `DrawLoadingScreen` draws it on ImGui's foreground list, over the windows, with dark words on a
-  light sky and light words on a dark one.
+  `DrawLoadingScreen` draws it on ImGui's foreground list, over the windows, with the land's name
+  in gold on a dark band across the middle, which reads on a light sky and a dark one.
 
 ## The interface
 
@@ -178,6 +178,11 @@ client.
 - Your frame, in the top left, has your face, drawn into a texture of its own each frame from a
   camera close up, in a ring with your level, beside your name, your health and your experience.
   The monster you picked has a frame at the top in the middle.
+- The screens before the world are drawn over embers rising in the dark, from below the screen,
+  each at its own pace, from a hash of its number, under the game's name in gold.
+- The hotbar's skills and the bag's items are in slots of brass (`DrawSlot`), each icon in its
+  colour on a glow of it. An item or a skill that's dragged is drawn under the mouse, where it was
+  taken hold of, through ImGui's drag and drop with its own preview off.
 - The compass along the top shows half the world, a quarter turn each side of the way the camera
   looks (`client/compass.h`), with the monster you picked, the NPCs with a quest for you, the
   land's gates and where you're walking to, and how far the one nearest the middle is. Behind you,

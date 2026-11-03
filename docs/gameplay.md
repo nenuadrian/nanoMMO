@@ -61,8 +61,8 @@ Going up a level fills your health, to the new level's most. A player with no he
 dead play their death animation and lie there for ten seconds (`World::kRespawnTime`). Then a
 monster comes back where it spawned, at full health. A player can come back once the wait is over,
 and stays down until they ask to: the world refuses before then. While you're dead, the world
-darkens, and a window in the middle counts down the seconds the server says you have left to a
-Respawn button, which brings you back in the middle of your land, at full health. The screen goes
+darkens, red comes in from the sides, and under "You died" a button counts down the seconds the
+server says you have left to Respawn, which brings you back in the middle of your land, at full health. The screen goes
 dark as you come back, and the world fades in, so you don't see yourself jump there. Each world a
 dead player gets says how long they have left to wait (`respawn`, in milliseconds), and the bots
 come back as soon as they can.
@@ -108,7 +108,9 @@ skill tree: a trainer teaches each of its skills to any player who has reached i
 The hotbar along the bottom of the screen has Strike first, on Space, then the others in the order
 of their levels, but for the swings Strike goes on into, which are Space's too, each on a number key, 1 for the first, up to 9, then a row above it, on Shift and the same keys,
 for nine more, and a click on one uses it too.
-Each shows its icon and its key, and its name and level when the mouse is over it. A skill you don't
+Drag one onto another to swap them: the client keeps the order in its settings, and the settings'
+Interface page puts the levels' order back. Each shows its icon, in the colour of its first fx, and
+its key, and its name and level when the mouse is over it. A skill you don't
 know yet is greyed out, with the level it needs, or Learn once you've reached it, and one that's
 cooling down is shaded, a slice that shrinks clockwise from the top, with the seconds left in the
 middle. The client works that out from the milliseconds the server sends and the cooldown in the
@@ -183,8 +185,14 @@ Press I, or the bag's button in the bottom right, to open the bag. What you wear
 slot shows its item's icon, in the item's tint, and how many are in it, and over it a tooltip says
 what it is, where it's worn, what it adds, what it rolled, what using one does and how many stack.
 Drag an item onto another slot, in either window, to move it, stack it, swap it, wear it or take it
-off, with Shift for half the stack. Double-click it to drink it, wear it or take it off, and
-right-click it to throw it away. A health potion heals forty, one every ten seconds.
+off, with Shift for half the stack. It follows the mouse, and each slot under it lights green if the
+server would take it there and red if not: the client tries the move on a copy of the bag with the
+server's own rules (`server/inventory.h`, a library both link). Let go of it over no window, and the
+bag asks whether to throw it away. Double-click it to drink it, wear it or take it off, and
+right-click it for a menu that throws it away too. The bag shows a move as soon as it's made
+(`client/predicted_bag.h`): the client does it to a copy of the bag with those rules and shows the
+copy, until the server's bag comes back at a new revision, or for a second, if it doesn't, as when
+the server refused. A health potion heals forty, one every ten seconds.
 
 Monsters drop items, straight into their killer's bag: each kind's `loot` in the monsters file has
 the items it can drop, the chance of each, and how many. A skeleton drops bones more often than
@@ -239,7 +247,9 @@ you've killed for it, with a tick once that's all of them.
 ## Chat
 
 Enter opens a field at the bottom of the chat window, in the bottom left corner, and Enter again says
-what you typed to everyone in your world, in all its lands, under your name. Escape leaves the field.
+what you typed to everyone in your world, in all its lands, under your name. The chat's close button
+folds it into a button in the corner, which counts the lines that have come since, and a click on it,
+or Enter, opens it again. Escape leaves the field.
 While you type, the game's keys do nothing, so a line doesn't walk you, turn the camera or swing
 your sword.
 
