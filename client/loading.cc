@@ -7,6 +7,8 @@
 #include <cfloat>
 #include <string>
 
+#include "client/theme.h"
+
 namespace nanommo {
 
 namespace {
@@ -91,25 +93,40 @@ void DrawLoadingScreen(float cover, const std::array<float, 3>& sky,
   draw->AddRectFilled(
       {0.0f, 0.0f}, screen,
       IM_COL32(byte(sky[0]), byte(sky[1]), byte(sky[2]), byte(cover)));
-  // Dark words on a light sky, such as the Meadows', and light on a dark one.
-  const float light = 0.3f * sky[0] + 0.59f * sky[1] + 0.11f * sky[2];
-  const int ink = light > 0.5f ? 30 : 235;
-  // The words stay a little longer than the sky behind them.
-  const int alpha = byte(cover * 1.5f);
-  ImFont* font = ImGui::GetFont();
-  const float title_size = ImGui::GetFontSize() * 3.2f;
-  const float line_size = ImGui::GetFontSize() * 1.3f;
+  // The words stay a little longer than the sky behind them, on a dark band
+  // across the middle, so that they read on a light sky and a dark one.
+  const float alpha = std::clamp(cover * 1.5f, 0.0f, 1.0f);
+  const float middle = screen.y * 0.45f;
+  const float band = Ui(110.0f);
+  const ImU32 dark = Faded(colors::kNight, 0.7f * alpha);
+  const ImU32 clear = Faded(colors::kNight, 0.0f);
+  draw->AddRectFilledMultiColor({0.0f, middle - band}, {screen.x, middle},
+                                clear, clear, dark, dark);
+  draw->AddRectFilledMultiColor({0.0f, middle}, {screen.x, middle + band}, dark,
+                                dark, clear, clear);
+  ImFont* title_font = GetFonts().title;
+  const float title_size = Ui(58.0f);
   const ImVec2 title_extent =
-      font->CalcTextSizeA(title_size, FLT_MAX, 0.0f, title.c_str());
+      title_font->CalcTextSizeA(title_size, FLT_MAX, 0.0f, title.c_str());
+  const float top = middle - title_extent.y * 0.75f;
+  DrawGradientText(draw, title_font, title_size,
+                   {(screen.x - title_extent.x) / 2.0f, top},
+                   Faded(colors::kGoldLight, alpha),
+                   Faded(colors::kGoldDark, alpha), title.c_str());
+  if (alpha >= 0.99f) {
+    DrawDivider(draw,
+                {screen.x / 2.0f - title_extent.x * 0.6f,
+                 top + title_extent.y + Ui(4.0f)},
+                title_extent.x * 1.2f);
+  }
+  ImFont* text = GetFonts().text;
+  const float line_size = Ui(20.0f);
   const ImVec2 line_extent =
-      font->CalcTextSizeA(line_size, FLT_MAX, 0.0f, line.c_str());
-  const float top = screen.y * 0.42f - title_extent.y / 2.0f;
-  draw->AddText(font, title_size, {(screen.x - title_extent.x) / 2.0f, top},
-                IM_COL32(ink, ink, ink, alpha), title.c_str());
-  draw->AddText(font, line_size,
-                {(screen.x - line_extent.x) / 2.0f,
-                 top + title_extent.y + line_size * 0.4f},
-                IM_COL32(ink, ink, ink, alpha * 3 / 4), line.c_str());
+      text->CalcTextSizeA(line_size, FLT_MAX, 0.0f, line.c_str());
+  DrawShadowedText(
+      draw, text, line_size,
+      {(screen.x - line_extent.x) / 2.0f, top + title_extent.y + Ui(14.0f)},
+      Faded(colors::kPaper, alpha * 0.85f), line.c_str());
 }
 
 }  // namespace nanommo
