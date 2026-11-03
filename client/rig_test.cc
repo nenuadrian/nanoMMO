@@ -77,6 +77,35 @@ TEST(Rig, BakesTheIdleTheWalkTheRunAndTheDeath) {
   }
 }
 
+TEST(Rig, KeepsAFootThatsDownWhereItWasPutDown) {
+  const nanommo::rig::Rig rig = GamesContent().rig;
+  const Baked baked(rig);
+  const int tip = BoneNamed(baked.model, "LeftToe_End");
+  const int ankle = BoneNamed(baked.model, "LeftFoot");
+  for (const auto& [clip, speed] :
+       {std::pair{1, rig.walk().speed()}, std::pair{2, rig.run().speed()}}) {
+    const ModelAnimation& gait = baked.clips[clip];
+    int down = 0;
+    for (int frame = 1; frame < gait.keyframeCount; ++frame) {
+      const Transform* before = gait.keyframePoses[frame - 1];
+      const Transform* now = gait.keyframePoses[frame];
+      // The tip of the toes on the ground in both frames goes back as fast
+      // as the body goes forward, which is no speed at all on the ground.
+      if (before[tip].translation.y < 0.001f &&
+          now[tip].translation.y < 0.001f) {
+        const float back =
+            (before[tip].translation.z - now[tip].translation.z) * 60.0f;
+        EXPECT_NEAR(back, speed, 0.02f) << gait.name << " frame " << frame;
+        ++down;
+      }
+      // The ankle never goes under the ground.
+      EXPECT_GT(now[ankle].translation.y, 0.05f);
+    }
+    // Down for a good part of the cycle.
+    EXPECT_GT(down, gait.keyframeCount / 5) << gait.name;
+  }
+}
+
 TEST(Rig, BendsTheLegsWithoutStretchingThem) {
   const Baked baked(GamesContent().rig);
   const int hip = BoneNamed(baked.model, "RightUpLeg");

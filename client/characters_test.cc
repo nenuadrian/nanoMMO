@@ -1,7 +1,9 @@
 #include "client/characters.h"
 
+#include <cmath>
 #include <cstddef>
 #include <memory>
+#include <optional>
 
 #include "absl/status/statusor.h"
 #include "client/camera.h"
@@ -30,6 +32,11 @@ TEST(Characters, BuildsAPersonForEachOfTheRigsBuilds) {
   const nanommo::Characters people(content.rig, shader, content.figures);
 
   EXPECT_EQ(people.size(), static_cast<std::size_t>(content.rig.builds_size()));
+  // Walking, each foot comes down once a cycle, half a cycle apart.
+  const std::optional<nanommo::Gait> gait = people.GaitOf(
+      {.id = 1, .to = nanommo::protocol::MOTION_WALK, .to_time = 0.5f});
+  ASSERT_TRUE(gait.has_value());
+  EXPECT_NEAR(std::fabs(gait->footfalls[1] - gait->footfalls[0]), 0.5f, 0.05f);
 }
 
 TEST(Characters, LoadsTheSkeletonWithAWalkMadeFromItsRun) {

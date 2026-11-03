@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <numbers>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -16,6 +17,7 @@ namespace nanommo {
 
 namespace {
 
+constexpr float kPi = std::numbers::pi_v<float>;
 constexpr float kFramesPerSecond = 60.0f;
 
 // The heel is this far behind the ankle: where a foot lands, and rocks
@@ -25,11 +27,27 @@ constexpr float kHeel = 0.04f;
 // Each foot, and so each knee, points this far out from straight ahead.
 constexpr float kToesOut = 6.0f * DEG2RAD;
 
+// How much of the body's lean the head takes back, to look ahead.
+constexpr float kLookUp = 0.6f;
+
+// How far the sword hand bends back, as a share of how far its elbow bends.
+constexpr float kWrist = 0.8f;
+
 // The share of a leg's length past which it straightens more slowly than
 // its foot goes.
 constexpr float kStraight = 0.97f;
 
+// Into a foot's time on the ground, as shares of it: until here it rolls off
+// its heel, and from here onto its toes.
+constexpr float kFlat = 0.15f;
+constexpr float kRoll = 0.6f;
+
 using Pose = std::vector<Transform>;
+
+float Smooth(float t) {
+  t = std::clamp(t, 0.0f, 1.0f);
+  return t * t * (3.0f - 2.0f * t);
+}
 
 int BoneNamed(const ModelSkeleton& skeleton, std::string_view name) {
   for (int i = 0; i < static_cast<int>(skeleton.boneCount); ++i) {
@@ -225,6 +243,94 @@ class Poser {
   std::vector<Leg> legs_;
 };
 
+// The turns of a gait's upper body, a share of the way round its cycle, from
+// when the left foot lands.
+Bend Swing(const rig::Gait& gait, float phase) {
+  const float wave = std::cos(2.0f * kPi * phase);
+  skills::Key key;
+  auto turn = [&key](skills::Joint joint, float pitch, float yaw) {
+    skills::Turn& turn = *key.add_turns();
+    turn.set_joint(joint);
+    turn.set_pitch(pitch);
+    turn.set_yaw(yaw);
+  };
+  // The hips turn with the leg that's forward, the left at first, and the
+  // chest the other way, with the arm that's forward, and the head looks
+  // ahead all the while.
+  const float hips = -gait.hips_turn() * wave;
+  const float chest = gait.chest_turn() * wave;
+  turn(skills::HIPS, gait.lean() / 2.0f, hips);
+  turn(skills::SPINE, gait.lean() / 2.0f, chest / 2.0f - hips);
+  turn(skills::CHEST, 0.0f, chest / 2.0f);
+  turn(skills::HEAD, -gait.lean() * kLookUp, -chest);
+  // Each arm swings against its leg, and bends more as it comes forward, and
+  // the sword hand bends back as its elbow does.
+  const float left_forward = (1.0f - wave) / 2.0f;
+  const float left_elbow = gait.elbow() * (0.7f + 0.6f * left_forward);
+  const float right_elbow =
+      gait.elbow() * (0.7f + 0.6f * (1.0f - left_forward));
+  turn(skills::LEFT_ARM, gait.arms_back() + gait.arm_swing() * wave, 0.0f);
+  turn(skills::RIGHT_ARM, gait.arms_back() - gait.arm_swing() * wave, 0.0f);
+  turn(skills::LEFT_FOREARM, -left_elbow, 0.0f);
+  turn(skills::RIGHT_FOREARM, -right_elbow, 0.0f);
+  turn(skills::RIGHT_HAND, right_elbow * kWrist, 0.0f);
+  skills::Move move;
+  *move.add_keys() = key;
+  Bend bend = BendAt(move, 0.0f);
+  // Highest, or lowest, as each foot passes under the hips, and over the
+  // side of the one that's down.
+  const float middle = phase - gait.stance() / 2.0f;
+  bend.shift = {gait.sway() * std::cos(2.0f * kPi * middle),
+                -gait.crouch() +
+                    gait.bob() * (1.0f + std::cos(4.0f * kPi * middle)) / 2.0f,
+                0.0f};
+  return bend;
+}
+
+// Where a foot is, a share of the way round the gait's cycle from when it
+// lands. While it's down, it goes back as fast as the body goes forward, over a
+// stretch whose middle is the centre's distance ahead of where it stands.
+Step Footing(const Poser& poser, const Leg& leg, const rig::Gait& gait,
+             float seconds, float phase, float centre) {
+  const float stance = gait.stance();
+  const float down = gait.speed() * stance * seconds;
+  const Vector3 under = poser.Under(leg);
+  const float x = leg.side * gait.width() / 2.0f;
+  const float heel = gait.heel_strike() * DEG2RAD;
+  const float toes = gait.toe_off() * DEG2RAD;
+  auto on_ground = [&](float share) {
+    float pitch = 0.0f;
+    if (share < kFlat) {
+      pitch = -heel * (1.0f - Smooth(share / kFlat));
+    } else if (share > kRoll) {
+      pitch = toes * Smooth((share - kRoll) / (1.0f - kRoll));
+    }
+    return poser.Place(leg, {x, 0.0f, under.z + centre + down * (0.5f - share)},
+                       pitch);
+  };
+  if (phase < stance) {
+    return on_ground(phase / stance);
+  }
+  // Off the ground: from where it left it to where it lands, as fast as the
+  // ground at each end, lifted on the way, highest a little before halfway.
+  const float t = (phase - stance) / (1.0f - stance);
+  const Step from = on_ground(1.0f);
+  const Step to = on_ground(0.0f);
+  // Half as fast as the ground, which eases the foot off it and onto it.
+  const float moving = -gait.speed() * (1.0f - stance) * seconds / 2.0f;
+  const float t2 = t * t;
+  const float t3 = t2 * t;
+  const float z = (2 * t3 - 3 * t2 + 1) * from.ankle.z +
+                  (t3 - 2 * t2 + t) * moving + (-2 * t3 + 3 * t2) * to.ankle.z +
+                  (t3 - t2) * moving;
+  const float lift =
+      gait.lift() *
+      std::sin(kPi * std::pow(t, std::log(0.5f) / std::log(0.4f)));
+  return {.ankle = {Lerp(from.ankle.x, to.ankle.x, Smooth(t)),
+                    Lerp(from.ankle.y, to.ankle.y, Smooth(t)) + lift, z},
+          .pitch = Lerp(from.pitch, to.pitch, Smooth(t))};
+}
+
 ModelAnimation Clip(const char* name, const std::vector<Pose>& frames) {
   ModelAnimation clip{};
   std::strncpy(clip.name, name, sizeof(clip.name) - 1);
@@ -243,6 +349,48 @@ ModelAnimation Clip(const char* name, const std::vector<Pose>& frames) {
 int Frames(float ms) {
   return std::max(
       1, static_cast<int>(std::lround(ms * kFramesPerSecond / 1000.0f)));
+}
+
+// Where the middle of a foot's time down is, ahead of where it stands: so far
+// that the leg reaches as far to land as it does to leave the ground, behind.
+float Centre(const Poser& poser, const rig::Gait& gait, float seconds) {
+  const Leg& leg = poser.legs()[0];
+  const Vector3 landing = poser.Bent(Swing(gait, 0.0f))[leg.hip].translation;
+  const Vector3 leaving =
+      poser.Bent(Swing(gait, gait.stance()))[leg.hip].translation;
+  float low = -0.5f;
+  float high = 0.5f;
+  for (int i = 0; i < 30; ++i) {
+    const float centre = (low + high) / 2.0f;
+    const float ahead = Vector3Distance(
+        landing, Footing(poser, leg, gait, seconds, 0.0f, centre).ankle);
+    const float behind = Vector3Distance(
+        leaving,
+        Footing(poser, leg, gait, seconds, gait.stance() * 0.9999f, centre)
+            .ankle);
+    (ahead > behind ? high : low) = centre;
+  }
+  return (low + high) / 2.0f;
+}
+
+std::vector<Pose> Loop(const Poser& poser, const rig::Gait& gait) {
+  const int frames = Frames(static_cast<float>(gait.cycle_ms()));
+  // A whole number of frames, so the cycle the feet keep up with is this.
+  const float seconds = static_cast<float>(frames) / kFramesPerSecond;
+  const float centre = Centre(poser, gait, seconds);
+  std::vector<Pose> poses;
+  for (int frame = 0; frame <= frames; ++frame) {
+    const float phase = static_cast<float>(frame % frames) / frames;
+    Pose pose = poser.Bent(Swing(gait, phase));
+    for (const Leg& leg : poser.legs()) {
+      // The right foot is half a cycle behind the left.
+      const float own =
+          std::fmod(phase + (leg.side > 0.0f ? 0.0f : 0.5f), 1.0f);
+      poser.Reach(pose, leg, Footing(poser, leg, gait, seconds, own, centre));
+    }
+    poses.push_back(std::move(pose));
+  }
+  return poses;
 }
 
 std::vector<Pose> Idle(const Poser& poser, const skills::Move& idle) {
@@ -304,10 +452,10 @@ ModelAnimation* Bake(const rig::Rig& rig, const Model& model, int* count) {
   const Poser poser(rig, model);
   std::vector<ModelAnimation> clips;
   if (poser.HasLegs()) {
-    // The walk, the run and the death are the idle, for now.
+    // The death is the idle, for now.
     clips = {Clip("idle", Idle(poser, rig.idle())),
-             Clip("walk", Idle(poser, rig.idle())),
-             Clip("run", Idle(poser, rig.idle())),
+             Clip("walk", Loop(poser, rig.walk())),
+             Clip("run", Loop(poser, rig.run())),
              Clip("death", Idle(poser, rig.idle()))};
   }
   *count = static_cast<int>(clips.size());
