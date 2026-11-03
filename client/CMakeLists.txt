@@ -30,9 +30,6 @@ target_link_libraries(nanommo_client_core PUBLIC
 file(GLOB content_files CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/content/*.txtpb)
 add_custom_target(nanommo_client_assets ALL
   COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-    ${PROJECT_SOURCE_DIR}/assets/characters
-    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/characters
-  COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
     ${PROJECT_SOURCE_DIR}/assets/monsters
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/monsters
   COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
