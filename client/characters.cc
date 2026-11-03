@@ -152,86 +152,97 @@ Characters::Characters(const std::string& folder,
       UnloadModel(character.model);
       continue;
     }
-
-    for (int i = 0; i < character.model.materialCount; ++i) {
-      character.model.materials[i].shader = shader;
-    }
-    int left_foot = -1;
-    int right_foot = -1;
-    for (int i = 0; i < static_cast<int>(character.model.skeleton.boneCount);
-         ++i) {
-      const std::string_view bone = character.model.skeleton.bones[i].name;
-      if (bone == kRightHand) {
-        character.hand = i;
-      } else if (bone == kLeftFoot) {
-        left_foot = i;
-      } else if (bone == kRightFoot) {
-        right_foot = i;
-      }
-    }
-    for (const protocol::Motion motion :
-         {protocol::MOTION_WALK, protocol::MOTION_RUN}) {
-      character.footfalls[motion] = Footfalls(
-          character.clips[character.clip_for[motion]], left_foot, right_foot);
-    }
-    character.joints = FindJoints(character.model);
+    Ready(character, shader);
     // Sized by the model's own mesh, so a figure is as tall as the model.
     const BoundingBox box = GetModelBoundingBox(character.model);
     character.scale = height / (box.max.y - box.min.y);
-    character.hull = character.model;
-    if (!figures.body().empty()) {
-      const float metre = 1.0f / character.scale;
-      const std::vector<figures::Part> body = Unfold(figures.body());
-      Dress(character.model, body, metre);
-      // The hull shares the model's bones, so the clips pose it too.
-      character.hull = character.model;
-      character.hull.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
-      character.hull.meshes[0] = Hull(character.model, body, metre);
-      for (int i = 0; i < figures.hairs_size(); ++i) {
-        if (figures.hairs(i).parts().empty()) {
-          continue;
-        }
-        // Copies of the model, with the hair for their meshes, so they move
-        // with its bones.
-        const std::vector<figures::Part> parts =
-            Unfold(figures.hairs(i).parts());
-        Garment hair{.model = character.model, .hull = character.model};
-        hair.model.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
-        hair.model.meshes[0] = Parts(character.model, parts, metre);
-        hair.hull.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
-        hair.hull.meshes[0] = Hull(character.model, parts, metre);
-        character.hairs[i] = hair;
-      }
-      character.dressed = true;
-    }
+    Dress(character, figures);
     characters_.push_back(character);
   }
 }
 
+void Characters::Ready(Character& character, Shader shader) {
+  for (int i = 0; i < character.model.materialCount; ++i) {
+    character.model.materials[i].shader = shader;
+  }
+  int left_foot = -1;
+  int right_foot = -1;
+  for (int i = 0; i < static_cast<int>(character.model.skeleton.boneCount);
+       ++i) {
+    const std::string_view bone = character.model.skeleton.bones[i].name;
+    if (bone == kRightHand) {
+      character.hand = i;
+    } else if (bone == kLeftFoot) {
+      left_foot = i;
+    } else if (bone == kRightFoot) {
+      right_foot = i;
+    }
+  }
+  for (const protocol::Motion motion :
+       {protocol::MOTION_WALK, protocol::MOTION_RUN}) {
+    character.footfalls[motion] = Footfalls(
+        character.clips[character.clip_for[motion]], left_foot, right_foot);
+  }
+  character.joints = FindJoints(character.model);
+}
+
+void Characters::Dress(Character& character, const figures::Figures& figures) {
+  character.hull = character.model;
+  if (figures.body().empty()) {
+    return;
+  }
+  const float metre = 1.0f / character.scale;
+  const std::vector<figures::Part> body = Unfold(figures.body());
+  nanommo::Dress(character.model, body, metre);
+  // The hull shares the model's bones, so the clips pose it too.
+  character.hull = character.model;
+  character.hull.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
+  character.hull.meshes[0] = Hull(character.model, body, metre);
+  for (int i = 0; i < figures.hairs_size(); ++i) {
+    if (figures.hairs(i).parts().empty()) {
+      continue;
+    }
+    // Copies of the model, with the hair for their meshes, so they move with
+    // its bones.
+    const std::vector<figures::Part> parts = Unfold(figures.hairs(i).parts());
+    Garment hair{.model = character.model, .hull = character.model};
+    hair.model.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
+    hair.model.meshes[0] = Parts(character.model, parts, metre);
+    hair.hull.meshes = static_cast<Mesh*>(MemAlloc(sizeof(Mesh)));
+    hair.hull.meshes[0] = Hull(character.model, parts, metre);
+    character.hairs[i] = hair;
+  }
+  character.dressed = true;
+}
+
 Characters::~Characters() {
   for (Character& character : characters_) {
-    for (auto& [id, garment] : character.garments) {
-      UnloadMesh(garment.model.meshes[0]);
-      MemFree(garment.model.meshes);
-      UnloadMesh(garment.hull.meshes[0]);
-      MemFree(garment.hull.meshes);
-    }
-    for (auto& [i, hair] : character.hairs) {
-      UnloadMesh(hair.model.meshes[0]);
-      MemFree(hair.model.meshes);
-      UnloadMesh(hair.hull.meshes[0]);
-      MemFree(hair.hull.meshes);
-    }
-    if (character.dressed) {
-      UnloadMesh(character.hull.meshes[0]);
-      MemFree(character.hull.meshes);
-    }
-    UnloadModelAnimations(character.clips, character.clip_count);
-    UnloadModel(character.model);
+    Unload(character);
   }
   for (auto& [id, weapon] : weapons_) {
     UnloadModel(weapon.model);
   }
+}
+
+void Characters::Unload(Character& character) {
+  for (auto& [id, garment] : character.garments) {
+    UnloadMesh(garment.model.meshes[0]);
+    MemFree(garment.model.meshes);
+    UnloadMesh(garment.hull.meshes[0]);
+    MemFree(garment.hull.meshes);
+  }
+  for (auto& [i, hair] : character.hairs) {
+    UnloadMesh(hair.model.meshes[0]);
+    MemFree(hair.model.meshes);
+    UnloadMesh(hair.hull.meshes[0]);
+    MemFree(hair.hull.meshes);
+  }
+  if (character.dressed) {
+    UnloadMesh(character.hull.meshes[0]);
+    MemFree(character.hull.meshes);
+  }
+  UnloadModelAnimations(character.clips, character.clip_count);
+  UnloadModel(character.model);
 }
 
 void Characters::Hold(uint32_t id, const items::Look& look, Shader shader) {

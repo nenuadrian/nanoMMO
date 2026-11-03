@@ -104,6 +104,17 @@ class Characters {
     float frame;
   };
 
+  /// Finds the character's hand, its feet and its joints, and where its feet
+  /// come down, and draws it with the shader.
+  static void Ready(Character& character, Shader shader);
+
+  /// Puts the figures' body on the character, its hull, and each way to wear
+  /// the hair.
+  static void Dress(Character& character, const figures::Figures& figures);
+
+  /// Frees what the character's model, clips and garments hold.
+  static void Unload(Character& character);
+
   static Pose PoseFor(const Character& character, protocol::Motion motion,
                       float time);
 
