@@ -16,8 +16,9 @@ Model RigModel(const std::vector<rig::Joint>& joints);
 
 /// The rig's motions, worked out for a model of it, as raylib's clips: the
 /// idle, the walk, the run and the death, in the protocol's order of motions,
-/// sixty frames a second, each the idle for now. A loop's last frame is its
-/// first again. UnloadModelAnimations frees them.
+/// sixty frames a second, each the idle for now, with the feet where they
+/// stand. A loop's last frame is its first again. UnloadModelAnimations frees
+/// them.
 ModelAnimation* Bake(const rig::Rig& rig, const Model& model, int* count);
 
 }  // namespace nanommo

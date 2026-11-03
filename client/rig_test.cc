@@ -76,3 +76,35 @@ TEST(Rig, BakesTheIdleTheWalkTheRunAndTheDeath) {
     }
   }
 }
+
+TEST(Rig, BendsTheLegsWithoutStretchingThem) {
+  const Baked baked(GamesContent().rig);
+  const int hip = BoneNamed(baked.model, "RightUpLeg");
+  const int knee = BoneNamed(baked.model, "RightLeg");
+  const int ankle = BoneNamed(baked.model, "RightFoot");
+  const Transform* rest = baked.model.skeleton.bindPose;
+  const float thigh =
+      Vector3Distance(rest[hip].translation, rest[knee].translation);
+  const float shin =
+      Vector3Distance(rest[knee].translation, rest[ankle].translation);
+  for (int clip = 0; clip < baked.count; ++clip) {
+    const ModelAnimation& motion = baked.clips[clip];
+    for (int frame = 0; frame < motion.keyframeCount; ++frame) {
+      const Transform* pose = motion.keyframePoses[frame];
+      EXPECT_NEAR(
+          Vector3Distance(pose[hip].translation, pose[knee].translation), thigh,
+          1e-4f);
+      EXPECT_NEAR(
+          Vector3Distance(pose[knee].translation, pose[ankle].translation),
+          shin, 1e-4f);
+      // The shin goes where the knee's turn takes it, as the GPU draws it.
+      const Vector3 drawn = Vector3Add(
+          pose[knee].translation,
+          Vector3RotateByQuaternion(
+              Vector3Subtract(rest[ankle].translation, rest[knee].translation),
+              pose[knee].rotation));
+      EXPECT_LT(Vector3Distance(drawn, pose[ankle].translation), 1e-3f)
+          << motion.name << " frame " << frame;
+    }
+  }
+}
