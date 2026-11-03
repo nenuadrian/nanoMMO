@@ -2,9 +2,13 @@
 
 #include <raymath.h>
 
+#include <memory>
 #include <string_view>
 #include <vector>
 
+#include "absl/status/statusor.h"
+#include "client/figures.h"
+#include "client/window.h"
 #include "content/content.h"
 #include "content/rig.h"
 #include "gtest/gtest.h"
@@ -136,4 +140,43 @@ TEST(Rig, BendsTheLegsWithoutStretchingThem) {
           << motion.name << " frame " << frame;
     }
   }
+}
+
+TEST(Rig, DiesLyingOnTheGroundNotUnderIt) {
+  const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
+      nanommo::Window::Create("test", 64, 64,
+                              nanommo::Window::Visibility::kHidden);
+  ASSERT_TRUE(window.ok());
+  const nanommo::Content content = GamesContent();
+  Model model = nanommo::RigModel(nanommo::Skeleton(content.rig, 0));
+  nanommo::Dress(model, nanommo::Unfold(content.figures.body()), 1.0f);
+  int count = 0;
+  ModelAnimation* clips = nanommo::Bake(content.rig, model, &count);
+  ASSERT_EQ(count, 4);
+
+  const ModelAnimation& death = clips[3];
+  const Mesh& body = model.meshes[0];
+  for (int frame = 0; frame < death.keyframeCount; ++frame) {
+    float lowest = 1.0f;
+    for (int v = 0; v < body.vertexCount; ++v) {
+      const int bone = body.boneIndices[4 * v];
+      const Transform& posed = death.keyframePoses[frame][bone];
+      const Vector3 corner{body.vertices[3 * v], body.vertices[3 * v + 1],
+                           body.vertices[3 * v + 2]};
+      lowest = std::min(
+          lowest,
+          Vector3Add(Vector3RotateByQuaternion(
+                         Vector3Subtract(
+                             corner, model.skeleton.bindPose[bone].translation),
+                         posed.rotation),
+                     posed.translation)
+              .y);
+    }
+    EXPECT_GT(lowest, -0.001f) << "frame " << frame;
+  }
+  // At the end, the hips are down by the ground.
+  const Transform* lying = death.keyframePoses[death.keyframeCount - 1];
+  EXPECT_LT(lying[BoneNamed(model, "Hips")].translation.y, 0.25f);
+  UnloadModelAnimations(clips, count);
+  UnloadModel(model);
 }

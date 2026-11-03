@@ -411,6 +411,59 @@ std::vector<Pose> Idle(const Poser& poser, const skills::Move& idle) {
   return poses;
 }
 
+// How far below the ground the lowest corner of the model's body is, posed:
+// below zero when it's above it.
+float Sunk(const Model& model, const Pose& pose) {
+  float lowest = 0.0f;
+  bool any = false;
+  for (int m = 0; m < model.meshCount; ++m) {
+    const Mesh& mesh = model.meshes[m];
+    if (mesh.vertices == nullptr || mesh.boneIndices == nullptr) {
+      continue;
+    }
+    for (int v = 0; v < mesh.vertexCount; ++v) {
+      const int bone = mesh.boneIndices[4 * v];
+      const Vector3 corner{mesh.vertices[3 * v], mesh.vertices[3 * v + 1],
+                           mesh.vertices[3 * v + 2]};
+      // Each bone rests unturned, so a corner moves as its bone does.
+      const float y =
+          Vector3Add(Vector3RotateByQuaternion(
+                         Vector3Subtract(
+                             corner, model.skeleton.bindPose[bone].translation),
+                         pose[bone].rotation),
+                     pose[bone].translation)
+              .y;
+      lowest = any ? std::min(lowest, y) : y;
+      any = true;
+    }
+  }
+  return any ? -lowest : 0.0f;
+}
+
+std::vector<Pose> Fall(const Poser& poser, const Model& model,
+                       const skills::Move& death) {
+  const float ms = death.keys().empty()
+                       ? 0.0f
+                       : static_cast<float>(death.keys().rbegin()->at_ms());
+  const int frames = Frames(ms);
+  std::vector<Pose> poses;
+  // One more than the last key's, which the clip stops on.
+  for (int frame = 0; frame <= frames + 1; ++frame) {
+    const float at = std::min(ms, frame * 1000.0f / kFramesPerSecond);
+    Pose pose = poser.Bent(BendAt(death, at));
+    // The ground holds the body up: what the keys put under it comes up out
+    // of it.
+    const float sunk = Sunk(model, pose);
+    if (sunk > 0.0f) {
+      for (Transform& bone : pose) {
+        bone.translation.y += sunk;
+      }
+    }
+    poses.push_back(std::move(pose));
+  }
+  return poses;
+}
+
 }  // namespace
 
 Model RigModel(const std::vector<rig::Joint>& joints) {
@@ -452,11 +505,10 @@ ModelAnimation* Bake(const rig::Rig& rig, const Model& model, int* count) {
   const Poser poser(rig, model);
   std::vector<ModelAnimation> clips;
   if (poser.HasLegs()) {
-    // The death is the idle, for now.
     clips = {Clip("idle", Idle(poser, rig.idle())),
              Clip("walk", Loop(poser, rig.walk())),
              Clip("run", Loop(poser, rig.run())),
-             Clip("death", Idle(poser, rig.idle()))};
+             Clip("death", Fall(poser, model, rig.death()))};
   }
   *count = static_cast<int>(clips.size());
   auto* baked = static_cast<ModelAnimation*>(MemAlloc(

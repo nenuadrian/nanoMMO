@@ -1,5 +1,6 @@
 #include "client/characters.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <memory>
@@ -183,4 +184,51 @@ TEST(Characters, DrawsWhatAPlayerWearsOverTheirFigure) {
   const nanommo::Pixel blue = target.ReadPixel(chest.x, chest.y);
   EXPECT_GT(blue.b, blue.g);
   EXPECT_GT(blue.g, blue.r);
+}
+
+TEST(Characters, DrawsADeadPlayerLyingOnTheGroundLongAfterTheFall) {
+  const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
+      nanommo::Window::Create("test", 64, 64,
+                              nanommo::Window::Visibility::kHidden);
+  ASSERT_TRUE(window.ok());
+  // From the side and low down, where a body lying on the ground can't be
+  // taken for one standing.
+  const Camera3D side{.position = {4.0f, 0.8f, 0.0f},
+                      .target = {0.0f, 0.6f, 0.0f},
+                      .up = {0.0f, 1.0f, 0.0f},
+                      .fovy = 45.0f,
+                      .projection = CAMERA_PERSPECTIVE};
+  const int head =
+      static_cast<int>(GetWorldToScreenEx({0.0f, 1.6f, 0.0f}, side, 64, 64).y);
+  const int knee =
+      static_cast<int>(GetWorldToScreenEx({0.0f, 0.5f, 0.0f}, side, 64, 64).y);
+  // The highest row of the picture's middle column the figure covers, after
+  // dying so long ago, blending in from the idle as the animator does.
+  auto top = [&](float since) {
+    nanommo::Offscreen target(64, 64);
+    nanommo::Renderer renderer(GamesContent());
+    renderer.set_background({30 / 255.0f, 144 / 255.0f, 255 / 255.0f});
+    renderer.set_camera(side);
+    renderer.set_figures({{.id = 1,
+                           .wearing = {8},
+                           .from = nanommo::protocol::MOTION_IDLE,
+                           .from_time = since,
+                           .to = nanommo::protocol::MOTION_DEAD,
+                           .to_time = since,
+                           .blend = std::min(since / 0.25f, 1.0f)}});
+    target.Render(renderer);
+    for (int y = 0; y < 64; ++y) {
+      const nanommo::Pixel pixel = target.ReadPixel(32, y);
+      if (pixel.b < 200 || pixel.r > 60) {
+        return y;
+      }
+    }
+    return 64;
+  };
+
+  // As it's struck, it stands, its head as high as a head.
+  EXPECT_LE(top(0.0f), head);
+  // Once the fall is over, and long after, it lies below the knees.
+  EXPECT_GT(top(3.0f), knee);
+  EXPECT_GT(top(10.0f), knee);
 }

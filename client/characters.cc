@@ -120,7 +120,7 @@ Characters::Characters(const rig::Rig& rig, Shader shader,
       return;
     }
     Character character{.model = RigModel(joints)};
-    // The body first, before the clips are baked for the model.
+    // The body first, which the death keeps out of the ground.
     Dress(character, figures);
     character.clips = Bake(rig, character.model, &character.clip_count);
     if (character.clip_count < 4) {
