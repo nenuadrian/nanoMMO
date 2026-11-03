@@ -53,7 +53,7 @@ atmosphere is the sky, which the fog fades into, where the fog starts and where 
 which way the sun is, the light it adds to a face turned to it, and the light a face gets even when
 it's turned away. In the Meadows, a warm sun shines from the side and low, so the faces of the hills
 and trees stand apart, and the fog goes from 45 metres to 150. The shaders work out the fog for each
-pixel, from how far it is, so the far sea fades too. View, Settings changes the
+pixel, from how far it is, so the far sea fades too. The Sky page of the settings changes the
 atmosphere as you play, with presets for dusk, night, mist and ash, and Reset puts the land's back.
 
 The tree is Poly by Google's, from [Poly Pizza](https://poly.pizza/m/6pwiq7hSrHr), under

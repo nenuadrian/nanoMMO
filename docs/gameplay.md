@@ -179,7 +179,7 @@ your main hand is the one you swing. The server adds it all up as what you wear 
 fight. Some items roll modifiers of their own as they're made, such as an Ash Blade's damage, which
 stay with that one.
 
-Press I, or choose View, Bag, to open the bag. What you wear is in the character window (C). Each
+Press I, or the bag's button in the bottom right, to open the bag. What you wear is in the character window (C). Each
 slot shows its item's icon, in the item's tint, and how many are in it, and over it a tooltip says
 what it is, where it's worn, what it adds, what it rolled, what using one does and how many stack.
 Drag an item onto another slot, in either window, to move it, stack it, swap it, wear it or take it
@@ -217,8 +217,8 @@ no code.
 An NPC with a quest for you has a gold mark over its name: `!` for one you can take, or `?` for one
 you've done, to turn in. Click it to open its quests: what it says, what each asks for and gives,
 and a button to take it, how many you've killed for it, a button to turn it in once you've killed
-them all, or Done. The quests you're on are in the top right corner, each with how many you've
-killed for it, with a tick once that's all of them.
+them all, or Done. The quests you're on are on the right, under the minimap, each with how many
+you've killed for it, with a tick once that's all of them.
 
 - The server decides it all, as it does a skill a trainer teaches. The client sends `Input`'s
   `take` or `turn_in`, once, with the NPC's id and the quest's, and the world checks that the NPC

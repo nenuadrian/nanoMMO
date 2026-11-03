@@ -153,16 +153,52 @@ says which land you're in, the land's (`client/loading.h`).
   `DrawLoadingScreen` draws it on ImGui's foreground list, over the windows, with dark words on a
   light sky and light words on a dark one.
 
+## The interface
+
+The interface is ImGui's, in a look of nanoMMO's own (`client/theme.h`): the colours of its videos
+and its website, the near black of a fire gone low, its reds and embers, gold, and the cream of old
+paper for words, with titles in Cinzel and the rest in Alegreya Sans. Both fonts are under the SIL
+Open Font License, in `assets/fonts` with their licences, and the build copies them next to the
+client.
+
+- It's drawn at a scale: the window's height over 1080 points, so it's the same share of a 1080p
+  window as of a 4K one, and the window can be dragged to any size, but never below three quarters, times the player's own size, from 75 to
+  150 percent, on the settings' Interface page. ImGui's padding and spacing, and its text, which it
+  rasterises at the size it's drawn, go to that scale, and what we draw ourselves takes its sizes in
+  points through `Ui()`.
+- Each window is a panel of our own (`BeginPanel`): ImGui's window without its title bar or
+  background, with ours drawn under what's in it, dark, with its corners cut, a brass trim, a red
+  glow under its title in gold, and a close button. Buttons are drawn in the same shape
+  (`GameButton`).
+- Escape closes what's on top: the settings, the menu, the map, someone's window, the bag, then the
+  character, then lets go of the monster picked, and with nothing left, opens the menu: Back to the
+  game, Settings, Log out and Quit. The settings have a page each for the interface, the sound, the
+  graphics, the sky and the keys. The buttons in the bottom right open the character, the bag, the
+  map and the menu.
+- Your frame, in the top left, has your face, drawn into a texture of its own each frame from a
+  camera close up, in a ring with your level, beside your name, your health and your experience.
+  The monster you picked has a frame at the top in the middle.
+- The compass along the top shows half the world, a quarter turn each side of the way the camera
+  looks (`client/compass.h`), with the monster you picked, the NPCs with a quest for you, the
+  land's gates and where you're walking to, and how far the one nearest the middle is. Behind you,
+  the monster and the quests wait at its ends.
+
 ## The map and the minimap
 
 As a land is built, behind the loading screen, the client draws it from above into a texture, a
 pixel a metre, north up (`client/map.h`): its ground in the land's colours, as the meshes have
 them, lit from the top left by its slopes, its shallow and deep sea, and each tree as a dark spot.
-The minimap, in the bottom right, shows the 45 metres around you, and M opens the map of the whole
-land, which Escape or M closes. Both show the land's gates, in the colour of where they lead, the
-NPCs and their quest marks, the monsters, with a ring around the one you picked, the other players,
-where you're walking to, and you, as an arrow the way you face. A click on the map walks you there
-(see [Walking by yourself](worlds.md#walking-by-yourself)).
+The minimap, in the top right, is a disc of the land around you, under a plate with the land's
+name, in a brass ring with north's gem on it. Its plus and minus, or the mouse wheel over it, show
+25, 45 or 80 metres around you, and its map button, or M, opens the map of the whole land, which
+Escape or M closes. Both show the land's gates, in the colour of where they lead, the NPCs and their
+quest marks, the monsters, with a ring around the one you picked, the other players, where you're
+walking to, and you, as an arrow the way you face. On the minimap, what's past its rim is left out,
+but for the monster you picked and the quests, which wait on the rim. The settings' Interface page
+turns it with the camera, so that what's ahead is up, rather than north. The disc is the map's
+texture drawn as a fan of triangles round you, each corner's place on the map turned by the camera's
+heading, which ImGui's images, square and upright, can't do. A click on the map walks you there (see
+[Walking by yourself](worlds.md#walking-by-yourself)).
 
 ## Music
 
@@ -185,7 +221,7 @@ the repo: [assets/music/README.md](../assets/music/README.md) says where to get 
   fades it out over a second and a half. `client/jukebox.h` decides all of that from the frame's
   time, whether you're in the world and whether the track is playing, apart from raylib, so that its
   test needs no sound card. raylib loops a music stream by default, so the track turns that off.
-- View, Settings has the sound: Volume, which raylib's master volume applies to each sound the game
+- The settings' Sound page has the sound: Volume, which raylib's master volume applies to each sound the game
   makes, Music, Effects (see [Sound effects](#sound-effects)), and Mute, with the track's credit
   under them. Each slider goes
   through 40 decibels, from a tenth of the amplitude at the middle to full, and its bottom is
@@ -242,7 +278,7 @@ starts, in about a third of a second, so there are no files for them in the repo
   round.
 - Each sound is heard from where you stand: in full within four metres, then falling as one over the
   distance, and gone at forty, and from the side it's on, as the camera faces.
-- View, Settings has Effects, next to Music, for the steps, the skills and the gates.
+- The Sound page has Effects, next to Music, for the steps, the skills and the gates.
 - `./build/bin/nanommo_sounds` plays each sound outside the game: up and down pick one, and Space
   plays a new take of it and draws it.
 
@@ -311,6 +347,6 @@ does, so that shaders can work on the whole picture first. `client/postprocess.h
   fast approximate anti-aliasing, as the last pass: the frame and its bloom go into a picture of
   eight bits a channel at the screen's size, and a shader finds which way each edge runs from the
   brightness around each pixel, and blends along it, a pass over the screen's pixels.
-- View, Settings has the graphics: Bloom, on by default, Cel shading, off by default, as a cartoon's
+- The settings' Graphics page has the graphics: Bloom, on by default, Cel shading, off by default, as a cartoon's
   look is the player's to choose, and Anti-aliasing, on by default. The client keeps them with the
   sound in `settings.txtpb` (see [Music](#music)).

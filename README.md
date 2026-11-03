@@ -86,19 +86,22 @@ skills (see [Learning skills](docs/gameplay.md#learning-skills)), and the guard,
 a quest (see [Quests](docs/gameplay.md#quests)). W, A, S and D, or the arrow
 keys, move yours, whose name is in gold, Shift makes it run, a click on a monster picks it, Space
 strikes it with the sword, running up to it first, a double click on the ground walks you there, M
-opens the map, and 1 to 8 use your skills, from the bar along the bottom (see [Skills](docs/gameplay.md#skills)). I, or View, Bag, opens your bag,
+opens the map, and 1 to 8 use your skills, from the bar along the bottom (see [Skills](docs/gameplay.md#skills)). I, or the bag's button in the bottom right, opens your bag,
 where a new player has three health potions, and wears a shirt, trousers and shoes (see
 [Items](docs/gameplay.md#items)).
 The camera follows you: Q and E, or dragging with the right mouse button, turn it around you,
 dragging up and down tilts it, and the mouse wheel zooms in and out. W always walks away from the camera. The frame in the top left
-corner shows your health, and your experience towards the next level. Enter opens the chat, in the
+corner shows your face, your health, and your experience towards the next level, the compass along
+the top shows which way you face, with the monster you picked, the quest givers and the gates on it,
+and the minimap in the top right shows what's around you (see [The interface](docs/graphics.md#the-interface)). Enter opens the chat, in the
 bottom left corner, where Enter again says what you typed to everyone in your world (see
 [Chat](docs/gameplay.md#chat)).
-Press C, or choose View, Character, to open your character screen. It shows your name, level,
+Press C, or the character's button, to open your character screen. It shows your name, level,
 health, experience and position, next to an idle preview of your character facing the camera, and
 what you wear. The client renders that preview into a texture with a camera of its own, then ImGui
-draws the texture in the window. View, Settings changes the sound, and the sky, which is the colour of the fog too, and Game, Log out
-takes you back to your characters. Next time you enter as that character, it's where it left off.
+draws the texture in the window. Escape closes what's open, and with nothing open, opens the menu: its Settings change the
+interface's size, the sound, the graphics and the sky, which is the colour of the fog too, and Log
+out takes you back to your characters. Next time you enter as that character, it's where it left off.
 
 `protocol/nanommo.proto` is the contract between the client and the servers. The build runs protoc on
 it, and all sides use the C++ it generates. Items, monsters and NPCs are data (see
@@ -112,7 +115,7 @@ How each part of the game works is in `docs/`, a page each, which the
 - [Gameplay](docs/gameplay.md): monsters, health and levels, fighting, skills, items, quests and chat.
 - [Content](docs/content.md): the items, monsters, NPCs, quests and skills, as data the servers, the client and the bots read.
 - [NPCs](docs/npcs.md): who stands where, and the storyteller, which tells stories with mvGPT.
-- [Graphics and sound](docs/graphics.md): the characters, the sky, the music, the sound effects, made from numbers, and the post-processing: bloom, cel shading and anti-aliasing.
+- [Graphics and sound](docs/graphics.md): the characters, the interface, the map, the sky, the music, the sound effects, made from numbers, and the post-processing: bloom, cel shading and anti-aliasing.
 - [Cinema](docs/cinema.md): filming the game frame by frame, in slow motion, with a stage of players and monsters, for the trailer.
 - [The island](docs/island.md): the ground, the trees and the sea, made from a seed, and drawing them fast.
 - [Worlds and lands](docs/worlds.md): the game servers, which Consul lists, and each world's lands and dungeons.

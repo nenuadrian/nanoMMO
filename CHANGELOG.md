@@ -7,6 +7,22 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.63.0 (2026-11-03)
+
+- The interface has a look of its own, in the game's colours and two fonts, Cinzel and Alegreya
+  Sans, at a scale that follows the window's height, which can be dragged to any size, and a size
+  the player sets, from 75 to 150 percent.
+- Every window is a panel with its corners cut and its title in gold, and buttons are drawn to
+  match.
+- The menu bar is gone. Escape closes what's open, then lets go of the monster picked, then opens
+  the game's menu, whose settings have a page for the interface, sound, graphics, the sky and the
+  keys. Buttons in the bottom right open the character, the bag, the map and the menu.
+- Your frame shows your face, and the monster you picked has its frame at the top in the middle.
+- A compass along the top, with the monster you picked, the quest givers, the gates and where
+  you're walking to on it.
+- The minimap is round and in the top right, zooms, and can turn with the camera. The quests are
+  under it.
+
 ## 0.62.0 (2026-11-03)
 
 - A skill's strides carry the player along the way they faced as it started, on the server, so that
