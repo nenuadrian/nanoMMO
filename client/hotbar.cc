@@ -7,10 +7,12 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <numbers>
 #include <optional>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "client/icon.h"
@@ -26,6 +28,8 @@ constexpr float kSlot = 54.0f;
 constexpr float kGap = 6.0f;
 constexpr float kMargin = 14.0f;
 constexpr float kPadding = 12.0f;
+
+constexpr char kPayload[] = "SKILL";
 
 // As most games show a skill without a target.
 constexpr ImU32 kNoTarget = IM_COL32(242, 77, 64, 255);
@@ -77,6 +81,12 @@ void DrawCooldown(ImDrawList* draw, ImVec2 min, ImVec2 max, float share,
                    std::ceil(static_cast<float>(milliseconds) / 1000.0f))));
 }
 
+// Which slot a payload came from. ImGui copies it byte for byte.
+struct Dragged {
+  int slot = 0;
+  ImVec2 grab;
+};
+
 }  // namespace
 
 Hotbar::Hotbar(const SkillTable& skills) {
@@ -101,9 +111,32 @@ Hotbar::Hotbar(const SkillTable& skills) {
   }
 }
 
+std::vector<uint32_t> Hotbar::Order() const {
+  std::vector<uint32_t> order;
+  for (std::size_t slot = swing_ ? 1 : 0; slot < slots_.size(); ++slot) {
+    order.push_back(slots_[slot].id());
+  }
+  return order;
+}
+
+void Hotbar::Arrange(const std::vector<uint32_t>& order) {
+  const auto first = slots_.begin() + (swing_ ? 1 : 0);
+  // Each skill's place in the order, or after them all if it isn't there.
+  const auto place = [&order](const skills::Skill& skill) {
+    const auto found = std::ranges::find(order, skill.id());
+    return std::distance(order.begin(), found);
+  };
+  std::stable_sort(first, slots_.end(),
+                   [&](const skills::Skill& a, const skills::Skill& b) {
+                     return place(a) < place(b);
+                   });
+}
+
+bool Hotbar::TakeRearranged() { return std::exchange(rearranged_, false); }
+
 std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
                                       const protocol::World& world,
-                                      uint32_t target) const {
+                                      uint32_t target) {
   const auto you = std::ranges::find_if(figures, &Figure::you);
   // Our level comes with our name, once a second, so the bar waits for it.
   if (you == figures.end() || you->level == 0 || slots_.empty()) {
@@ -143,6 +176,12 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
 
   const std::optional<int> key = HotbarKey();
   std::optional<uint32_t> used;
+  const ImGuiPayload* payload = ImGui::GetDragDropPayload();
+  const bool dragging = payload != nullptr && payload->IsDataType(kPayload);
+  Dragged from;
+  if (dragging) {
+    std::memcpy(&from, payload->Data, sizeof(from));
+  }
   for (std::size_t slot = 0; slot < slots_.size(); ++slot) {
     const skills::Skill& skill = slots_[slot];
     const bool reached = you->level >= static_cast<int>(skill.level());
@@ -167,16 +206,44 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
     const bool hovered = ImGui::IsItemHovered();
     const bool held = ImGui::IsItemActive();
 
+    // Dragged onto another, two skills swap.
+    if (!swing &&
+        ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
+      // Held where the mouse went down on it.
+      const ImVec2 down = ImGui::GetIO().MouseClickedPos[ImGuiMouseButton_Left];
+      const Dragged dragged{.slot = static_cast<int>(slot),
+                            .grab = {down.x - min.x, down.y - min.y}};
+      ImGui::SetDragDropPayload(kPayload, &dragged, sizeof(dragged),
+                                ImGuiCond_Once);
+      ImGui::EndDragDropSource();
+    }
     ImU32 edge = 0;
-    if (hovered) {
+    bool source = false;
+    if (dragging) {
+      source = from.slot == static_cast<int>(slot);
+      if (!swing && !source && ImGui::BeginDragDropTarget()) {
+        edge = colors::kGood;
+        if (ImGui::AcceptDragDropPayload(
+                kPayload, ImGuiDragDropFlags_AcceptNoDrawDefaultRect)) {
+          std::swap(slots_[slot], slots_[static_cast<std::size_t>(from.slot)]);
+          rearranged_ = true;
+        }
+        ImGui::EndDragDropTarget();
+      }
+    } else if (hovered) {
       edge = held ? colors::kEmber : colors::kGold;
     }
 
     DrawSlot(draw, min, max, edge);
     const ImU32 color = no_target ? kNoTarget : SkillColor(skill);
+    const float alpha = !known ? 0.3f : (source ? 0.25f : 1.0f);
     DrawSlotIcon(draw, min, max, Icon(skill.look().icon()).c_str(), color,
-                 known ? 1.0f : 0.3f);
-    if (hovered) {
+                 alpha);
+    if (source) {
+      DrawDragged(Icon(skill.look().icon()).c_str(), color, slot_size,
+                  from.grab);
+    }
+    if (hovered && !dragging) {
       if (effect.weapon()) {
         ImGui::SetTooltip("%s\nA swing of what you hold.",
                           skill.name().c_str());

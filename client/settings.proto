@@ -21,6 +21,8 @@ message Graphics {
 message Interface {
   optional float scale = 1;
   optional bool minimap_turns = 2;
+  // The hotbar's skills after the swing, by their ids, in the player's order.
+  repeated uint32 hotbar = 3;
 }
 
 // What the player sets, which the client keeps between runs.

@@ -22,9 +22,10 @@ class Menu {
 
   /// Returns what the player picked, to log out or quit, if either. The
   /// settings window edits the player's settings, and the atmosphere, which
-  /// can go back to the land's own.
+  /// can go back to the land's own; reset_hotbar is set when they ask for the
+  /// hotbar's own order back.
   Choice Build(Settings& settings, Atmosphere& atmosphere,
-               const Atmosphere& land);
+               const Atmosphere& land, bool* reset_hotbar);
 
   /// The row of buttons in the bottom right, for the windows the keys open,
   /// with their keys in their tooltips, and this menu's.
@@ -34,7 +35,7 @@ class Menu {
   enum class Page { kInterface, kSound, kGraphics, kSky, kKeys };
 
   void BuildSettings(Settings& settings, Atmosphere& atmosphere,
-                     const Atmosphere& land);
+                     const Atmosphere& land, bool* reset_hotbar);
 
   bool open_ = false;
   bool settings_ = false;

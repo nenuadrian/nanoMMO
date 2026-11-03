@@ -1,5 +1,9 @@
 #include "client/theme.h"
 
+#include <vector>
+
+#include "client/hotbar.h"
+#include "content/content.h"
 #include "gtest/gtest.h"
 
 TEST(Theme, ScalesTheInterfaceWithTheScreen) {
@@ -19,4 +23,20 @@ TEST(Theme, FadesAColour) {
             IM_COL32(10, 20, 30, 100));
   EXPECT_EQ(nanommo::Faded(IM_COL32(10, 20, 30, 200), 2.0f),
             IM_COL32(10, 20, 30, 200));
+}
+
+TEST(Hotbar, KeepsThePlayersOrder) {
+  const nanommo::SkillTable skills =
+      nanommo::ReadContent(NANOMMO_CONTENT)->skills;
+  nanommo::Hotbar hotbar(skills);
+  std::vector<uint32_t> order = hotbar.Order();
+  ASSERT_GE(order.size(), 3u);
+  // The last first, and the rest as they were.
+  std::vector<uint32_t> wanted = {order.back()};
+  wanted.insert(wanted.end(), order.begin(), order.end() - 1);
+  hotbar.Arrange({order.back()});
+  EXPECT_EQ(hotbar.Order(), wanted);
+  // A skill the content doesn't have any more is left out.
+  hotbar.Arrange({999, order.front()});
+  EXPECT_EQ(hotbar.Order().front(), order.front());
 }

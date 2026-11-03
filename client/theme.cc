@@ -510,4 +510,17 @@ void DrawSlotIcon(ImDrawList* draw, ImVec2 min, ImVec2 max, const char* icon,
                    Faded(color, alpha), icon);
 }
 
+void DrawDragged(const char* icon, ImU32 color, float size, ImVec2 grab) {
+  ImDrawList* draw = ImGui::GetForegroundDrawList();
+  const ImVec2 mouse = ImGui::GetMousePos();
+  const ImVec2 min{mouse.x - grab.x, mouse.y - grab.y};
+  const ImVec2 max{min.x + size, min.y + size};
+  // Lifted off the screen: a deeper shadow, and a gold edge.
+  draw->AddRectFilled({min.x + Ui(4.0f), min.y + Ui(6.0f)},
+                      {max.x + Ui(4.0f), max.y + Ui(6.0f)},
+                      Faded(IM_COL32_BLACK, 0.45f));
+  DrawSlot(draw, min, max, colors::kGold);
+  DrawSlotIcon(draw, min, max, icon, color);
+}
+
 }  // namespace nanommo

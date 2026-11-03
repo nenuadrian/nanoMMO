@@ -1,7 +1,9 @@
 #ifndef NANOMMO_CLIENT_SETTINGS_H_
 #define NANOMMO_CLIENT_SETTINGS_H_
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -18,6 +20,9 @@ struct InterfaceSettings {
   /// Whether the minimap turns with the camera, so that what's ahead is up,
   /// rather than north.
   bool minimap_turns = false;
+  /// The hotbar's skills after the swing, by their ids, in the order the
+  /// player dragged them into: none, for the order of their levels.
+  std::vector<uint32_t> hotbar;
 
   bool operator==(const InterfaceSettings&) const = default;
 };

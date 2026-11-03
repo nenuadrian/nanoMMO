@@ -178,6 +178,7 @@ int main(int argc, char* argv[]) {
   nanommo::TrainerWindow trainer_window(content->skills);
   nanommo::QuestWindow quest_window(*content);
   nanommo::Hotbar hotbar(content->skills);
+  hotbar.Arrange(settings.ui.hotbar);
   nanommo::PlayerFrame player_frame;
   nanommo::LoginScreen login_screen(content_hash, content->items);
   nanommo::Renderer renderer(*content);
@@ -520,6 +521,9 @@ int main(int argc, char* argv[]) {
         connection->Send(use);
         destination.reset();
       }
+      if (hotbar.TakeRearranged()) {
+        settings.ui.hotbar = hotbar.Order();
+      }
       if (land_map.DrawMinimap(renderer.figures(), target, destination,
                                nanommo::Heading(renderer.camera()),
                                settings.ui.minimap_turns
@@ -576,8 +580,9 @@ int main(int argc, char* argv[]) {
       }
       menu.BuildButtons(character_screen.mutable_visible(),
                         bag_window.mutable_visible(), &map_open);
+      bool reset_hotbar = false;
       switch (menu.Build(settings, *renderer.mutable_atmosphere(),
-                         nanommo::kLooks[land].atmosphere)) {
+                         nanommo::kLooks[land].atmosphere, &reset_hotbar)) {
         case nanommo::Menu::Choice::kLogOut:
           connection.reset();
           break;
@@ -586,6 +591,9 @@ int main(int argc, char* argv[]) {
           break;
         case nanommo::Menu::Choice::kNothing:
           break;
+      }
+      if (reset_hotbar) {
+        hotbar = nanommo::Hotbar(content->skills);
       }
     } else if (!connection && !entering) {
       if (const auto request = login_screen.Build()) {

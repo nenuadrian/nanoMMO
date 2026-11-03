@@ -86,6 +86,7 @@ absl::StatusOr<Settings> LoadSettings(const std::string& path) {
   if (ui.has_minimap_turns()) {
     loaded.ui.minimap_turns = ui.minimap_turns();
   }
+  loaded.ui.hotbar = {ui.hotbar().begin(), ui.hotbar().end()};
   return loaded;
 }
 
@@ -100,6 +101,9 @@ absl::Status SaveSettings(const std::string& path, const Settings& player) {
   file.mutable_graphics()->set_antialias(player.graphics.antialias);
   file.mutable_ui()->set_scale(player.ui.scale);
   file.mutable_ui()->set_minimap_turns(player.ui.minimap_turns);
+  for (const uint32_t skill : player.ui.hotbar) {
+    file.mutable_ui()->add_hotbar(skill);
+  }
   std::string text;
   if (!google::protobuf::TextFormat::PrintToString(file, &text)) {
     return absl::InternalError("couldn't print the settings");

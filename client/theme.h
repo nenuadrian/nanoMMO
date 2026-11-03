@@ -130,6 +130,10 @@ void DrawSlot(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 edge);
 void DrawSlotIcon(ImDrawList* draw, ImVec2 min, ImVec2 max, const char* icon,
                   ImU32 color, float alpha = 1.0f);
 
+/// What the player's dragging, under the mouse, over everything else: its
+/// icon in a slot of the size, where the mouse took hold of it.
+void DrawDragged(const char* icon, ImU32 color, float size, ImVec2 grab);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_CLIENT_THEME_H_

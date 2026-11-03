@@ -105,7 +105,7 @@ bool BarButton(const char* id, const char* icon, bool on, const char* tip) {
 }  // namespace
 
 Menu::Choice Menu::Build(Settings& settings, Atmosphere& atmosphere,
-                         const Atmosphere& land) {
+                         const Atmosphere& land, bool* reset_hotbar) {
   Choice choice = Choice::kNothing;
   if (open_) {
     // The world, dimmed behind it.
@@ -137,13 +137,13 @@ Menu::Choice Menu::Build(Settings& settings, Atmosphere& atmosphere,
     EndPanel();
   }
   if (settings_) {
-    BuildSettings(settings, atmosphere, land);
+    BuildSettings(settings, atmosphere, land, reset_hotbar);
   }
   return choice;
 }
 
 void Menu::BuildSettings(Settings& settings, Atmosphere& atmosphere,
-                         const Atmosphere& land) {
+                         const Atmosphere& land, bool* reset_hotbar) {
   const ImVec2 display = ImGui::GetIO().DisplaySize;
   ImGui::SetNextWindowPos({display.x / 2.0f, display.y / 2.0f},
                           ImGuiCond_Appearing, {0.5f, 0.5f});
@@ -190,6 +190,12 @@ void Menu::BuildSettings(Settings& settings, Atmosphere& atmosphere,
       ImGui::Spacing();
       ImGui::Checkbox("Turn the minimap with the camera",
                       &settings.ui.minimap_turns);
+      ImGui::Spacing();
+      if (GameButton("Put the hotbar back in order", {0.0f, 0.0f})) {
+        settings.ui.hotbar.clear();
+        *reset_hotbar = true;
+      }
+      ImGui::TextDisabled("Drag a skill onto another to swap them.");
       break;
     }
     case Page::kSound:
