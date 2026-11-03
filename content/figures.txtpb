@@ -4,8 +4,9 @@
 # A player is a person under what they wear: a limb for each bone of the arms
 # and the legs, a flat one for each foot, a ball for each hand, the chest, the
 # belly, the hips and the neck, and a ball for the head, with two eyes. Each
-# part is placed on Mixamo's rig as it stands in its T-pose, arms out to the
-# sides. Every part but the eyes is white, which takes on the player's skin.
+# part is placed on the rig as it stands with its arms out to the sides (see
+# rig.txtpb). Every part but the eyes is white, which takes on the player's
+# skin.
 
 # The arm, from the shoulder to the elbow, then to the wrist, a little thinner
 # at each, and the hand, a little past the wrist along the arm.

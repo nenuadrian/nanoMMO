@@ -35,8 +35,9 @@ absl::StatusOr<Content> ReadContent(const std::string& folder);
 
 /// What the whole folder can tell is wrong, and no single file can: a monster
 /// that drops an item the items file doesn't have, a trainer that teaches a
-/// skill the skills file doesn't have, or a quest whose giver, monster or
-/// prize isn't in its file.
+/// skill the skills file doesn't have, a quest whose giver, monster or prize
+/// isn't in its file, or a part of a figure or of an item on a joint the rig
+/// doesn't have.
 absl::Status CheckContent(const Content& content);
 
 /// A fingerprint of what the clients read, so that a client can tell whether

@@ -1,0 +1,200 @@
+# proto-file: content/rig.proto
+# proto-message: nanommo.rig.Rig
+
+# The skeleton every person is built on, about 1.8 metres tall, standing with
+# its arms out to the sides: the hips, which carry the rest, three joints up
+# the spine, then the neck and the head, and on each side the collarbone, the
+# shoulder, the elbow and the wrist, and the hip, the knee, the ankle, the ball
+# of the foot and the tip of the toes. The lengths are an adult's, as shares of
+# their height: the leg from the hip to the ankle nearly a half, and the arm to
+# the wrist under a third.
+joints {
+  name: "Hips"
+  at { y: 1.0 }
+}
+joints {
+  name: "Spine"
+  parent: "Hips"
+  at { y: 1.1 }
+}
+joints {
+  name: "Spine1"
+  parent: "Spine"
+  at { y: 1.21 z: -0.01 }
+}
+joints {
+  name: "Spine2"
+  parent: "Spine1"
+  at { y: 1.32 z: -0.02 }
+}
+joints {
+  name: "Neck"
+  parent: "Spine2"
+  at { y: 1.48 z: -0.03 }
+}
+joints {
+  name: "Head"
+  parent: "Neck"
+  at { y: 1.58 z: -0.01 }
+}
+joints {
+  name: "LeftShoulder"
+  parent: "Spine2"
+  at { x: 0.05 y: 1.43 z: -0.03 }
+  mirrored: true
+}
+joints {
+  name: "LeftArm"
+  parent: "LeftShoulder"
+  at { x: 0.16 y: 1.42 z: -0.05 }
+  mirrored: true
+}
+joints {
+  name: "LeftForeArm"
+  parent: "LeftArm"
+  at { x: 0.45 y: 1.42 z: -0.05 }
+  mirrored: true
+}
+joints {
+  name: "LeftHand"
+  parent: "LeftForeArm"
+  at { x: 0.72 y: 1.42 z: -0.05 }
+  mirrored: true
+}
+joints {
+  name: "LeftUpLeg"
+  parent: "Hips"
+  at { x: 0.09 y: 0.95 }
+  mirrored: true
+}
+joints {
+  name: "LeftLeg"
+  parent: "LeftUpLeg"
+  at { x: 0.09 y: 0.52 z: 0.01 }
+  mirrored: true
+}
+joints {
+  name: "LeftFoot"
+  parent: "LeftLeg"
+  at { x: 0.09 y: 0.08 z: -0.03 }
+  mirrored: true
+}
+joints {
+  name: "LeftToeBase"
+  parent: "LeftFoot"
+  at { x: 0.09 z: 0.08 }
+  mirrored: true
+}
+joints {
+  name: "LeftToe_End"
+  parent: "LeftToeBase"
+  at { x: 0.09 z: 0.17 }
+  mirrored: true
+}
+
+# Two builds: the rig as it is, and one broader at the shoulders, with its hips
+# a little wider too.
+builds {}
+builds {
+  shifts {
+    joint: "LeftArm"
+    by { x: 0.03 }
+  }
+  shifts {
+    joint: "LeftUpLeg"
+    by { x: 0.01 }
+  }
+}
+
+# The arms down by the sides, a little out from the body and bent a little at
+# the elbow, and the sword hand turned so the blade points ahead.
+stance {
+  turns {
+    joint: LEFT_ARM
+    roll: -78
+  }
+  turns {
+    joint: RIGHT_ARM
+    roll: 78
+  }
+  turns {
+    joint: LEFT_FOREARM
+    yaw: -22
+  }
+  turns {
+    joint: RIGHT_FOREARM
+    yaw: 22
+  }
+  turns {
+    joint: RIGHT_HAND
+    pitch: 2
+    yaw: -6
+    roll: -45
+  }
+}
+
+# Breathing in and out, and the weight going over to one foot, then back.
+idle {
+  keys {
+    at_ms: 0
+    lift: -0.02
+  }
+  keys {
+    at_ms: 1600
+    turns {
+      joint: CHEST
+      pitch: -2
+    }
+    turns {
+      joint: HIPS
+      roll: 2
+    }
+    turns {
+      joint: SPINE
+      roll: -2
+    }
+    lift: -0.03
+  }
+  keys {
+    at_ms: 3200
+    lift: -0.02
+  }
+}
+
+walk {
+  speed: 1.8
+  cycle_ms: 980
+  stance: 0.6
+  lift: 0.1
+  width: 0.2
+  crouch: 0.07
+  bob: 0.025
+  sway: 0.025
+  lean: 5
+  hips_turn: 7
+  chest_turn: 6
+  arm_swing: 24
+  elbow: 16
+  toe_off: 40
+  heel_strike: 18
+  arms_back: 2
+}
+
+run {
+  speed: 3.1
+  cycle_ms: 750
+  stance: 0.38
+  lift: 0.3
+  width: 0.18
+  crouch: 0.065
+  bob: -0.05
+  sway: 0.015
+  lean: 18
+  hips_turn: 10
+  chest_turn: 9
+  arm_swing: 30
+  elbow: 75
+  toe_off: 35
+  heel_strike: 6
+  arms_back: 14
+}

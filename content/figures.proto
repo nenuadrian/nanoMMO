@@ -21,7 +21,7 @@ message Part {
     SHAPE_BALL = 2;
   }
   Shape shape = 1;
-  // The bone it moves with, by its name in Mixamo's rig, such as "LeftArm".
+  // The bone it moves with, by its joint's name in the rig, such as "LeftArm".
   string bone = 2;
   // Where it starts: at this bone's joint, or at its own bone's when it's
   // empty, moved by the offset. A ball's middle is there.

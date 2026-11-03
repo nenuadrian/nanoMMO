@@ -71,6 +71,11 @@ TEST(Content, HashesWhatTheClientsRead) {
   nanommo::Content quests = *nanommo::ReadContent(NANOMMO_CONTENT);
   quests.quests.at(1).set_experience(1000);
   EXPECT_NE(nanommo::ClientHash(quests), hash);
+
+  // The clients work out how the people move from the rig.
+  nanommo::Content rig = *nanommo::ReadContent(NANOMMO_CONTENT);
+  rig.rig.mutable_walk()->set_cycle_ms(900);
+  EXPECT_NE(nanommo::ClientHash(rig), hash);
 }
 
 TEST(Content, RefusesFiguresThatDontAddUp) {
@@ -193,6 +198,19 @@ TEST(Content, RefusesRigsThatDontAddUp) {
                                  "idle { keys { at_ms: 500 } "
                                  "keys { at_ms: 100 } }")),
             "the idle goes back in time");
+
+  // Each part of a figure, or of what it wears, is on a joint of the rig.
+  nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  EXPECT_TRUE(nanommo::CheckContent(content).ok());
+  content.items.by_id.at(10).mutable_look()->mutable_parts(1)->set_to(
+      "LeftToes");
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "the Plain Shoes has a part on a joint LeftToes that isn't in the "
+            "rig");
+  content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  content.figures.mutable_body(0)->set_bone("Tail");
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "the body has a part on a joint Tail that isn't in the rig");
 }
 
 TEST(Content, BuildsEachOfTheRigsBuilds) {

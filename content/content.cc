@@ -1,6 +1,7 @@
 #include "content/content.h"
 
 #include <cstdint>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -75,6 +76,9 @@ absl::StatusOr<Content> ReadContent(const std::string& folder) {
     read = Read(folder, "quests.txtpb", ParseQuests, content.quests);
   }
   if (read.ok()) {
+    read = Read(folder, "rig.txtpb", ParseRig, content.rig);
+  }
+  if (read.ok()) {
     read = Read(folder, "skills.txtpb", ParseSkills, content.skills);
   }
   if (!read.ok()) {
@@ -89,6 +93,39 @@ absl::StatusOr<Content> ReadContent(const std::string& folder) {
 }
 
 absl::Status CheckContent(const Content& content) {
+  // Each part moves with a joint of the rig, and starts and ends at one.
+  std::set<std::string> joints;
+  for (const rig::Joint& joint : Skeleton(content.rig, -1)) {
+    joints.insert(joint.name());
+  }
+  const auto on_the_rig =
+      [&joints](const google::protobuf::RepeatedPtrField<figures::Part>& parts,
+                std::string_view whose) {
+        for (const figures::Part& part : Unfold(parts)) {
+          for (const std::string& joint :
+               {part.bone(), part.from(), part.to()}) {
+            if (!joint.empty() && !joints.contains(joint)) {
+              return absl::InvalidArgumentError(
+                  absl::StrCat(whose, " has a part on a joint ", joint,
+                               " that isn't in the rig"));
+            }
+          }
+        }
+        return absl::OkStatus();
+      };
+  absl::Status rigged = on_the_rig(content.figures.body(), "the body");
+  for (int i = 0; rigged.ok() && i < content.figures.hairs_size(); ++i) {
+    rigged = on_the_rig(content.figures.hairs(i).parts(), "a way to wear hair");
+  }
+  for (const auto& [id, item] : content.items.by_id) {
+    if (rigged.ok()) {
+      rigged =
+          on_the_rig(item.look().parts(), absl::StrCat("the ", item.name()));
+    }
+  }
+  if (!rigged.ok()) {
+    return rigged;
+  }
   for (const auto& [id, kind] : content.monsters.kinds) {
     for (const monsters::Drop& drop : kind.loot()) {
       if (!content.items.by_id.contains(drop.item())) {
@@ -149,8 +186,9 @@ absl::Status CheckContent(const Content& content) {
 
 uint64_t ClientHash(const Content& content) {
   uint64_t hash = kOffsetBasis;
-  // The clients draw the players from the figures.
+  // The clients draw the players from the figures, on the rig.
   Add(hash, content.figures);
+  Add(hash, content.rig);
   // A copy of each with what the clients read, by id. They show all of an
   // item but how its weapon fights.
   for (const auto& [id, item] : content.items.by_id) {
