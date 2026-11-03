@@ -44,7 +44,8 @@ Joints FindJoints(const Model& model) {
   Joints joints;
   joints.fill(-1);
   for (std::size_t joint = 0; joint < kJointBones.size(); ++joint) {
-    for (int bone = 0; bone < model.skeleton.boneCount; ++bone) {
+    for (int bone = 0; bone < static_cast<int>(model.skeleton.boneCount);
+         ++bone) {
       if (std::strcmp(model.skeleton.bones[bone].name, kJointBones[joint]) ==
           0) {
         joints[joint] = bone;

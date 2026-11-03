@@ -78,7 +78,7 @@ void ReadBindPose(const std::string& path, Model& model) {
     cgltf_node_transform_world(mesh, world.data());
     // raylib moves the mesh to where its node puts it in the world as it
     // loads it, so the bind pose goes there too.
-    for (int i = 0; i < model.skeleton.boneCount; ++i) {
+    for (int i = 0; i < static_cast<int>(model.skeleton.boneCount); ++i) {
       std::array<float, 16> inverse{};
       if (cgltf_accessor_read_float(mesh->skin->inverse_bind_matrices, i,
                                     inverse.data(), inverse.size())) {
@@ -90,13 +90,6 @@ void ReadBindPose(const std::string& path, Model& model) {
     }
   }
   cgltf_free(data);
-}
-
-// raylib 6.0's UnloadModel leaves a model's pose and bone matrices behind.
-void UnloadWithBones(Model model) {
-  UnloadModel(model);
-  MemFree(model.currentPose);
-  MemFree(model.boneMatrices);
 }
 
 }  // namespace
@@ -156,7 +149,7 @@ Characters::Characters(const std::string& folder,
     if (idle < 0 || walk < 0 || run < 0 || death < 0) {
       TraceLog(LOG_WARNING, "%s doesn't have the clips we need", file.c_str());
       UnloadModelAnimations(character.clips, character.clip_count);
-      UnloadWithBones(character.model);
+      UnloadModel(character.model);
       continue;
     }
 
@@ -165,7 +158,8 @@ Characters::Characters(const std::string& folder,
     }
     int left_foot = -1;
     int right_foot = -1;
-    for (int i = 0; i < character.model.skeleton.boneCount; ++i) {
+    for (int i = 0; i < static_cast<int>(character.model.skeleton.boneCount);
+         ++i) {
       const std::string_view bone = character.model.skeleton.bones[i].name;
       if (bone == kRightHand) {
         character.hand = i;
@@ -233,7 +227,7 @@ Characters::~Characters() {
       MemFree(character.hull.meshes);
     }
     UnloadModelAnimations(character.clips, character.clip_count);
-    UnloadWithBones(character.model);
+    UnloadModel(character.model);
   }
   for (auto& [id, weapon] : weapons_) {
     UnloadModel(weapon.model);

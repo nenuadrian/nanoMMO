@@ -210,7 +210,7 @@ void AddBall(Builder& out, Vector3 middle, Vector3 radii, Color color,
 // Mixamo's rig puts mixamorig: in front of each bone's name.
 int BoneNamed(const Model& model, const std::string& name) {
   const std::string full = absl::StrCat("mixamorig:", name);
-  for (int i = 0; i < model.skeleton.boneCount; ++i) {
+  for (int i = 0; i < static_cast<int>(model.skeleton.boneCount); ++i) {
     if (full == model.skeleton.bones[i].name) {
       return i;
     }

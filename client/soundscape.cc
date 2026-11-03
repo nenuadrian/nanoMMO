@@ -59,8 +59,8 @@ std::array<float, 2> Footfalls(const ModelAnimation& clip, int left,
   std::array<float, 2> footfalls{0.0f, 0.5f};
   // The last frame is the first again.
   const int frames = clip.keyframeCount - 1;
-  if (frames < 2 || left < 0 || right < 0 || left >= clip.boneCount ||
-      right >= clip.boneCount) {
+  const int bones = static_cast<int>(clip.boneCount);
+  if (frames < 2 || left < 0 || right < 0 || left >= bones || right >= bones) {
     return footfalls;
   }
   const std::array<int, 2> feet = {left, right};

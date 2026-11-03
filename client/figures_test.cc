@@ -13,7 +13,7 @@
 namespace {
 
 int BoneNamed(const Model& model, const std::string& name) {
-  for (int i = 0; i < model.skeleton.boneCount; ++i) {
+  for (int i = 0; i < static_cast<int>(model.skeleton.boneCount); ++i) {
     if (name == model.skeleton.bones[i].name) {
       return i;
     }
@@ -69,7 +69,4 @@ TEST(Figures, BindsEachCornerToItsPartsBone) {
     EXPECT_FLOAT_EQ(mesh.boneWeights[4 * i + 1], 0.0f);
   }
   UnloadModel(model);
-  // raylib 6.0's UnloadModel leaves a model's pose and bone matrices behind.
-  MemFree(model.currentPose);
-  MemFree(model.boneMatrices);
 }
