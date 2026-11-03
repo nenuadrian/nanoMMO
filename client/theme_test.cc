@@ -1,7 +1,10 @@
 #include "client/theme.h"
 
+#include <deque>
+#include <optional>
 #include <vector>
 
+#include "client/chat_window.h"
 #include "client/hotbar.h"
 #include "content/content.h"
 #include "gtest/gtest.h"
@@ -23,6 +26,20 @@ TEST(Theme, FadesAColour) {
             IM_COL32(10, 20, 30, 100));
   EXPECT_EQ(nanommo::Faded(IM_COL32(10, 20, 30, 200), 2.0f),
             IM_COL32(10, 20, 30, 200));
+}
+
+TEST(ChatWindow, CountsTheLinesSinceTheLastOneSeen) {
+  std::deque<nanommo::protocol::Chat> lines(3);
+  lines[0].set_text("one");
+  lines[1].set_text("two");
+  lines[2].set_text("three");
+  EXPECT_EQ(nanommo::ChatWindow::Unread(lines, lines[2]), 0u);
+  EXPECT_EQ(nanommo::ChatWindow::Unread(lines, lines[0]), 2u);
+  // One gone off the top, or none seen yet: all of them are new.
+  nanommo::protocol::Chat gone;
+  gone.set_text("zero");
+  EXPECT_EQ(nanommo::ChatWindow::Unread(lines, gone), 3u);
+  EXPECT_EQ(nanommo::ChatWindow::Unread(lines, std::nullopt), 3u);
 }
 
 TEST(Hotbar, KeepsThePlayersOrder) {
