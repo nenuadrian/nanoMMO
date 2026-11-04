@@ -19,7 +19,7 @@ bool Running();
 bool Attacking();
 
 /// Which of the number keys, from 1 to 9, went down this frame, as a slot
-/// from zero.
+/// from zero, or, with Shift held, from nine, for the row above.
 std::optional<int> HotbarKey();
 
 /// Whether the left button went down this frame on the world, and not on one

@@ -742,6 +742,7 @@ void World::Land(uint32_t id, Player& player, const skills::Effect& effect,
         Distance(player, monster) <= effect.reach() &&
         InArc(player, monster, effect.arc())) {
       Push(player, monster, blow.push());
+      Throw(monster, blow.lift());
       Hurt(id, player, monster_id, monster, damage);
     }
   }
@@ -777,6 +778,59 @@ bool World::Slide(Monster& monster, std::chrono::nanoseconds time) {
   Walk(terrain_, monster.x, monster.z,
        std::clamp(monster.pushed_from_x + monster.push_x * eased, -edge, edge),
        std::clamp(monster.pushed_from_z + monster.push_z * eased, -edge, edge));
+  return true;
+}
+
+// As a ball thrown straight up: fast at first, slowing to the top, and back
+// down.
+void World::Throw(Monster& monster, float lift) {
+  const bool flying = monster.height > 0.0f || monster.rise > 0.0f;
+  // Long enough up, or just down, nothing throws it up again, though a blow
+  // can still dash it down.
+  const bool spent = flying ? monster.in_air >= kMostInAir
+                            : monster.steady > std::chrono::nanoseconds::zero();
+  if (spent && lift >= 0.0f) {
+    return;
+  }
+  // Up to the lift's height off the ground, however high it is already, so
+  // that blow after blow doesn't send it ever higher.
+  if (lift > monster.height) {
+    monster.rise = std::max(
+        monster.rise, std::sqrt(2.0f * kGravity * (lift - monster.height)));
+  } else if (lift < 0.0f && flying) {
+    monster.rise = -std::sqrt(2.0f * kGravity * -lift);
+  } else if (flying) {
+    monster.rise = std::max(monster.rise, kPop);
+  } else {
+    return;
+  }
+  // Thrown, it drops the swing it was in the middle of.
+  if (monster.motion == Motion::kAttack) {
+    monster.motion = Motion::kIdle;
+  }
+}
+
+bool World::Fly(Monster& monster, std::chrono::nanoseconds time) {
+  if (monster.height <= 0.0f && monster.rise <= 0.0f) {
+    monster.steady =
+        std::max(monster.steady - time, std::chrono::nanoseconds::zero());
+    return false;
+  }
+  monster.in_air += time;
+  // Its time up there's over: it goes no higher.
+  if (monster.in_air >= kMostInAir) {
+    monster.rise = std::min(monster.rise, 0.0f);
+  }
+  const float seconds = std::chrono::duration<float>(time).count();
+  monster.height += (monster.rise - kGravity * seconds / 2.0f) * seconds;
+  monster.rise -= kGravity * seconds;
+  if (monster.height <= 0.0f) {
+    monster.height = 0.0f;
+    monster.rise = 0.0f;
+    monster.in_air = std::chrono::nanoseconds::zero();
+    monster.steady = kSteady;
+    return false;
+  }
   return true;
 }
 
@@ -915,13 +969,18 @@ Event& World::Record(Event::Kind kind, uint32_t id, const Player& player) {
 
 void World::Act(Monster& monster, std::chrono::nanoseconds time) {
   if (monster.motion == Motion::kDead) {
-    // A push the killing blow started ends with the monster.
+    // A push the killing blow started ends with the monster, but one thrown
+    // up still comes down.
     monster.pushed = kPushTime;
+    Fly(monster, time);
     Revive(monster, time, random_);
     return;
   }
   // Pushed, it goes where the blow sends it, and a swing it started goes on.
   const bool pushed = Slide(monster, time);
+  if (Fly(monster, time)) {
+    return;
+  }
   if (monster.motion == Motion::kAttack) {
     const auto before = monster.swing;
     monster.swing += time;

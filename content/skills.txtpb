@@ -952,3 +952,172 @@ skills {
     }
   }
 }
+skills {
+  id: 12
+  name: "Skyrend"
+  level: 1
+  cooldown_ms: 18000
+  effect {
+    cast_ms: 2300
+    reach: 3
+    damage: 70
+    all: true
+    arc: 140
+    # Up with a rising cut, a cut in the air, and down with them.
+    blows { at_ms: 430 push: 0.3 lift: 2.4 }
+    blows { at_ms: 760 push: 0.2 }
+    blows { at_ms: 1180 push: 1.2 lift: -3 }
+    strides { at_ms: 450 }
+    strides { at_ms: 900 ahead: 1.2 }
+  }
+  look {
+    icon: 0xF753
+    stop_ms: 70
+    move {
+      keys {
+        at_ms: 300
+        ease: GATHER
+        lift: -0.26
+        turns { joint: CHEST pitch: 25 yaw: -40 }
+        turns { joint: RIGHT_ARM pitch: 40 roll: -25 }
+        turns { joint: RIGHT_FOREARM pitch: -20 }
+        turns { joint: RIGHT_HAND pitch: 60 }
+        turns { joint: LEFT_ARM pitch: -40 }
+        turns { joint: RIGHT_LEG pitch: -50 }
+        turns { joint: RIGHT_KNEE pitch: 90 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 80 }
+      }
+      keys {
+        at_ms: 440
+        ease: SNAP
+        lift: 0.3
+        turns { joint: CHEST pitch: -15 yaw: 20 }
+        turns { joint: RIGHT_ARM pitch: -170 roll: -15 }
+        turns { joint: RIGHT_FOREARM pitch: -20 }
+        turns { joint: RIGHT_HAND pitch: 70 }
+        turns { joint: LEFT_ARM pitch: -20 roll: 30 }
+      }
+      keys {
+        at_ms: 640
+        lift: 1.6
+        turns { joint: CHEST yaw: 50 }
+        turns { joint: RIGHT_ARM pitch: -72 roll: 72 }
+        turns { joint: RIGHT_FOREARM pitch: -20 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM pitch: 10 roll: 40 }
+        turns { joint: RIGHT_LEG pitch: -60 }
+        turns { joint: RIGHT_KNEE pitch: 110 }
+        turns { joint: LEFT_LEG pitch: -40 }
+        turns { joint: LEFT_KNEE pitch: 120 }
+      }
+      keys {
+        at_ms: 760
+        ease: SNAP
+        lift: 1.75
+        turns { joint: CHEST pitch: 5 yaw: -50 }
+        turns { joint: RIGHT_ARM pitch: -75 roll: -85 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM roll: 45 }
+        turns { joint: RIGHT_LEG pitch: -60 }
+        turns { joint: RIGHT_KNEE pitch: 110 }
+        turns { joint: LEFT_LEG pitch: -40 }
+        turns { joint: LEFT_KNEE pitch: 120 }
+      }
+      keys {
+        at_ms: 980
+        ease: GATHER
+        lift: 1.5
+        turns { joint: CHEST pitch: -12 }
+        turns { joint: RIGHT_ARM pitch: -170 }
+        turns { joint: RIGHT_FOREARM pitch: -60 }
+        turns { joint: LEFT_ARM pitch: -160 }
+        turns { joint: LEFT_FOREARM pitch: -60 }
+        turns { joint: RIGHT_LEG pitch: -60 }
+        turns { joint: RIGHT_KNEE pitch: 110 }
+        turns { joint: LEFT_LEG pitch: -40 }
+        turns { joint: LEFT_KNEE pitch: 120 }
+      }
+      keys {
+        at_ms: 1180
+        ease: SNAP
+        lift: -0.36
+        turns { joint: SPINE pitch: 30 }
+        turns { joint: CHEST pitch: 30 }
+        turns { joint: RIGHT_ARM pitch: -50 }
+        turns { joint: RIGHT_HAND pitch: 60 }
+        turns { joint: LEFT_ARM pitch: -50 }
+        turns { joint: RIGHT_LEG pitch: -70 }
+        turns { joint: RIGHT_KNEE pitch: 75 }
+        turns { joint: LEFT_LEG pitch: 5 }
+        turns { joint: LEFT_KNEE pitch: 110 }
+      }
+      keys {
+        at_ms: 1650
+        lift: -0.32
+        turns { joint: SPINE pitch: 30 }
+        turns { joint: CHEST pitch: 30 }
+        turns { joint: RIGHT_ARM pitch: -50 }
+        turns { joint: RIGHT_HAND pitch: 60 }
+        turns { joint: LEFT_ARM pitch: -50 }
+        turns { joint: RIGHT_LEG pitch: -70 }
+        turns { joint: RIGHT_KNEE pitch: 75 }
+        turns { joint: LEFT_LEG pitch: 5 }
+        turns { joint: LEFT_KNEE pitch: 110 }
+      }
+      keys { at_ms: 2250 }
+    }
+    fx {
+      kind: EDGE from_ms: 250 for_ms: 1200
+      color: 0xFFC060FF
+    }
+    fx {
+      kind: TRAIL from_ms: 330 for_ms: 200
+      color: 0xFFE7B0FF
+    }
+    fx {
+      kind: GHOSTS from_ms: 440 for_ms: 300
+      color: 0xFFD890FF count: 3
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 430 for_ms: 380
+      color: 0xFFE7B0FF size: 2.2 count: 1 up: 1.1 angle: 80
+    }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 430 for_ms: 400
+      color: 0xFFC060FF size: 1.2 count: 18 up: 0.8
+    }
+    fx {
+      kind: TRAIL from_ms: 650 for_ms: 180
+      color: 0xFFE7B0FF
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 760 for_ms: 400
+      color: 0xFFE7B0FF size: 2.4 count: 2 up: 2.6 angle: 0
+    }
+    fx {
+      kind: TRAIL from_ms: 1000 for_ms: 220
+      color: 0xFFE7B0FF
+    }
+    fx {
+      kind: RING from_ms: 1180 for_ms: 700
+      color: 0xFFC060FF size: 3.8
+    }
+    fx {
+      kind: SHARDS from_ms: 1180 for_ms: 900
+      color: 0xC8A070FF size: 3.2 count: 18
+    }
+    fx {
+      kind: SPARKS from_ms: 1180 for_ms: 600
+      color: 0xFFC060FF size: 2.2 count: 36
+    }
+    fx {
+      kind: FLASH from_ms: 1180 for_ms: 180
+      color: 0xFFE0A060
+    }
+    fx {
+      kind: SHAKE from_ms: 1180 for_ms: 400
+      size: 0.3
+    }
+  }
+}

@@ -95,6 +95,20 @@ struct Player {
 /// How long a blow's push takes, fast at first and slowing, as a shove does.
 inline constexpr std::chrono::milliseconds kPushTime{200};
 
+/// What pulls a monster that a blow's thrown up back down, in metres a second
+/// each second: more than the Earth's, so that it doesn't float.
+inline constexpr float kGravity = 14.0f;
+
+/// How fast a blow without a lift of its own sends up a monster that's already
+/// in the air, in metres a second: enough to keep it there a moment longer.
+inline constexpr float kPop = 2.5f;
+
+/// However many players take turns at it, a monster's thrown up for this long
+/// at most, before it falls whatever hits it, and then it stands its ground
+/// for a while, so that it gets to fight back.
+inline constexpr std::chrono::milliseconds kMostInAir{2000};
+inline constexpr std::chrono::milliseconds kSteady{2000};
+
 struct Monster {
   /// By its id in the monsters file.
   uint32_t kind = 0;
@@ -133,6 +147,15 @@ struct Monster {
   float push_x = 0.0f;
   float push_z = 0.0f;
   std::chrono::nanoseconds pushed = kPushTime;
+  /// While a blow has it in the air: how high it is, in metres, and how fast
+  /// it's going up, falling, as it slows, for less than nothing. It does
+  /// nothing else until it lands.
+  float height = 0.0f;
+  float rise = 0.0f;
+  /// How long it's been in the air since it was first thrown up, and, once
+  /// it's down, how long until it can be thrown again.
+  std::chrono::nanoseconds in_air{0};
+  std::chrono::nanoseconds steady{0};
 };
 
 /// Someone who stands in one place, such as a guard. NPCs don't move or fight,
@@ -346,6 +369,12 @@ class World {
   void Push(const Player& player, Monster& monster, float metres);
   /// Moves the monster on along its push, and says whether one's going on.
   bool Slide(Monster& monster, std::chrono::nanoseconds time);
+  /// Throws the monster up, to the height in metres, or, already in the air,
+  /// down for less than nothing, and a little further up without one.
+  static void Throw(Monster& monster, float lift);
+  /// Moves the monster up or down as it flies, and says whether it's still in
+  /// the air.
+  static bool Fly(Monster& monster, std::chrono::nanoseconds time);
   void Hurt(uint32_t id, Player& player, uint32_t monster_id, Monster& monster,
             int damage);
   /// Gives the player back as much of the health as they're missing.

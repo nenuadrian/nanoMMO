@@ -322,6 +322,138 @@ TEST(World, SkillsThatLandMoreThanOnceShareTheirDamageAndPushEachTime) {
   EXPECT_NEAR(world.monsters().at(skeleton).z, before + 1.0f, 1e-4f);
 }
 
+TEST(World, BlowsThatLiftThrowAMonsterUpAndBlowsInTheAirKeepItThere) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Sword(),
+                             *nanommo::ParseSkills(R"pb(
+                               skills {
+                                 id: 1
+                                 name: "Launch"
+                                 level: 1
+                                 effect {
+                                   cast_ms: 1000
+                                   reach: 5
+                                   damage: 4
+                                   blows { at_ms: 100 lift: 1.5 }
+                                   blows { at_ms: 600 }
+                                 }
+                               }
+                             )pb")));
+  world.Join(1, {.skills = {1}});
+  const uint32_t skeleton =
+      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 0.0f, 1.0f));
+  world.Pick(1, skeleton);
+
+  // The first blow, 100 ms in, throws it up: it rises, slowing, to a metre
+  // and a half.
+  world.UseSkill(1, 1);
+  for (int tick = 0; tick < 3; ++tick) {
+    world.Step(kTick);
+  }
+  EXPECT_GT(world.monsters().at(skeleton).rise, 0.0f);
+  float top = 0.0f;
+  for (int tick = 0; tick < 9; ++tick) {
+    world.Step(kTick);
+    top = std::max(top, world.monsters().at(skeleton).height);
+  }
+  EXPECT_NEAR(top, 1.5f, 0.1f);
+
+  // It's falling when the second blow, without a lift, catches it, and sends
+  // it up a little again.
+  EXPECT_LT(world.monsters().at(skeleton).rise, 0.0f);
+  const float caught = world.monsters().at(skeleton).height;
+  world.Step(kTick);
+  world.Step(kTick);
+  EXPECT_GT(world.monsters().at(skeleton).height, 0.0f);
+  EXPECT_GT(world.monsters().at(skeleton).rise, 0.0f);
+  EXPECT_GT(caught, 0.0f);
+
+  // Then it comes down, and stays down.
+  RunOneSecond(world);
+  EXPECT_EQ(world.monsters().at(skeleton).height, 0.0f);
+  EXPECT_EQ(world.monsters().at(skeleton).rise, 0.0f);
+}
+
+TEST(World, PlayersTakingTurnsCantKeepAMonsterInTheAirForGood) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword(),
+                                              *nanommo::ParseSkills(R"pb(
+                                                skills {
+                                                  id: 1
+                                                  name: "Launch"
+                                                  level: 1
+                                                  effect {
+                                                    cast_ms: 400
+                                                    reach: 5
+                                                    damage: 1
+                                                    blows { at_ms: 100 lift: 1 }
+                                                  }
+                                                }
+                                              )pb")));
+  world.Join(1, {.skills = {1}});
+  world.Join(2, {.x = 0.5f, .skills = {1}});
+  nanommo::Monster tough =
+      nanommo::MonsterOf(nanommo::testing::Skeleton(), 0.0f, 1.0f);
+  tough.health = tough.max_health = 1000;
+  const uint32_t skeleton = world.Spawn(tough);
+  world.Pick(1, skeleton);
+  world.Pick(2, skeleton);
+
+  // The two take turns throwing it up, as fast as they can, for three
+  // seconds: after two in the air, it comes down anyway.
+  float longest = 0.0f;
+  float up_for = 0.0f;
+  for (int tick = 0; tick < 60; ++tick) {
+    world.UseSkill(tick % 2 == 0 ? 1 : 2, 1);
+    world.Step(kTick);
+    const bool up = world.monsters().at(skeleton).height > 0.0f;
+    up_for = up ? up_for + 0.05f : 0.0f;
+    longest = std::max(longest, up_for);
+  }
+  EXPECT_GT(longest, 1.5f);
+  EXPECT_LT(longest, 2.6f);
+
+  // Down, it stands its ground for a while, however it's hit.
+  nanommo::World fresh(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword(),
+                                              *nanommo::ParseSkills(R"pb(
+                                                skills {
+                                                  id: 1
+                                                  name: "Launch"
+                                                  level: 1
+                                                  effect {
+                                                    cast_ms: 400
+                                                    reach: 5
+                                                    damage: 1
+                                                    blows { at_ms: 100 lift: 1 }
+                                                  }
+                                                }
+                                              )pb")));
+  fresh.Join(1, {.skills = {1}});
+  const uint32_t other = fresh.Spawn(tough);
+  fresh.Pick(1, other);
+  fresh.UseSkill(1, 1);
+  RunOneSecond(fresh);
+  ASSERT_EQ(fresh.monsters().at(other).height, 0.0f);
+  fresh.UseSkill(1, 1);
+  for (int tick = 0; tick < 4; ++tick) {
+    fresh.Step(kTick);
+  }
+  EXPECT_EQ(fresh.monsters().at(other).height, 0.0f);
+  EXPECT_LE(fresh.monsters().at(other).rise, 0.0f);
+
+  // And once it's steady again, the same skill throws it up as before.
+  for (int second = 0; second < 2; ++second) {
+    RunOneSecond(fresh);
+  }
+  fresh.UseSkill(1, 1);
+  for (int tick = 0; tick < 4; ++tick) {
+    fresh.Step(kTick);
+  }
+  EXPECT_GT(fresh.monsters().at(other).height, 0.0f);
+}
+
 TEST(World, HoldingSpaceGoesThroughTheChainOfSwingsAndBackToTheFirst) {
   // Quick swings, each half the sword's, then a whole one.
   const absl::StatusOr<nanommo::SkillTable> skills = nanommo::ParseSkills(R"pb(

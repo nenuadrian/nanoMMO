@@ -9,6 +9,11 @@ message Blow {
   uint32 at_ms = 1;
   // How far it knocks a monster back, in metres.
   float push = 2;
+  // How high off the ground it throws the monster, in metres: a launch. One
+  // already in the air goes up again, so that blow after blow keeps it there,
+  // for two seconds at most. Less than nothing dashes one in the air down, as
+  // fast as a fall from that high.
+  float lift = 3;
 }
 
 // Where a skill has taken the player by a time into it: how far, in metres,
@@ -186,9 +191,9 @@ message Look {
   Move move = 4;
   repeated Fx fx = 5;
   // How long each blow that lands holds the player and what it hits still,
-  // in milliseconds: the weight of a hit. A blow that pushes holds longer, up
-  // to two and a half times as long. They catch up after it, so that the
-  // skill ends when the server says.
+  // in milliseconds: the weight of a hit. A blow that pushes or throws holds
+  // longer, up to two and a half times as long. They catch up after it, so
+  // that the skill ends when the server says.
   uint32 stop_ms = 6;
 }
 

@@ -6,6 +6,7 @@
 #include <cmath>
 #include <map>
 #include <numbers>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -58,6 +59,9 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
 
   const float follow = 1.0f - std::exp(-Animator::kFollowRate * seconds);
   figure.position = Vector3Lerp(figure.position, target, follow);
+  if constexpr (std::is_same_v<Unit, protocol::Monster>) {
+    figure.lift = Lerp(figure.lift, unit.height(), follow);
+  }
   figure.yaw = Turn(figure.yaw, unit.yaw(), Animator::kTurnRate * seconds);
   return figure;
 }

@@ -55,10 +55,11 @@ std::optional<int> HotbarKey() {
   if (Typing()) {
     return std::nullopt;
   }
+  const bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
   // raylib's KEY_ONE to KEY_NINE follow each other, as in ASCII.
   for (int slot = 0; slot < 9; ++slot) {
     if (IsKeyPressed(KEY_ONE + slot)) {
-      return slot;
+      return shift ? slot + 9 : slot;
     }
   }
   return std::nullopt;

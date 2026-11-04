@@ -49,6 +49,8 @@ struct Figure {
   uint32_t target = 0;
   Vector3 position{0.0f, 0.0f, 0.0f};
   float yaw = 0.0f;
+  /// How high a blow's thrown it, in metres off the ground.
+  float lift = 0.0f;
   /// How far it's tipped over, in radians, and which way it tips, as a yaw:
   /// a monster rocking back from a blow.
   float lean = 0.0f;

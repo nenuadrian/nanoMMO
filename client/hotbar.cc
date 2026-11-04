@@ -73,7 +73,7 @@ Hotbar::Hotbar(const SkillTable& skills) {
     }
   }
   std::ranges::stable_sort(slots_, {}, &skills::Skill::level);
-  if (slots_.size() > kMostSlots) {
+  if (std::ssize(slots_) > kMostSlots) {
     slots_.resize(kMostSlots);
   }
   const auto swing = skills.by_id.find(skills.attack);
@@ -105,12 +105,32 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
   const std::optional<int> key = HotbarKey();
   std::optional<uint32_t> used;
   ImDrawList* draw = ImGui::GetWindowDrawList();
-  for (std::size_t slot = 0; slot < slots_.size(); ++slot) {
+  // Each slot's place in the order of the keys: the swing's on Space, and the
+  // number keys count from the next, a row of them, then the row above.
+  const std::size_t first = swing_ ? 1 : 0;
+  const std::size_t keyed = slots_.size() - first;
+  // The row above is drawn first, over the numbers, past the swing's slot.
+  std::vector<std::size_t> order;
+  for (std::size_t i = kRow; i < keyed; ++i) {
+    order.push_back(first + i);
+  }
+  for (std::size_t slot = 0; slot < std::min(slots_.size(), first + kRow);
+       ++slot) {
+    order.push_back(slot);
+  }
+  for (std::size_t place = 0; place < order.size(); ++place) {
+    const std::size_t slot = order[place];
     const skills::Skill& skill = slots_[slot];
     const bool reached = you->level >= static_cast<int>(skill.level());
     const bool known =
         std::ranges::find(world.skills(), skill.id()) != world.skills().end();
-    if (slot > 0) {
+    const bool above = slot >= first + kRow;
+    // The swing starts the row of numbers, under the row above.
+    if (place > 0 && !(slot == 0 && keyed > kRow)) {
+      ImGui::SameLine();
+    }
+    if (above && place == 0 && swing_) {
+      ImGui::Dummy(kSlot);
       ImGui::SameLine();
     }
     ImGui::PushID(static_cast<int>(skill.id()));
@@ -153,12 +173,12 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
                             1.0f),
                    left->second);
     }
-    // The swing's on Space, and the number keys count from the next.
-    const int number = static_cast<int>(slot) + (swing_ ? 0 : 1);
     const bool swing = swing_ && slot == 0;
-    draw->AddText({min.x + 4.0f, min.y + 2.0f}, kKey,
-                  swing ? "Space" : std::to_string(number).c_str());
-    if (clicked || (!swing && key == number - 1)) {
+    const int index = static_cast<int>(slot - first);
+    const std::string label =
+        swing ? "Space" : (above ? "s" : "") + std::to_string(index % kRow + 1);
+    draw->AddText({min.x + 4.0f, min.y + 2.0f}, kKey, label.c_str());
+    if (clicked || (!swing && key == index)) {
       used = skill.id();
     }
     ImGui::PopID();

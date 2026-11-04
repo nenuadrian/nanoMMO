@@ -15,7 +15,7 @@ void Reactions::Update(float seconds) {
   for (auto& [id, blow] : blows_) {
     blow.age += seconds;
   }
-  // By then a monster's done rocking.
+  // By then a monster's done rocking, and come down from any throw.
   std::erase_if(blows_,
                 [](const auto& entry) { return entry.second.age > kHeld; });
 }
@@ -48,6 +48,14 @@ void Reactions::Apply(std::vector<Figure>& figures) {
       figure.flash = std::max(1.0f - t / kFlashTime, 0.0f);
       figure.lean = blow.aimed ? kRock * rock : 0.0f;
       figure.lean_yaw = blow.away;
+    }
+    // Up in the air, it tips over further the higher it's thrown, the way the
+    // last blow sent it, and comes down upright.
+    if (figure.lift > 0.0f) {
+      figure.lean += kTumble * figure.lift;
+      if (found != blows_.end()) {
+        figure.lean_yaw = found->second.away;
+      }
     }
   }
 }

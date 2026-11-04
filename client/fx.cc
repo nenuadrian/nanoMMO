@@ -245,18 +245,18 @@ void Fx::Update(const std::vector<Figure>& figures, float seconds) {
   });
 }
 
-// Half as long again for each metre a blow pushes.
+// Half as long again for each metre a blow pushes or throws.
 std::vector<Fx::Beat> Fx::BlowsOf(const skills::Skill& skill,
                                   const Figure& figure) const {
   static constexpr float kHeaviest = 2.5f;
-  auto weight = [](float push) {
-    return std::min(1.0f + 0.5f * push, kHeaviest);
+  auto weight = [](float push, float lift) {
+    return std::min(1.0f + 0.5f * (push + std::abs(lift)), kHeaviest);
   };
   const skills::Effect& effect = skill.effect();
   std::vector<Beat> blows;
   for (const skills::Blow& blow : effect.blows()) {
     blows.push_back({.at = static_cast<float>(blow.at_ms()) / 1000.0f,
-                     .weight = weight(blow.push())});
+                     .weight = weight(blow.push(), blow.lift())});
   }
   if (blows.empty()) {
     const auto weapon = weapons_.find(figure.weapon);
@@ -265,7 +265,8 @@ std::vector<Fx::Beat> Fx::BlowsOf(const skills::Skill& skill,
     const float hit = effect.weapon() && weapon != weapons_.end()
                           ? pace * static_cast<float>(weapon->second.hit_ms())
                           : static_cast<float>(effect.hit_ms());
-    blows.push_back({.at = hit / 1000.0f, .weight = weight(effect.push())});
+    blows.push_back(
+        {.at = hit / 1000.0f, .weight = weight(effect.push(), 0.0f)});
   }
   return blows;
 }

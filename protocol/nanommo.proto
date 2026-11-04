@@ -132,6 +132,8 @@ message Monster {
   uint32 max_health = 9;
   // By its id in the monsters file.
   uint32 kind = 10;
+  // How high a blow's thrown it, in metres, while it's in the air.
+  float height = 11;
 }
 
 // Someone who stands in one place, and doesn't fight. Each comes once a

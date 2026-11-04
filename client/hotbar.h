@@ -13,10 +13,13 @@ namespace nanommo {
 
 /// The skills along the bottom of the screen: the swing first, on Space, then
 /// the others in the order of their levels, each on a number key: 1 for the
-/// first, and so on, up to nine.
+/// first, and so on, up to nine, and then a row above it, on the same keys
+/// with Shift.
 class Hotbar {
  public:
-  static constexpr int kMostSlots = 9;
+  /// A row's worth of number keys.
+  static constexpr int kRow = 9;
+  static constexpr int kMostSlots = 2 * kRow;
 
   explicit Hotbar(const SkillTable& skills);
 

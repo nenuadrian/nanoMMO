@@ -393,7 +393,8 @@ void Characters::PoseAs(const Character& character,
   }
 }
 
-// Turned, then tipped over towards its lean's way, about its feet.
+// Turned, then tipped over towards its lean's way, about its feet, and up
+// off the ground by its lift.
 Matrix Characters::Placed(const Character& character, const Figure& figure) {
   const float scale = character.scale;
   const Vector3 across{std::cos(figure.lean_yaw), 0.0f,
@@ -402,7 +403,8 @@ Matrix Characters::Placed(const Character& character, const Figure& figure) {
       MatrixMultiply(MatrixMultiply(MatrixScale(scale, scale, scale),
                                     MatrixRotateY(figure.yaw)),
                      MatrixRotate(across, figure.lean)),
-      MatrixTranslate(figure.position.x, figure.position.y, figure.position.z));
+      MatrixTranslate(figure.position.x, figure.position.y + figure.lift,
+                      figure.position.z));
 }
 
 Matrix Characters::InHand(const Character& character, const Matrix& grip) {

@@ -132,6 +132,7 @@ protocol::Monster ToProtocol(uint32_t id, const Monster& monster) {
   sent.set_level(monster.level);
   sent.set_health(monster.health);
   sent.set_max_health(monster.max_health);
+  sent.set_height(monster.height);
   return sent;
 }
 
