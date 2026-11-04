@@ -147,6 +147,9 @@ class Characters {
   std::map<uint32_t, Weapon> weapons_;
   /// Each skill's move, by the skill's id.
   std::map<uint32_t, skills::Move> moves_;
+  Shader shader_;
+  /// The light the figure gives off, in the shader, to light it up.
+  int emission_ = -1;
 };
 
 }  // namespace nanommo

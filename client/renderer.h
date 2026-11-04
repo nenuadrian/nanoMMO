@@ -19,6 +19,7 @@
 #include "client/cube.h"
 #include "client/fx.h"
 #include "client/outline.h"
+#include "client/reactions.h"
 #include "client/sea.h"
 #include "client/sky.h"
 #include "client/trees.h"
@@ -80,12 +81,19 @@ class Renderer {
   std::optional<Gait> GaitOf(const Figure& figure) const;
 
   /// Moves the skills' fx, the sea's waves and the clouds on by the seconds,
-  /// as the figures are now. Then the blows that just landed hold their
-  /// players, and what they hit, still for a moment.
+  /// as the figures are now. Then the monsters take their blows, and those
+  /// that just landed hold their players, and them, still for a moment.
   void Animate(float seconds) {
     fx_->Update(figures_, seconds);
+    reactions_.Update(seconds);
+    reactions_.Apply(figures_);
     fx_->Hold(figures_);
     clock_ += seconds;
+  }
+
+  /// The player hit the monster, both by their ids.
+  void Struck(uint32_t monster, uint32_t player) {
+    reactions_.Hit(monster, player);
   }
 
   /// The monster the player picked, by its id, which gets a ring at its feet,
@@ -137,6 +145,7 @@ class Renderer {
   /// Each kind of monster, by id, as its model at its height.
   std::map<uint32_t, std::unique_ptr<Characters>> monsters_;
   std::unique_ptr<Fx> fx_;
+  Reactions reactions_;
   std::unique_ptr<Sky> sky_;
 };
 

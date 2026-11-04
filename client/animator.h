@@ -49,6 +49,12 @@ struct Figure {
   uint32_t target = 0;
   Vector3 position{0.0f, 0.0f, 0.0f};
   float yaw = 0.0f;
+  /// How far it's tipped over, in radians, and which way it tips, as a yaw:
+  /// a monster rocking back from a blow.
+  float lean = 0.0f;
+  float lean_yaw = 0.0f;
+  /// How lit up it is from a blow just landed, from 0 to 1.
+  float flash = 0.0f;
   protocol::Motion from = protocol::MOTION_IDLE;
   /// While a motion is a skill's, which skill, by its id in the skills file.
   uint32_t from_skill = 0;

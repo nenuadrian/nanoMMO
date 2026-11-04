@@ -34,6 +34,10 @@ constexpr std::string_view kRightFoot = "RightFoot";
 // towards the palm, in metres.
 constexpr Vector3 kFist = {-0.06f, -0.01f, 0.0f};
 
+// The light a blow's flash gives off at its brightest, on top of the sun's:
+// enough to bloom.
+constexpr float kFlash = 2.5f;
+
 // raylib cuts clip names at 31 characters, so the skeleton's run ends in
 // Runni, which still has the word run in it.
 bool HasWord(std::string name, std::string_view word) {
@@ -112,7 +116,9 @@ std::string ContentFolder() {
 
 Characters::Characters(const rig::Rig& rig, Shader shader,
                        const figures::Figures& figures)
-    : figures_(figures) {
+    : figures_(figures),
+      shader_(shader),
+      emission_(GetShaderLocation(shader, "emission")) {
   // The rig as it is, without a build.
   for (int build = 0; build < std::max(rig.builds_size(), 1); ++build) {
     const std::vector<rig::Joint> joints = Skeleton(rig, build);
@@ -138,7 +144,8 @@ Characters::Characters(const rig::Rig& rig, Shader shader,
 
 Characters::Characters(const std::string& folder,
                        const std::vector<std::string>& files, float height,
-                       Shader shader) {
+                       Shader shader)
+    : shader_(shader), emission_(GetShaderLocation(shader, "emission")) {
   for (const std::string& file : files) {
     const std::string path = absl::StrCat(folder, "/", file);
     if (!FileExists(path.c_str())) {
@@ -385,11 +392,15 @@ void Characters::PoseAs(const Character& character,
   }
 }
 
+// Turned, then tipped over towards its lean's way, about its feet.
 Matrix Characters::Placed(const Character& character, const Figure& figure) {
   const float scale = character.scale;
+  const Vector3 across{std::cos(figure.lean_yaw), 0.0f,
+                       -std::sin(figure.lean_yaw)};
   return MatrixMultiply(
-      MatrixMultiply(MatrixScale(scale, scale, scale),
-                     MatrixRotateY(figure.yaw)),
+      MatrixMultiply(MatrixMultiply(MatrixScale(scale, scale, scale),
+                                    MatrixRotateY(figure.yaw)),
+                     MatrixRotate(across, figure.lean)),
       MatrixTranslate(figure.position.x, figure.position.y, figure.position.z));
 }
 
@@ -424,16 +435,18 @@ void Characters::Draw(const Figure& figure, Color color,
                       const Outline* outline) const {
   const Character& character = For(figure);
   PoseAs(character, figure);
-  const float scale = character.scale;
   const Matrix placed = Placed(character, figure);
+  // A blow just landed lights it up.
+  const float flash = figure.flash * kFlash;
+  SetShaderValue(shader_, emission_, &flash, SHADER_UNIFORM_FLOAT);
   // Each with its outline first, at the figure's place, its turn and its
   // scale.
-  auto draw = [&](const Model& model, const Model& hull, Color tint) {
+  auto draw = [&](Model model, const Model& hull, Color tint) {
     if (outline != nullptr) {
       DrawOutline(hull, placed, outline->skinned);
     }
-    DrawModelEx(model, figure.position, {0.0f, 1.0f, 0.0f},
-                figure.yaw * RAD2DEG, {scale, scale, scale}, tint);
+    model.transform = MatrixMultiply(model.transform, placed);
+    DrawModel(model, {0.0f, 0.0f, 0.0f}, 1.0f, tint);
   };
   if (!character.dressed) {
     draw(character.model, character.hull, color);
@@ -458,16 +471,17 @@ void Characters::Draw(const Figure& figure, Color color,
   }
 
   const auto held = weapons_.find(figure.weapon);
-  if (held == weapons_.end() || character.hand < 0) {
-    return;
+  if (held != weapons_.end() && character.hand >= 0) {
+    Model weapon = held->second.model;
+    weapon.transform =
+        MatrixMultiply(InHand(character, held->second.grip), placed);
+    if (outline != nullptr) {
+      DrawOutline(weapon, MatrixIdentity(), outline->still);
+    }
+    DrawModel(weapon, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
   }
-  Model weapon = held->second.model;
-  weapon.transform =
-      MatrixMultiply(InHand(character, held->second.grip), placed);
-  if (outline != nullptr) {
-    DrawOutline(weapon, MatrixIdentity(), outline->still);
-  }
-  DrawModel(weapon, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
+  constexpr float kNone = 0.0f;
+  SetShaderValue(shader_, emission_, &kNone, SHADER_UNIFORM_FLOAT);
 }
 
 }  // namespace nanommo

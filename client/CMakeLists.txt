@@ -8,7 +8,7 @@ add_library(nanommo_client_core
   bag_window.cc
   character_screen.cc
   chat_window.cc talk_window.cc trainer_window.cc quest_window.cc picking.cc
-  animator.cc characters.cc rig.cc moves.cc fx.cc figures.cc triangles.cc ground.cc trees.cc chunks.cc
+  animator.cc characters.cc rig.cc moves.cc fx.cc reactions.cc figures.cc triangles.cc ground.cc trees.cc chunks.cc
   sea.cc sky.cc
   gate.cc
   loading.cc death_screen.cc cube.cc cursor.cc map.cc

@@ -359,6 +359,9 @@ int main(int argc, char* argv[]) {
       }
       for (const nanommo::protocol::Event& event : connection->TakeEvents()) {
         combat_text.Add(event, world.you());
+        if (event.kind() == nanommo::protocol::EVENT_HIT) {
+          renderer.Struck(event.monster(), event.player());
+        }
       }
       combat_text.Update(GetFrameTime());
       nanommo::MarkQuestGivers(figures, *content, connection->quests());
