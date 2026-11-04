@@ -1390,3 +1390,124 @@ skills {
     }
   }
 }
+skills {
+  id: 13
+  name: "Cyclone"
+  level: 1
+  cooldown_ms: 15000
+  effect {
+    cast_ms: 2100
+    reach: 2.6
+    damage: 60
+    all: true
+    # A blow each time round, and a last one that throws them off.
+    blows { at_ms: 650 push: 0.4 }
+    blows { at_ms: 1010 push: 0.4 }
+    blows { at_ms: 1370 push: 0.4 }
+    blows { at_ms: 1660 push: 1.6 lift: 0.7 }
+    strides { at_ms: 400 }
+    strides { at_ms: 1600 ahead: 5 }
+  }
+  look {
+    icon: 0xF751
+    stop_ms: 50
+    move {
+      keys {
+        at_ms: 380
+        ease: GATHER
+        lift: -0.12
+        turns { joint: CHEST yaw: 20 }
+        turns { joint: RIGHT_ARM pitch: -60 roll: -70 }
+        turns { joint: RIGHT_HAND pitch: 85 }
+        turns { joint: LEFT_ARM roll: 60 }
+        turns { joint: RIGHT_LEG pitch: -20 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 30 }
+        turns { joint: HIPS yaw: 50 }
+      }
+      keys {
+        at_ms: 1500
+        lift: -0.1
+        turns { joint: CHEST yaw: -10 }
+        turns { joint: RIGHT_ARM pitch: -75 roll: -80 }
+        turns { joint: RIGHT_HAND pitch: 85 }
+        turns { joint: LEFT_ARM roll: 60 }
+        turns { joint: RIGHT_LEG pitch: -20 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 30 }
+        turns { joint: HIPS yaw: -1030 }
+      }
+      keys {
+        at_ms: 1660
+        ease: SNAP
+        lift: -0.16
+        turns { joint: RIGHT_LEG pitch: -50 }
+        turns { joint: RIGHT_KNEE pitch: 55 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+        turns { joint: HIPS yaw: -1080 }
+        turns { joint: CHEST pitch: 10 yaw: -50 }
+        turns { joint: RIGHT_ARM pitch: -75 roll: -85 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM roll: 45 }
+      }
+      keys {
+        at_ms: 1800
+        lift: -0.14
+        turns { joint: RIGHT_LEG pitch: -50 }
+        turns { joint: RIGHT_KNEE pitch: 55 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+        turns { joint: HIPS yaw: -1080 }
+        turns { joint: CHEST pitch: 8 yaw: -48 }
+        turns { joint: RIGHT_ARM pitch: -72 roll: -82 }
+        turns { joint: RIGHT_HAND pitch: 78 }
+        turns { joint: LEFT_ARM roll: 42 }
+      }
+      keys {
+        at_ms: 2050
+        turns { joint: HIPS yaw: -1080 }
+      }
+    }
+    fx {
+      kind: EDGE from_ms: 300 for_ms: 1500
+      color: 0xFF4A5AFF
+    }
+    fx {
+      kind: TRAIL from_ms: 380 for_ms: 1350
+      color: 0xFFD0D4FF
+    }
+    fx {
+      kind: GHOSTS from_ms: 420 for_ms: 1200
+      color: 0xFF7080FF count: 3
+    }
+    fx {
+      kind: MOTES from_ms: 380 for_ms: 1300
+      color: 0xFF4A5AFF size: 2.2 count: 40
+    }
+    fx {
+      kind: RING from_ms: 640 for_ms: 420
+      color: 0xFF4A5AFF size: 2.6
+    }
+    fx {
+      kind: RING from_ms: 1000 for_ms: 420
+      color: 0xFF4A5AFF size: 2.6
+    }
+    fx {
+      kind: RING from_ms: 1360 for_ms: 420
+      color: 0xFF4A5AFF size: 2.6
+    }
+    fx {
+      kind: SLASH from_ms: 1660 for_ms: 450
+      color: 0xFFD0D4FF size: 3.2 count: 1 up: 1 angle: 0
+    }
+    fx {
+      kind: SPARKS from_ms: 1660 for_ms: 500
+      color: 0xFF4A5AFF size: 2 count: 30 up: 0.8
+    }
+    fx {
+      kind: SHAKE from_ms: 1660 for_ms: 260
+      size: 0.14
+    }
+  }
+}
