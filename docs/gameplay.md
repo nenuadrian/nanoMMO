@@ -81,7 +81,7 @@ you back, in the middle at full health. A player saved before health was kept jo
 
 A skill is a move with a cooldown. Each player knows Strike and the swings it goes on into, on
 Space, and the thrust from the start, and learns the others from a trainer (see
-[Learning skills](#learning-skills)). For now, while we try them out, each of the eleven in
+[Learning skills](#learning-skills)). For now, while we try them out, each of the sixteen in
 `content/skills.txtpb` is from level one:
 
 | Skill | From level | Cooldown | What it does |
@@ -97,11 +97,17 @@ Space, and the thrust from the start, and learns the others from a trainer (see
 | Frost Nova | 1 | 18 s | 30 damage to each monster within 4 metres |
 | Searing Arc | 1 | 14 s | 35 damage to each monster within 7 metres, in a slice 100 degrees wide in front of you |
 | Stormcaller | 1 | 20 s | 60 damage to the monster you picked, within 10 metres |
+| Phantom Rush | 1 | 14 s | Dashes 7.5 metres through the monster you picked, and 55 damage a moment later |
+| Skyrend | 1 | 18 s | 70 damage over three blows to each monster in a slice 140 degrees wide, 3 metres out: throws them up, cuts across, and dashes them down |
+| Tempest Flurry | 1 | 16 s | 72 damage over nine blows to the monster you picked, within 2.4 metres, the last throwing it up |
+| Cyclone | 1 | 15 s | 60 damage over four blows to each monster within 2.6 metres, spinning 5 metres forward |
+| Severing Moon | 1 | 22 s | 95 damage to each monster in a slice 160 degrees wide, 4.5 metres out, knocking them 2.2 metres back |
 Each level after the first adds five to a skill's damage, as it does to a weapon's. There's no
 skill tree: a trainer teaches each of its skills to any player who has reached its level.
 
 The hotbar along the bottom of the screen has Strike first, on Space, then the others in the order
-of their levels, but for the swings Strike goes on into, which are Space's too, each on a number key, 1 for the first, up to 9, and a click on one uses it too.
+of their levels, but for the swings Strike goes on into, which are Space's too, each on a number key, 1 for the first, up to 9, then a row above it, on Shift and the same keys,
+for nine more, and a click on one uses it too.
 Each shows its icon and its key, and its name and level when the mouse is over it. A skill you don't
 know yet is greyed out, with the level it needs, or Learn once you've reached it, and one that's
 cooling down is shaded, a slice that shrinks clockwise from the top, with the seconds left in the
@@ -120,7 +126,20 @@ it's still in reach, or on each one in reach. It starts its cooldown as it start
 what it lands on away from the player by its push, from a quarter of a metre for a swing to three for
 the kick, over 0.2 seconds (`kPushTime`), fast at first and slowing, where the sea or a tree lets it,
 while the monster does nothing else, though a swing it started goes on. A push that comes during
-another starts again from where the monster is. Searing Arc's effect has an `arc`, in degrees, and hits only the monsters within that slice in
+another starts again from where the monster is.
+
+A blow can throw a monster up too, to its `lift` in metres off the ground, and the server flies it
+under a gravity of 14 metres a second each second (`kGravity`), a bit more than the Earth's so that
+it doesn't float, while it does nothing else; thrown, it drops a swing it was in. A blow on a monster
+in the air sends it up a little again (`kPop`), and a lift below nothing dashes it down. However many
+players take turns at it, a monster is in the air for two seconds at most (`kMostInAir`), and once
+it's down it can't be thrown again for two more (`kSteady`), so that it gets to fight back. Each
+monster's height goes to the clients, in `Monster.height`, while it's in the air.
+
+A skill's `strides` carry the player as it goes: each is how far along the way they faced as it
+started, which aiming at the monster turned them to, they've gone by a time into it, eased from the
+stride before as a move's keys are. The server walks them there each tick, so that everyone sees the
+dash, and like a walk it slides along the sea or a tree, or stops. Searing Arc's effect has an `arc`, in degrees, and hits only the monsters within that slice in
 front of the player, half of it to either side of the way they face. Cooldowns run down whatever the player
 does, dead or alive, and aren't saved: a player who leaves and comes back finds their skills ready.
 

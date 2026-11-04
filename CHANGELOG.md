@@ -7,6 +7,18 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.62.0 (2026-11-03)
+
+- A skill's strides carry the player along the way they faced as it started, on the server, so that
+  everyone sees the dash.
+- A blow can throw a monster up, keep it in the air, or dash it down. A monster's in the air for two
+  seconds at most, and then stands its ground for two more. The world message says how high each
+  monster is, so a client of 0.61 can't read it, and the login server turns it away.
+- Three more kinds of fx: copies left behind a fast move, a flash over the view of the player using
+  a skill, and their camera going in.
+- Five sword skills, from the trainer: Phantom Rush, Skyrend, Tempest Flurry, Cyclone and Severing
+  Moon.
+
 ## 0.61.0 (2026-11-03)
 
 - A skill can land more than once, each blow at its own time and with its own push, sharing the
