@@ -508,9 +508,18 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
         EffectOf(player, content_->skills.by_id.at(player.skill));
     const auto before = player.cast;
     player.cast += time;
-    const std::chrono::milliseconds hit(effect.hit_ms());
-    if (before < hit && player.cast >= hit) {
-      Land(id, player, effect);
+    // A skill without blows of its own lands once, at its hit.
+    skills::Blow once;
+    once.set_at_ms(effect.hit_ms());
+    once.set_push(effect.push());
+    const int blows = std::max(effect.blows_size(), 1);
+    for (int index = 0; index < blows; ++index) {
+      const skills::Blow& blow =
+          effect.blows_size() > 0 ? effect.blows(index) : once;
+      const std::chrono::milliseconds hit(blow.at_ms());
+      if (before < hit && player.cast >= hit) {
+        Land(id, player, effect, blow, index, blows);
+      }
     }
     if (player.cast < std::chrono::milliseconds(effect.cast_ms())) {
       return;
@@ -673,37 +682,61 @@ void World::Start(Player& player, const skills::Skill& skill) {
   Aim(player, EffectOf(player, skill).reach());
 }
 
-void World::Land(uint32_t id, Player& player, const skills::Effect& effect) {
+void World::Land(uint32_t id, Player& player, const skills::Effect& effect,
+                 const skills::Blow& blow, int index, int blows) {
   const int level = LevelFor(player.experience).number;
-  Heal(id, player, static_cast<int>(effect.heal()));
+  if (index == 0) {
+    Heal(id, player, static_cast<int>(effect.heal()));
+  }
   if (effect.damage() == 0) {
     return;
   }
-  const int damage = static_cast<int>(effect.damage()) + ExtraDamage(level) +
-                     player.stats.damage;
+  // The blows share the damage, and the last takes what doesn't divide.
+  const int total = static_cast<int>(effect.damage()) + ExtraDamage(level) +
+                    player.stats.damage;
+  const int damage = total / blows + (index == blows - 1 ? total % blows : 0);
   for (auto& [monster_id, monster] : monsters_) {
     if ((effect.all() || monster_id == player.target) &&
         monster.motion != Motion::kDead &&
         Distance(player, monster) <= effect.reach() &&
         InArc(player, monster, effect.arc())) {
-      Push(player, monster, effect.push());
+      Push(player, monster, blow.push());
       Hurt(id, player, monster_id, monster, damage);
     }
   }
 }
 
-// Away from the player, like a walk: where the sea or a tree is in the way, it
-// slides along it, or stays put.
+// Away from the player. A push that comes while another is going on starts
+// again from where the monster is.
 void World::Push(const Player& player, Monster& monster, float metres) {
   const float distance = Distance(player, monster);
   if (metres == 0.0f || distance == 0.0f) {
     return;
   }
-  const float dx = (monster.x - player.x) / distance * metres;
-  const float dz = (monster.z - player.z) / distance * metres;
+  monster.pushed_from_x = monster.x;
+  monster.pushed_from_z = monster.z;
+  monster.push_x = (monster.x - player.x) / distance * metres;
+  monster.push_z = (monster.z - player.z) / distance * metres;
+  monster.pushed = std::chrono::nanoseconds::zero();
+}
+
+// Like a walk: where the sea or a tree is in the way, it slides along it, or
+// stays put. Each tick goes to where the push has reached by then, eased out,
+// so that it's fast at first and slows to a stop at its whole length.
+bool World::Slide(Monster& monster, std::chrono::nanoseconds time) {
+  if (monster.pushed >= kPushTime) {
+    return false;
+  }
+  monster.pushed =
+      std::min<std::chrono::nanoseconds>(monster.pushed + time, kPushTime);
+  const float done = std::chrono::duration<float>(monster.pushed) /
+                     std::chrono::duration<float>(kPushTime);
+  const float eased = 1.0f - (1.0f - done) * (1.0f - done);
   const float edge = terrain_.edge();
-  Walk(terrain_, monster.x, monster.z, std::clamp(monster.x + dx, -edge, edge),
-       std::clamp(monster.z + dz, -edge, edge));
+  Walk(terrain_, monster.x, monster.z,
+       std::clamp(monster.pushed_from_x + monster.push_x * eased, -edge, edge),
+       std::clamp(monster.pushed_from_z + monster.push_z * eased, -edge, edge));
+  return true;
 }
 
 void World::Hurt(uint32_t id, Player& player, uint32_t monster_id,
@@ -841,9 +874,13 @@ Event& World::Record(Event::Kind kind, uint32_t id, const Player& player) {
 
 void World::Act(Monster& monster, std::chrono::nanoseconds time) {
   if (monster.motion == Motion::kDead) {
+    // A push the killing blow started ends with the monster.
+    monster.pushed = kPushTime;
     Revive(monster, time, random_);
     return;
   }
+  // Pushed, it goes where the blow sends it, and a swing it started goes on.
+  const bool pushed = Slide(monster, time);
   if (monster.motion == Motion::kAttack) {
     const auto before = monster.swing;
     monster.swing += time;
@@ -854,6 +891,10 @@ void World::Act(Monster& monster, std::chrono::nanoseconds time) {
       return;
     }
     monster.motion = Motion::kIdle;
+  }
+  if (pushed) {
+    monster.motion = Motion::kIdle;
+    return;
   }
   Hunt(monster, players_, terrain_, time, random_);
 }

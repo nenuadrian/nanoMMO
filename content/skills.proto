@@ -2,6 +2,15 @@ syntax = "proto3";
 
 package nanommo.skills;
 
+// One blow of a skill that lands more than once, such as a spin that goes round
+// twice.
+message Blow {
+  // How far into the skill it lands.
+  uint32 at_ms = 1;
+  // How far it knocks a monster back, in metres.
+  float push = 2;
+}
+
 // What a skill does, and when: the server's part.
 message Effect {
   // How long it holds the player, who can't move or swing until it's done.
@@ -22,6 +31,9 @@ message Effect {
   // In degrees, how wide a slice in front of the player it hits, or all the
   // way round, without one.
   float arc = 9;
+  // A skill that lands more than once: its blows, in order, in place of hit_ms
+  // and push. They share its damage out between them.
+  repeated Blow blows = 10;
 }
 
 // The joints a move turns, each a bone of the characters.

@@ -14,6 +14,7 @@ skills {
     hit_ms: 520
     reach: 2.4
     damage: 35
+    push: 0.4
   }
   look {
     icon: 0xF140
@@ -181,10 +182,12 @@ skills {
   cooldown_ms: 12000
   effect {
     cast_ms: 1800
-    hit_ms: 900
     reach: 2.5
     damage: 25
     all: true
+    # A blow on each spin, as the blade comes round in front.
+    blows { at_ms: 690 push: 0.25 }
+    blows { at_ms: 990 push: 0.25 }
   }
   look {
     icon: 0xF76F
@@ -239,6 +242,7 @@ skills {
   level: 1
   effect {
     weapon: true
+    push: 0.25
   }
   look {
     icon: 0xE4DC
@@ -407,6 +411,7 @@ skills {
     reach: 4
     damage: 30
     all: true
+    push: 0.4
   }
   look {
     icon: 0xF2DC
@@ -487,6 +492,7 @@ skills {
     damage: 35
     all: true
     arc: 100
+    push: 0.35
   }
   look {
     icon: 0xF06D
@@ -553,6 +559,7 @@ skills {
     hit_ms: 1100
     reach: 10
     damage: 60
+    push: 0.45
   }
   look {
     icon: 0xF0E7

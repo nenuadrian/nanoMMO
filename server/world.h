@@ -85,6 +85,9 @@ struct Player {
   uint32_t input_skill = 0;
 };
 
+/// How long a blow's push takes, fast at first and slowing, as a shove does.
+inline constexpr std::chrono::milliseconds kPushTime{200};
+
 struct Monster {
   /// By its id in the monsters file.
   uint32_t kind = 0;
@@ -115,6 +118,14 @@ struct Monster {
   uint32_t attacker = 0;
   std::chrono::nanoseconds swing{0};
   std::chrono::nanoseconds respawn{0};
+  /// A blow's push, which plays out over a few ticks: where it started, how
+  /// far it goes, in metres, and how long it's been going. While it does, the
+  /// monster thinks of nothing else, though a swing it started goes on.
+  float pushed_from_x = 0.0f;
+  float pushed_from_z = 0.0f;
+  float push_x = 0.0f;
+  float push_z = 0.0f;
+  std::chrono::nanoseconds pushed = kPushTime;
 };
 
 /// Someone who stands in one place, such as a guard. NPCs don't move or fight,
@@ -316,8 +327,15 @@ class World {
   /// goes at the air.
   const skills::Skill* Usable(const Player& player, uint32_t id) const;
   void Start(Player& player, const skills::Skill& skill);
-  void Land(uint32_t id, Player& player, const skills::Effect& effect);
+  /// The skill's blow, which hurts and pushes what it reaches. A skill that
+  /// lands more than once shares its damage out between its blows, and heals
+  /// with the first.
+  void Land(uint32_t id, Player& player, const skills::Effect& effect,
+            const skills::Blow& blow, int index, int blows);
+  /// Starts a push away from the player, by metres, which Slide plays out.
   void Push(const Player& player, Monster& monster, float metres);
+  /// Moves the monster on along its push, and says whether one's going on.
+  bool Slide(Monster& monster, std::chrono::nanoseconds time);
   void Hurt(uint32_t id, Player& player, uint32_t monster_id, Monster& monster,
             int damage);
   /// Gives the player back as much of the health as they're missing.

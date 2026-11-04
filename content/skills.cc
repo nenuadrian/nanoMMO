@@ -33,6 +33,18 @@ absl::StatusOr<SkillTable> ParseSkills(std::string_view text) {
       return absl::InvalidArgumentError(
           absl::StrCat("the ", skill.name(), " lands after it's over"));
     }
+    uint32_t blow = 0;
+    for (const skills::Blow& each : skill.effect().blows()) {
+      if (each.at_ms() < blow) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("the ", skill.name(), "'s blows go back in time"));
+      }
+      if (each.at_ms() > skill.effect().cast_ms()) {
+        return absl::InvalidArgumentError(absl::StrCat(
+            "the ", skill.name(), " lands a blow after it's over"));
+      }
+      blow = each.at_ms();
+    }
     // A swing's as long as the weapon's, so only the others are checked.
     uint32_t last = 0;
     for (const skills::Key& key : skill.look().move().keys()) {

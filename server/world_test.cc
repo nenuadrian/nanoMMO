@@ -244,8 +244,13 @@ TEST(World, UsesTheSkillsTheyKnowOnceTheyreReady) {
   for (int tick = 0; tick < 10; ++tick) {
     world.Step(kTick);
   }
+  // The kick lands, and its push plays out over the next few ticks.
+  EXPECT_EQ(world.monsters().at(skeleton).health, 50 - 10 - 5);
+  EXPECT_LT(world.monsters().at(skeleton).x, 4.0f);
+  for (int tick = 0; tick < 3; ++tick) {
+    world.Step(kTick);
+  }
   const nanommo::Monster& kicked = world.monsters().at(skeleton);
-  EXPECT_EQ(kicked.health, 50 - 10 - 5);
   EXPECT_FLOAT_EQ(kicked.x, 4.0f);
 
   // Out of its sight, it goes back for the player who kicked it.
@@ -262,6 +267,57 @@ TEST(World, UsesTheSkillsTheyKnowOnceTheyreReady) {
   world.UseSkill(2, 1);
   world.Step(kTick);
   EXPECT_EQ(world.players().at(2).motion, nanommo::Motion::kSkill);
+}
+
+TEST(World, SkillsThatLandMoreThanOnceShareTheirDamageAndPushEachTime) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword(),
+                                              *nanommo::ParseSkills(R"pb(
+                                                skills {
+                                                  id: 1
+                                                  name: "Whirlwind"
+                                                  level: 1
+                                                  effect {
+                                                    cast_ms: 1000
+                                                    reach: 5
+                                                    damage: 25
+                                                    all: true
+                                                    blows { at_ms: 300 push: 1 }
+                                                    blows { at_ms: 700 push: 1 }
+                                                  }
+                                                }
+                                              )pb")));
+  world.Join(1, {.skills = {1}});
+  const uint32_t skeleton =
+      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 0.0f, 2.0f));
+
+  // It starts, and its first blow lands 300 ms in, with half the damage, and
+  // pushes the skeleton a metre further away over the next ticks, from
+  // wherever it's walked to by then.
+  world.UseSkill(1, 1);
+  world.Step(kTick);
+  for (int tick = 0; tick < 5; ++tick) {
+    world.Step(kTick);
+  }
+  float before = world.monsters().at(skeleton).z;
+  world.Step(kTick);
+  EXPECT_EQ(world.monsters().at(skeleton).health, 50 - 12);
+  for (int tick = 0; tick < 3; ++tick) {
+    world.Step(kTick);
+  }
+  EXPECT_NEAR(world.monsters().at(skeleton).z, before + 1.0f, 1e-4f);
+
+  // The second lands 700 ms in, with the rest, and pushes it again.
+  for (int tick = 0; tick < 4; ++tick) {
+    world.Step(kTick);
+  }
+  before = world.monsters().at(skeleton).z;
+  world.Step(kTick);
+  EXPECT_EQ(world.monsters().at(skeleton).health, 50 - 12 - 13);
+  for (int tick = 0; tick < 3; ++tick) {
+    world.Step(kTick);
+  }
+  EXPECT_NEAR(world.monsters().at(skeleton).z, before + 1.0f, 1e-4f);
 }
 
 TEST(World, SkillsWithAnArcHitOnlyWhatsInFront) {

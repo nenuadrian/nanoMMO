@@ -458,6 +458,18 @@ TEST(Content, RefusesSkillsThatDontAddUp) {
                 .status()
                 .message(),
             "the Kick lands after it's over");
+  EXPECT_EQ(nanommo::ParseSkills("skills { id: 1 name: \"Spin\" level: 1 "
+                                 "effect { cast_ms: 900 blows { at_ms: 600 } "
+                                 "blows { at_ms: 300 } } }")
+                .status()
+                .message(),
+            "the Spin's blows go back in time");
+  EXPECT_EQ(nanommo::ParseSkills("skills { id: 1 name: \"Spin\" level: 1 "
+                                 "effect { cast_ms: 900 blows { at_ms: 300 } "
+                                 "blows { at_ms: 1200 } } }")
+                .status()
+                .message(),
+            "the Spin lands a blow after it's over");
   EXPECT_EQ(nanommo::ParseSkills("starting: 2 skills { id: 1 name: \"Kick\" "
                                  "level: 1 effect { cast_ms: 900 } }")
                 .status()
