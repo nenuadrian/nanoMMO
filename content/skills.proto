@@ -150,6 +150,9 @@ message Fx {
     // The whole view of the player using it, turned towards the colour, and
     // back: only theirs, as a crowd's would never stop.
     FLASH = 13;
+    // The camera of the player using it goes in by the size, in metres, and
+    // back out.
+    ZOOM = 14;
   }
   // Where it is.
   enum Place {

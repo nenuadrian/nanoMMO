@@ -954,4 +954,30 @@ Vector3 Fx::Shake(Vector3 camera) const {
   return shake;
 }
 
+float Fx::Zoom() const {
+  constexpr float kIn = 0.25f;
+  constexpr float kOut = 0.35f;
+  float zoom = 0.0f;
+  for (const auto& [id, cast] : casts_) {
+    if (!cast.figure.you) {
+      continue;
+    }
+    for (const skills::Fx& fx : skills_.at(cast.figure.to_skill).look().fx()) {
+      const float span = static_cast<float>(fx.for_ms()) / 1000.0f;
+      const float u =
+          (cast.clock - static_cast<float>(fx.from_ms()) / 1000.0f) / span;
+      if (fx.kind() != skills::Fx::ZOOM || u < 0.0f || u > 1.0f) {
+        continue;
+      }
+      // In smoothly, held, and smoothly back out.
+      auto smooth = [](float t) {
+        t = std::clamp(t, 0.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
+      };
+      zoom += fx.size() * smooth(u / kIn) * smooth((1.0f - u) / kOut);
+    }
+  }
+  return zoom;
+}
+
 }  // namespace nanommo

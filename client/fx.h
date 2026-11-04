@@ -63,6 +63,9 @@ class Fx {
   /// How far the camera's shaken, at this moment, by the skills near it.
   Vector3 Shake(Vector3 camera) const;
 
+  /// How far in our own camera goes, in metres, for a skill we're using.
+  float Zoom() const;
+
   /// How many skills' fx are going.
   std::size_t casts() const { return casts_.size(); }
 

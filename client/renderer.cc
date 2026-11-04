@@ -3,6 +3,7 @@
 #include <raymath.h>
 #include <rlgl.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <memory>
@@ -380,8 +381,13 @@ void Renderer::Draw() const {
   SetAtmosphere(character_shader_, atmosphere);
   SetFog(outline_.still, atmosphere);
   SetFog(outline_.skinned, atmosphere);
-  // A heavy blow nearby shakes the camera.
+  // A heavy blow nearby shakes the camera, and a skill of ours can take it
+  // in closer, though never past where it looks.
   Camera3D camera = camera_;
+  const Vector3 toward = Vector3Subtract(camera_.target, camera_.position);
+  const float zoom = std::min(fx_->Zoom(), 0.6f * Vector3Length(toward));
+  camera.position =
+      Vector3Add(camera.position, Vector3Scale(Vector3Normalize(toward), zoom));
   const Vector3 shake = fx_->Shake(camera_.position);
   camera.position = Vector3Add(camera.position, shake);
   camera.target = Vector3Add(camera.target, shake);

@@ -1121,3 +1121,272 @@ skills {
     }
   }
 }
+skills {
+  id: 11
+  name: "Tempest Flurry"
+  level: 1
+  cooldown_ms: 16000
+  effect {
+    cast_ms: 2400
+    reach: 2.4
+    damage: 72
+    # Eight cuts, each its own way, and a thrust that throws it up.
+    blows { at_ms: 300 push: 0.12 }
+    blows { at_ms: 430 push: 0.12 }
+    blows { at_ms: 560 push: 0.12 }
+    blows { at_ms: 690 push: 0.12 }
+    blows { at_ms: 820 push: 0.12 }
+    blows { at_ms: 950 push: 0.12 }
+    blows { at_ms: 1080 push: 0.12 }
+    blows { at_ms: 1210 push: 0.12 }
+    blows { at_ms: 1520 push: 1.2 lift: 1.6 }
+    strides { at_ms: 300 }
+    strides { at_ms: 1210 ahead: 0.9 }
+    strides { at_ms: 1520 ahead: 1.6 ease: SNAP }
+  }
+  look {
+    icon: 0xF66D
+    stop_ms: 55
+    move {
+      keys {
+        at_ms: 190
+        ease: GATHER
+        lift: -0.08
+        turns { joint: CHEST pitch: -5 yaw: -35 }
+        turns { joint: RIGHT_ARM pitch: -150 roll: -35 }
+        turns { joint: RIGHT_FOREARM pitch: -40 }
+        turns { joint: RIGHT_HAND pitch: 70 }
+        turns { joint: LEFT_ARM pitch: -30 roll: 25 }
+        turns { joint: RIGHT_LEG pitch: -25 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 300
+        ease: SNAP
+        lift: -0.14
+        turns { joint: CHEST pitch: 12 yaw: 40 }
+        turns { joint: RIGHT_ARM pitch: -45 roll: 55 }
+        turns { joint: RIGHT_FOREARM pitch: -15 }
+        turns { joint: RIGHT_HAND pitch: 75 }
+        turns { joint: LEFT_ARM pitch: 20 roll: 35 }
+        turns { joint: RIGHT_LEG pitch: -50 }
+        turns { joint: RIGHT_KNEE pitch: 55 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 430
+        ease: SNAP
+        lift: -0.1
+        turns { joint: CHEST pitch: -5 yaw: -35 }
+        turns { joint: RIGHT_ARM pitch: -150 roll: -35 }
+        turns { joint: RIGHT_FOREARM pitch: -40 }
+        turns { joint: RIGHT_HAND pitch: 70 }
+        turns { joint: LEFT_ARM pitch: -30 roll: 25 }
+        turns { joint: RIGHT_LEG pitch: -25 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 560
+        ease: SNAP
+        lift: -0.14
+        turns { joint: CHEST pitch: 8 yaw: 50 }
+        turns { joint: RIGHT_ARM pitch: -72 roll: 72 }
+        turns { joint: RIGHT_FOREARM pitch: -20 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM pitch: 10 roll: 35 }
+        turns { joint: RIGHT_LEG pitch: -50 }
+        turns { joint: RIGHT_KNEE pitch: 55 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 690
+        ease: SNAP
+        lift: -0.1
+        turns { joint: CHEST pitch: 8 yaw: -50 }
+        turns { joint: RIGHT_ARM pitch: -75 roll: -85 }
+        turns { joint: RIGHT_FOREARM }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM roll: 45 }
+        turns { joint: RIGHT_LEG pitch: -25 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 820
+        ease: SNAP
+        lift: -0.14
+        turns { joint: CHEST pitch: 12 yaw: 40 }
+        turns { joint: RIGHT_ARM pitch: -45 roll: 55 }
+        turns { joint: RIGHT_FOREARM pitch: -15 }
+        turns { joint: RIGHT_HAND pitch: 75 }
+        turns { joint: LEFT_ARM pitch: 20 roll: 35 }
+        turns { joint: RIGHT_LEG pitch: -50 }
+        turns { joint: RIGHT_KNEE pitch: 55 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 950
+        ease: SNAP
+        lift: -0.1
+        turns { joint: CHEST pitch: -5 yaw: -35 }
+        turns { joint: RIGHT_ARM pitch: -150 roll: -35 }
+        turns { joint: RIGHT_FOREARM pitch: -40 }
+        turns { joint: RIGHT_HAND pitch: 70 }
+        turns { joint: LEFT_ARM pitch: -30 roll: 25 }
+        turns { joint: RIGHT_LEG pitch: -25 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 1080
+        ease: SNAP
+        lift: -0.14
+        turns { joint: CHEST pitch: 8 yaw: 50 }
+        turns { joint: RIGHT_ARM pitch: -72 roll: 72 }
+        turns { joint: RIGHT_FOREARM pitch: -20 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM pitch: 10 roll: 35 }
+        turns { joint: RIGHT_LEG pitch: -50 }
+        turns { joint: RIGHT_KNEE pitch: 55 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 1210
+        ease: SNAP
+        lift: -0.1
+        turns { joint: CHEST pitch: 8 yaw: -50 }
+        turns { joint: RIGHT_ARM pitch: -75 roll: -85 }
+        turns { joint: RIGHT_FOREARM }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM roll: 45 }
+        turns { joint: RIGHT_LEG pitch: -25 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 1400
+        ease: GATHER
+        lift: -0.1
+        turns { joint: CHEST yaw: -40 }
+        turns { joint: RIGHT_ARM pitch: 30 }
+        turns { joint: RIGHT_FOREARM pitch: -100 }
+        turns { joint: LEFT_ARM pitch: -50 }
+        turns { joint: RIGHT_LEG pitch: -25 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 1520
+        ease: SNAP
+        lift: -0.16
+        turns { joint: CHEST pitch: 15 yaw: 20 }
+        turns { joint: RIGHT_ARM pitch: -88 }
+        turns { joint: RIGHT_FOREARM pitch: -5 }
+        turns { joint: RIGHT_HAND pitch: 78 }
+        turns { joint: LEFT_ARM pitch: 45 }
+        turns { joint: RIGHT_LEG pitch: -50 }
+        turns { joint: RIGHT_KNEE pitch: 55 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 1900
+        lift: -0.14
+        turns { joint: CHEST pitch: 12 yaw: 15 }
+        turns { joint: RIGHT_ARM pitch: -82 }
+        turns { joint: RIGHT_FOREARM pitch: -10 }
+        turns { joint: RIGHT_HAND pitch: 72 }
+        turns { joint: LEFT_ARM pitch: 35 }
+        turns { joint: RIGHT_LEG pitch: -50 }
+        turns { joint: RIGHT_KNEE pitch: 55 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys { at_ms: 2350 }
+    }
+    fx {
+      kind: EDGE from_ms: 150 for_ms: 1800
+      color: 0x4F8CFFFF
+    }
+    fx {
+      kind: TRAIL from_ms: 200 for_ms: 1100
+      color: 0xD6E6FFFF
+    }
+    fx {
+      kind: ZOOM from_ms: 200 for_ms: 1700
+      size: 1
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 300 for_ms: 380
+      color: 0xE4DEFFFF size: 1.8 count: 1 up: 1 angle: 45
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 430 for_ms: 380
+      color: 0xE4DEFFFF size: 1.8 count: 1 up: 1 angle: -40
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 560 for_ms: 380
+      color: 0xE4DEFFFF size: 1.8 count: 1 up: 1 angle: 5
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 690 for_ms: 380
+      color: 0xE4DEFFFF size: 1.8 count: 1 up: 1 angle: -5
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 820 for_ms: 380
+      color: 0xE4DEFFFF size: 1.8 count: 1 up: 1 angle: 50
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 950 for_ms: 380
+      color: 0xE4DEFFFF size: 1.8 count: 1 up: 1 angle: -45
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 1080 for_ms: 380
+      color: 0xE4DEFFFF size: 1.8 count: 1 up: 1 angle: 0
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 1210 for_ms: 380
+      color: 0xE4DEFFFF size: 1.8 count: 1 up: 1 angle: 0
+    }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 300 for_ms: 1000
+      color: 0x4F8CFFFF size: 0.9 count: 40 up: 0.9
+    }
+    fx {
+      kind: TRAIL from_ms: 1430 for_ms: 160
+      color: 0xE4DEFFFF
+    }
+    fx {
+      kind: GLOW at: TARGET from_ms: 1520 for_ms: 300
+      color: 0xE4DEFFFF size: 0.9
+    }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 1520 for_ms: 500
+      color: 0x8C7CFFFF size: 1.6 count: 28 up: 1
+    }
+    fx {
+      kind: RING at: TARGET from_ms: 1520 for_ms: 500
+      color: 0x4F8CFFFF size: 2.2
+    }
+    fx {
+      kind: FLASH from_ms: 1520 for_ms: 150
+      color: 0xCFE8FF40
+    }
+    fx {
+      kind: SHAKE from_ms: 1520 for_ms: 280
+      size: 0.15
+    }
+  }
+}
