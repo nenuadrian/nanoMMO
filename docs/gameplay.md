@@ -33,13 +33,19 @@ which turns you to face it. Out of its reach, it first runs you up to it, to mos
 (`World::kCloseIn`, 0.8), so that a monster that steps back is still within it; the keys call that
 off. With nothing picked, you swing at the air, the way you face. Strike's effect in the skills file
 is `weapon: true`, so its reach, its damage and its timing are the weapon's in your hand, and the
-sword's numbers are in the items file: it reaches 1.6 metres, a swing takes two seconds, and you
-stand still until it's over. The sword hits 0.9 seconds in, as it comes across the front, if the
-monster is still alive and in reach, for fifteen health, and each level after the first adds five to
-whatever you hold, and what you wear adds its damage. With no weapon in your main hand, Space does
-nothing, and putting the weapon away ends a swing. Holding Space down swings again and again. All of
-it happens on the server: the client only says that Space is down, in `Input`, and the world uses
-the skill the skills file names as its `attack`, as if its key had gone down.
+sword's numbers are in the items file: it reaches 1.6 metres, a whole swing takes two seconds and
+hits 0.9 seconds in, as it comes across the front, for fifteen health, and each level after the
+first adds five to whatever you hold, and what you wear adds its damage. You stand still until a
+swing's over. Strike is a quick swing, with a `pace` of 0.55: it takes that share of the weapon's
+swing, 1.1 seconds, lands that much sooner, and does that share of its damage, if the monster is
+still alive and in reach. Strike goes on into Return Cut, as quick, a cut back the other way, and
+that into Overhead Cut, at 0.9 of the swing, which pushes harder: Space within 0.6 seconds of one
+ending (its `next` and `window_ms`) uses the next, and after that, or after any other skill, Strike
+again. Holding Space down goes round the three, and they hurt as much over a second as the whole
+swing would. With no weapon in your main hand, Space does nothing, and putting the weapon away ends
+a swing. All of it happens on the server: the client only says that Space is down, in `Input`, and
+the world uses the skill the skills file names as its `attack`, or the next in its chain, as if its
+key had gone down.
 
 A monster goes for the nearest living player within its kind's sight, three metres for a skeleton, if that player is within
 its leash of the monster's home, four metres. A monster that's hurt goes for whoever hurt it last
@@ -73,13 +79,16 @@ you back, in the middle at full health. A player saved before health was kept jo
 
 ## Skills
 
-A skill is a move with a cooldown. Each player knows Strike, on Space, and the thrust from the
-start, and learns the others from a trainer (see [Learning skills](#learning-skills)). For now, while
-we try them out, each of the nine in `content/skills.txtpb` is from level one:
+A skill is a move with a cooldown. Each player knows Strike and the swings it goes on into, on
+Space, and the thrust from the start, and learns the others from a trainer (see
+[Learning skills](#learning-skills)). For now, while we try them out, each of the eleven in
+`content/skills.txtpb` is from level one:
 
 | Skill | From level | Cooldown | What it does |
 |---|---|---|---|
-| Strike | 1 | none | The weapon's damage to the monster you picked, within its reach |
+| Strike | 1 | none | 0.55 of the weapon's damage to the monster you picked, within its reach |
+| Return Cut | 1 | none | After Strike, on Space: the same, back the other way |
+| Overhead Cut | 1 | none | After Return Cut, on Space: 0.9 of the weapon's damage, and knocks it 0.8 metres back |
 | Thrust | 1 | 8 s | 35 damage to the monster you picked, within 2.4 metres |
 | Kick | 1 | 6 s | 10 damage to the monster you picked, within 1.4 metres, and knocks it 3 metres back |
 | Second Wind | 1 | 30 s | Heals 40, up to your most |
@@ -92,7 +101,7 @@ Each level after the first adds five to a skill's damage, as it does to a weapon
 skill tree: a trainer teaches each of its skills to any player who has reached its level.
 
 The hotbar along the bottom of the screen has Strike first, on Space, then the others in the order
-of their levels, each on a number key, 1 for the first, up to 9, and a click on one uses it too.
+of their levels, but for the swings Strike goes on into, which are Space's too, each on a number key, 1 for the first, up to 9, and a click on one uses it too.
 Each shows its icon and its key, and its name and level when the mouse is over it. A skill you don't
 know yet is greyed out, with the level it needs, or Learn once you've reached it, and one that's
 cooling down is shaded, a slice that shrinks clockwise from the top, with the seconds left in the
@@ -105,8 +114,13 @@ Then it starts if the player knows it and its cooldown is over, and otherwise it
 hits one monster needs a living one picked, and goes without one, keeping its cooldown; the hotbar
 shows it red then. Strike is the one that doesn't, and swings at the air. Out of its reach, a skill
 runs the player up to the monster first, and starts once they're there. A skill holds the player for
-its cast time, lands partway through, on the monster the player picked if it's still in reach, or on
-each one in reach, and starts its cooldown as it starts. Searing Arc's effect has an `arc`, in degrees, and hits only the monsters within that slice in
+its cast time, and lands partway through, or at each of its `blows`, sharing its damage out between
+them, as Whirlwind does each time its blade comes round in front: on the monster the player picked if
+it's still in reach, or on each one in reach. It starts its cooldown as it starts. Each blow knocks
+what it lands on away from the player by its push, from a quarter of a metre for a swing to three for
+the kick, over 0.2 seconds (`kPushTime`), fast at first and slowing, where the sea or a tree lets it,
+while the monster does nothing else, though a swing it started goes on. A push that comes during
+another starts again from where the monster is. Searing Arc's effect has an `arc`, in degrees, and hits only the monsters within that slice in
 front of the player, half of it to either side of the way they face. Cooldowns run down whatever the player
 does, dead or alive, and aren't saved: a player who leaves and comes back finds their skills ready.
 

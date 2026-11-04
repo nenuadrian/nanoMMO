@@ -7,6 +7,21 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.61.0 (2026-11-03)
+
+- A skill can land more than once, each blow at its own time and with its own push, sharing the
+  skill's damage out between them, and Whirlwind lands one each time round. Every blow knocks what it
+  lands on back a little, over 0.2 seconds, where it used to jump there in one tick.
+- A blow that lands holds the player and what it hit still for a moment, from 50 to 90 milliseconds
+  and longer for one that pushes further, and they catch up after it. The monster lights up, and
+  rocks back away from whoever hit it.
+- Two more kinds of fx: the blade lit along its edge, and cuts that hang in the air, each with a sound
+  of its own. Thrust, Whirlwind and Earthsplitter light their blades, and Thrust and Earthsplitter
+  cut the air.
+- Space goes round a chain of three swings, Strike, Return Cut and Overhead Cut, each taking a share
+  of the weapon's swing and of its damage, so that holding Space hurts as much over a second as
+  before.
+
 ## 0.60.0 (2026-11-03)
 
 - The people are built on a rig of our own, in `content/rig.txtpb`: a skeleton of 24 joints, with an

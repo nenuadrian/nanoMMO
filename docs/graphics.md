@@ -92,11 +92,16 @@ turned.
 A skill's fx, in its look too, are what it shows besides the move: each a kind, where it is (at the
 player's feet, the tip of their blade, or the feet of the monster they picked, without which it's
 left out), when it starts and for how long, in milliseconds into the skill, a colour, a size in
-metres and a count. There are ten kinds: `TRAIL`, a ribbon where the blade has just been; `GLOW`, a ball of light; `RING`, a wave along
+metres and a count, and how far `up` it is from there: a cut across a monster's chest is a metre up
+from its feet. There are twelve kinds: `TRAIL`, a ribbon where the blade has just been; `GLOW`, a ball of light; `RING`, a wave along
 the ground; `SPARKS`, which fly out and fall; `MOTES`, specks that rise and swirl; `SHAKE`, which
 shakes the camera of anyone within 15 metres, less out to 40; `SHARDS`, pieces thrown up that fall
 back and shrink away; `SPIKES`, which come out of the ground nearest first and sink back; `BOLT`,
-lightning from the sky; and `WAVE`, a crescent that flies forward.
+lightning from the sky; `WAVE`, a crescent that flies forward; `EDGE`, the blade lit along its
+length, a bright core with a glow at its tip; and `SLASH`, cuts that hang in the air, flat to the
+camera, so that each reads as the stroke that made it, drawn across from one end in a flash and then
+thinning away, slanted by the fx's `angle` and as many as its count, each a little after the one
+before and at a slant of its own.
 
 Each is worked out from how long ago the skill started, with numbers that look random but are the
 same every frame, for each cast, so an fx looks the same at any frame rate, in every capture. The
@@ -109,6 +114,17 @@ like the rest of it, and drawn with the figures. The rest is light: drawn last, 
 over what's behind it without hiding it. The
 light's colour goes out three times as bright, past white, so it blooms. It's blended over what's
 behind it rather than added to it, as light added to the grass's green goes green itself.
+
+A blow that lands holds the player and what it hit still for a moment, the skill's `stop_ms`, half as
+long again for each metre it pushes, up to two and a half times as long. The client decides, as the
+cast comes to each blow, whether it lands, from where it sees everyone: what it goes for is alive and
+within its reach, and half a metre more, as we see everyone a moment late. Then the player's clips
+and the monster's run at a twentieth of their speed for the hold, and catch up over one and a half
+times as long, so the skill still ends when the server says (`Fx::Hold`). The fx that go with the
+body, the trail and the lit edge, are held back with it, and the rest, such as the sparks a blow
+throws out, fly through the hold. Each hit the server sends lights the monster up, by the shader's
+emission, fading over 0.15 seconds, and rocks it back, tipped about its feet away from whoever hit
+it, in 0.03 seconds, and slowly upright again (`client/reactions.h`).
 
 ## The loading screen
 
@@ -200,7 +216,8 @@ starts, in about a third of a second, so there are no files for them in the repo
   Fx at the target sound with a monster picked, as they're drawn with one. A trail is a whoosh,
   sparks ping like metal, with a thud where they fly off a monster, a glow is a chord, a ring thumps
   and rushes out, motes are notes from a scale with no notes that clash, a shake booms, shards and
-  spikes crack and knock, a bolt buzzes and thunders, and a wave roars. The fx's colour sets the
+  spikes crack and knock, a bolt buzzes and thunders, a wave roars, a lit blade sings, a high note
+  that wavers, and each cut hisses, snaps and rings. The fx's colour sets the
   pitch, from 110 hertz for red to 440 for blue, so frost rings higher than fire, and ice shards ring
   like glass where earth knocks.
 - Going through a gate, a sound rises two octaves as the loading screen covers the world. Coming out,
