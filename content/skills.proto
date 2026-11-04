@@ -34,6 +34,10 @@ message Effect {
   // A skill that lands more than once: its blows, in order, in place of hit_ms
   // and push. They share its damage out between them.
   repeated Blow blows = 10;
+  // For a swing of the weapon: the share of the weapon's own swing it takes,
+  // its timing and its damage, so that a chain of quick swings hurts as much
+  // over a second as one slow one. None is the whole swing.
+  float pace = 11;
 }
 
 // The joints a move turns, each a bone of the characters.
@@ -178,12 +182,18 @@ message Skill {
   uint32 cooldown_ms = 4;
   Effect effect = 5;
   Look look = 6;
+  // A swing that goes on into another: the swing on Space, used again within
+  // window_ms of this one's end, is the next, by its id. Holding Space goes
+  // through the chain.
+  uint32 next = 7;
+  uint32 window_ms = 8;
 }
 
 message Skills {
   repeated Skill skills = 1;
   // What each new player knows, by id. The others they learn from a trainer.
   repeated uint32 starting = 2;
-  // The swing on Space, which every player knows.
+  // The swing on Space, which every player knows, with the swings it goes on
+  // into.
   uint32 attack = 3;
 }

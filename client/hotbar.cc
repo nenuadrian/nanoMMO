@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <numbers>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -61,8 +62,13 @@ void DrawCooldown(ImDrawList* draw, ImVec2 min, ImVec2 max, float share,
 }  // namespace
 
 Hotbar::Hotbar(const SkillTable& skills) {
+  // The swings Space goes on into are Space's, so they get no slot.
+  std::set<uint32_t> follow;
   for (const auto& [id, skill] : skills.by_id) {
-    if (id != skills.attack) {
+    follow.insert(skill.next());
+  }
+  for (const auto& [id, skill] : skills.by_id) {
+    if (id != skills.attack && !follow.contains(id)) {
       slots_.push_back(skill);
     }
   }

@@ -66,13 +66,22 @@ absl::StatusOr<SkillTable> ParseSkills(std::string_view text) {
           absl::StrCat("there's no skill ", id, " to start with"));
     }
   }
-  // Everyone has the swing, from the start.
+  for (const auto& [id, skill] : *by_id) {
+    if (skill.next() != 0 && !by_id->contains(skill.next())) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "the ", skill.name(), " goes on into a skill that isn't there"));
+    }
+  }
+  // Everyone has the swing, and the swings it goes on into, from the start.
   if (file.attack() != 0) {
     if (!by_id->contains(file.attack())) {
       return absl::InvalidArgumentError(
           absl::StrCat("there's no skill ", file.attack(), " to swing with"));
     }
-    starting.insert(file.attack());
+    for (uint32_t id = file.attack(); id != 0 && !starting.contains(id);
+         id = by_id->at(id).next()) {
+      starting.insert(id);
+    }
   }
   return SkillTable{.by_id = *std::move(by_id),
                     .starting = std::move(starting),

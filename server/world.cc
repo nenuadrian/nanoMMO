@@ -525,10 +525,21 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
       return;
     }
     player.motion = Motion::kIdle;
+    // A swing that goes on into another leaves a moment to use it.
+    const skills::Skill& done = content_->skills.by_id.at(player.skill);
+    player.chain = done.next();
+    player.chain_left = std::chrono::milliseconds(done.window_ms());
   }
-  // Space is the skill everyone has, a swing of what they hold.
+  player.chain_left =
+      std::max(player.chain_left - time, std::chrono::nanoseconds::zero());
+  // Space is the skill everyone has, a swing of what they hold, and the next
+  // in its chain while there's time to use it.
   if (player.input_attack && player.input_skill == 0) {
-    player.input_skill = content_->skills.attack;
+    player.input_skill =
+        player.chain != 0 &&
+                player.chain_left > std::chrono::nanoseconds::zero()
+            ? player.chain
+            : content_->skills.attack;
   }
   // A skill asked for while the player was busy waits until now, and one they
   // can't use yet goes. A swing or a skill at the monster they picked, out of
@@ -662,10 +673,15 @@ skills::Effect World::EffectOf(const Player& player,
   skills::Effect effect = skill.effect();
   const items::Weapon* weapon = player.stats.weapon;
   if (effect.weapon() && weapon != nullptr) {
+    const float pace = effect.pace() > 0.0f ? effect.pace() : 1.0f;
+    auto paced = [pace](uint32_t whole) {
+      return static_cast<uint32_t>(
+          std::lround(pace * static_cast<float>(whole)));
+    };
     effect.set_reach(weapon->reach());
-    effect.set_damage(weapon->damage());
-    effect.set_cast_ms(weapon->swing_ms());
-    effect.set_hit_ms(weapon->hit_ms());
+    effect.set_damage(std::max(paced(weapon->damage()), 1u));
+    effect.set_cast_ms(paced(weapon->swing_ms()));
+    effect.set_hit_ms(paced(weapon->hit_ms()));
   }
   return effect;
 }
@@ -674,6 +690,8 @@ void World::Start(Player& player, const skills::Skill& skill) {
   player.motion = Motion::kSkill;
   player.skill = skill.id();
   player.cast = std::chrono::nanoseconds::zero();
+  // Any skill uses up the chain, which the swing's end starts again.
+  player.chain = 0;
   ++player.casts;
   if (skill.cooldown_ms() > 0) {
     player.cooldowns[skill.id()] =
@@ -691,9 +709,15 @@ void World::Land(uint32_t id, Player& player, const skills::Effect& effect,
   if (effect.damage() == 0) {
     return;
   }
-  // The blows share the damage, and the last takes what doesn't divide.
-  const int total = static_cast<int>(effect.damage()) + ExtraDamage(level) +
-                    player.stats.damage;
+  // The blows share the damage, and the last takes what doesn't divide. A
+  // quick swing takes its share of what the level and the gear add, as it does
+  // of the weapon's.
+  const float pace =
+      effect.weapon() && effect.pace() > 0.0f ? effect.pace() : 1.0f;
+  const int total =
+      static_cast<int>(effect.damage()) +
+      static_cast<int>(std::lround(
+          pace * static_cast<float>(ExtraDamage(level) + player.stats.damage)));
   const int damage = total / blows + (index == blows - 1 ? total % blows : 0);
   for (auto& [monster_id, monster] : monsters_) {
     if ((effect.all() || monster_id == player.target) &&

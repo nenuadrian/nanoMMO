@@ -6,12 +6,14 @@
 #include <limits>
 #include <memory>
 #include <numbers>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "gtest/gtest.h"
 #include "server/events.h"
+#include "server/levels.h"
 #include "server/monsters.h"
 #include "server/test_content.h"
 #include "terrain/terrain.h"
@@ -318,6 +320,101 @@ TEST(World, SkillsThatLandMoreThanOnceShareTheirDamageAndPushEachTime) {
     world.Step(kTick);
   }
   EXPECT_NEAR(world.monsters().at(skeleton).z, before + 1.0f, 1e-4f);
+}
+
+TEST(World, HoldingSpaceGoesThroughTheChainOfSwingsAndBackToTheFirst) {
+  // Quick swings, each half the sword's, then a whole one.
+  const absl::StatusOr<nanommo::SkillTable> skills = nanommo::ParseSkills(R"pb(
+    attack: 1
+    skills {
+      id: 1
+      name: "Strike"
+      level: 1
+      effect { weapon: true pace: 0.5 }
+      next: 2
+      window_ms: 500
+    }
+    skills {
+      id: 2
+      name: "Return Cut"
+      level: 1
+      effect { weapon: true pace: 0.5 }
+      next: 3
+      window_ms: 500
+    }
+    skills {
+      id: 3
+      name: "Overhead Cut"
+      level: 1
+      effect { weapon: true }
+    }
+  )pb");
+  ASSERT_TRUE(skills.ok());
+  // Everyone knows the whole chain.
+  EXPECT_EQ(skills->starting, (std::set<uint32_t>{1, 2, 3}));
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      std::make_shared<const nanommo::Content>(nanommo::Content{
+          .items = nanommo::testing::Sword(), .skills = *skills}));
+  world.Join(1, {});
+
+  // Space held, for long enough for all three and the first again: a
+  // second, a second and two seconds, and the start of the next.
+  std::vector<uint32_t> swings;
+  uint32_t casts = 0;
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  for (int tick = 0; tick < 90; ++tick) {
+    world.Step(kTick);
+    const nanommo::Player& player = world.players().at(1);
+    if (player.casts != casts) {
+      casts = player.casts;
+      swings.push_back(player.skill);
+    }
+  }
+  EXPECT_EQ(swings, (std::vector<uint32_t>{1, 2, 3, 1}));
+
+  // Let go for longer than the moment the first leaves, and Space starts the
+  // chain again, from the first.
+  world.SetInput(1, 0.0f, 0.0f, false, false);
+  for (int second = 0; second < 2; ++second) {
+    RunOneSecond(world);
+  }
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  world.Step(kTick);
+  EXPECT_EQ(world.players().at(1).skill, 1u);
+  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kSkill);
+}
+
+TEST(World, AQuickSwingTakesItsShareOfWhatTheLevelAddsToo) {
+  const absl::StatusOr<nanommo::SkillTable> skills = nanommo::ParseSkills(R"pb(
+    attack: 1
+    skills {
+      id: 1
+      name: "Strike"
+      level: 1
+      effect { weapon: true pace: 0.5 }
+    }
+  )pb");
+  ASSERT_TRUE(skills.ok());
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      std::make_shared<const nanommo::Content>(nanommo::Content{
+          .items = nanommo::testing::Sword(), .skills = *skills}));
+  // Level three: ten more damage on a whole swing.
+  world.Join(1, {.experience = 300});
+  ASSERT_EQ(nanommo::LevelFor(300).number, 3);
+  nanommo::Monster tough =
+      nanommo::MonsterOf(nanommo::testing::Skeleton(), 0.0f, 1.0f);
+  tough.health = tough.max_health = 1000;
+  const uint32_t skeleton = world.Spawn(tough);
+  world.Pick(1, skeleton);
+
+  // Half the sword's fifteen, and half the level's ten, rounded: 8 and 5.
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  for (int tick = 0; tick < 12; ++tick) {
+    world.Step(kTick);
+  }
+  EXPECT_EQ(world.monsters().at(skeleton).health, 1000 - 8 - 5);
 }
 
 TEST(World, SkillsWithAnArcHitOnlyWhatsInFront) {

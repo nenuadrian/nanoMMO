@@ -67,6 +67,10 @@ struct Player {
   /// How many skills they've started, so that one straight after itself
   /// starts again on the clients.
   uint32_t casts = 0;
+  /// The swing that Space goes on into next, by its id, for as long as there's
+  /// left to use it, or 0 for the first.
+  uint32_t chain = 0;
+  std::chrono::nanoseconds chain_left{0};
   /// How long until each skill they've used is ready again, by its id.
   std::map<uint32_t, std::chrono::nanoseconds> cooldowns;
   /// How long until they can use each item again, by its id in the items

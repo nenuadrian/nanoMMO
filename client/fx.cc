@@ -253,11 +253,12 @@ std::vector<Fx::Beat> Fx::BlowsOf(const skills::Skill& skill,
   }
   if (blows.empty()) {
     const auto weapon = weapons_.find(figure.weapon);
-    const uint32_t hit = effect.weapon() && weapon != weapons_.end()
-                             ? weapon->second.hit_ms()
-                             : effect.hit_ms();
-    blows.push_back({.at = static_cast<float>(hit) / 1000.0f,
-                     .weight = weight(effect.push())});
+    // A quick swing of the weapon lands as much sooner as it's quicker.
+    const float pace = effect.pace() > 0.0f ? effect.pace() : 1.0f;
+    const float hit = effect.weapon() && weapon != weapons_.end()
+                          ? pace * static_cast<float>(weapon->second.hit_ms())
+                          : static_cast<float>(effect.hit_ms());
+    blows.push_back({.at = hit / 1000.0f, .weight = weight(effect.push())});
   }
   return blows;
 }

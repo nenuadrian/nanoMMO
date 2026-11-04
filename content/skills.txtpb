@@ -257,14 +257,15 @@ skills {
   level: 1
   effect {
     weapon: true
+    pace: 0.55
     push: 0.25
   }
   look {
     icon: 0xE4DC
-    stop_ms: 60
+    stop_ms: 50
     move {
       keys {
-        at_ms: 500
+        at_ms: 270
         ease: GATHER
         lift: -0.05
         turns { joint: CHEST yaw: 40 }
@@ -274,43 +275,49 @@ skills {
         turns { joint: LEFT_ARM roll: 25 }
       }
       keys {
-        at_ms: 860
+        at_ms: 480
         ease: SNAP
         lift: -0.1
-        ahead: 0.15
-        turns { joint: CHEST yaw: -35 pitch: 8 }
+        turns { joint: CHEST pitch: 8 yaw: -35 }
         turns { joint: RIGHT_ARM pitch: -70 roll: -60 }
         turns { joint: RIGHT_FOREARM pitch: -10 }
         turns { joint: RIGHT_HAND pitch: 70 }
         turns { joint: LEFT_ARM roll: 35 }
         turns { joint: RIGHT_LEG pitch: -25 }
-        turns { joint: RIGHT_KNEE pitch: 25 }
-        turns { joint: LEFT_LEG pitch: 12 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 25 }
       }
       keys {
-        at_ms: 1300
+        at_ms: 720
         lift: -0.06
-        ahead: 0.1
         turns { joint: CHEST yaw: -20 }
-        turns { joint: RIGHT_ARM pitch: -40 roll: -40 }
+        turns { joint: RIGHT_ARM pitch: -55 roll: -55 }
         turns { joint: RIGHT_FOREARM pitch: -20 }
-        turns { joint: RIGHT_HAND pitch: 40 }
+        turns { joint: RIGHT_HAND pitch: 55 }
         turns { joint: LEFT_ARM roll: 20 }
-        turns { joint: RIGHT_LEG pitch: -15 }
-        turns { joint: RIGHT_KNEE pitch: 15 }
-        turns { joint: LEFT_LEG pitch: 8 }
+        turns { joint: RIGHT_LEG pitch: -25 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 25 }
       }
-      keys { at_ms: 1850 }
+      keys { at_ms: 1050 }
     }
     fx {
-      kind: TRAIL from_ms: 560 for_ms: 330
+      kind: TRAIL from_ms: 300 for_ms: 200
       color: 0xD8E8FFFF
     }
     fx {
-      kind: SPARKS at: TARGET from_ms: 880 for_ms: 400
-      color: 0xFF9A3AFF size: 0.8 count: 12
+      kind: SLASH at: TARGET from_ms: 495 for_ms: 280
+      color: 0xFFE2C0FF size: 1.4 count: 1 up: 1 angle: -35
+    }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 495 for_ms: 350
+      color: 0xFF9A3AFF size: 0.8 count: 12 up: 0.9
     }
   }
+  next: 15
+  window_ms: 600
 }
 skills {
   id: 6
@@ -666,6 +673,157 @@ skills {
     fx {
       kind: SHAKE from_ms: 1090 for_ms: 400
       size: 0.22
+    }
+  }
+}
+skills {
+  id: 15
+  name: "Return Cut"
+  level: 1
+  effect {
+    weapon: true
+    pace: 0.55
+    push: 0.25
+  }
+  look {
+    icon: 0xE4DC
+    stop_ms: 50
+    move {
+      keys {
+        at_ms: 220
+        ease: GATHER
+        lift: -0.06
+        turns { joint: CHEST pitch: 5 yaw: -50 }
+        turns { joint: RIGHT_ARM pitch: -75 roll: -85 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM roll: 40 }
+        turns { joint: RIGHT_LEG pitch: -25 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 480
+        ease: SNAP
+        lift: -0.12
+        turns { joint: CHEST pitch: 8 yaw: 50 }
+        turns { joint: RIGHT_ARM pitch: -72 roll: 72 }
+        turns { joint: RIGHT_FOREARM pitch: -20 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM pitch: 10 roll: 35 }
+        turns { joint: RIGHT_LEG pitch: -50 }
+        turns { joint: RIGHT_KNEE pitch: 55 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 720
+        lift: -0.08
+        turns { joint: CHEST pitch: 5 yaw: 40 }
+        turns { joint: RIGHT_ARM pitch: -60 roll: 60 }
+        turns { joint: RIGHT_FOREARM pitch: -20 }
+        turns { joint: RIGHT_HAND pitch: 70 }
+        turns { joint: LEFT_ARM pitch: 10 roll: 30 }
+        turns { joint: RIGHT_LEG pitch: -25 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys { at_ms: 1050 }
+    }
+    fx {
+      kind: TRAIL from_ms: 260 for_ms: 220
+      color: 0xD8E8FFFF
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 495 for_ms: 280
+      color: 0xFFE2C0FF size: 1.5 count: 1 up: 1 angle: 5
+    }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 495 for_ms: 350
+      color: 0xFF9A3AFF size: 0.8 count: 12 up: 0.9
+    }
+  }
+  next: 16
+  window_ms: 600
+}
+skills {
+  id: 16
+  name: "Overhead Cut"
+  level: 1
+  effect {
+    weapon: true
+    pace: 0.9
+    push: 0.8
+  }
+  look {
+    icon: 0xE4DC
+    stop_ms: 70
+    move {
+      keys {
+        at_ms: 450
+        ease: GATHER
+        lift: 0.04
+        turns { joint: CHEST pitch: -12 }
+        turns { joint: RIGHT_ARM pitch: -170 }
+        turns { joint: RIGHT_FOREARM pitch: -60 }
+        turns { joint: LEFT_ARM pitch: -160 }
+        turns { joint: LEFT_FOREARM pitch: -60 }
+      }
+      keys {
+        at_ms: 790
+        ease: SNAP
+        lift: -0.3
+        ahead: 0.35
+        turns { joint: SPINE pitch: 30 }
+        turns { joint: CHEST pitch: 30 }
+        turns { joint: RIGHT_ARM pitch: -50 }
+        turns { joint: RIGHT_HAND pitch: 60 }
+        turns { joint: LEFT_ARM pitch: -50 }
+        turns { joint: RIGHT_LEG pitch: -70 }
+        turns { joint: RIGHT_KNEE pitch: 75 }
+        turns { joint: LEFT_LEG pitch: 20 }
+        turns { joint: LEFT_KNEE pitch: 60 }
+      }
+      keys {
+        at_ms: 1250
+        lift: -0.26
+        ahead: 0.3
+        turns { joint: SPINE pitch: 25 }
+        turns { joint: CHEST pitch: 25 }
+        turns { joint: RIGHT_ARM pitch: -50 }
+        turns { joint: RIGHT_HAND pitch: 60 }
+        turns { joint: LEFT_ARM pitch: -50 }
+        turns { joint: RIGHT_LEG pitch: -70 }
+        turns { joint: RIGHT_KNEE pitch: 75 }
+        turns { joint: LEFT_LEG pitch: 20 }
+        turns { joint: LEFT_KNEE pitch: 60 }
+      }
+      keys { at_ms: 1750 }
+    }
+    fx {
+      kind: EDGE from_ms: 300 for_ms: 600
+      color: 0xFFC060FF
+    }
+    fx {
+      kind: TRAIL from_ms: 560 for_ms: 260
+      color: 0xFFE7B0FF
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 810 for_ms: 380
+      color: 0xFFE7B0FF size: 2 count: 1 up: 1 angle: 85
+    }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 810 for_ms: 450
+      color: 0xFFC060FF size: 1.4 count: 20 up: 0.9
+    }
+    fx {
+      kind: RING at: TARGET from_ms: 810 for_ms: 400
+      color: 0xFFC060FF size: 1.6
+    }
+    fx {
+      kind: SHAKE from_ms: 810 for_ms: 220
+      size: 0.08
     }
   }
 }
