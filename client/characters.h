@@ -63,6 +63,11 @@ class Characters {
   /// figure in their skin, with their hair, and what's dyed in the colour.
   void Draw(const Figure& figure, Color color, const Outline* outline) const;
 
+  /// The figure as it was, see-through and lit in the colour, without an
+  /// outline: one of the copies a fast move leaves behind it. Drawn after
+  /// what's solid, as it doesn't hide what's behind it.
+  void DrawGhost(const Figure& figure, Color color) const;
+
   /// Where the figure's blade is, in the world, from the hilt to the tip, as
   /// it's posed: none, if it holds nothing.
   std::optional<std::pair<Vector3, Vector3>> Blade(const Figure& figure) const;

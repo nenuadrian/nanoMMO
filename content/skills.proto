@@ -11,6 +11,16 @@ message Blow {
   float push = 2;
 }
 
+// Where a skill has taken the player by a time into it: how far, in metres,
+// along the way they faced as it started. The server moves them there, so
+// that everyone sees the dash.
+message Stride {
+  uint32 at_ms = 1;
+  float ahead = 2;
+  // How they get there from the stride before.
+  Ease ease = 3;
+}
+
 // What a skill does, and when: the server's part.
 message Effect {
   // How long it holds the player, who can't move or swing until it's done.
@@ -38,6 +48,9 @@ message Effect {
   // its timing and its damage, so that a chain of quick swings hurts as much
   // over a second as one slow one. None is the whole swing.
   float pace = 11;
+  // Where the skill takes the player, in order. They stay where the last
+  // stride leaves them.
+  repeated Stride strides = 12;
 }
 
 // The joints a move turns, each a bone of the characters.
@@ -125,6 +138,13 @@ message Fx {
     // size, and fading: as many as the count, each at a slant of its own
     // about the angle.
     SLASH = 11;
+    // See-through copies of the player, lit in the colour, where they were a
+    // moment ago, each a twentieth of a second behind the one before: as many
+    // as the count.
+    GHOSTS = 12;
+    // The whole view of the player using it, turned towards the colour, and
+    // back: only theirs, as a crowd's would never stop.
+    FLASH = 13;
   }
   // Where it is.
   enum Place {
@@ -145,7 +165,7 @@ message Fx {
   uint32 color = 5;
   // In metres.
   float size = 6;
-  // Of sparks, motes, shards, spikes or cuts.
+  // Of sparks, motes, shards, spikes, copies or cuts.
   uint32 count = 7;
   // How far above where it is, in metres: a cut across a monster's chest is
   // a metre up from its feet.

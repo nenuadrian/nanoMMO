@@ -827,3 +827,128 @@ skills {
     }
   }
 }
+skills {
+  id: 10
+  name: "Phantom Rush"
+  level: 1
+  cooldown_ms: 14000
+  effect {
+    cast_ms: 1500
+    reach: 7
+    damage: 55
+    # Through the monster and past it, then the cut lands.
+    strides { at_ms: 260 }
+    strides { at_ms: 420 ahead: 7.5 ease: SNAP }
+    blows { at_ms: 760 push: 1 }
+  }
+  look {
+    icon: 0xF050
+    stop_ms: 90
+    move {
+      keys {
+        at_ms: 240
+        ease: GATHER
+        lift: -0.16
+        turns { joint: CHEST pitch: 18 yaw: -40 }
+        turns { joint: RIGHT_ARM pitch: 35 roll: -30 }
+        turns { joint: RIGHT_FOREARM pitch: -30 }
+        turns { joint: RIGHT_HAND pitch: 70 }
+        turns { joint: LEFT_ARM pitch: -60 roll: 20 }
+        turns { joint: RIGHT_LEG pitch: -35 }
+        turns { joint: RIGHT_KNEE pitch: 60 }
+        turns { joint: LEFT_LEG pitch: 15 }
+        turns { joint: LEFT_KNEE pitch: 55 }
+      }
+      keys {
+        at_ms: 340
+        ease: SNAP
+        lift: -0.12
+        turns { joint: SPINE pitch: 15 }
+        turns { joint: CHEST pitch: 20 yaw: 30 }
+        turns { joint: RIGHT_ARM pitch: -80 roll: 30 }
+        turns { joint: RIGHT_FOREARM pitch: -10 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM pitch: 45 roll: 30 }
+        turns { joint: RIGHT_LEG pitch: -50 }
+        turns { joint: RIGHT_KNEE pitch: 55 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys {
+        at_ms: 450
+        ease: SNAP
+        lift: -0.2
+        turns { joint: SPINE pitch: 10 }
+        turns { joint: CHEST pitch: 10 yaw: 60 }
+        turns { joint: RIGHT_ARM pitch: -75 roll: 75 }
+        turns { joint: RIGHT_FOREARM pitch: -5 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM pitch: 25 roll: 45 }
+        turns { joint: RIGHT_LEG pitch: -45 }
+        turns { joint: RIGHT_KNEE pitch: 80 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 60 }
+      }
+      keys {
+        at_ms: 760
+        lift: -0.22
+        turns { joint: SPINE pitch: 10 }
+        turns { joint: CHEST pitch: 10 yaw: 62 }
+        turns { joint: RIGHT_ARM pitch: -75 roll: 78 }
+        turns { joint: RIGHT_FOREARM pitch: -5 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM pitch: 25 roll: 45 }
+        turns { joint: RIGHT_LEG pitch: -45 }
+        turns { joint: RIGHT_KNEE pitch: 85 }
+        turns { joint: LEFT_LEG pitch: 30 }
+        turns { joint: LEFT_KNEE pitch: 65 }
+      }
+      keys {
+        at_ms: 900
+        ease: SNAP
+        lift: -0.1
+        turns { joint: CHEST yaw: -15 }
+        turns { joint: RIGHT_ARM pitch: -25 roll: -45 }
+        turns { joint: RIGHT_HAND pitch: 40 }
+        turns { joint: LEFT_ARM roll: 20 }
+        turns { joint: RIGHT_LEG pitch: -25 }
+        turns { joint: RIGHT_KNEE pitch: 30 }
+        turns { joint: LEFT_LEG pitch: 10 }
+        turns { joint: LEFT_KNEE pitch: 25 }
+      }
+      keys { at_ms: 1450 }
+    }
+    fx {
+      kind: EDGE from_ms: 120 for_ms: 760
+      color: 0x8C7CFFFF
+    }
+    fx {
+      kind: RING from_ms: 250 for_ms: 350
+      color: 0x8C7CFFFF size: 1.6
+    }
+    fx {
+      kind: GHOSTS from_ms: 250 for_ms: 300
+      color: 0x9C8CFFFF count: 6
+    }
+    fx {
+      kind: TRAIL from_ms: 290 for_ms: 200
+      color: 0xE4DEFFFF
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 760 for_ms: 500
+      color: 0xE4DEFFFF size: 2.4 count: 2 up: 1 angle: 20
+    }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 760 for_ms: 450
+      color: 0x8C7CFFFF size: 1.2 count: 22 up: 0.9
+    }
+    fx {
+      kind: FLASH from_ms: 760 for_ms: 160
+      color: 0xDDEEFF50
+    }
+    fx {
+      kind: SHAKE from_ms: 760 for_ms: 260
+      size: 0.12
+    }
+  }
+}

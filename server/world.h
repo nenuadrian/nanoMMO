@@ -64,6 +64,9 @@ struct Player {
   /// into it they are.
   uint32_t skill = 0;
   std::chrono::nanoseconds cast{0};
+  /// Where they stood as the skill started, which its strides go on from.
+  float cast_x = 0.0f;
+  float cast_z = 0.0f;
   /// How many skills they've started, so that one straight after itself
   /// starts again on the clients.
   uint32_t casts = 0;
@@ -336,6 +339,9 @@ class World {
   /// with the first.
   void Land(uint32_t id, Player& player, const skills::Effect& effect,
             const skills::Blow& blow, int index, int blows);
+  /// Takes the player as far along the skill's strides as it's got to, from
+  /// where they started it.
+  void Stride(Player& player, const skills::Effect& effect);
   /// Starts a push away from the player, by metres, which Slide plays out.
   void Push(const Player& player, Monster& monster, float metres);
   /// Moves the monster on along its push, and says whether one's going on.

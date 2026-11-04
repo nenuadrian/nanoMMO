@@ -417,6 +417,55 @@ TEST(World, AQuickSwingTakesItsShareOfWhatTheLevelAddsToo) {
   EXPECT_EQ(world.monsters().at(skeleton).health, 1000 - 8 - 5);
 }
 
+TEST(World, StridesTakeThePlayerAlongTheWayTheyFacedAsTheSkillStarted) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Sword(),
+                             *nanommo::ParseSkills(R"pb(
+                               skills {
+                                 id: 1
+                                 name: "Dash"
+                                 level: 1
+                                 effect {
+                                   cast_ms: 1000
+                                   hit_ms: 500
+                                   reach: 6
+                                   damage: 4
+                                   strides { at_ms: 200 }
+                                   strides { at_ms: 400 ahead: 4 ease: SNAP }
+                                 }
+                               }
+                             )pb")));
+  world.Join(1, {.skills = {1}});
+  // Off to the player's left, along x, so that they turn to it as they start.
+  const uint32_t skeleton =
+      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 3.0f, 0.0f));
+  world.Pick(1, skeleton);
+  world.UseSkill(1, 1);
+
+  // They stand for the first 200 ms, then dash four metres in the next 200,
+  // through the skeleton and past it, along x, where it was as they started.
+  for (int tick = 0; tick < 4; ++tick) {
+    world.Step(kTick);
+  }
+  EXPECT_NEAR(world.players().at(1).x, 0.0f, 1e-4f);
+  world.Step(kTick);
+  world.Step(kTick);
+  const float halfway = world.players().at(1).x;
+  EXPECT_GT(halfway, 2.0f);
+  EXPECT_LT(halfway, 4.0f);
+  for (int tick = 0; tick < 4; ++tick) {
+    world.Step(kTick);
+  }
+  EXPECT_NEAR(world.players().at(1).x, 4.0f, 1e-4f);
+  EXPECT_NEAR(world.players().at(1).z, 0.0f, 1e-4f);
+
+  // And they stay there once it's over.
+  RunOneSecond(world);
+  EXPECT_NE(world.players().at(1).motion, nanommo::Motion::kSkill);
+  EXPECT_NEAR(world.players().at(1).x, 4.0f, 1e-4f);
+}
+
 TEST(World, SkillsWithAnArcHitOnlyWhatsInFront) {
   nanommo::World world(1, nanommo::Terrain(),
                        nanommo::testing::With(nanommo::testing::Sword(),

@@ -470,6 +470,22 @@ TEST(Content, RefusesSkillsThatDontAddUp) {
                 .status()
                 .message(),
             "the Spin lands a blow after it's over");
+  EXPECT_TRUE(nanommo::ParseSkills("skills { id: 1 name: \"Dash\" level: 1 "
+                                   "effect { cast_ms: 900 strides { at_ms: 300 "
+                                   "} strides { at_ms: 600 ahead: 4 } } }")
+                  .ok());
+  EXPECT_EQ(nanommo::ParseSkills("skills { id: 1 name: \"Dash\" level: 1 "
+                                 "effect { cast_ms: 900 strides { at_ms: 600 } "
+                                 "strides { at_ms: 300 ahead: 4 } } }")
+                .status()
+                .message(),
+            "the Dash's strides go back in time");
+  EXPECT_EQ(nanommo::ParseSkills("skills { id: 1 name: \"Dash\" level: 1 "
+                                 "effect { cast_ms: 900 strides { at_ms: 300 } "
+                                 "strides { at_ms: 1200 ahead: 4 } } }")
+                .status()
+                .message(),
+            "the Dash takes a stride after it's over");
   EXPECT_EQ(nanommo::ParseSkills("starting: 2 skills { id: 1 name: \"Kick\" "
                                  "level: 1 effect { cast_ms: 900 } }")
                 .status()

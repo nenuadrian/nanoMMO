@@ -286,8 +286,12 @@ float Level(skills::Fx::Kind kind) {
       return 0.7f;
     case skills::Fx::EDGE:
       return 0.15f;
+    case skills::Fx::GHOSTS:
+      return 0.4f;
     case skills::Fx::SLASH:
       return 0.55f;
+    case skills::Fx::FLASH:
+      return 0.6f;
     default:
       return 0.5f;
   }
@@ -500,6 +504,10 @@ Samples FxSound(const skills::Fx& fx, uint32_t seed) {
           0.6f);
       break;
     }
+    case skills::Fx::GHOSTS:
+      // Air torn as the player goes past, faster than a swing.
+      sound = Whoosh(noise, span + 0.15f, 200.0f, 3500.0f, 0.3f);
+      break;
     case skills::Fx::SLASH: {
       // Each cut a hiss of air, high up, a snap and a short ring of metal,
       // a little after the one before, as they're drawn.
@@ -517,6 +525,11 @@ Samples FxSound(const skills::Fx& fx, uint32_t seed) {
       }
       break;
     }
+    case skills::Fx::FLASH:
+      // A crack, and a thump below it that drops away.
+      Mix(sound, Click(noise, 3000.0f), 0.0f, 1.0f);
+      Mix(sound, Tone(0.5f, 140.0f, 38.0f, 0.002f, 0.12f), 0.0f, 1.4f);
+      break;
     default:
       break;
   }

@@ -21,10 +21,19 @@ struct SkillTable {
 
 /// The skills in text format, or what's wrong with them: a field skills.proto
 /// doesn't have, a skill with no id or with another's, one with no level, one
-/// that lands after it's over, blows or a move whose keys go back in time or
-/// run on after it's over, or a starting skill, a swing or a swing it goes on
-/// into that isn't there.
+/// that lands after it's over, blows, strides or a move whose keys go back in
+/// time or run on after it's over, or a starting skill, a swing or a swing it
+/// goes on into that isn't there.
 absl::StatusOr<SkillTable> ParseSkills(std::string_view text);
+
+/// How far from one key to the next the ease has got, `t` of the way there in
+/// time, both from 0 to 1.
+float Eased(skills::Ease ease, float t);
+
+/// How far the skill's strides have taken the player, in metres, `ms` into
+/// it: from none at its start, eased towards each stride in turn, and the
+/// last's once it's done.
+float AheadAt(const skills::Effect& effect, float ms);
 
 }  // namespace nanommo
 

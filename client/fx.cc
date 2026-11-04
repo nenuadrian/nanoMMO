@@ -231,6 +231,13 @@ void Fx::Update(const std::vector<Figure>& figures, float seconds) {
     }
     cast.time = cast.clock - Lag(cast);
     cast.figure.to_time = cast.time;
+    if (cast.path.empty() || cast.path.back().first < cast.time) {
+      cast.path.emplace_back(cast.time, cast.figure.position);
+    }
+    while (cast.path.size() > 2 &&
+           cast.path[1].first < cast.time - kGhostGap * 10.0f) {
+      cast.path.pop_front();
+    }
   }
   std::erase_if(casts_, [&](const auto& entry) {
     const Cast& cast = entry.second;
@@ -647,7 +654,84 @@ void DrawSlash(const Moment& m, const Camera3D& camera) {
   }
 }
 
+// A sheet of the colour just in front of the camera, over the whole view:
+// at once, then fading.
+void DrawFlash(const Moment& m, const Camera3D& camera) {
+  // The light's three times as bright as its colour, so a sheet of it
+  // would hide the view: a sixth of the colour's alpha does.
+  constexpr float kSheet = 1.0f / 6.0f;
+  const float u = m.done();
+  const float alpha = kSheet * std::pow(1.0f - u, 2.0f);
+  const Vector3 forward =
+      Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+  const Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, kUp));
+  const Vector3 up = Vector3CrossProduct(right, forward);
+  const Vector3 middle =
+      Vector3Add(camera.position, Vector3Scale(forward, 0.5f));
+  // Wider than any view of 45 degrees, at half a metre.
+  const Vector3 across = Vector3Scale(right, 2.0f);
+  const Vector3 high = Vector3Scale(up, 2.0f);
+  Quad(Vector3Subtract(Vector3Subtract(middle, across), high), m.color, alpha,
+       Vector3Subtract(Vector3Add(middle, across), high), m.color, alpha,
+       Vector3Add(Vector3Subtract(middle, across), high), m.color, alpha,
+       Vector3Add(Vector3Add(middle, across), high), m.color, alpha);
+}
+
 }  // namespace
+
+void Fx::DrawGhosts(const Characters& characters) const {
+  bool any = false;
+  for (const auto& [id, cast] : casts_) {
+    const skills::Skill& skill = skills_.at(cast.figure.to_skill);
+    for (const skills::Fx& fx : skill.look().fx()) {
+      const float from = static_cast<float>(fx.from_ms()) / 1000.0f;
+      const float span = static_cast<float>(fx.for_ms()) / 1000.0f;
+      if (fx.kind() != skills::Fx::GHOSTS || cast.time < from ||
+          cast.time > from + span + kGhostGap * fx.count()) {
+        continue;
+      }
+      if (!any) {
+        rlDrawRenderBatchActive();
+        rlDisableDepthMask();
+        BeginBlendMode(BLEND_ALPHA);
+        any = true;
+      }
+      const Color color = GetColor(fx.color());
+      // The oldest first, as each goes over the one before.
+      for (int k = static_cast<int>(fx.count()); k >= 1; --k) {
+        const float then = cast.time - kGhostGap * static_cast<float>(k);
+        if (then < from || then > from + span) {
+          continue;
+        }
+        Figure ghost = cast.figure;
+        ghost.to_time = then;
+        ghost.blend = 1.0f;
+        // Where the player was then, between the two places either side.
+        for (std::size_t i = 1; i < cast.path.size(); ++i) {
+          const auto& [t0, p0] = cast.path[i - 1];
+          const auto& [t1, p1] = cast.path[i];
+          if (then <= t1) {
+            ghost.position = Vector3Lerp(
+                p0, p1,
+                t1 > t0 ? std::clamp((then - t0) / (t1 - t0), 0.0f, 1.0f)
+                        : 1.0f);
+            break;
+          }
+        }
+        const float fade =
+            1.0f - static_cast<float>(k) / static_cast<float>(fx.count() + 1);
+        characters.DrawGhost(
+            ghost,
+            Fade(color, 0.45f * fade * static_cast<float>(color.a) / 255.0f));
+      }
+    }
+  }
+  if (any) {
+    rlDrawRenderBatchActive();
+    EndBlendMode();
+    rlEnableDepthMask();
+  }
+}
 
 void Fx::DrawSolid(const Terrain& terrain) const {
   Model piece = shard_;
@@ -826,6 +910,12 @@ void Fx::DrawLight(const Camera3D& camera, const Terrain& terrain,
         }
         case skills::Fx::SLASH:
           DrawSlash(m, camera);
+          break;
+        case skills::Fx::FLASH:
+          // Only our own: in a crowd, everyone's would never stop.
+          if (cast.figure.you) {
+            DrawFlash(m, camera);
+          }
           break;
         default:
           break;

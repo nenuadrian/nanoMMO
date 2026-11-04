@@ -445,6 +445,8 @@ void Renderer::Draw() const {
     ++work_.draws;
     work_.triangles += sea_->triangles();
   }
+  // See-through, like the light, but lit as the figures are.
+  fx_->DrawGhosts(characters_);
   // The skills' light goes last, over everything it lights up.
   if (terrain_) {
     fx_->DrawLight(camera, *terrain_, atmosphere, characters_);

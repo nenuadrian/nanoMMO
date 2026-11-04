@@ -5,20 +5,11 @@
 #include <cstring>
 #include <vector>
 
+#include "content/skills.h"
+
 namespace nanommo {
 
 namespace {
-
-float Eased(skills::Ease ease, float t) {
-  switch (ease) {
-    case skills::SNAP:
-      return 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
-    case skills::GATHER:
-      return t * t * t;
-    default:
-      return t * t * (3.0f - 2.0f * t);
-  }
-}
 
 // The key's turns, by joint, in degrees: none for a joint it leaves alone.
 std::array<Vector3, kJointBones.size()> Angles(const skills::Key& key) {

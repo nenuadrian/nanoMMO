@@ -5,9 +5,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <map>
 #include <optional>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "client/animator.h"
@@ -28,6 +30,8 @@ class Fx {
   /// their speed, and then catch up, faster, over this many times as long.
   static constexpr float kStill = 0.05f;
   static constexpr float kCatchUp = 1.5f;
+  /// How far apart the copies a fast move leaves are, in seconds.
+  static constexpr float kGhostGap = 0.05f;
 
   /// The shards and the spikes are solid, lit by the world's shader. A swing
   /// lands when the weapon in the hand says, from the items.
@@ -47,6 +51,9 @@ class Fx {
 
   /// The shards and the spikes.
   void DrawSolid(const Terrain& terrain) const;
+
+  /// The copies fast moves leave behind them, which go over what's solid.
+  void DrawGhosts(const Characters& characters) const;
 
   /// The light, which goes over what's behind it, and blooms.
   void DrawLight(const Camera3D& camera, const Terrain& terrain,
@@ -75,6 +82,8 @@ class Fx {
     std::vector<bool> landed;
     /// What its blows landed on, by id, held still with the player.
     std::set<uint32_t> struck;
+    /// Where the player's been, by the time of the cast's move.
+    std::deque<std::pair<float, Vector3>> path;
   };
 
   /// When each of the skill's blows lands, in seconds, for the player, and

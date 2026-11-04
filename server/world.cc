@@ -508,6 +508,7 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
         EffectOf(player, content_->skills.by_id.at(player.skill));
     const auto before = player.cast;
     player.cast += time;
+    Stride(player, effect);
     // A skill without blows of its own lands once, at its hit.
     skills::Blow once;
     once.set_at_ms(effect.hit_ms());
@@ -698,6 +699,22 @@ void World::Start(Player& player, const skills::Skill& skill) {
         std::chrono::milliseconds(skill.cooldown_ms());
   }
   Aim(player, EffectOf(player, skill).reach());
+  player.cast_x = player.x;
+  player.cast_z = player.z;
+}
+
+// Along the way they faced as it started, which Aim turned them to, and like
+// a walk where something's in the way.
+void World::Stride(Player& player, const skills::Effect& effect) {
+  if (effect.strides_size() == 0) {
+    return;
+  }
+  const float ahead = AheadAt(
+      effect, std::chrono::duration<float, std::milli>(player.cast).count());
+  const float edge = terrain_.edge();
+  Walk(terrain_, player.x, player.z,
+       std::clamp(player.cast_x + std::sin(player.yaw) * ahead, -edge, edge),
+       std::clamp(player.cast_z + std::cos(player.yaw) * ahead, -edge, edge));
 }
 
 void World::Land(uint32_t id, Player& player, const skills::Effect& effect,

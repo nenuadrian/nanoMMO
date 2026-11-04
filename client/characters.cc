@@ -34,9 +34,10 @@ constexpr std::string_view kRightFoot = "RightFoot";
 // towards the palm, in metres.
 constexpr Vector3 kFist = {-0.06f, -0.01f, 0.0f};
 
-// The light a blow's flash gives off at its brightest, on top of the sun's:
-// enough to bloom.
+// The light a blow's flash gives off at its brightest, on top of the sun's,
+// and a copy left behind's: enough to bloom.
 constexpr float kFlash = 2.5f;
+constexpr float kGhostGlow = 1.5f;
 
 // raylib cuts clip names at 31 characters, so the skeleton's run ends in
 // Runni, which still has the word run in it.
@@ -479,6 +480,26 @@ void Characters::Draw(const Figure& figure, Color color,
       DrawOutline(weapon, MatrixIdentity(), outline->still);
     }
     DrawModel(weapon, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
+  }
+  constexpr float kNone = 0.0f;
+  SetShaderValue(shader_, emission_, &kNone, SHADER_UNIFORM_FLOAT);
+}
+
+// The body alone, in the colour, its weapon too, lit so that it glows.
+void Characters::DrawGhost(const Figure& figure, Color color) const {
+  const Character& character = For(figure);
+  PoseAs(character, figure);
+  const Matrix placed = Placed(character, figure);
+  SetShaderValue(shader_, emission_, &kGhostGlow, SHADER_UNIFORM_FLOAT);
+  Model body = character.model;
+  body.transform = MatrixMultiply(body.transform, placed);
+  DrawModel(body, {0.0f, 0.0f, 0.0f}, 1.0f, color);
+  const auto held = weapons_.find(figure.weapon);
+  if (held != weapons_.end() && character.hand >= 0) {
+    Model weapon = held->second.model;
+    weapon.transform =
+        MatrixMultiply(InHand(character, held->second.grip), placed);
+    DrawModel(weapon, {0.0f, 0.0f, 0.0f}, 1.0f, color);
   }
   constexpr float kNone = 0.0f;
   SetShaderValue(shader_, emission_, &kNone, SHADER_UNIFORM_FLOAT);

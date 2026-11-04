@@ -45,6 +45,19 @@ absl::StatusOr<SkillTable> ParseSkills(std::string_view text) {
       }
       blow = each.at_ms();
     }
+    uint32_t stride = 0;
+    for (const skills::Stride& each : skill.effect().strides()) {
+      if (each.at_ms() < stride) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("the ", skill.name(), "'s strides go back in time"));
+      }
+      // A swing's as long as the weapon's, so only the others are checked.
+      if (!skill.effect().weapon() && each.at_ms() > skill.effect().cast_ms()) {
+        return absl::InvalidArgumentError(absl::StrCat(
+            "the ", skill.name(), " takes a stride after it's over"));
+      }
+      stride = each.at_ms();
+    }
     // A swing's as long as the weapon's, so only the others are checked.
     uint32_t last = 0;
     for (const skills::Key& key : skill.look().move().keys()) {
@@ -86,6 +99,32 @@ absl::StatusOr<SkillTable> ParseSkills(std::string_view text) {
   return SkillTable{.by_id = *std::move(by_id),
                     .starting = std::move(starting),
                     .attack = file.attack()};
+}
+
+float Eased(skills::Ease ease, float t) {
+  switch (ease) {
+    case skills::SNAP:
+      return 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
+    case skills::GATHER:
+      return t * t * t;
+    default:
+      return t * t * (3.0f - 2.0f * t);
+  }
+}
+
+float AheadAt(const skills::Effect& effect, float ms) {
+  float at = 0.0f;
+  float ahead = 0.0f;
+  for (const skills::Stride& stride : effect.strides()) {
+    if (ms < static_cast<float>(stride.at_ms())) {
+      const float span = static_cast<float>(stride.at_ms()) - at;
+      const float t = span > 0.0f ? (ms - at) / span : 1.0f;
+      return ahead + (stride.ahead() - ahead) * Eased(stride.ease(), t);
+    }
+    at = static_cast<float>(stride.at_ms());
+    ahead = stride.ahead();
+  }
+  return ahead;
 }
 
 }  // namespace nanommo
