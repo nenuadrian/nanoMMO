@@ -1511,3 +1511,139 @@ skills {
     }
   }
 }
+skills {
+  id: 14
+  name: "Severing Moon"
+  level: 1
+  cooldown_ms: 22000
+  effect {
+    cast_ms: 2600
+    reach: 4.5
+    damage: 95
+    all: true
+    arc: 160
+    # Drawn back, still, then one cut across all in front, and a step through after it, so
+    # that what's close in front is still in front as the cut lands.
+    blows { at_ms: 1060 push: 2.2 lift: 0.6 }
+    strides { at_ms: 1060 }
+    strides { at_ms: 1180 ahead: 1.4 ease: SNAP }
+  }
+  look {
+    icon: 0xF186
+    stop_ms: 110
+    move {
+      keys {
+        at_ms: 500
+        ease: GATHER
+        lift: -0.22
+        turns { joint: HIPS yaw: -20 }
+        turns { joint: CHEST pitch: 15 yaw: -60 }
+        turns { joint: RIGHT_ARM pitch: 50 roll: -15 }
+        turns { joint: RIGHT_FOREARM pitch: -40 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM pitch: -70 roll: -20 }
+        turns { joint: RIGHT_LEG pitch: -45 }
+        turns { joint: RIGHT_KNEE pitch: 85 }
+        turns { joint: LEFT_LEG pitch: 25 }
+        turns { joint: LEFT_KNEE pitch: 70 }
+      }
+      keys {
+        at_ms: 950
+        lift: -0.25
+        turns { joint: HIPS yaw: -20 }
+        turns { joint: CHEST pitch: 18 yaw: -64 }
+        turns { joint: RIGHT_ARM pitch: 50 roll: -15 }
+        turns { joint: RIGHT_FOREARM pitch: -40 }
+        turns { joint: RIGHT_HAND pitch: 80 }
+        turns { joint: LEFT_ARM pitch: -70 roll: -20 }
+        turns { joint: RIGHT_LEG pitch: -45 }
+        turns { joint: RIGHT_KNEE pitch: 85 }
+        turns { joint: LEFT_LEG pitch: 25 }
+        turns { joint: LEFT_KNEE pitch: 70 }
+      }
+      keys {
+        at_ms: 1060
+        ease: SNAP
+        lift: -0.18
+        turns { joint: CHEST pitch: 10 yaw: 70 }
+        turns { joint: RIGHT_ARM pitch: -78 roll: 80 }
+        turns { joint: RIGHT_FOREARM }
+        turns { joint: RIGHT_HAND pitch: 85 }
+        turns { joint: LEFT_ARM pitch: 30 roll: 40 }
+        turns { joint: RIGHT_LEG pitch: -55 }
+        turns { joint: RIGHT_KNEE pitch: 60 }
+        turns { joint: LEFT_LEG pitch: 35 }
+        turns { joint: LEFT_KNEE pitch: 30 }
+      }
+      keys {
+        at_ms: 1550
+        lift: -0.17
+        turns { joint: CHEST pitch: 8 yaw: 66 }
+        turns { joint: RIGHT_ARM pitch: -78 roll: 80 }
+        turns { joint: RIGHT_FOREARM }
+        turns { joint: RIGHT_HAND pitch: 85 }
+        turns { joint: LEFT_ARM pitch: 30 roll: 40 }
+        turns { joint: RIGHT_LEG pitch: -55 }
+        turns { joint: RIGHT_KNEE pitch: 60 }
+        turns { joint: LEFT_LEG pitch: 35 }
+        turns { joint: LEFT_KNEE pitch: 30 }
+      }
+      keys {
+        at_ms: 1950
+        lift: -0.06
+        turns { joint: CHEST yaw: -10 }
+        turns { joint: RIGHT_ARM pitch: 10 roll: -10 }
+        turns { joint: RIGHT_HAND pitch: 40 }
+      }
+      keys { at_ms: 2550 }
+    }
+    fx {
+      kind: ZOOM from_ms: 100 for_ms: 1400
+      size: 1.2
+    }
+    fx {
+      kind: MOTES from_ms: 100 for_ms: 900
+      color: 0xB8A4FFFF size: 1.6 count: 50
+    }
+    fx {
+      kind: EDGE from_ms: 350 for_ms: 1300
+      color: 0xB8A4FFFF
+    }
+    fx {
+      kind: GLOW at: BLADE from_ms: 450 for_ms: 600
+      color: 0xF0ECFFFF size: 0.35
+    }
+    fx {
+      kind: GHOSTS from_ms: 1060 for_ms: 220
+      color: 0xC8B8FFFF count: 3
+    }
+    fx {
+      kind: TRAIL from_ms: 990 for_ms: 200
+      color: 0xF0ECFFFF
+    }
+    fx {
+      kind: FLASH from_ms: 1060 for_ms: 200
+      color: 0xF0E8FF50
+    }
+    fx {
+      kind: WAVE from_ms: 1040 for_ms: 500
+      color: 0xB8A4FFFF size: 6
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 1060 for_ms: 700
+      color: 0xF0ECFFFF size: 3.2 count: 3 up: 1 angle: 5
+    }
+    fx {
+      kind: SPARKS at: TARGET from_ms: 1060 for_ms: 500
+      color: 0xB8A4FFFF size: 1.8 count: 30 up: 1
+    }
+    fx {
+      kind: RING from_ms: 1060 for_ms: 550
+      color: 0xB8A4FFFF size: 4
+    }
+    fx {
+      kind: SHAKE from_ms: 1060 for_ms: 420
+      size: 0.3
+    }
+  }
+}
