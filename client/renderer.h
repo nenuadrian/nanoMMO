@@ -80,9 +80,11 @@ class Renderer {
   std::optional<Gait> GaitOf(const Figure& figure) const;
 
   /// Moves the skills' fx, the sea's waves and the clouds on by the seconds,
-  /// as the figures are now.
+  /// as the figures are now. Then the blows that just landed hold their
+  /// players, and what they hit, still for a moment.
   void Animate(float seconds) {
     fx_->Update(figures_, seconds);
+    fx_->Hold(figures_);
     clock_ += seconds;
   }
 

@@ -167,11 +167,16 @@ Mesh Gem() {
 
 }  // namespace
 
-Fx::Fx(const SkillTable& skills, Shader lit)
+Fx::Fx(const SkillTable& skills, Shader lit, const ItemTable& items)
     : skills_(skills.by_id),
       light_(LoadShaderFromMemory(kLightVertexShader, kLightFragmentShader)),
       shard_(LoadModelFromMesh(Gem())) {
   shard_.materials[0].shader = lit;
+  for (const auto& [id, item] : items.by_id) {
+    if (item.has_weapon()) {
+      weapons_[id] = item.weapon();
+    }
+  }
   for (const auto& [id, skill] : skills_) {
     float end = 0.0f;
     for (const skills::Fx& fx : skill.look().fx()) {
@@ -191,7 +196,7 @@ Fx::~Fx() {
 
 void Fx::Update(const std::vector<Figure>& figures, float seconds) {
   for (auto& [id, cast] : casts_) {
-    cast.time += seconds;
+    cast.clock += seconds;
   }
   for (const Figure& figure : figures) {
     const auto skill = skills_.find(figure.to_skill);
@@ -203,12 +208,11 @@ void Fx::Update(const std::vector<Figure>& figures, float seconds) {
     Cast& cast = found->second;
     // Another skill, or the same one again, is a cast of its own.
     if (fresh || cast.figure.to_skill != figure.to_skill ||
-        figure.to_time < cast.figure.to_time) {
-      cast.seed = ++seeds_;
-      cast.target.reset();
+        figure.to_time < cast.clock - seconds) {
+      cast = Cast{.seed = ++seeds_};
     }
     cast.figure = figure;
-    cast.time = figure.to_time;
+    cast.clock = figure.to_time;
     // A monster the skill kills is let go of, so the cast keeps where it
     // fell, and the rest of its fx still land there.
     for (const Figure& other : figures) {
@@ -217,10 +221,130 @@ void Fx::Update(const std::vector<Figure>& figures, float seconds) {
       }
     }
   }
+  for (auto& [id, cast] : casts_) {
+    const skills::Skill& skill = skills_.at(cast.figure.to_skill);
+    // Each blow, as the cast comes to it, lands or doesn't, for good.
+    const std::vector<Beat> blows = BlowsOf(skill, cast.figure);
+    while (cast.landed.size() < blows.size() &&
+           cast.clock >= blows[cast.landed.size()].at) {
+      cast.landed.push_back(Lands(cast, skill, figures));
+    }
+    cast.time = cast.clock - Lag(cast);
+    cast.figure.to_time = cast.time;
+  }
   std::erase_if(casts_, [&](const auto& entry) {
     const Cast& cast = entry.second;
     return cast.time > ends_.at(cast.figure.to_skill);
   });
+}
+
+// Half as long again for each metre a blow pushes.
+std::vector<Fx::Beat> Fx::BlowsOf(const skills::Skill& skill,
+                                  const Figure& figure) const {
+  static constexpr float kHeaviest = 2.5f;
+  auto weight = [](float push) {
+    return std::min(1.0f + 0.5f * push, kHeaviest);
+  };
+  const skills::Effect& effect = skill.effect();
+  std::vector<Beat> blows;
+  for (const skills::Blow& blow : effect.blows()) {
+    blows.push_back({.at = static_cast<float>(blow.at_ms()) / 1000.0f,
+                     .weight = weight(blow.push())});
+  }
+  if (blows.empty()) {
+    const auto weapon = weapons_.find(figure.weapon);
+    const uint32_t hit = effect.weapon() && weapon != weapons_.end()
+                             ? weapon->second.hit_ms()
+                             : effect.hit_ms();
+    blows.push_back({.at = static_cast<float>(hit) / 1000.0f,
+                     .weight = weight(effect.push())});
+  }
+  return blows;
+}
+
+// Each blow that's landed holds it back while it's still, and then less and
+// less as it catches up.
+float Fx::Lag(const Cast& cast) const {
+  const skills::Skill& skill = skills_.at(cast.figure.to_skill);
+  const float still = static_cast<float>(skill.look().stop_ms()) / 1000.0f;
+  if (still <= 0.0f) {
+    return 0.0f;
+  }
+  const std::vector<Beat> blows = BlowsOf(skill, cast.figure);
+  float lag = 0.0f;
+  for (std::size_t i = 0; i < cast.landed.size(); ++i) {
+    const float since = cast.clock - blows[i].at;
+    const float held = still * blows[i].weight;
+    if (!cast.landed[i] || since < 0.0f) {
+      continue;
+    }
+    const float most = (1.0f - kStill) * held;
+    if (since < held) {
+      lag += (1.0f - kStill) * since;
+    } else if (since < held * (1.0f + kCatchUp)) {
+      lag += most * (1.0f - (since - held) / (held * kCatchUp));
+    }
+  }
+  return lag;
+}
+
+bool Fx::Lands(Cast& cast, const skills::Skill& skill,
+               const std::vector<Figure>& figures) const {
+  // A little further than the server's reach, as we see everyone a moment
+  // late.
+  constexpr float kSlack = 0.5f;
+  const skills::Effect& effect = skill.effect();
+  const Figure& player = cast.figure;
+  const auto weapon = weapons_.find(player.weapon);
+  const float reach =
+      (effect.weapon() && weapon != weapons_.end() ? weapon->second.reach()
+                                                   : effect.reach()) +
+      kSlack;
+  if (effect.damage() == 0 && !effect.weapon()) {
+    return false;
+  }
+  bool landed = false;
+  for (const Figure& other : figures) {
+    if (!other.monster || other.to == protocol::MOTION_DEAD ||
+        (!effect.all() && other.id != player.target)) {
+      continue;
+    }
+    const float dx = other.position.x - player.position.x;
+    const float dz = other.position.z - player.position.z;
+    if (std::hypot(dx, dz) > reach) {
+      continue;
+    }
+    if (effect.arc() > 0.0f) {
+      const float off =
+          std::abs(std::remainder(std::atan2(dx, dz) - player.yaw, 2.0f * PI));
+      if (off > effect.arc() * DEG2RAD / 2.0f) {
+        continue;
+      }
+    }
+    cast.struck.insert(other.id);
+    landed = true;
+  }
+  return landed;
+}
+
+void Fx::Hold(std::vector<Figure>& figures) const {
+  for (Figure& figure : figures) {
+    float lag = 0.0f;
+    if (figure.monster) {
+      for (const auto& [id, cast] : casts_) {
+        if (cast.struck.contains(figure.id)) {
+          lag = std::max(lag, cast.clock - cast.time);
+        }
+      }
+    } else if (const auto cast = casts_.find(figure.id);
+               cast != casts_.end() && figure.to == protocol::MOTION_SKILL) {
+      lag = cast->second.clock - cast->second.time;
+    }
+    // Never back past where its clips started, as one that's just changed
+    // is hardly into its own.
+    figure.from_time = std::max(figure.from_time - lag, 0.0f);
+    figure.to_time = std::max(figure.to_time - lag, 0.0f);
+  }
 }
 
 namespace {
@@ -458,7 +582,8 @@ void Fx::DrawSolid(const Terrain& terrain) const {
     const skills::Skill& skill = skills_.at(cast.figure.to_skill);
     for (int index = 0; index < skill.look().fx_size(); ++index) {
       const skills::Fx& fx = skill.look().fx(index);
-      const float age = cast.time - static_cast<float>(fx.from_ms()) / 1000.0f;
+      // Thrown out by a blow, they fly on through its hold.
+      const float age = cast.clock - static_cast<float>(fx.from_ms()) / 1000.0f;
       const float span = static_cast<float>(fx.for_ms()) / 1000.0f;
       const bool there = fx.at() != skills::Fx::TARGET || cast.target;
       if (age < 0.0f || age > span || !there ||
@@ -549,7 +674,11 @@ void Fx::DrawLight(const Camera3D& camera, const Terrain& terrain,
       const skills::Fx& fx = skill.look().fx(index);
       const float from = static_cast<float>(fx.from_ms()) / 1000.0f;
       const float span = static_cast<float>(fx.for_ms()) / 1000.0f;
-      const float age = cast.time - from;
+      // What goes with the body is held back with it, while what a blow
+      // throws out, such as its sparks, flies through the hold.
+      const bool held =
+          fx.kind() == skills::Fx::TRAIL || fx.at() == skills::Fx::BLADE;
+      const float age = (held ? cast.time : cast.clock) - from;
       const Color color = GetColor(fx.color());
       if (fx.kind() == skills::Fx::TRAIL) {
         DrawTrail(cast.figure, cast.time, from, span, color, characters);
@@ -619,7 +748,7 @@ Vector3 Fx::Shake(Vector3 camera) const {
   Vector3 shake{0.0f, 0.0f, 0.0f};
   for (const auto& [id, cast] : casts_) {
     for (const skills::Fx& fx : skills_.at(cast.figure.to_skill).look().fx()) {
-      const float age = cast.time - static_cast<float>(fx.from_ms()) / 1000.0f;
+      const float age = cast.clock - static_cast<float>(fx.from_ms()) / 1000.0f;
       const float span = static_cast<float>(fx.for_ms()) / 1000.0f;
       if (fx.kind() != skills::Fx::SHAKE || age < 0.0f || age > span) {
         continue;

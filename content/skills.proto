@@ -149,6 +149,11 @@ message Look {
   // Without one, the player stands.
   Move move = 4;
   repeated Fx fx = 5;
+  // How long each blow that lands holds the player and what it hits still,
+  // in milliseconds: the weight of a hit. A blow that pushes holds longer, up
+  // to two and a half times as long. They catch up after it, so that the
+  // skill ends when the server says.
+  uint32 stop_ms = 6;
 }
 
 message Skill {

@@ -297,7 +297,7 @@ Renderer::Renderer(const Content& content)
       disc_(LoadModelFromMesh(Disc().Upload())),
       spire_(LoadModelFromMesh(Spire().Upload())),
       characters_(content.rig, character_shader_, content.figures),
-      fx_(std::make_unique<Fx>(content.skills, cube_shader_)),
+      fx_(std::make_unique<Fx>(content.skills, cube_shader_, content.items)),
       sky_(std::make_unique<Sky>()) {
   for (Model* model : {&cube_, &disc_, &spire_}) {
     model->materials[0].shader = cube_shader_;

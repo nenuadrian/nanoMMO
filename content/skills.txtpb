@@ -18,6 +18,7 @@ skills {
   }
   look {
     icon: 0xF140
+    stop_ms: 80
     move {
       keys {
         at_ms: 300
@@ -85,6 +86,7 @@ skills {
   }
   look {
     icon: 0xF54B
+    stop_ms: 80
     move {
       keys {
         at_ms: 220
@@ -191,6 +193,7 @@ skills {
   }
   look {
     icon: 0xF76F
+    stop_ms: 55
     move {
       keys {
         at_ms: 300
@@ -246,6 +249,7 @@ skills {
   }
   look {
     icon: 0xE4DC
+    stop_ms: 60
     move {
       keys {
         at_ms: 500
@@ -311,6 +315,7 @@ skills {
   }
   look {
     icon: 0xF6FC
+    stop_ms: 90
     move {
       keys {
         at_ms: 350
@@ -415,6 +420,7 @@ skills {
   }
   look {
     icon: 0xF2DC
+    stop_ms: 70
     move {
       keys {
         at_ms: 450
@@ -496,6 +502,7 @@ skills {
   }
   look {
     icon: 0xF06D
+    stop_ms: 70
     move {
       keys {
         at_ms: 320
@@ -563,6 +570,7 @@ skills {
   }
   look {
     icon: 0xF0E7
+    stop_ms: 80
     move {
       keys {
         at_ms: 550
