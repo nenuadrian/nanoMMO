@@ -564,6 +564,88 @@ void DrawGlow(const Moment& m, const Camera3D& camera, bool lifted) {
   Blob(at, radius, m.color, alpha, camera);
 }
 
+// The blade lit along its length: a bright core down the middle, flickering
+// a little, and a glow at the tip. It comes on fast and goes slowly.
+void DrawEdge(const Moment& m, const std::pair<Vector3, Vector3>& blade,
+              const Camera3D& camera) {
+  constexpr float kOn = 0.06f;
+  constexpr float kOff = 0.15f;
+  const float left = m.span - m.age;
+  const float fade = std::min({m.age / kOn, left / kOff, 1.0f});
+  const float flicker = 0.85f + 0.15f * std::sin(m.age * 47.0f);
+  const auto& [hilt, tip] = blade;
+  const Vector3 guard = Vector3Lerp(hilt, tip, 0.18f);
+  const float width = m.fx.size() > 0.0f ? m.fx.size() : 0.08f;
+  Streak(guard, tip, 3.0f * width, m.color, 0.35f * fade * flicker,
+         camera.position);
+  Streak(guard, tip, width, Hot(m.color, 0.8f), fade * flicker,
+         camera.position);
+  Blob(tip, 2.5f * width, m.color, 0.6f * fade, camera);
+}
+
+// Cuts across the air, flat to the camera, so that each reads as the stroke
+// that made it: drawn across from one end in a flash, then thinning away.
+void DrawSlash(const Moment& m, const Camera3D& camera) {
+  constexpr int kSteps = 16;
+  constexpr float kDraw = 0.07f;
+  // A cut after the first comes a little later, and slants its own way.
+  constexpr float kStagger = 0.06f;
+  constexpr float kSpread = 50.0f * DEG2RAD;
+  const Vector3 forward =
+      Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+  const Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, kUp));
+  const Vector3 up = Vector3CrossProduct(right, forward);
+  const int count = static_cast<int>(std::max(m.fx.count(), 1u));
+  for (int j = 0; j < count; ++j) {
+    const float age = m.age - kStagger * static_cast<float>(j);
+    const float life = m.span - kStagger * static_cast<float>(count - 1);
+    if (age < 0.0f || age > life) {
+      continue;
+    }
+    const float drawn = std::min(age / kDraw, 1.0f);
+    const float fade = std::pow(1.0f - age / life, 1.5f);
+    const float slant = m.fx.angle() * DEG2RAD +
+                        (j == 0 ? 0.0f
+                                : (j % 2 == 1 ? -1.0f : 1.0f) * kSpread *
+                                      (0.6f + 0.4f * m.Random(j, 0)));
+    const Vector3 along = Vector3Add(Vector3Scale(right, std::cos(slant)),
+                                     Vector3Scale(up, -std::sin(slant)));
+    const Vector3 bow = Vector3CrossProduct(forward, along);
+    const Vector3 middle = Vector3Add(
+        m.at, Vector3Add(Vector3Scale(right, 0.3f * (m.Random(j, 1) - 0.5f)),
+                         Vector3Scale(up, 0.3f * (m.Random(j, 2) - 0.5f))));
+    const float length = m.fx.size();
+    // Widest in the middle and sharp at both ends, bowed a little, and
+    // thinner as it fades.
+    const float thick = 0.07f * length * (0.35f + 0.65f * fade);
+    auto point = [&](float u, float side) {
+      const float width = thick * std::sin(PI * u) * side;
+      const float curve = 0.08f * length * std::sin(PI * u);
+      return Vector3Add(middle,
+                        Vector3Add(Vector3Scale(along, length * (u - 0.5f)),
+                                   Vector3Scale(bow, curve + width)));
+    };
+    // Light over the grass takes on its green, so the glow round it is
+    // faint, and the bloom does the rest, round a white-hot middle that's
+    // nearly solid.
+    const Color hot = Hot(m.color, 0.85f);
+    for (int i = 0; i < kSteps; ++i) {
+      const float a = drawn * static_cast<float>(i) / kSteps;
+      const float b = drawn * static_cast<float>(i + 1) / kSteps;
+      Quad(point(a, -2.2f), m.color, 0.0f, point(b, -2.2f), m.color, 0.0f,
+           point(a, 0.0f), m.color, 0.22f * fade, point(b, 0.0f), m.color,
+           0.22f * fade);
+      Quad(point(a, 0.0f), m.color, 0.22f * fade, point(b, 0.0f), m.color,
+           0.22f * fade, point(a, 2.2f), m.color, 0.0f, point(b, 2.2f), m.color,
+           0.0f);
+      Quad(point(a, -0.8f), hot, 0.3f * fade, point(b, -0.8f), hot, 0.3f * fade,
+           point(a, 0.0f), hot, fade, point(b, 0.0f), hot, fade);
+      Quad(point(a, 0.0f), hot, fade, point(b, 0.0f), hot, fade, point(a, 0.8f),
+           hot, 0.3f * fade, point(b, 0.8f), hot, 0.3f * fade);
+    }
+  }
+}
+
 }  // namespace
 
 void Fx::DrawSolid(const Terrain& terrain) const {
@@ -676,8 +758,9 @@ void Fx::DrawLight(const Camera3D& camera, const Terrain& terrain,
       const float span = static_cast<float>(fx.for_ms()) / 1000.0f;
       // What goes with the body is held back with it, while what a blow
       // throws out, such as its sparks, flies through the hold.
-      const bool held =
-          fx.kind() == skills::Fx::TRAIL || fx.at() == skills::Fx::BLADE;
+      const bool held = fx.kind() == skills::Fx::TRAIL ||
+                        fx.kind() == skills::Fx::EDGE ||
+                        fx.at() == skills::Fx::BLADE;
       const float age = (held ? cast.time : cast.clock) - from;
       const Color color = GetColor(fx.color());
       if (fx.kind() == skills::Fx::TRAIL) {
@@ -702,7 +785,7 @@ void Fx::DrawLight(const Camera3D& camera, const Terrain& terrain,
         }
       }
       if (fx.at() != skills::Fx::BLADE) {
-        at.y = terrain.Height(at.x, at.z);
+        at.y = terrain.Height(at.x, at.z) + fx.up();
       }
       const Moment m{.fx = fx,
                      .at = at,
@@ -731,6 +814,17 @@ void Fx::DrawLight(const Camera3D& camera, const Terrain& terrain,
           break;
         case skills::Fx::GLOW:
           DrawGlow(m, camera, fx.at() != skills::Fx::BLADE);
+          break;
+        case skills::Fx::EDGE: {
+          Figure posed = cast.figure;
+          posed.blend = 1.0f;
+          if (const auto blade = characters.Blade(posed)) {
+            DrawEdge(m, *blade, camera);
+          }
+          break;
+        }
+        case skills::Fx::SLASH:
+          DrawSlash(m, camera);
           break;
         default:
           break;

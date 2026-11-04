@@ -115,6 +115,12 @@ message Fx {
     BOLT = 8;
     // A crescent of light, flying forward to the size.
     WAVE = 9;
+    // The blade, lit along its edge.
+    EDGE = 10;
+    // Cuts that hang in the air, each drawn across in a flash, as long as the
+    // size, and fading: as many as the count, each at a slant of its own
+    // about the angle.
+    SLASH = 11;
   }
   // Where it is.
   enum Place {
@@ -135,8 +141,14 @@ message Fx {
   uint32 color = 5;
   // In metres.
   float size = 6;
-  // Of sparks, motes, shards or spikes.
+  // Of sparks, motes, shards, spikes or cuts.
   uint32 count = 7;
+  // How far above where it is, in metres: a cut across a monster's chest is
+  // a metre up from its feet.
+  float up = 8;
+  // In degrees, how a cut slants: none is level, and 90 is straight down, as
+  // the player sees it.
+  float angle = 9;
 }
 
 // How a skill looks: the client's part.

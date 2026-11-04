@@ -70,6 +70,14 @@ skills {
       kind: GLOW at: TARGET from_ms: 500 for_ms: 300
       color: 0xFFC070FF size: 0.55
     }
+    fx {
+      kind: EDGE from_ms: 250 for_ms: 450
+      color: 0x8CB4FFFF
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 520 for_ms: 300
+      color: 0xE4ECFFFF size: 1.2 count: 1 up: 1 angle: 10
+    }
   }
 }
 skills {
@@ -237,6 +245,10 @@ skills {
       kind: SPARKS from_ms: 900 for_ms: 500
       color: 0xFF9A48FF size: 1.5 count: 30
     }
+    fx {
+      kind: EDGE from_ms: 250 for_ms: 950
+      color: 0xFF9A48FF
+    }
   }
 }
 skills {
@@ -402,6 +414,14 @@ skills {
     fx {
       kind: SHAKE from_ms: 880 for_ms: 500
       size: 0.3
+    }
+    fx {
+      kind: EDGE from_ms: 300 for_ms: 700
+      color: 0xFF8A30FF
+    }
+    fx {
+      kind: SLASH at: TARGET from_ms: 880 for_ms: 400
+      color: 0xFFD8A0FF size: 2 count: 1 up: 1 angle: 85
     }
   }
 }

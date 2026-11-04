@@ -284,6 +284,10 @@ float Level(skills::Fx::Kind kind) {
     case skills::Fx::BOLT:
     case skills::Fx::SHAKE:
       return 0.7f;
+    case skills::Fx::EDGE:
+      return 0.15f;
+    case skills::Fx::SLASH:
+      return 0.55f;
     default:
       return 0.5f;
   }
@@ -473,6 +477,44 @@ Samples FxSound(const skills::Fx& fx, uint32_t seed) {
       Mix(sound, roar, 0.0f, 1.2f);
       Mix(sound, Crackle(noise, span, 60.0f, 1500.0f, 3.0f, 0.05f, 0.5f * span),
           0.0f, 0.6f);
+      break;
+    }
+    case skills::Fx::EDGE: {
+      // The blade singing while it's lit: a high note, two octaves above the
+      // colour's, wavering a little, and a second that isn't a whole multiple
+      // of it, so that it rings like metal, from a ping as it lights.
+      const float hertz = 4.0f * note;
+      Samples sing(SamplesIn(span + 0.2f));
+      Oscillator first;
+      Oscillator second;
+      for (std::size_t i = 0; i < sing.size(); ++i) {
+        const float t = Seconds(i);
+        const float waver = 1.0f + 0.006f * std::sin(2.0f * kPi * 5.5f * t);
+        sing[i] = (first.Next(hertz * waver) +
+                   0.35f * second.Next(2.76f * hertz * waver)) *
+                  Envelope(t, 0.08f, 0.6f * span);
+      }
+      FadeOut(sing);
+      Mix(sound, sing, 0.0f, 1.0f);
+      Mix(sound, Tone(0.6f, 2.0f * hertz, 2.0f * hertz, 0.001f, 0.15f), 0.0f,
+          0.6f);
+      break;
+    }
+    case skills::Fx::SLASH: {
+      // Each cut a hiss of air, high up, a snap and a short ring of metal,
+      // a little after the one before, as they're drawn.
+      const int cuts = static_cast<int>(std::max(fx.count(), 1u));
+      for (int i = 0; i < std::min(cuts, 8); ++i) {
+        const float at = 0.06f * static_cast<float>(i);
+        Mix(sound,
+            Hiss(noise, 0.12f, 6000.0f, 0.8f, Pass::kHigh, 0.002f, 0.04f), at,
+            0.9f);
+        Mix(sound, Click(noise, 5000.0f), at, 0.8f);
+        const float ring = noise.Between(2800.0f, 3600.0f);
+        Mix(sound, Tone(0.4f, ring, 0.99f * ring, 0.0005f, 0.09f), at, 0.35f);
+        Mix(sound, Tone(0.3f, 2.76f * ring, 2.7f * ring, 0.0005f, 0.05f), at,
+            0.12f);
+      }
       break;
     }
     default:
