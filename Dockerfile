@@ -1,4 +1,4 @@
-FROM ubuntu:24.04 AS toolchain
+FROM ubuntu:26.04 AS toolchain
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       build-essential cmake ninja-build ccache ca-certificates doxygen pkg-config \
@@ -81,7 +81,7 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
  && cmake --build build \
  && ccache --show-stats
 
-FROM ubuntu:24.04 AS runtime
+FROM ubuntu:26.04 AS runtime
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libmysqlclient21 libsodium23 libssl3t64 curl \
  && rm -rf /var/lib/apt/lists/*
@@ -110,7 +110,7 @@ COPY --from=test /src/build/bin/nanommo_recorder /usr/local/bin/
 USER ubuntu
 ENTRYPOINT ["nanommo_recorder"]
 
-FROM ubuntu:24.04 AS bot
+FROM ubuntu:26.04 AS bot
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libssl3t64 \
  && rm -rf /var/lib/apt/lists/*
@@ -120,14 +120,14 @@ ENV NANOMMO_CONTENT=/usr/local/share/nanommo/content
 USER ubuntu
 ENTRYPOINT ["nanommo_bot"]
 
-FROM ubuntu:24.04 AS certificates
+FROM ubuntu:26.04 AS certificates
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl \
  && rm -rf /var/lib/apt/lists/*
 COPY tls/certificates.sh /usr/local/bin/
 ENTRYPOINT ["certificates.sh"]
 
-FROM ubuntu:24.04 AS netem
+FROM ubuntu:26.04 AS netem
 RUN apt-get update \
  && apt-get install -y --no-install-recommends iproute2 ethtool \
  && rm -rf /var/lib/apt/lists/*
