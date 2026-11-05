@@ -165,7 +165,7 @@ RUN cmake --build build --target docs
 FROM scratch AS docs
 COPY --from=docs-build /src/build/docs/html /
 
-FROM python:3.13-slim AS lint
+FROM python:3.15-slim AS lint
 RUN pip install --no-cache-dir clang-format==18.1.3 cpplint==2.0.2
 # cpplint names each header guard after the path from the folder above this
 # one, so the folder is named after the project: NANOMMO_SERVER_TICK_H_.
