@@ -42,6 +42,14 @@ TEST(Paths, GoesNowhereItCantStand) {
   EXPECT_TRUE(paths.Find({0, 0}, {900, 0}).empty());
 }
 
+TEST(Paths, GoesNowhereFarOffTheLand) {
+  nanommo::Paths paths{nanommo::Terrain()};
+  // As far as a float goes, which a client can ask to walk to.
+  EXPECT_TRUE(paths.Find({0, 0}, {2.3e18f, 0}).empty());
+  EXPECT_TRUE(paths.Find({0, 0}, {0, -3.4e38f}).empty());
+  EXPECT_FALSE(paths.Open({std::nanf(""), 0}));
+}
+
 TEST(Paths, GoesAroundATree) {
   const nanommo::Terrain island(1);
   nanommo::Paths paths(island);

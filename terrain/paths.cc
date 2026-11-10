@@ -49,12 +49,15 @@ Paths::Paths(const Terrain& terrain)
 }
 
 int Paths::SquareOf(Place place) const {
-  const int i = static_cast<int>(std::floor((place.x + half_) / kSquare));
-  const int j = static_cast<int>(std::floor((place.z + half_) / kSquare));
-  if (i < 0 || j < 0 || i >= size_ || j >= size_) {
-    return -1;
+  // Compared while they're floats: a place far off the land, or not a number,
+  // is off it, and isn't made an int it doesn't fit in.
+  const float i = std::floor((place.x + half_) / kSquare);
+  const float j = std::floor((place.z + half_) / kSquare);
+  const auto size = static_cast<float>(size_);
+  if (i >= 0.0f && j >= 0.0f && i < size && j < size) {
+    return static_cast<int>(j) * size_ + static_cast<int>(i);
   }
-  return j * size_ + i;
+  return -1;
 }
 
 Place Paths::Middle(int square) const {
