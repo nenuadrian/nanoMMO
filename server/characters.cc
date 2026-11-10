@@ -121,11 +121,10 @@ absl::Status Characters::Delete(uint32_t account, uint32_t id) {
   return absl::OkStatus();
 }
 
-absl::StatusOr<std::string> Characters::WorldOf(uint32_t account,
-                                                uint32_t id) {
-  const absl::StatusOr<Result> rows = database_.Run(
-      "SELECT world FROM players WHERE id = ? AND account_id = ?",
-      {absl::StrCat(id), absl::StrCat(account)});
+absl::StatusOr<std::string> Characters::WorldOf(uint32_t account, uint32_t id) {
+  const absl::StatusOr<Result> rows =
+      database_.Run("SELECT world FROM players WHERE id = ? AND account_id = ?",
+                    {absl::StrCat(id), absl::StrCat(account)});
   if (!rows.ok()) {
     return rows.status();
   }

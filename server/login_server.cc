@@ -60,8 +60,7 @@ absl::StatusOr<uint32_t> Authenticate(const protocol::LoginRequest& request,
 
 // An error the player can read, from a status a character's request got,
 // or the status itself, when it's the servers' and not theirs.
-absl::Status Readable(const absl::Status& status,
-                      protocol::LoginReply& reply) {
+absl::Status Readable(const absl::Status& status, protocol::LoginReply& reply) {
   if (absl::IsInvalidArgument(status) || absl::IsAlreadyExists(status) ||
       absl::IsResourceExhausted(status) || absl::IsNotFound(status)) {
     reply.set_error(status.message());
@@ -92,8 +91,7 @@ absl::StatusOr<protocol::LoginReply> HandleLogin(
       return reply;
     }
     // Logging in, or making an account: a session for what comes next.
-    const absl::StatusOr<uint32_t> id =
-        Authenticate(request, accounts, reply);
+    const absl::StatusOr<uint32_t> id = Authenticate(request, accounts, reply);
     if (!id.ok()) {
       return id.status();
     }
@@ -228,8 +226,8 @@ void LoginServer::Accept() {
                                                 : " logged in")
                       << std::endl;
           } else {
-            std::cout << "nanommo login: refused " << request.username()
-                      << ": " << reply.error() << std::endl;
+            std::cout << "nanommo login: refused " << request.username() << ": "
+                      << reply.error() << std::endl;
           }
         }
         // The worlds come with each answer, for the list the client shows.

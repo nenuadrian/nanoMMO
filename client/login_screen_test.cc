@@ -21,8 +21,15 @@ nanommo::ItemTable Kit() {
       weapon { reach: 1.6 swing_ms: 2000 hit_ms: 900 damage: 15 }
       equip { slot: SLOT_MAIN_HAND }
     }
-    items { id: 2 equip { slot: SLOT_BODY } }
-    items { id: 3 stack: 10 use { heal: 40 cooldown_ms: 10000 } }
+    items {
+      id: 2
+      equip { slot: SLOT_BODY }
+    }
+    items {
+      id: 3
+      stack: 10
+      use { heal: 40 cooldown_ms: 10000 }
+    }
     items {
       id: 4
       weapon { reach: 1.8 swing_ms: 2000 hit_ms: 900 damage: 20 }

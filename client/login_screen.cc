@@ -194,8 +194,7 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildWorlds() {
   // The arrow keys and Enter pick a world, so ImGui's own keyboard navigation
   // stays out of this window.
   ImGui::Begin("Worlds", nullptr, kWindowFlags | ImGuiWindowFlags_NoNav);
-  bool refresh =
-      ImGui::IsWindowAppearing() || ImGui::IsKeyPressed(ImGuiKey_F5);
+  bool refresh = ImGui::IsWindowAppearing() || ImGui::IsKeyPressed(ImGuiKey_F5);
   const int count = static_cast<int>(worlds_.size());
   if (ImGui::IsKeyPressed(ImGuiKey_DownArrow) && selected_world_ + 1 < count) {
     ++selected_world_;
@@ -351,8 +350,8 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCharacters() {
       ImGui::SameLine();
       deleting_ = ImGui::Button(ICON_FA_TRASH " Delete");
     } else {
-      ImGui::TextColored({1.0f, 0.7f, 0.4f, 1.0f},
-                         "Delete %s for good?", character->name().c_str());
+      ImGui::TextColored({1.0f, 0.7f, 0.4f, 1.0f}, "Delete %s for good?",
+                         character->name().c_str());
       delete_it = ImGui::Button(ICON_FA_TRASH " Delete");
       ImGui::SameLine();
       if (ImGui::Button("Keep")) {

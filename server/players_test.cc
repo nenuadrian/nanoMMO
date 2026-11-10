@@ -328,9 +328,8 @@ TEST_F(PlayersTest, KeepsTheQuestsTheyreOnAndHaveDone) {
 
   // MySQL keeps them as JSON, with the player's row.
   ASSERT_TRUE(players.Flush().ok());
-  const absl::StatusOr<nanommo::Result> rows = database_->Run(
-      "SELECT quests FROM players WHERE id = ?",
-      {id});
+  const absl::StatusOr<nanommo::Result> rows =
+      database_->Run("SELECT quests FROM players WHERE id = ?", {id});
   ASSERT_TRUE(rows.ok());
   EXPECT_EQ(rows->rows, (std::vector<std::vector<std::string>>{
                             {R"({"on": {"2": 3}, "done": [1]})"}}));
