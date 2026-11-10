@@ -1,4 +1,8 @@
+[![nanoMMO: an MMORPG built from scratch in C++](.github/cover.jpg)](https://nanommo.nenuadrian.com)
+
 # nanoMMO
+
+[![CI](https://github.com/nenuadrian/nanommo/actions/workflows/ci.yml/badge.svg)](https://github.com/nenuadrian/nanommo/actions/workflows/ci.yml) [![Dependencies](https://github.com/nenuadrian/nanommo/actions/workflows/dependencies.yml/badge.svg)](https://github.com/nenuadrian/nanommo/actions/workflows/dependencies.yml)
 
 The game built in the YouTube series *Building an MMO: The Engineering Series*: a C++ server, a
 C++ client, and everything around them. Each episode's code is a git tag (`ep001/end`,
