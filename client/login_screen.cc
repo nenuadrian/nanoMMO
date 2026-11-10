@@ -267,13 +267,17 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildWorlds() {
 }
 
 std::optional<protocol::LoginRequest> LoginScreen::BuildCharacters() {
+  if (!world_) {
+    return std::nullopt;
+  }
+  const protocol::WorldListing& world = *world_;
   const std::vector<const protocol::CharacterListing*> here = Here();
   const auto picked = std::ranges::find_if(
       here, [&](const auto* c) { return c->id() == picked_; });
   const protocol::CharacterListing* character =
       picked != here.end() ? *picked : nullptr;
 
-  ImGui::Begin(world_->name().c_str(), nullptr,
+  ImGui::Begin(world.name().c_str(), nullptr,
                kWindowFlags | ImGuiWindowFlags_NoNav);
   // Back from the world, or in from the worlds: the list as it is now.
   const bool refresh = ImGui::IsWindowAppearing();
@@ -378,7 +382,7 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCharacters() {
     deleting_ = false;
   } else if (create) {
     request.set_create_character(true);
-    request.set_world(world_->name());
+    request.set_world(world.name());
     request.set_name(new_name_.data());
   } else if (!refresh) {
     return std::nullopt;
