@@ -13,6 +13,7 @@ class Menu {
  public:
   bool open() const { return open_; }
   void Toggle() { open_ = !open_; }
+  void Close() { open_ = false; }
 
   bool settings_open() const { return settings_; }
   void OpenSettings() { settings_ = true; }

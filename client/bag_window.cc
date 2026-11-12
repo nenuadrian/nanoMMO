@@ -392,7 +392,11 @@ std::optional<protocol::ItemAction> BagWindow::Build(
 
 std::optional<protocol::ItemAction> BagWindow::BuildThrowAway(
     const protocol::Inventory& bag) {
-  const items::Stack* stack = StackAt(bag, *throwing_);
+  if (!throwing_) {
+    return std::nullopt;
+  }
+  const protocol::Place place = *throwing_;
+  const items::Stack* stack = StackAt(bag, place);
   const items::Item* item =
       stack != nullptr ? Find(items_, stack->item()) : nullptr;
   if (stack == nullptr) {
@@ -416,7 +420,7 @@ std::optional<protocol::ItemAction> BagWindow::BuildThrowAway(
   }
   ImGui::Spacing();
   if (GameButton("Throw away", {Ui(150.0f), 0.0f}, true)) {
-    *action.emplace().mutable_destroy() = *throwing_;
+    *action.emplace().mutable_destroy() = place;
     open = false;
   }
   ImGui::SameLine();

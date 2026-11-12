@@ -445,7 +445,7 @@ int main(int argc, char* argv[]) {
         if (menu.settings_open()) {
           menu.CloseSettings();
         } else if (menu.open()) {
-          menu.Toggle();
+          menu.Close();
         } else if (map_open) {
           map_open = false;
         } else if (talk_window.open() || trainer_window.open() ||

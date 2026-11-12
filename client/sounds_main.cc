@@ -35,6 +35,8 @@ constexpr std::array<const char*, 7> kGroundNames = {
 
 std::vector<Entry> Entries(const nanommo::SkillTable& skills) {
   std::vector<Entry> entries;
+  entries.reserve(nanommo::kGrounds.size() + skills.by_id.size() + 1 +
+                  nanommo::kLands.size());
   for (const nanommo::Ground ground : nanommo::kGrounds) {
     entries.push_back(
         {absl::StrCat("Step on ", kGroundNames[static_cast<int>(ground)]),
