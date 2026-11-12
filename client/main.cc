@@ -94,9 +94,8 @@ std::unique_ptr<nanommo::Connection> Enter(
   std::cout << "nanommo client: entering " << world.name() << " as "
             << screen.character_name() << '\n';
   absl::StatusOr<std::unique_ptr<nanommo::Connection>> connection_or =
-      nanommo::Connection::Create(world.host(),
-                                  static_cast<uint16_t>(world.port()), tls,
-                                  token, udp);
+      nanommo::Connection::Create(
+          world.host(), static_cast<uint16_t>(world.port()), tls, token, udp);
   if (!connection_or.ok()) {
     screen.ShowError(absl::StrCat("Couldn't reach the server: ",
                                   connection_or.status().message()));

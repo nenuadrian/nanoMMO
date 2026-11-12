@@ -21,6 +21,8 @@ constexpr float kHeight = 1.8f;
 // see.
 constexpr float kStep = 0.5f;
 constexpr float kFarthest = 150.0f;
+// Counted in whole steps, as a float that's added to drifts.
+constexpr int kSteps = static_cast<int>(kFarthest / kStep);
 
 // The nearest of the figures along the ray that the test lets through.
 template <typename Test>
@@ -72,7 +74,8 @@ std::optional<Vector3> PickGround(const Terrain& terrain, const Ray& ray) {
   // In steps along the ray, until one's under the ground, then halving the
   // last step, back and forth, to where it went under.
   float near = 0.0f;
-  for (float far = kStep; far <= kFarthest; far += kStep) {
+  for (int step = 1; step <= kSteps; ++step) {
+    float far = static_cast<float>(step) * kStep;
     if (below(far)) {
       for (int halving = 0; halving < 12; ++halving) {
         const float middle = (near + far) / 2.0f;

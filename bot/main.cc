@@ -65,8 +65,7 @@ absl::StatusOr<std::string> LogIn(const std::string& host,
   request.set_username(name);
   request.set_password("bot-password");
   request.set_version(nanommo::kVersion);
-  absl::StatusOr<nanommo::protocol::LoginReply> reply =
-      Ask(host, tls, request);
+  absl::StatusOr<nanommo::protocol::LoginReply> reply = Ask(host, tls, request);
   if (absl::IsPermissionDenied(reply.status())) {
     request.set_new_account(true);
     reply = Ask(host, tls, request);

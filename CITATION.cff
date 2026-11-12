@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use nanoMMO in your work, please cite it using the metadata in this file."
+type: software
+title: "nanoMMO: Building an MMO, the engineering series"
+abstract: >-
+  The game built in the YouTube series Building an MMO: The Engineering Series:
+  a C++ server, a C++ client drawn with raylib, and everything around them,
+  from MySQL and Redis storage and a protobuf protocol over TLS to Prometheus
+  monitoring. Each episode's code is a git tag in the repository.
+authors:
+  - given-names: Adrian Mircea
+    family-names: Nenu
+repository-code: "https://github.com/nenuadrian/nanoMMO"
+url: "https://nanommo.nenuadrian.com"
+license: MIT
+keywords:
+  - MMORPG
+  - game server
+  - game engine
+  - networking
+  - observability
+  - C++

@@ -759,8 +759,9 @@ void Fx::DrawSolid(const Terrain& terrain) const {
            fx.kind() != skills::Fx::SPIKES)) {
         continue;
       }
-      const Vector3 at =
-          fx.at() == skills::Fx::TARGET ? *cast.target : cast.figure.position;
+      const Vector3 at = fx.at() == skills::Fx::TARGET
+                             ? cast.target.value_or(cast.figure.position)
+                             : cast.figure.position;
       const Moment m{.fx = fx,
                      .at = {at.x, terrain.Height(at.x, at.z), at.z},
                      .yaw = cast.figure.yaw,

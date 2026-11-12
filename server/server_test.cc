@@ -211,8 +211,8 @@ class ServerTest : public ::testing::Test {
     const absl::StatusOr<uint32_t> account = accounts.Create(name, "hash");
     EXPECT_TRUE(account.ok()) << account.status();
     accounts_.push_back(account.value_or(0));
-    const absl::StatusOr<uint32_t> id = nanommo::Characters(*database_).Create(
-        accounts_.back(), world_, name);
+    const absl::StatusOr<uint32_t> id =
+        nanommo::Characters(*database_).Create(accounts_.back(), world_, name);
     EXPECT_TRUE(id.ok()) << id.status();
     characters_.push_back(id.value_or(0));
     return characters_.back();
