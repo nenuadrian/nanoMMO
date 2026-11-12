@@ -270,8 +270,7 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
     // Shift for the row above.
     const int index = static_cast<int>(slot - first);
     const std::string label =
-        swing ? "Space"
-              : (above ? "s" : "") + std::to_string(index % kRow + 1);
+        swing ? "Space" : (above ? "s" : "") + std::to_string(index % kRow + 1);
     DrawShadowedText(draw, GetFonts().bold, Ui(13.0f),
                      {min.x + Ui(5.0f), min.y + Ui(2.0f)}, colors::kPaper,
                      label.c_str());
