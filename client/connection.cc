@@ -11,7 +11,6 @@
 #include "absl/strings/str_cat.h"
 #include "asio/buffer.hpp"
 #include "asio/connect.hpp"
-#include "asio/ssl/host_name_verification.hpp"
 #include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
 
@@ -53,11 +52,12 @@ absl::Status Connection::Start(const std::string& host, uint16_t port,
   }
   std::error_code ignored;
   stream_.lowest_layer().set_option(asio::ip::tcp::no_delay(true), ignored);
-  stream_.set_verify_callback(asio::ssl::host_name_verification(host));
+  ExpectName(stream_, host);
   stream_.handshake(asio::ssl::stream_base::client, error);
   if (error) {
-    return absl::UnavailableError(absl::StrCat(
-        "couldn't shake hands with the server: ", error.message()));
+    return absl::UnavailableError(
+        absl::StrCat("couldn't shake hands with the world: ",
+                     HandshakeError(stream_, host, error)));
   }
   protocol::Hello hello;
   hello.set_token(token);

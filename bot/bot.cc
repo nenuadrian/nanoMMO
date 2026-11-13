@@ -16,7 +16,6 @@
 #include "asio/buffer.hpp"
 #include "asio/connect.hpp"
 #include "asio/error.hpp"
-#include "asio/ssl/host_name_verification.hpp"
 #include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
 #include "bot/bag.h"
@@ -83,11 +82,11 @@ Bot::Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp,
 void Bot::Start(const asio::ip::tcp::resolver::results_type& server,
                 const std::string& token) {
   // The resolver keeps the name we looked up, which the certificate must have.
-  stream_.set_verify_callback(
-      asio::ssl::host_name_verification(server.begin()->host_name()));
+  const std::string host = server.begin()->host_name();
+  ExpectName(stream_, host);
   asio::async_connect(
       stream_.lowest_layer(), server,
-      [this, token](std::error_code error, const auto&) {
+      [this, token, host](std::error_code error, const auto&) {
         if (error) {
           std::cerr << "nanommo bot: couldn't connect: " << error.message()
                     << '\n';
@@ -96,16 +95,18 @@ void Bot::Start(const asio::ip::tcp::resolver::results_type& server,
         std::error_code ignored;
         stream_.lowest_layer().set_option(asio::ip::tcp::no_delay(true),
                                           ignored);
-        stream_.async_handshake(
-            asio::ssl::stream_base::client,
-            [this, token](std::error_code error) { Greet(token, error); });
+        stream_.async_handshake(asio::ssl::stream_base::client,
+                                [this, token, host](std::error_code error) {
+                                  Greet(token, host, error);
+                                });
       });
 }
 
-void Bot::Greet(const std::string& token, std::error_code error) {
+void Bot::Greet(const std::string& token, const std::string& host,
+                std::error_code error) {
   if (error) {
-    std::cerr << "nanommo bot: couldn't shake hands: " << error.message()
-              << '\n';
+    std::cerr << "nanommo bot: couldn't shake hands: "
+              << HandshakeError(stream_, host, error) << '\n';
     return;
   }
   // Blocking is fine: a hello this small fits in the socket's buffer.

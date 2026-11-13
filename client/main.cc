@@ -86,10 +86,16 @@ std::optional<nanommo::protocol::LoginReply> Ask(
   return *std::move(reply);
 }
 
-// Into the world, as the character the token's for.
+// Whether host is the machine it's said on.
+bool ThisMachine(const std::string& host) {
+  return host == "localhost" || host == "127.0.0.1" || host == "::1";
+}
+
+// Into the world, as the character the token's for, at the address the world
+// gave Consul, from a login server at login_host.
 std::unique_ptr<nanommo::Connection> Enter(
-    const nanommo::protocol::WorldListing& world, bool udp,
-    asio::ssl::context& tls, const std::string& token,
+    const nanommo::protocol::WorldListing& world, const std::string& login_host,
+    bool udp, asio::ssl::context& tls, const std::string& token,
     nanommo::LoginScreen& screen) {
   std::cout << "nanommo client: entering " << world.name() << " as "
             << screen.character_name() << '\n';
@@ -97,8 +103,15 @@ std::unique_ptr<nanommo::Connection> Enter(
       nanommo::Connection::Create(
           world.host(), static_cast<uint16_t>(world.port()), tls, token, udp);
   if (!connection_or.ok()) {
-    screen.ShowError(absl::StrCat("Couldn't reach the server: ",
-                                  connection_or.status().message()));
+    std::string why(connection_or.status().message());
+    // A world started without NANOMMO_PUBLIC_HOST gives localhost, which from
+    // another machine is that machine, not the world's.
+    if (ThisMachine(world.host()) && !ThisMachine(login_host)) {
+      absl::StrAppend(
+          &why, ". ", world.name(), " says it's at ", world.host(),
+          ": start its server with NANOMMO_PUBLIC_HOST=", login_host);
+    }
+    screen.ShowError(absl::StrCat("Couldn't reach the server: ", why));
     return nullptr;
   }
   return *std::move(connection_or);
@@ -214,8 +227,8 @@ int main(int argc, char* argv[]) {
     if (entering && loading.covered()) {
       if (const std::optional<nanommo::protocol::WorldListing>& world =
               login_screen.world()) {
-        connection =
-            Enter(*world, transport == "udp", *tls, *entering, login_screen);
+        connection = Enter(*world, host, transport == "udp", *tls, *entering,
+                           login_screen);
       }
       entering.reset();
       sent.Clear();

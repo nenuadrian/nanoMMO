@@ -10,7 +10,6 @@
 #include "asio/connect.hpp"
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
-#include "asio/ssl/host_name_verification.hpp"
 #include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
 #include "protocol/framing.h"
@@ -31,8 +30,13 @@ absl::StatusOr<protocol::LoginReply> LogIn(
     asio::connect(stream.lowest_layer(), endpoints, error);
   }
   if (!error) {
-    stream.set_verify_callback(asio::ssl::host_name_verification(host));
+    ExpectName(stream, host);
     stream.handshake(asio::ssl::stream_base::client, error);
+    if (error) {
+      return absl::UnavailableError(
+          absl::StrCat("couldn't shake hands with the login server: ",
+                       HandshakeError(stream, host, error)));
+    }
   }
   if (!error) {
     asio::write(stream, asio::buffer(Frame(request)), error);

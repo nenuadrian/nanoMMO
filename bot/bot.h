@@ -49,7 +49,8 @@ class Bot {
   const std::vector<int64_t>& newest() const { return newest_; }
 
  private:
-  void Greet(const std::string& token, std::error_code error);
+  void Greet(const std::string& token, const std::string& host,
+             std::error_code error);
   void Read();
   void HelloOverUdp();
   void ReceiveOverUdp();
