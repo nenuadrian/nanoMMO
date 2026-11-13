@@ -49,7 +49,9 @@ void Add(uint64_t& hash, const google::protobuf::Message& message) {
     // So that equal messages give equal bytes, whatever order they were
     // built in.
     coded.SetSerializationDeterministic(true);
-    message.SerializeToCodedStream(&coded);
+    // Writing to memory fails only for a message that lacks a required field,
+    // and the content was read whole.
+    static_cast<void>(message.SerializeToCodedStream(&coded));
   }
   for (const char byte : bytes) {
     hash ^= static_cast<unsigned char>(byte);

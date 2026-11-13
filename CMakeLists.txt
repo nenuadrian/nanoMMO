@@ -172,6 +172,10 @@ target_link_libraries(imgui PUBLIC raylib)
 target_compile_options(imgui PRIVATE -w)
 
 add_compile_options(-Wall -Wextra -Wpedantic)
+# A designated initializer leaves the fields it doesn't name at their defaults,
+# which is how we use it, so a warning for each of them buries the ones that
+# matter.
+add_compile_options(-Wno-missing-field-initializers)
 
 option(NANOMMO_COVERAGE "Count the lines the tests run, with Clang" OFF)
 if(NANOMMO_COVERAGE)

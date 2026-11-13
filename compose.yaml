@@ -1,5 +1,8 @@
 name: nanommo
 
+# Players reach the login server, the worlds and the website from anywhere. The
+# rest listens on this machine only, as a database, Redis and Consul open to the
+# network, with the passwords in this file or none, are anyone's to take.
 services:
   mysql:
     image: mysql:9.7.2
@@ -11,7 +14,7 @@ services:
     volumes:
       - mysql:/var/lib/mysql
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
       interval: 2s
@@ -38,7 +41,7 @@ services:
     volumes:
       - redis:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -55,7 +58,7 @@ services:
       # Run once, as ClickHouse starts on an empty volume.
       - ./analytics:/docker-entrypoint-initdb.d:ro
     ports:
-      - "8123:8123"
+      - "127.0.0.1:8123:8123"
     ulimits:
       nofile: 262144
     healthcheck:
@@ -67,7 +70,7 @@ services:
     image: hashicorp/consul:2.0.4
     command: ["agent", "-dev", "-client=0.0.0.0", "-log-level=warn"]
     ports:
-      - "8500:8500"
+      - "127.0.0.1:8500:8500"
     healthcheck:
       test: ["CMD", "consul", "members"]
       interval: 2s
@@ -124,7 +127,7 @@ services:
     ports:
       - "7777:7777"
       - "7777:7777/udp"
-      - "9464:9464"
+      - "127.0.0.1:9464:9464"
     healthcheck:
       test: ["CMD", "curl", "-fso", "/dev/null", "consul:8500/v1/agent/health/service/id/Ember-7777"]
       interval: 2s
@@ -237,7 +240,7 @@ services:
     volumes:
       - huggingface:/root/.cache/huggingface
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 2s
@@ -250,19 +253,19 @@ services:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
 
   alertmanager:
     image: prom/alertmanager:v0.34.1
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     ports:
-      - "9093:9093"
+      - "127.0.0.1:9093:9093"
 
   mailpit:
     image: axllent/mailpit:v1.31.6
     ports:
-      - "8025:8025"
+      - "127.0.0.1:8025:8025"
 
   loki:
     image: grafana/loki:3.7.8
@@ -272,12 +275,12 @@ services:
       - ./monitoring/loki-rules.yml:/etc/loki/rules/fake/rules.yml:ro
       - loki:/loki
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
 
   pyroscope:
     image: grafana/pyroscope:2.4.2
     ports:
-      - "4040:4040"
+      - "127.0.0.1:4040:4040"
 
   alloy:
     image: grafana/alloy:v1.20.1
@@ -305,7 +308,7 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
   bots:
     build:
