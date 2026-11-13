@@ -1,17 +1,27 @@
 #!/bin/sh
 # Makes a certificate authority of our own, and a certificate it signs for our
 # servers, in the folder given (default: this script's). Any names after the
-# folder go on the certificate too, such as a server's domain.
+# folder go on the certificate too, such as a server's domain or address. Run
+# again with a name the certificate lacks, or once it's expired, it signs a new
+# one with every name, from the same authority, so the clients' ca.crt still
+# trusts it.
 set -eu
 
 dir=${1:-$(dirname "$0")}
 [ $# -gt 0 ] && shift
+# A name where the folder goes would quietly make a folder of that name.
+case $dir in
+  */*) ;;
+  *.*)
+    if [ ! -d "$dir" ]; then
+      echo "certificates: the folder comes first, then the names:" \
+        "tls/certificates.sh tls $dir" >&2
+      exit 1
+    fi
+    ;;
+esac
 mkdir -p "$dir"
 cd "$dir"
-if [ -f server.crt ]; then
-  echo "certificates: $dir has them already"
-  exit 0
-fi
 
 names="DNS:localhost, IP:127.0.0.1, DNS:login, DNS:server"
 for name in "$@"; do
@@ -22,6 +32,32 @@ for name in "$@"; do
     *) names="$names, IP:$name" ;;
   esac
 done
+
+if [ -f server.crt ]; then
+  # The names it has, written as we write them: openssl prints "IP Address:".
+  have=$(openssl x509 -in server.crt -noout -text |
+    sed -n '/Subject Alternative Name/{n;s/^ *//;s/IP Address:/IP:/g;p;}')
+  lacking=$(echo "$names" | tr ',' '\n' | sed 's/^ *//' | while read -r name; do
+    case ", $have, " in
+      (*", $name, "*) ;;
+      (*) echo "$name" ;;
+    esac
+  done)
+  # One that's run out is signed again, with the names it has.
+  expired=
+  openssl x509 -in server.crt -noout -checkend 0 > /dev/null || expired=yes
+  if [ -z "$lacking" ] && [ -z "$expired" ]; then
+    echo "certificates: $dir has them already, for $have"
+    exit 0
+  fi
+  if [ ! -f ca.key ]; then
+    echo "certificates: $dir has no ca.key to sign a new certificate with" >&2
+    exit 1
+  fi
+  # Each name is a word of its own, so the shell splits them for printf.
+  [ -n "$lacking" ] && names="$have$(printf ', %s' $lacking)" || names=$have
+fi
+
 cat > openssl.cnf <<END
 [req]
 distinguished_name = name
@@ -36,10 +72,16 @@ extendedKeyUsage = serverAuth
 subjectAltName = $names
 END
 
-# The authority's key signs certificates, so nobody else gets to read it.
-(umask 077 && openssl ecparam -name prime256v1 -genkey -noout -out ca.key)
-openssl req -new -x509 -key ca.key -days 3650 -subj "/CN=nanoMMO authority" \
-  -config openssl.cnf -extensions authority -out ca.crt
+if [ ! -f ca.key ]; then
+  # The authority's key signs certificates, so nobody else gets to read it.
+  (umask 077 && openssl ecparam -name prime256v1 -genkey -noout -out ca.key)
+  openssl req -new -x509 -key ca.key -days 3650 -subj "/CN=nanoMMO authority" \
+    -config openssl.cnf -extensions authority -out ca.crt
+  made="a certificate authority and the servers' certificate"
+else
+  made="the servers' certificate, from the authority it had,"
+  again="; start the servers again to use it"
+fi
 
 openssl ecparam -name prime256v1 -genkey -noout -out server.key
 # The servers read it as a user of their own, in their containers.
@@ -51,4 +93,4 @@ openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
   -extfile openssl.cnf -extensions servers -out server.crt
 
 rm openssl.cnf server.csr
-echo "certificates: made a certificate authority and the servers' certificate in $dir"
+echo "certificates: made $made in $dir, for $names${again:-}"
