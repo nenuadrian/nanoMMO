@@ -3,6 +3,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdint>
+#include <exception>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -110,8 +111,19 @@ int main(int argc, char* argv[]) {
   }
 
   nanommo::Metrics metrics;
-  prometheus::Exposer exposer("0.0.0.0:" + std::to_string(*metrics_port));
-  exposer.RegisterCollectable(metrics.registry());
+  // civetweb throws when the port's taken, as by another world on this
+  // machine, which would end the server without a word on why.
+  std::optional<prometheus::Exposer> exposer;
+  try {
+    exposer.emplace("0.0.0.0:" + std::to_string(*metrics_port));
+  } catch (const std::exception& error) {
+    std::cerr << "nanommo server: couldn't serve metrics on port "
+              << *metrics_port << " (" << error.what()
+              << "). Is another server running here? Another world needs a "
+                 "port of its own, and NANOMMO_METRICS_PORT too\n";
+    return 1;
+  }
+  exposer->RegisterCollectable(metrics.registry());
 
   absl::StatusOr<std::unique_ptr<nanommo::Database>> database_or =
       nanommo::Database::Create(

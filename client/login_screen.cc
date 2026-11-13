@@ -286,7 +286,9 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildWorlds() {
     ImGui::PopID();
   }
   if (count == 0) {
+    // A world is a nanommo_server, which Consul lists once it's started.
     ImGui::TextDisabled("No worlds are up.");
+    ImGui::TextDisabled("Start nanommo_server, then Refresh.");
   }
   ImGui::Spacing();
   const float third = (ImGui::GetContentRegionAvail().x -
