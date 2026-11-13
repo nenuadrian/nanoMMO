@@ -23,8 +23,8 @@ int main() {
   std::cout << "nanommo login: version " << nanommo::kVersion << std::endl;
   constexpr uint16_t kPort = 7778;
   absl::StatusOr<asio::ssl::context> tls = nanommo::ServerTls(
-      nanommo::Setting("NANOMMO_TLS_CERTIFICATE", "tls/server.crt"),
-      nanommo::Setting("NANOMMO_TLS_KEY", "tls/server.key"));
+      nanommo::FileSetting("NANOMMO_TLS_CERTIFICATE", "tls/server.crt"),
+      nanommo::FileSetting("NANOMMO_TLS_KEY", "tls/server.key"));
   if (!tls.ok()) {
     std::cerr << "nanommo login: " << tls.status() << "\n";
     return 1;

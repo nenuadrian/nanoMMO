@@ -268,14 +268,14 @@ int main(int argc, char* argv[]) {
   const std::string transport = argc > 6 ? argv[6] : "udp";
 
   absl::StatusOr<asio::ssl::context> tls =
-      nanommo::ClientTls(nanommo::Setting("NANOMMO_TLS_CA", "tls/ca.crt"));
+      nanommo::ClientTls(nanommo::FileSetting("NANOMMO_TLS_CA", "tls/ca.crt"));
   if (!tls.ok()) {
     std::cerr << "nanommo bot: " << tls.status() << "\n";
     return 1;
   }
 
   const absl::StatusOr<nanommo::Content> content =
-      nanommo::ReadContent(nanommo::Setting("NANOMMO_CONTENT", "content"));
+      nanommo::ReadContent(nanommo::FileSetting("NANOMMO_CONTENT", "content"));
   if (!content.ok()) {
     std::cerr << "nanommo bot: " << content.status() << "\n";
     return 1;

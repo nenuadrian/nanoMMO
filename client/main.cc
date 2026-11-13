@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
   const std::string host = argc > 1 ? argv[1] : "localhost";
   const std::string transport = argc > 2 ? argv[2] : "udp";
   absl::StatusOr<asio::ssl::context> tls =
-      nanommo::ClientTls(nanommo::Setting("NANOMMO_TLS_CA", "tls/ca.crt"));
+      nanommo::ClientTls(nanommo::FileSetting("NANOMMO_TLS_CA", "tls/ca.crt"));
   if (!tls.ok()) {
     std::cerr << "nanommo client: " << tls.status() << "\n";
     return 1;

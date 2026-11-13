@@ -95,15 +95,15 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   const absl::StatusOr<nanommo::Content> content =
-      nanommo::ReadContent(nanommo::Setting("NANOMMO_CONTENT", "content"));
+      nanommo::ReadContent(nanommo::FileSetting("NANOMMO_CONTENT", "content"));
   if (!content.ok()) {
     std::cerr << "nanommo server: " << content.status() << "\n";
     return 1;
   }
 
   absl::StatusOr<asio::ssl::context> tls = nanommo::ServerTls(
-      nanommo::Setting("NANOMMO_TLS_CERTIFICATE", "tls/server.crt"),
-      nanommo::Setting("NANOMMO_TLS_KEY", "tls/server.key"));
+      nanommo::FileSetting("NANOMMO_TLS_CERTIFICATE", "tls/server.crt"),
+      nanommo::FileSetting("NANOMMO_TLS_KEY", "tls/server.key"));
   if (!tls.ok()) {
     std::cerr << "nanommo server: " << tls.status() << "\n";
     return 1;

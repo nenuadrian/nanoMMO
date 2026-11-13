@@ -1,6 +1,6 @@
 add_library(nanommo_protocol
-  nanommo.proto chat.cc framing.cc login_client.cc parts.cc places.cc tls.cc
-  version.cc
+  nanommo.proto chat.cc framing.cc login_client.cc parts.cc places.cc
+  settings.cc tls.cc version.cc
 )
 protobuf_generate(TARGET nanommo_protocol
   IMPORT_DIRS ${PROJECT_SOURCE_DIR} PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}
@@ -11,6 +11,10 @@ set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/nanommo.pb.cc
 # The version, from project(), as a header next to the generated protocol.
 configure_file(version.h.in version.h @ONLY)
 target_include_directories(nanommo_protocol PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
+# Where the repository is, for the files the programs read from it.
+set_source_files_properties(settings.cc PROPERTIES
+  COMPILE_DEFINITIONS NANOMMO_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+)
 target_link_libraries(nanommo_protocol PUBLIC
   nanommo_content protobuf::libprotobuf absl::status absl::statusor absl::strings
   asio OpenSSL::SSL
@@ -18,7 +22,7 @@ target_link_libraries(nanommo_protocol PUBLIC
 
 add_executable(nanommo_protocol_tests
   protocol_test.cc framing_test.cc parts_test.cc tls_test.cc chat_test.cc
-  version_test.cc
+  settings_test.cc version_test.cc
 )
 target_link_libraries(nanommo_protocol_tests PRIVATE nanommo_protocol GTest::gtest_main)
 
