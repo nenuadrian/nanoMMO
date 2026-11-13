@@ -232,7 +232,7 @@ if(DOXYGEN_FOUND)
   # Each page in docs/ is a page of its own in the menu, after the README, in
   # the order the README lists them.
   doxygen_add_docs(docs
-    README.md
+    README.md docs/getting-started.md
     docs/gameplay.md docs/content.md docs/npcs.md docs/graphics.md docs/cinema.md
     docs/island.md docs/worlds.md docs/networking.md docs/accounts.md
     docs/saving.md docs/website.md docs/monitoring.md docs/benchmarking.md

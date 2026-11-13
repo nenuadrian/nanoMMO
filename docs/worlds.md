@@ -13,9 +13,9 @@ A world takes its port as its first argument (7777 by default), and the rest fro
 | `NANOMMO_WORLD` | `Ember` | Its name, up to 16 letters and digits |
 | `NANOMMO_WORLD_SEED` | `1` | The seed its lands' islands grow from |
 | `NANOMMO_PUBLIC_HOST` | `localhost` | Where players reach it, on its port; Compose takes it from your shell |
-| `NANOMMO_METRICS_PORT` | `9464` | Where Prometheus reaches its metrics |
+| `NANOMMO_METRICS_PORT` | `9464` | Where Prometheus reaches its metrics, which a second world on the machine needs another of |
 | `NANOMMO_CONSUL_HOST` | `127.0.0.1` | Where Consul is, on port 8500 |
-| `NANOMMO_CONTENT` | `content` | The content folder (see [Content](content.md)); the image has its own |
+| `NANOMMO_CONTENT` | `content` | The content folder, in the repository it was built from (see [Content](content.md)); the image has its own |
 
 - A world registers with its name, its address, the public host and port, the metrics port, how
   many players it has and when it started, and a health check that turns critical ten seconds
@@ -35,8 +35,10 @@ A world takes its port as its first argument (7777 by default), and the rest fro
   world can run as two instances for a moment, on two ports. The login server lists each world
   once, at its newest instance, and Prometheus labels each instance with its world, from the
   `world` in its registration.
-- To play from another machine, start the worlds with the address of this one:
-  `NANOMMO_PUBLIC_HOST=192.168.1.20 docker compose up -d`.
+- To play from another machine, start the worlds with the address of this one, which the servers'
+  certificate has to name too: `tls/certificates.sh tls 192.168.1.20`, then
+  `NANOMMO_PUBLIC_HOST=192.168.1.20 docker compose up -d` (see
+  [Getting started](getting-started.md#6-play-from-another-computer)).
 - Consul runs in development mode: one server, which keeps everything in memory. Each world
   registers again within two seconds, so a restart loses nothing for long. In production, Consul
   would run as three or five servers, so that one can fail.

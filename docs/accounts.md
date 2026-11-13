@@ -69,13 +69,19 @@ go on the certificate too, such as a server's domain, or its address, which goes
 tls/certificates.sh tls play.example.com 203.0.113.7
 ```
 
-It leaves certificates that are there already alone, so delete `tls/*.crt` and `tls/*.key` to make new
-ones. Git ignores them, so each copy of the repo has an authority of its own.
+Run again, it keeps what's there. Given a name the certificate lacks, or once the certificate has
+expired, it signs a new one for the servers, with every name, from the same authority, so the clients' `ca.crt` still trusts it, and the servers
+use it once they start again. Delete `tls/*.crt` and `tls/*.key` for a new authority. Git ignores
+them, so each copy of the repo has an authority of its own. Its first argument is the folder, so it
+refuses an address or a domain there, which would have made a folder of that name.
 
 - The servers load their certificate and key from `NANOMMO_TLS_CERTIFICATE` and `NANOMMO_TLS_KEY`
-  (default: `tls/server.crt` and `tls/server.key`).
+  (default: `tls/server.crt` and `tls/server.key`, in the repository they were built from, or else
+  in the folder they run in, as in Docker).
 - The client and the bots trust the certificates the authority in `NANOMMO_TLS_CA` signed (default:
-  `tls/ca.crt`), and no others, and check that the server's name is on the certificate.
+  `tls/ca.crt`), and no others, and check that the server's name is on the certificate. OpenSSL
+  checks the name, so a refused handshake says why: the name the certificate lacks, an authority
+  of another copy of the repo, or a certificate that's expired.
 - In Docker Compose, the `certificates` service makes them, the first time, before the servers start,
   and the servers and the bots get `tls/` read-only.
 

@@ -7,6 +7,23 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.65.0 (2026-11-13)
+
+- `doctor.sh` checks the tools, the libraries, Docker, the ports and the certificates, and ends with
+  one command that installs every missing package, with Homebrew or apt.
+- The servers, the bots and the client find `tls/` and `content/` in the repository they were built
+  from, so they run from any folder.
+- A failed handshake says why: a certificate that doesn't name the host asked for, one from another
+  authority, or one that's expired, with what to do. A world registered at `localhost`, reached from
+  another machine, says to set `NANOMMO_PUBLIC_HOST`.
+- `tls/certificates.sh` adds names it's given to the servers' certificate, from the same authority,
+  and refuses an address where the folder goes.
+- A second server on a machine says its metrics port is taken, where it crashed, and the worlds
+  screen says to start one when none is up.
+- Compose's MySQL, Redis, ClickHouse, Consul, storyteller and monitoring listen on 127.0.0.1 only.
+- GCC builds without a warning for each field a designated initializer leaves out.
+- [Getting started](docs/getting-started.md): from a clone to playing, a step at a time.
+
 ## 0.64.0 (2026-11-03)
 
 - The hotbar's skills are in slots of brass, each icon in its skill's colour, and dragging one onto
