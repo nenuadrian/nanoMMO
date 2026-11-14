@@ -316,10 +316,12 @@ int main(int argc, char* argv[]) {
         numbered.set_sequence(++sequence);
         connection->Send(numbered);
         round_trip.Sent(sequence, GetTime());
-        // And they walk us now, as the server will when they reach it.
+        // And they walk us now, as the server will when they reach it,
+        // unless it's steering us itself, when they don't.
         if (terrain) {
-          prediction.Walk(*terrain, sequence, direction.x, direction.z, run,
-                          kInputTick);
+          const bool steered = connection->world().steered();
+          prediction.Walk(*terrain, sequence, steered ? 0.0f : direction.x,
+                          steered ? 0.0f : direction.z, run, kInputTick);
         }
       }
       keys = direction;

@@ -253,6 +253,9 @@ message World {
   GuildInvite invite = 21;
   // The last of your inputs the server has applied, by its sequence.
   uint32 acked = 22;
+  // Whether the server moved you itself this tick, along a walk you asked
+  // for, up to a monster or with a skill, or you're dead: your keys didn't.
+  bool steered = 23;
 }
 
 // To the login server: log in with a name and password, or make an account,

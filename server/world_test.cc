@@ -1246,3 +1246,17 @@ TEST(World, RecordsTheBlowsAndTheHealingForThePlayersToSee) {
   EXPECT_EQ(hurt->player_id, 1u);
   EXPECT_EQ(hurt->amount, 5u);
 }
+
+TEST(World, SaysWhenItMovesAPlayerItself) {
+  nanommo::World world;
+  world.Join(1, {});
+
+  world.SetInput(1, 1.0f, 0.0f, false);
+  world.Step(kTick);
+  EXPECT_FALSE(world.players().at(1).steered);
+
+  world.SetInput(1, 0.0f, 0.0f, false);
+  world.WalkTo(1, {4.0f, 3.0f});
+  world.Step(kTick);
+  EXPECT_TRUE(world.players().at(1).steered);
+}

@@ -70,6 +70,9 @@ protocol::World Predicted(const protocol::World& world,
     }
     player.set_x(prediction.shown_x());
     player.set_z(prediction.shown_z());
+    if (shown.steered()) {
+      continue;
+    }
     const protocol::Motion motion = player.motion();
     if (motion == protocol::MOTION_IDLE || motion == protocol::MOTION_WALK ||
         motion == protocol::MOTION_RUN) {

@@ -85,6 +85,9 @@ struct Player {
   /// Where the player walks by themselves, as they asked to: each place in
   /// turn, straight, until they get there, or move, fight or die.
   std::deque<Place> way;
+  /// Whether the world moved them itself this tick, along their way, up to a
+  /// monster or with a skill, or they're dead, so their keys didn't.
+  bool steered = false;
   float input_x = 0.0f;
   float input_z = 0.0f;
   bool input_run = false;

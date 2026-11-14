@@ -1080,6 +1080,7 @@ void Server::BroadcastCopy(const Copy& copy, bool full) {
       if (const auto acked = acked_.find(id); acked != acked_.end()) {
         you.set_acked(acked->second);
       }
+      you.set_steered(player.steered);
       // Where you are, with the last input applied, in every datagram, so
       // the two always come together, whichever part has you otherwise.
       protocol::Player* here = you.add_players();

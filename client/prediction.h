@@ -58,7 +58,8 @@ class Prediction {
 
 /// The world as the server sent it, with you where the prediction draws you,
 /// and walking, running or standing as your keys say, facing the way they
-/// go, unless the server has you doing something else, such as a swing.
+/// go, unless the server has you doing something else, such as a swing, or
+/// it steers you, when you move as it says.
 protocol::World Predicted(const protocol::World& world,
                           const Prediction& prediction, float direction_x,
                           float direction_z, bool run);

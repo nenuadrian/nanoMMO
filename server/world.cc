@@ -485,6 +485,9 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
   // Cooldowns run down whatever the player's doing.
   RunDown(player.cooldowns, time);
   RunDown(player.item_cooldowns, time);
+  // A skill moves them as it goes, and the dead don't move.
+  player.steered =
+      player.motion == Motion::kSkill || player.motion == Motion::kDead;
   // The dead wait, and then stay down until they ask to come back.
   if (player.motion == Motion::kDead) {
     player.input_skill = 0;
@@ -589,6 +592,7 @@ void World::Go(Player& player, float to_x, float to_z, bool run,
 }
 
 void World::Follow(Player& player, std::chrono::nanoseconds time) {
+  player.steered = true;
   const Place next = player.way.front();
   const float distance = std::hypot(next.x - player.x, next.z - player.z);
   const float step = kRunSpeed * std::chrono::duration<float>(time).count();
@@ -612,6 +616,7 @@ void World::Follow(Player& player, std::chrono::nanoseconds time) {
 
 void World::Approach(Player& player, float reach,
                      std::chrono::nanoseconds time) {
+  player.steered = true;
   const Monster* monster = Target(player, kAnyDistance);
   const float distance = Distance(player, *monster);
   const float step = kRunSpeed * std::chrono::duration<float>(time).count();

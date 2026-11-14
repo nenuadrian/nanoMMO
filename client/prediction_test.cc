@@ -56,3 +56,29 @@ TEST(Prediction, AJumpIsntFaded) {
   prediction.Correct(flat, 40.0f, 0.0f, 0, kTick);
   EXPECT_FLOAT_EQ(prediction.shown_x(), 40.0f);
 }
+
+TEST(Prediction, MovesYouAsTheServerSaysWhileItSteersYou) {
+  const nanommo::Terrain flat;
+  nanommo::Prediction prediction;
+  prediction.Correct(flat, 1.0f, 2.0f, 0, kTick);
+  nanommo::protocol::World world;
+  world.set_you(7);
+  world.set_steered(true);
+  nanommo::protocol::Player* you = world.add_players();
+  you->set_id(7);
+  you->set_motion(nanommo::protocol::MOTION_RUN);
+  you->set_yaw(0.5f);
+
+  const nanommo::protocol::World shown =
+      nanommo::Predicted(world, prediction, 0.0f, 0.0f, false);
+  EXPECT_EQ(shown.players(0).motion(), nanommo::protocol::MOTION_RUN);
+  EXPECT_FLOAT_EQ(shown.players(0).yaw(), 0.5f);
+  EXPECT_FLOAT_EQ(shown.players(0).x(), 1.0f);
+
+  // Without the server steering, standing keys stand you still.
+  world.set_steered(false);
+  EXPECT_EQ(nanommo::Predicted(world, prediction, 0.0f, 0.0f, false)
+                .players(0)
+                .motion(),
+            nanommo::protocol::MOTION_IDLE);
+}
