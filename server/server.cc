@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
@@ -505,6 +506,17 @@ void Server::Guild(uint32_t id, const protocol::GuildAction& action) {
     case protocol::GuildAction::kCreate:
       Found(id, action.create());
       break;
+    case protocol::GuildAction::kInvite:
+      Ask(id, action.invite());
+      break;
+    case protocol::GuildAction::kAccept:
+      Join(id);
+      break;
+    case protocol::GuildAction::kDecline:
+      if (const absl::Status declined = guilds_.Decline(id); !declined.ok()) {
+        Refuse(id, declined);
+      }
+      break;
     case protocol::GuildAction::ACTION_NOT_SET:
       break;
   }
@@ -520,6 +532,60 @@ void Server::Found(uint32_t id, const std::string& name) {
   guild_news_.insert(id);
   std::cout << WorldOf(id)->players().at(id).name << " founded "
             << founded->name << std::endl;
+}
+
+void Server::Ask(uint32_t id, const std::string& name) {
+  // They have to be playing here, to see the question.
+  uint32_t asked = 0;
+  std::string asked_name;
+  for (const auto& [copy_id, copy] : copies_.all()) {
+    for (const auto& [other, player] : copy.world.players()) {
+      if (absl::EqualsIgnoreCase(player.name, name)) {
+        asked = other;
+        asked_name = player.name;
+      }
+    }
+  }
+  if (asked == 0) {
+    Notify(id,
+           absl::StrCat("Nobody of that name is playing in ", name_, " now."));
+    return;
+  }
+  if (members_.contains(asked)) {
+    Notify(id, absl::StrCat(asked_name, " is in a guild already."));
+    return;
+  }
+  const absl::StatusOr<Membership> guild = guilds_.Invite(id, asked);
+  if (!guild.ok()) {
+    Refuse(id, guild.status());
+    return;
+  }
+  protocol::World question;
+  question.mutable_invite()->set_guild(guild->name);
+  question.mutable_invite()->set_from(WorldOf(id)->players().at(id).name);
+  sessions_.at(asked)->Send(Frame(question));
+  Notify(id,
+         absl::StrCat("You asked ", asked_name, " to join ", guild->name, "."));
+}
+
+void Server::Join(uint32_t id) {
+  const absl::StatusOr<Membership> joined = guilds_.Accept(id);
+  if (!joined.ok()) {
+    Refuse(id, joined.status());
+    return;
+  }
+  members_[id] = *joined;
+  guild_news_.insert(id);
+  TellGuild(joined->guild, absl::StrCat(WorldOf(id)->players().at(id).name,
+                                        " joined ", joined->name, "."));
+}
+
+void Server::TellGuild(uint32_t guild, const std::string& text) {
+  for (const auto& [id, membership] : members_) {
+    if (membership.guild == guild) {
+      Notify(id, text);
+    }
+  }
 }
 
 void Server::Refuse(uint32_t id, const absl::Status& why) {

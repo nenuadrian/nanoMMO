@@ -2,9 +2,18 @@
 
 #include <imgui.h>
 
+#include <utility>
+
 #include "client/theme.h"
 
 namespace nanommo {
+
+namespace {
+
+// As long as the server keeps an invitation.
+constexpr double kInvitationLife = 60.0;
+
+}  // namespace
 
 const char* RankName(protocol::Rank rank) {
   switch (rank) {
@@ -17,12 +26,17 @@ const char* RankName(protocol::Rank rank) {
   }
 }
 
+void GuildWindow::Invited(protocol::GuildInvite invite) {
+  invite_ = std::move(invite);
+  invited_at_ = ImGui::GetTime();
+}
+
 std::optional<protocol::GuildAction> GuildWindow::Build(
     const protocol::Guild& yours) {
+  std::optional<protocol::GuildAction> action = BuildQuestion();
   if (!visible_) {
-    return std::nullopt;
+    return action;
   }
-  std::optional<protocol::GuildAction> action;
   const ImVec2 display = ImGui::GetIO().DisplaySize;
   ImGui::SetNextWindowPos({display.x * 0.5f, display.y * 0.4f},
                           ImGuiCond_FirstUseEver, {0.5f, 0.5f});
@@ -30,6 +44,7 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
                  ImGuiWindowFlags_AlwaysAutoResize |
                      ImGuiWindowFlags_NoSavedSettings)) {
     const float width = Ui(280.0f);
+    const bool named = name_[0] != '\0';
     if (yours.name().empty()) {
       ImGui::TextUnformatted("You're in no guild. Found one:");
       ImGui::TextDisabled("3 to 24 letters, one space between words.");
@@ -37,7 +52,6 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
       const bool entered = ImGui::InputTextWithHint(
           "##name", "Its name", name_.data(), name_.size(),
           ImGuiInputTextFlags_EnterReturnsTrue);
-      const bool named = name_[0] != '\0';
       if ((GameButton("Found the guild", {width, 0.0f}, true, named) ||
            entered) &&
           named) {
@@ -46,9 +60,57 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
     } else {
       ImGui::TextUnformatted(yours.name().c_str());
       ImGui::TextDisabled("%s", RankName(yours.rank()));
+      // Officers and the leader ask players in, by name.
+      if (yours.rank() != protocol::RANK_MEMBER) {
+        ImGui::Spacing();
+        ImGui::SetNextItemWidth(width);
+        const bool entered = ImGui::InputTextWithHint(
+            "##player", "Someone playing here", player_.data(), player_.size(),
+            ImGuiInputTextFlags_EnterReturnsTrue);
+        const bool someone = player_[0] != '\0';
+        if ((GameButton("Ask them in", {width, 0.0f}, false, someone) ||
+             entered) &&
+            someone) {
+          action.emplace().set_invite(player_.data());
+          player_.fill('\0');
+        }
+      }
     }
   }
   EndPanel();
+  return action;
+}
+
+std::optional<protocol::GuildAction> GuildWindow::BuildQuestion() {
+  if (!invite_ || ImGui::GetTime() - invited_at_ > kInvitationLife) {
+    invite_.reset();
+    return std::nullopt;
+  }
+  const ImVec2 display = ImGui::GetIO().DisplaySize;
+  ImGui::SetNextWindowPos({display.x / 2.0f, display.y * 0.3f},
+                          ImGuiCond_Always, {0.5f, 0.5f});
+  bool open = true;
+  std::optional<protocol::GuildAction> action;
+  BeginPanel("Join a guild?", &open,
+             ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
+                 ImGuiWindowFlags_NoSavedSettings);
+  ImGui::Text("%s asks you to join %s.", invite_->from().c_str(),
+              invite_->guild().c_str());
+  ImGui::Spacing();
+  if (GameButton("Join", {Ui(150.0f), 0.0f}, true)) {
+    action.emplace().set_accept(true);
+    open = false;
+  }
+  ImGui::SameLine();
+  // Saying no tells the server, so that another guild can ask.
+  if (GameButton("Not now", {Ui(150.0f), 0.0f})) {
+    action.emplace().set_decline(true);
+    open = false;
+  }
+  EndPanel();
+  if (!open) {
+    invite_.reset();
+  }
   return action;
 }
 

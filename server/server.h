@@ -80,6 +80,11 @@ class Server {
   void Item(uint32_t id, const protocol::ItemAction& action);
   void Guild(uint32_t id, const protocol::GuildAction& action);
   void Found(uint32_t id, const std::string& name);
+  /// Asks the player of that name in, if they're playing in this world.
+  void Ask(uint32_t id, const std::string& name);
+  void Join(uint32_t id);
+  /// Sends each of the guild's players here a line from the server.
+  void TellGuild(uint32_t guild, const std::string& text);
   /// Tells the player why their guild action failed: in the error's words
   /// when it's about what they asked, and with "try again" when it's MySQL.
   void Refuse(uint32_t id, const absl::Status& why);

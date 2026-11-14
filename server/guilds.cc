@@ -10,6 +10,16 @@
 
 namespace nanommo {
 
+namespace {
+
+// Each player has one invitation at a time, by their character's id, which
+// holds the guild's.
+std::string InvitationOf(uint32_t player) {
+  return absl::StrCat("guild_invite:", player);
+}
+
+}  // namespace
+
 absl::Status CheckGuildName(std::string_view name) {
   if (name.size() < 3 || name.size() > 24) {
     return absl::InvalidArgumentError(
@@ -86,6 +96,96 @@ absl::StatusOr<Membership> Guilds::Create(const std::string& world,
     return created;
   }
   return membership;
+}
+
+absl::StatusOr<Membership> Guilds::Invite(uint32_t from, uint32_t player) {
+  absl::StatusOr<Membership> asking = Of(from);
+  if (!asking.ok()) {
+    return asking.status();
+  }
+  if (asking->rank == protocol::RANK_MEMBER) {
+    return absl::PermissionDeniedError(
+        "Only officers and the leader can ask someone in.");
+  }
+  // NX sets it only when there's none, so of two asking at once, from any
+  // instance, one does, and the invitation runs out by itself.
+  const absl::StatusOr<std::string> asked =
+      redis_.Command({"SET", InvitationOf(player), absl::StrCat(asking->guild),
+                      "EX", absl::StrCat(kInvitationLife.count()), "NX"});
+  if (absl::IsNotFound(asked.status())) {
+    return absl::AlreadyExistsError("They've been asked to join a guild.");
+  }
+  if (!asked.ok()) {
+    return asked.status();
+  }
+  return asking;
+}
+
+absl::StatusOr<Membership> Guilds::Accept(uint32_t player) {
+  // Read, and not taken yet, so that a MySQL that fails for a moment leaves
+  // it to try again. Two at once can't both join, as a character is in one
+  // guild at most.
+  const absl::StatusOr<std::string> invitation =
+      redis_.Command({"GET", InvitationOf(player)});
+  if (absl::IsNotFound(invitation.status())) {
+    return absl::NotFoundError("Nobody's asked you, or it's run out.");
+  }
+  if (!invitation.ok()) {
+    return invitation.status();
+  }
+  Membership membership;
+  if (!absl::SimpleAtoi(*invitation, &membership.guild)) {
+    return absl::InternalError("an invitation that isn't a number");
+  }
+  const absl::Status joined = database_.Transaction([&]() -> absl::Status {
+    // Locking the guild's row first, as every change to a guild does, so
+    // that changes to one guild happen one at a time, and it can't end or
+    // fill up while we join.
+    const absl::StatusOr<Result> guild =
+        database_.Run("SELECT name FROM guilds WHERE id = ? FOR UPDATE",
+                      {absl::StrCat(membership.guild)});
+    if (!guild.ok()) {
+      return guild.status();
+    }
+    if (guild->rows.empty()) {
+      return absl::NotFoundError("That guild is gone.");
+    }
+    membership.name = guild->rows.front()[0];
+    const absl::StatusOr<Result> members =
+        database_.Run("SELECT COUNT(*) FROM guild_members WHERE guild = ?",
+                      {absl::StrCat(membership.guild)});
+    if (!members.ok()) {
+      return members.status();
+    }
+    int count = 0;
+    if (!absl::SimpleAtoi(members->rows.front()[0], &count)) {
+      return absl::InternalError("a count that isn't a number");
+    }
+    if (count >= kMostMembers) {
+      return absl::ResourceExhaustedError(
+          absl::StrCat(membership.name, " is full."));
+    }
+    const absl::StatusOr<Result> member =
+        database_.Run("INSERT INTO guild_members (player, guild) VALUES (?, ?)",
+                      {absl::StrCat(player), absl::StrCat(membership.guild)});
+    if (absl::IsAlreadyExists(member.status())) {
+      return absl::AlreadyExistsError("You're in a guild already.");
+    }
+    return member.status();
+  });
+  // Joined, or never will be with this one, it's spent. If deleting it fails,
+  // it runs out by itself.
+  if (!absl::IsAborted(joined) && !absl::IsUnavailable(joined)) {
+    redis_.Command({"DEL", InvitationOf(player)}).status().IgnoreError();
+  }
+  if (!joined.ok()) {
+    return joined;
+  }
+  return membership;
+}
+
+absl::Status Guilds::Decline(uint32_t player) {
+  return redis_.Command({"DEL", InvitationOf(player)}).status();
 }
 
 }  // namespace nanommo

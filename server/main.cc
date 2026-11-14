@@ -144,7 +144,7 @@ int main(int argc, char* argv[]) {
   const std::unique_ptr<nanommo::Redis> redis = *std::move(redis_or);
   nanommo::Tokens tokens(*redis);
   nanommo::Players players(*database, *redis);
-  nanommo::Guilds guilds(*database);
+  nanommo::Guilds guilds(*database, *redis);
   nanommo::Events events(*redis);
 
   asio::io_context io;

@@ -238,6 +238,8 @@ message World {
   // Your guild, which comes on its own, over TCP, as you join and as it
   // changes.
   Guild guild = 20;
+  // A guild asking you to join, which comes on its own, over TCP.
+  GuildInvite invite = 21;
 }
 
 // To the login server: log in with a name and password, or make an account,
@@ -317,7 +319,20 @@ message GuildAction {
   oneof action {
     // Found a guild of that name, and lead it.
     string create = 1;
+    // Ask a player in this world to join, by their name.
+    string invite = 2;
+    // Join the guild that asked.
+    bool accept = 3;
+    // Say no to the guild that asked, so that another can.
+    bool decline = 4;
   }
+}
+
+// A guild asking you to join it, which waits a minute for your answer.
+message GuildInvite {
+  string guild = 1;
+  // Who asked, by their name.
+  string from = 2;
 }
 
 // Your guild, and your rank in it, or no name for none.

@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -14,6 +15,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "asio/buffer.hpp"
 #include "asio/ip/address.hpp"
@@ -78,6 +80,11 @@ class TestPlayer {
     return guild_;
   }
 
+  /// The last guild that asked the player to join, once one has.
+  const std::optional<nanommo::protocol::GuildInvite>& invite() const {
+    return invite_;
+  }
+
   /// What the server told the player, which nobody said.
   const std::vector<std::string>& notices() const { return notices_; }
 
@@ -132,6 +139,8 @@ class TestPlayer {
               bag_ = world.inventory();
             } else if (world.has_guild()) {
               guild_ = world.guild();
+            } else if (world.has_invite()) {
+              invite_ = world.invite();
             } else if (world.has_quests()) {
               quests_ = world.quests();
             } else if (!world.events().empty()) {
@@ -159,6 +168,7 @@ class TestPlayer {
   nanommo::protocol::Inventory bag_;
   std::optional<nanommo::protocol::Quests> quests_;
   std::optional<nanommo::protocol::Guild> guild_;
+  std::optional<nanommo::protocol::GuildInvite> invite_;
   std::vector<std::string> notices_;
   std::vector<nanommo::protocol::Event> events_;
   bool closed_ = false;
@@ -177,7 +187,7 @@ class ServerTest : public ::testing::Test {
     bob_ = NewAccount();
     tokens_ = std::make_unique<nanommo::Tokens>(*redis_);
     players_ = std::make_unique<nanommo::Players>(*database_, *redis_);
-    guilds_ = std::make_unique<nanommo::Guilds>(*database_);
+    guilds_ = std::make_unique<nanommo::Guilds>(*database_, *redis_);
     events_ = std::make_unique<nanommo::Events>(*redis_);
     // Nobody asks it for a story, as the world has no NPCs.
     storyteller_ = std::make_unique<nanommo::Storyteller>(io_, "127.0.0.1");
@@ -202,7 +212,8 @@ class ServerTest : public ::testing::Test {
       EXPECT_TRUE(redis_
                       ->Pipeline({{"DEL", key},
                                   {"SREM", "players:unsaved", key},
-                                  {"SREM", "items:unsaved", key}})
+                                  {"SREM", "items:unsaved", key},
+                                  {"DEL", absl::StrCat("guild_invite:", id)}})
                       .ok());
     }
     // Their characters go with them, and their memberships with those, but
@@ -231,6 +242,7 @@ class ServerTest : public ::testing::Test {
         nanommo::Characters(*database_).Create(accounts_.back(), world_, name);
     EXPECT_TRUE(id.ok()) << id.status();
     characters_.push_back(id.value_or(0));
+    names_[characters_.back()] = name;
     return characters_.back();
   }
 
@@ -260,6 +272,7 @@ class ServerTest : public ::testing::Test {
   std::unique_ptr<nanommo::Redis> redis_;
   std::vector<uint32_t> accounts_;
   std::vector<uint32_t> characters_;
+  std::map<uint32_t, std::string> names_;
   uint32_t alice_ = 0;
   uint32_t bob_ = 0;
   std::unique_ptr<nanommo::Tokens> tokens_;
@@ -529,5 +542,33 @@ TEST_F(ServerTest, OthersSeeTheGuildWithYourName) {
         bob.world().players(), [&](const nanommo::protocol::Player& player) {
           return player.id() == alice_ && player.guild() == "Iron Wolves";
         });
+  }));
+}
+
+TEST_F(ServerTest, AskedPlayersJoin) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, server_->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] { return alice.guild() && bob.guild(); }));
+  nanommo::protocol::Input found;
+  found.mutable_guild()->set_create("Iron Wolves");
+  alice.Send(found);
+  ASSERT_TRUE(RunUntil([&] { return alice.guild()->name() == "Iron Wolves"; }));
+
+  // By their name, whatever its case.
+  nanommo::protocol::Input ask;
+  ask.mutable_guild()->set_invite(absl::AsciiStrToUpper(names_[bob_]));
+  alice.Send(ask);
+  ASSERT_TRUE(RunUntil([&] { return bob.invite().has_value(); }));
+  EXPECT_EQ(bob.invite()->guild(), "Iron Wolves");
+  EXPECT_EQ(bob.invite()->from(), names_[alice_]);
+
+  nanommo::protocol::Input accept;
+  accept.mutable_guild()->set_accept(true);
+  bob.Send(accept);
+  ASSERT_TRUE(RunUntil([&] { return bob.guild()->name() == "Iron Wolves"; }));
+  EXPECT_EQ(bob.guild()->rank(), nanommo::protocol::RANK_MEMBER);
+  const std::string joined = absl::StrCat(names_[bob_], " joined Iron Wolves.");
+  EXPECT_TRUE(RunUntil([&] {
+    return !alice.notices().empty() && alice.notices().back() == joined;
   }));
 }

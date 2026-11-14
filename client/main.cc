@@ -602,6 +602,10 @@ int main(int argc, char* argv[]) {
         connection->Send(ask);
         predicted_bag.Act(bag, *item);
       }
+      if (std::optional<nanommo::protocol::GuildInvite> invite =
+              connection->TakeInvite()) {
+        guild_window.Invited(*std::move(invite));
+      }
       if (const std::optional<nanommo::protocol::GuildAction> guild =
               guild_window.Build(connection->guild())) {
         nanommo::protocol::Input ask = sent;

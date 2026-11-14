@@ -204,8 +204,8 @@ void Bot::Receive(std::string_view bytes) {
     quests_ = world.quests();
     return;
   }
-  // A bot founds no guild, so it doesn't need to know it's in none.
-  if (world.has_guild()) {
+  // A bot founds no guild, and doesn't say yes to one that asks it.
+  if (world.has_guild() || world.has_invite()) {
     return;
   }
   parts_.Add(world);

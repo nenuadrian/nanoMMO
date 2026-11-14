@@ -121,6 +121,8 @@ void Connection::Read() {
                                 quests_ = world.quests();
                               } else if (world.has_guild()) {
                                 guild_ = world.guild();
+                              } else if (world.has_invite()) {
+                                invite_ = world.invite();
                               } else if (!world.events().empty()) {
                                 See(world);
                               } else if (world.chat().empty()) {
@@ -168,6 +170,10 @@ void Connection::ReceiveOverUdp() {
 
 std::vector<protocol::Event> Connection::TakeEvents() {
   return std::exchange(events_, {});
+}
+
+std::optional<protocol::GuildInvite> Connection::TakeInvite() {
+  return std::exchange(invite_, std::nullopt);
 }
 
 void Connection::Receive(const protocol::World& world) {

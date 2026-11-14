@@ -57,6 +57,9 @@ class Connection {
   /// over, as each event comes once.
   std::vector<protocol::Event> TakeEvents();
 
+  /// The guild that asked us to join since the last time, once.
+  std::optional<protocol::GuildInvite> TakeInvite();
+
  private:
   Connection(asio::ssl::context& tls, const std::string& token);
 
@@ -84,6 +87,7 @@ class Connection {
   protocol::Inventory inventory_;
   protocol::Quests quests_;
   protocol::Guild guild_;
+  std::optional<protocol::GuildInvite> invite_;
   std::vector<protocol::Event> events_;
   bool udp_worlds_ = false;
   bool connected_ = true;

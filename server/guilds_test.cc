@@ -6,6 +6,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "gtest/gtest.h"
 #include "server/accounts.h"
 #include "server/characters.h"
@@ -25,14 +26,16 @@ TEST(GuildRules, AcceptsGoodNamesOnly) {
 
 namespace {
 
-// Two characters of one account in a world of the test's own, so the
+// Three characters of one account in a world of the test's own, so the
 // guilds' names are free, and one in another world.
 class GuildsTest : public ::testing::Test {
  protected:
   void SetUp() override {
     database_ = nanommo::testing::TestDatabase();
-    if (!database_) {
-      GTEST_SKIP() << "set NANOMMO_MYSQL_HOST to test against MySQL";
+    redis_ = nanommo::testing::TestRedis();
+    if (!database_ || !redis_) {
+      GTEST_SKIP() << "set NANOMMO_MYSQL_HOST and NANOMMO_REDIS_HOST to test "
+                      "against MySQL and Redis";
     }
     const absl::StatusOr<uint32_t> account =
         nanommo::Accounts(*database_).Create(name_, "hash");
@@ -44,15 +47,24 @@ class GuildsTest : public ::testing::Test {
         characters.Create(*account, world_, name_ + "b");
     const absl::StatusOr<uint32_t> carol =
         characters.Create(*account, other_world_, name_);
-    ASSERT_TRUE(alice.ok() && bob.ok() && carol.ok());
+    const absl::StatusOr<uint32_t> dave =
+        characters.Create(*account, world_, name_ + "d");
+    ASSERT_TRUE(alice.ok() && bob.ok() && carol.ok() && dave.ok());
     alice_ = *alice;
     bob_ = *bob;
     carol_ = *carol;
+    dave_ = *dave;
   }
 
   // The accounts take their characters, and those their memberships, but a
   // guild stays until it's deleted.
   void TearDown() override {
+    if (redis_) {
+      for (const uint32_t id : {alice_, bob_, carol_, dave_}) {
+        EXPECT_TRUE(
+            redis_->Command({"DEL", absl::StrCat("guild_invite:", id)}).ok());
+      }
+    }
     if (database_) {
       EXPECT_TRUE(database_
                       ->Run("DELETE FROM guilds WHERE world IN (?, ?)",
@@ -65,18 +77,20 @@ class GuildsTest : public ::testing::Test {
   }
 
   std::unique_ptr<nanommo::Database> database_;
+  std::unique_ptr<nanommo::Redis> redis_;
   const std::string name_ = nanommo::testing::TestName();
   const std::string world_ = name_;
   const std::string other_world_ = name_ + "b";
   uint32_t alice_ = 0;
   uint32_t bob_ = 0;
   uint32_t carol_ = 0;
+  uint32_t dave_ = 0;
 };
 
 }  // namespace
 
 TEST_F(GuildsTest, FoundsAGuildItsFounderLeads) {
-  nanommo::Guilds guilds(*database_);
+  nanommo::Guilds guilds(*database_, *redis_);
   EXPECT_TRUE(absl::IsNotFound(guilds.Of(alice_).status()));
 
   const absl::StatusOr<nanommo::Membership> founded =
@@ -93,7 +107,7 @@ TEST_F(GuildsTest, FoundsAGuildItsFounderLeads) {
 }
 
 TEST_F(GuildsTest, RefusesANameTakenInItsWorldWhateverItsCase) {
-  nanommo::Guilds guilds(*database_);
+  nanommo::Guilds guilds(*database_, *redis_);
   ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
 
   EXPECT_TRUE(absl::IsAlreadyExists(
@@ -102,11 +116,62 @@ TEST_F(GuildsTest, RefusesANameTakenInItsWorldWhateverItsCase) {
 }
 
 TEST_F(GuildsTest, ACharacterFoundsOneGuildAtMost) {
-  nanommo::Guilds guilds(*database_);
+  nanommo::Guilds guilds(*database_, *redis_);
   ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
 
   EXPECT_TRUE(absl::IsAlreadyExists(
       guilds.Create(world_, alice_, "Stone Bears").status()));
   // The refused guild went with its leader, so its name is still free.
   EXPECT_TRUE(guilds.Create(world_, bob_, "Stone Bears").ok());
+}
+
+TEST_F(GuildsTest, AnInvitationIsOneAtATimeAndTakenOnce) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+
+  ASSERT_TRUE(guilds.Invite(alice_, bob_).ok());
+  EXPECT_TRUE(absl::IsAlreadyExists(guilds.Invite(alice_, bob_).status()));
+  const absl::StatusOr<nanommo::Membership> joined = guilds.Accept(bob_);
+  ASSERT_TRUE(joined.ok()) << joined.status();
+  EXPECT_EQ(joined->name, "Iron Wolves");
+  EXPECT_EQ(joined->rank, nanommo::protocol::RANK_MEMBER);
+  EXPECT_TRUE(absl::IsNotFound(guilds.Accept(bob_).status()));
+
+  const absl::StatusOr<nanommo::Membership> of = guilds.Of(bob_);
+  ASSERT_TRUE(of.ok());
+  EXPECT_EQ(of->guild, joined->guild);
+}
+
+TEST_F(GuildsTest, MembersCantAskSomeoneIn) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  ASSERT_TRUE(guilds.Invite(alice_, bob_).ok());
+  ASSERT_TRUE(guilds.Accept(bob_).ok());
+
+  EXPECT_TRUE(absl::IsPermissionDenied(guilds.Invite(bob_, dave_).status()));
+  EXPECT_TRUE(absl::IsNotFound(guilds.Invite(dave_, bob_).status()));
+}
+
+TEST_F(GuildsTest, ACharacterInAGuildCantJoinAnother) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  ASSERT_TRUE(guilds.Create(world_, bob_, "Stone Bears").ok());
+  ASSERT_TRUE(guilds.Invite(alice_, bob_).ok());
+
+  EXPECT_TRUE(absl::IsAlreadyExists(guilds.Accept(bob_).status()));
+  EXPECT_EQ(guilds.Of(bob_)->name, "Stone Bears");
+}
+
+TEST_F(GuildsTest, SayingNoLetsAnotherGuildAsk) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  ASSERT_TRUE(guilds.Create(world_, dave_, "Stone Bears").ok());
+  ASSERT_TRUE(guilds.Invite(alice_, bob_).ok());
+  EXPECT_TRUE(absl::IsAlreadyExists(guilds.Invite(dave_, bob_).status()));
+
+  ASSERT_TRUE(guilds.Decline(bob_).ok());
+  ASSERT_TRUE(guilds.Invite(dave_, bob_).ok());
+  const absl::StatusOr<nanommo::Membership> joined = guilds.Accept(bob_);
+  ASSERT_TRUE(joined.ok()) << joined.status();
+  EXPECT_EQ(joined->name, "Stone Bears");
 }
