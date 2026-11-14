@@ -4,6 +4,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <deque>
 #include <optional>
 #include <random>
 #include <string>
@@ -56,8 +57,12 @@ class Bot {
   void ReceiveOverUdp();
   void Receive(std::string_view bytes);
   void Wander();
-  /// Writes the input to the server.
+  /// Writes the input to the server, after any still being written.
   void Send(const protocol::Input& input);
+  /// Each of the server's ticks, as the client does: the keys as they are,
+  /// and the newest world the bot has whole.
+  void Tick();
+  void Write(std::string frame);
   /// Wanders again once the wait is over.
   void WanderIn(std::chrono::milliseconds wait);
   void Stop();
@@ -66,6 +71,7 @@ class Bot {
   asio::ip::udp::socket udp_socket_;
   asio::steady_timer timer_;
   asio::steady_timer hello_timer_;
+  asio::steady_timer tick_timer_;
   std::mt19937 random_;
   bool udp_;
   const Content& content_;
@@ -75,7 +81,10 @@ class Bot {
   FrameReader reader_;
   std::vector<int64_t> newest_;
   bool udp_worlds_ = false;
-  std::string outgoing_;
+  /// What's to be written, the one being written first.
+  std::deque<std::string> outbox_;
+  /// The keys the bot holds down, as it last sent them.
+  protocol::Input keys_;
   bool connected_ = false;
   float x_ = 0.0f;
   float z_ = 0.0f;

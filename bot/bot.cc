@@ -10,6 +10,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/str_join.h"
@@ -75,6 +76,7 @@ Bot::Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp,
       udp_socket_(io),
       timer_(io),
       hello_timer_(io),
+      tick_timer_(io),
       random_(seed),
       udp_(udp),
       content_(content) {}
@@ -119,6 +121,7 @@ void Bot::Greet(const std::string& token, const std::string& host,
   connected_ = true;
   Read();
   Wander();
+  Tick();
   if (udp_) {
     const asio::ip::tcp::endpoint server =
         stream_.lowest_layer().remote_endpoint(error);
@@ -351,16 +354,54 @@ void Bot::Wander() {
 }
 
 void Bot::Send(const protocol::Input& input) {
+  keys_.set_x(input.x());
+  keys_.set_z(input.z());
+  keys_.set_run(input.run());
+  keys_.set_attack(input.attack());
+  keys_.set_target(input.target());
   // With the newest world it has whole, as the client does.
   protocol::Input with = input;
   with.set_seen(parts_.whole());
-  outgoing_ = Frame(with);
-  asio::async_write(stream_, asio::buffer(outgoing_),
-                    [this](std::error_code error, std::size_t) {
-                      if (error) {
-                        connected_ = false;
-                      }
-                    });
+  Write(Frame(with));
+}
+
+void Bot::Tick() {
+  if (!connected_) {
+    return;
+  }
+  // The keys alone, so that nothing else it did happens again.
+  protocol::Input keys = keys_;
+  keys.set_seen(parts_.whole());
+  Write(Frame(keys));
+  tick_timer_.expires_after(std::chrono::milliseconds(50));
+  tick_timer_.async_wait([this](std::error_code error) {
+    if (!error) {
+      Tick();
+    }
+  });
+}
+
+void Bot::Write(std::string frame) {
+  outbox_.push_back(std::move(frame));
+  // One write at a time on a stream: the next starts as this one ends.
+  if (outbox_.size() > 1) {
+    return;
+  }
+  const auto next = [this](const auto& self) -> void {
+    asio::async_write(stream_, asio::buffer(outbox_.front()),
+                      [this, self](std::error_code error, std::size_t) {
+                        outbox_.pop_front();
+                        if (error) {
+                          connected_ = false;
+                          outbox_.clear();
+                          return;
+                        }
+                        if (!outbox_.empty()) {
+                          self(self);
+                        }
+                      });
+  };
+  next(next);
 }
 
 void Bot::WanderIn(std::chrono::milliseconds wait) {
@@ -382,6 +423,7 @@ void Bot::Stop() {
   connected_ = false;
   timer_.cancel();
   hello_timer_.cancel();
+  tick_timer_.cancel();
   std::error_code ignored;
   udp_socket_.close(ignored);
 }
