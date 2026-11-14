@@ -41,18 +41,14 @@ TEST(Animator, BlendsIntoTheNextClip) {
   EXPECT_EQ(figures[0].blend, 1.0f);
 }
 
-TEST(Animator, CatchesUpWithTheServerOverAFewFrames) {
+// The interpolation has made the places smooth, so the animator takes each as
+// it comes, without easing behind it.
+TEST(Animator, DrawsEachWhereTheWorldPutsThem) {
   nanommo::Animator animator;
   animator.Update(WorldWith(0, 0, 0, nanommo::protocol::MOTION_WALK), 0.0f);
 
   const auto world = WorldWith(1.0f, 0, 0, nanommo::protocol::MOTION_WALK);
-  float x = animator.Update(world, 1.0f / 60).at(0).position.x;
-  EXPECT_GT(x, 0.1f);
-  EXPECT_LT(x, 0.5f);
-  for (int frame = 1; frame < 15; ++frame) {
-    x = animator.Update(world, 1.0f / 60).at(0).position.x;
-  }
-  EXPECT_NEAR(x, 1.0f, 0.03f);
+  EXPECT_FLOAT_EQ(animator.Update(world, 1.0f / 60).at(0).position.x, 1.0f);
 }
 
 TEST(Animator, TurnsTheShortWayRound) {

@@ -33,6 +33,7 @@
 #include "client/guild_window.h"
 #include "client/hotbar.h"
 #include "client/input.h"
+#include "client/interpolation.h"
 #include "client/jukebox.h"
 #include "client/loading.h"
 #include "client/login_screen.h"
@@ -227,6 +228,8 @@ int main(int argc, char* argv[]) {
   // Where we are before the server says so, from the keys we've sent, and the
   // keys, for drawing us walking as they say.
   nanommo::Prediction prediction;
+  // Everyone else, a moment in the past, between the worlds on either side.
+  nanommo::Interpolation interpolation;
   int64_t corrected_at = 0;
   Vector3 keys{0.0f, 0.0f, 0.0f};
   bool keys_run = false;
@@ -381,6 +384,8 @@ int main(int argc, char* argv[]) {
 
     if (in_world) {
       const nanommo::protocol::World& world = connection->world();
+      // A world's parts fill in its snapshot, whichever frame each comes in.
+      interpolation.Add(world, GetTime());
       // Each world from the server puts us where it has us, after the keys it
       // applied, and walks us again through those it hasn't yet.
       if (world.sent() != corrected_at) {
@@ -394,10 +399,11 @@ int main(int argc, char* argv[]) {
       }
       prediction.Settle(GetFrameTime());
       std::vector<nanommo::Figure> figures = animator.Update(
-          nanommo::Predicted(world, prediction, keys.x, keys.z, keys_run),
+          nanommo::Predicted(interpolation.Shown(world, GetTime()), prediction,
+                             keys.x, keys.z, keys_run),
           GetFrameTime());
-      // Ourselves where the prediction has us, without the easing the
-      // others get towards where the server last had them.
+      // Ourselves where the prediction has us, as the interpolation draws the
+      // others a moment ago.
       for (nanommo::Figure& figure : figures) {
         if (figure.you && prediction.placed()) {
           figure.position.x = prediction.shown_x();

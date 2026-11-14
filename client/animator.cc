@@ -57,8 +57,10 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
   figure.casts = casts;
   figure.blend = std::min(figure.blend + seconds / Animator::kBlendTime, 1.0f);
 
+  // Where the world puts them, which the interpolation has made smooth: an
+  // easing on top would only draw them further behind.
+  figure.position = target;
   const float follow = 1.0f - std::exp(-Animator::kFollowRate * seconds);
-  figure.position = Vector3Lerp(figure.position, target, follow);
   if constexpr (std::is_same_v<Unit, protocol::Monster>) {
     figure.lift = Lerp(figure.lift, unit.height(), follow);
   }

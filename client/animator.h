@@ -81,7 +81,8 @@ class Animator {
 
   static constexpr float kBlendTime = 0.25f;
 
-  /// The share of the gap still left after a second is e to the minus this.
+  /// For a monster's lift: the share of the gap still left after a second is
+  /// e to the minus this.
   static constexpr float kFollowRate = 15.0f;
 
   static constexpr float kTurnRate = 4.0f * std::numbers::pi_v<float>;
