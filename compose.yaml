@@ -5,7 +5,7 @@ name: nanommo
 # network, with the passwords in this file or none, are anyone's to take.
 services:
   mysql:
-    image: mysql:9.7.2
+    image: mysql:26.10.0
     environment:
       MYSQL_DATABASE: nanommo
       MYSQL_USER: nanommo
