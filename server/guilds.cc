@@ -19,6 +19,63 @@ std::string InvitationOf(uint32_t player) {
   return absl::StrCat("guild_invite:", player);
 }
 
+// A member's rank in the guild, with their row locked, or NotFound when they
+// aren't in it.
+absl::StatusOr<protocol::Rank> RankIn(Database& database, uint32_t guild,
+                                      uint32_t player) {
+  const absl::StatusOr<Result> member = database.Run(
+      "SELECT grade FROM guild_members WHERE player = ? AND guild = ? "
+      "FOR UPDATE",
+      {absl::StrCat(player), absl::StrCat(guild)});
+  if (!member.ok()) {
+    return member.status();
+  }
+  int grade = 0;
+  if (member->rows.empty()) {
+    return absl::NotFoundError("They're not in your guild.");
+  }
+  if (!absl::SimpleAtoi(member->rows.front()[0], &grade) ||
+      !protocol::Rank_IsValid(grade)) {
+    return absl::InternalError("a grade that isn't a rank");
+  }
+  return static_cast<protocol::Rank>(grade);
+}
+
+// The guild of a player who's changing something in it, in a transaction:
+// its row locked first, as every change to a guild locks it, so changes to
+// one guild happen one at a time, then the player's own, which someone may
+// have changed before we got the guild's.
+absl::StatusOr<Membership> LockFor(Database& database, uint32_t player) {
+  Membership membership;
+  const absl::StatusOr<Result> in =
+      database.Run("SELECT guild FROM guild_members WHERE player = ?",
+                   {absl::StrCat(player)});
+  if (!in.ok()) {
+    return in.status();
+  }
+  if (in->rows.empty() ||
+      !absl::SimpleAtoi(in->rows.front()[0], &membership.guild)) {
+    return absl::NotFoundError("You're in no guild.");
+  }
+  const absl::StatusOr<Result> guild =
+      database.Run("SELECT name FROM guilds WHERE id = ? FOR UPDATE",
+                   {absl::StrCat(membership.guild)});
+  if (!guild.ok()) {
+    return guild.status();
+  }
+  const absl::StatusOr<protocol::Rank> rank =
+      RankIn(database, membership.guild, player);
+  if (guild->rows.empty() || absl::IsNotFound(rank.status())) {
+    return absl::NotFoundError("You're in no guild.");
+  }
+  if (!rank.ok()) {
+    return rank.status();
+  }
+  membership.name = guild->rows.front()[0];
+  membership.rank = *rank;
+  return membership;
+}
+
 }  // namespace
 
 absl::Status CheckGuildName(std::string_view name) {
@@ -185,6 +242,45 @@ absl::StatusOr<Membership> Guilds::Accept(uint32_t player) {
   return membership;
 }
 
+absl::StatusOr<Changed> Guilds::SetRank(uint32_t from, uint32_t player,
+                                        protocol::Rank rank) {
+  if (rank == protocol::RANK_LEADER || from == player) {
+    return absl::InvalidArgumentError(
+        "The leader makes members officers, and officers members.");
+  }
+  Changed changed;
+  const absl::Status done = database_.Transaction([&]() -> absl::Status {
+    const absl::StatusOr<Membership> leading = LockFor(database_, from);
+    if (!leading.ok()) {
+      return leading.status();
+    }
+    if (leading->rank != protocol::RANK_LEADER) {
+      return absl::PermissionDeniedError("Only the leader changes ranks.");
+    }
+    changed.guild = leading->guild;
+    changed.guild_name = leading->name;
+    const absl::StatusOr<protocol::Rank> now =
+        RankIn(database_, leading->guild, player);
+    if (!now.ok()) {
+      return now.status();
+    }
+    const absl::StatusOr<Result> named = database_.Run(
+        "SELECT name FROM players WHERE id = ?", {absl::StrCat(player)});
+    if (!named.ok()) {
+      return named.status();
+    }
+    changed.player_name = named->rows.empty() ? "" : named->rows.front()[0];
+    return database_
+        .Run("UPDATE guild_members SET grade = ? WHERE player = ?",
+             {absl::StrCat(static_cast<int>(rank)), absl::StrCat(player)})
+        .status();
+  });
+  if (!done.ok()) {
+    return done;
+  }
+  return changed;
+}
+
 absl::StatusOr<std::vector<protocol::GuildMember>> Guilds::Roster(
     uint32_t guild) {
   const absl::StatusOr<Result> rows = database_.Run(
@@ -234,39 +330,19 @@ absl::StatusOr<Left> Guilds::Leave(uint32_t player) {
 }
 
 absl::StatusOr<Left> LeaveGuild(Database& database, uint32_t player) {
+  const absl::StatusOr<Membership> leaving = LockFor(database, player);
+  if (!leaving.ok()) {
+    return leaving.status();
+  }
   Left left;
-  const absl::StatusOr<Result> in =
-      database.Run("SELECT guild FROM guild_members WHERE player = ?",
-                   {absl::StrCat(player)});
-  if (!in.ok()) {
-    return in.status();
-  }
-  if (in->rows.empty() || !absl::SimpleAtoi(in->rows.front()[0], &left.guild)) {
-    return absl::NotFoundError("You're in no guild.");
-  }
-  // The guild's row first, as every change to a guild locks it, then the
-  // member's, which someone may have changed before we got the guild's.
-  const absl::StatusOr<Result> guild =
-      database.Run("SELECT name FROM guilds WHERE id = ? FOR UPDATE",
-                   {absl::StrCat(left.guild)});
-  const absl::StatusOr<Result> member = database.Run(
-      "SELECT grade FROM guild_members WHERE player = ? AND guild = ? "
-      "FOR UPDATE",
-      {absl::StrCat(player), absl::StrCat(left.guild)});
-  if (!guild.ok() || !member.ok()) {
-    return guild.ok() ? member.status() : guild.status();
-  }
-  if (guild->rows.empty() || member->rows.empty()) {
-    return absl::NotFoundError("You're in no guild.");
-  }
-  left.name = guild->rows.front()[0];
+  left.guild = leaving->guild;
+  left.name = leaving->name;
   const absl::StatusOr<Result> gone = database.Run(
       "DELETE FROM guild_members WHERE player = ?", {absl::StrCat(player)});
   if (!gone.ok()) {
     return gone.status();
   }
-  if (member->rows.front()[0] !=
-      absl::StrCat(static_cast<int>(protocol::RANK_LEADER))) {
+  if (leaving->rank != protocol::RANK_LEADER) {
     return left;
   }
   // The highest rank left, and of those, who joined first.

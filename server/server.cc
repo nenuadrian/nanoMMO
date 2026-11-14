@@ -531,6 +531,12 @@ void Server::Guild(uint32_t id, const protocol::GuildAction& action) {
     case protocol::GuildAction::kLeave:
       QuitGuild(id);
       break;
+    case protocol::GuildAction::kPromote:
+      SetRank(id, action.promote(), protocol::RANK_OFFICER);
+      break;
+    case protocol::GuildAction::kDemote:
+      SetRank(id, action.demote(), protocol::RANK_MEMBER);
+      break;
     case protocol::GuildAction::kSay:
     case protocol::GuildAction::ACTION_NOT_SET:
       break;
@@ -619,6 +625,22 @@ void Server::QuitGuild(uint32_t id) {
   Notify(id, left->ended ? absl::StrCat("You were the last in ", left->name,
                                         ", so it's no more.")
                          : absl::StrCat("You left ", left->name, "."));
+}
+
+void Server::SetRank(uint32_t id, uint32_t player, protocol::Rank rank) {
+  const absl::StatusOr<Changed> changed = guilds_.SetRank(id, player, rank);
+  if (!changed.ok()) {
+    Refuse(id, changed.status());
+    return;
+  }
+  if (const auto member = members_.find(player); member != members_.end()) {
+    member->second.rank = rank;
+  }
+  RefreshGuild(changed->guild);
+  TellGuild(changed->guild,
+            absl::StrCat(changed->player_name, rank == protocol::RANK_OFFICER
+                                                   ? " is an officer now."
+                                                   : " is a member now."));
 }
 
 void Server::GuildSay(uint32_t id, const std::string& text) {

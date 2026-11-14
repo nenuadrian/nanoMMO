@@ -38,6 +38,14 @@ struct Left {
   bool ended = false;
 };
 
+/// What a change to another member of a guild did, for the news.
+struct Changed {
+  uint32_t guild = 0;
+  std::string guild_name;
+  /// The member it changed, by their name.
+  std::string player_name;
+};
+
 /// The character leaves their guild. When they led it, the one who's been in
 /// it longest leads it now, an officer before a member, and the last one out
 /// ends it. A NotFound error says they're in none. It runs in a transaction
@@ -89,6 +97,13 @@ class Guilds {
 
   /// The player leaves their guild, as LeaveGuild says, in a transaction.
   absl::StatusOr<Left> Leave(uint32_t player);
+
+  /// The leader makes a member an officer, or an officer a member again. A
+  /// PermissionDenied error says the one who asks doesn't lead, NotFound that
+  /// the player isn't in their guild, and InvalidArgument that the rank isn't
+  /// one they can give.
+  absl::StatusOr<Changed> SetRank(uint32_t from, uint32_t player,
+                                  protocol::Rank rank);
 
   /// Who's in the guild, the highest rank first, and by name, as MySQL has
   /// them: their levels are a few seconds behind a world's, and none of them

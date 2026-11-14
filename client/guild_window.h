@@ -2,6 +2,7 @@
 #define NANOMMO_CLIENT_GUILD_WINDOW_H_
 
 #include <array>
+#include <cstdint>
 #include <optional>
 
 #include "protocol/nanommo.pb.h"
@@ -24,10 +25,12 @@ class GuildWindow {
   /// until you answer or the invitation runs out.
   void Invited(protocol::GuildInvite invite);
 
-  /// Draws the question, if a guild asked, and the window, while it's open.
-  /// Returns what the player asks for, which the server does, or says in the
-  /// chat why not.
-  std::optional<protocol::GuildAction> Build(const protocol::Guild& yours);
+  /// Draws the question, if a guild asked, and the window, while it's open,
+  /// for you, by your character's id. A right-click on someone in the roster
+  /// opens a menu of what your rank lets you do to theirs. Returns what the
+  /// player asks for, which the server does, or says in the chat why not.
+  std::optional<protocol::GuildAction> Build(const protocol::Guild& yours,
+                                             uint32_t you);
 
  private:
   std::optional<protocol::GuildAction> BuildQuestion();

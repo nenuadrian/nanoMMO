@@ -33,7 +33,7 @@ void GuildWindow::Invited(protocol::GuildInvite invite) {
 }
 
 std::optional<protocol::GuildAction> GuildWindow::Build(
-    const protocol::Guild& yours) {
+    const protocol::Guild& yours, uint32_t you) {
   std::optional<protocol::GuildAction> action = BuildQuestion();
   if (!visible_) {
     return action;
@@ -70,16 +70,37 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
         ImGui::TableSetupColumn("Rank");
         ImGui::TableSetupColumn("Level");
         ImGui::TableHeadersRow();
+        const bool leader = yours.rank() == protocol::RANK_LEADER;
         for (const protocol::GuildMember& member : yours.members()) {
           ImGui::TableNextRow();
-          ImGui::BeginDisabled(!member.online());
+          ImGui::PushID(static_cast<int>(member.id()));
+          // Grey for those who aren't playing, but not their menu.
+          const ImVec4 color = ImGui::GetStyleColorVec4(
+              member.online() ? ImGuiCol_Text : ImGuiCol_TextDisabled);
+          ImGui::PushStyleColor(ImGuiCol_Text, color);
           ImGui::TableNextColumn();
-          ImGui::TextUnformatted(member.name().c_str());
+          ImGui::Selectable(member.name().c_str(), false,
+                            ImGuiSelectableFlags_SpanAllColumns);
+          ImGui::PopStyleColor();
+          if (member.id() != you && leader &&
+              ImGui::BeginPopupContextItem("Member")) {
+            if (member.rank() == protocol::RANK_MEMBER &&
+                ImGui::MenuItem("Make an officer")) {
+              action.emplace().set_promote(member.id());
+            }
+            if (member.rank() == protocol::RANK_OFFICER &&
+                ImGui::MenuItem("Make a member")) {
+              action.emplace().set_demote(member.id());
+            }
+            ImGui::EndPopup();
+          }
+          ImGui::PushStyleColor(ImGuiCol_Text, color);
           ImGui::TableNextColumn();
           ImGui::TextUnformatted(RankName(member.rank()));
           ImGui::TableNextColumn();
           ImGui::Text("%u", member.level());
-          ImGui::EndDisabled();
+          ImGui::PopStyleColor();
+          ImGui::PopID();
         }
         ImGui::EndTable();
       }

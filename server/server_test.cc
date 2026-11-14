@@ -667,3 +667,30 @@ TEST_F(ServerTest, TheRosterShowsWhosPlaying) {
            !alice.guild()->members(1).online();
   }));
 }
+
+TEST_F(ServerTest, TheLeaderMakesAnOfficer) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, server_->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] { return alice.guild() && bob.guild(); }));
+  nanommo::protocol::Input input;
+  input.mutable_guild()->set_create("Iron Wolves");
+  alice.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return alice.guild()->name() == "Iron Wolves"; }));
+  input.mutable_guild()->set_invite(names_[bob_]);
+  alice.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return bob.invite().has_value(); }));
+  input.mutable_guild()->set_accept(true);
+  bob.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return bob.guild()->name() == "Iron Wolves"; }));
+
+  input.mutable_guild()->set_promote(bob_);
+  alice.Send(input);
+  EXPECT_TRUE(RunUntil([&] {
+    return bob.guild()->rank() == nanommo::protocol::RANK_OFFICER &&
+           alice.guild()->members_size() == 2 &&
+           alice.guild()->members(1).rank() == nanommo::protocol::RANK_OFFICER;
+  }));
+  const std::string news = absl::StrCat(names_[bob_], " is an officer now.");
+  EXPECT_TRUE(RunUntil(
+      [&] { return !bob.notices().empty() && bob.notices().back() == news; }));
+}

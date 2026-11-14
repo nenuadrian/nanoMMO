@@ -336,6 +336,10 @@ message GuildAction {
     string say = 5;
     // Leave the guild.
     bool leave = 6;
+    // The leader makes a member an officer, or an officer a member again, by
+    // their character's id.
+    uint32 promote = 7;
+    uint32 demote = 8;
   }
 }
 

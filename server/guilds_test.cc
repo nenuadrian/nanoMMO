@@ -240,3 +240,30 @@ TEST_F(GuildsTest, TheRosterHasTheHighestRankFirstThenByName) {
   EXPECT_EQ((*roster)[2].level(), 1u);
   EXPECT_FALSE((*roster)[2].online());
 }
+
+TEST_F(GuildsTest, OnlyTheLeaderChangesRanks) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  for (const uint32_t joining : {bob_, dave_}) {
+    ASSERT_TRUE(guilds.Invite(alice_, joining).ok());
+    ASSERT_TRUE(guilds.Accept(joining).ok());
+  }
+
+  const absl::StatusOr<nanommo::Changed> promoted =
+      guilds.SetRank(alice_, bob_, nanommo::protocol::RANK_OFFICER);
+  ASSERT_TRUE(promoted.ok()) << promoted.status();
+  EXPECT_EQ(promoted->player_name, name_ + "b");
+  EXPECT_EQ(guilds.Of(bob_)->rank, nanommo::protocol::RANK_OFFICER);
+  // An officer asks people in, and changes nobody's rank.
+  EXPECT_TRUE(absl::IsPermissionDenied(
+      guilds.SetRank(bob_, dave_, nanommo::protocol::RANK_OFFICER).status()));
+  EXPECT_TRUE(absl::IsNotFound(
+      guilds.SetRank(alice_, carol_, nanommo::protocol::RANK_OFFICER)
+          .status()));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      guilds.SetRank(alice_, bob_, nanommo::protocol::RANK_LEADER).status()));
+
+  ASSERT_TRUE(
+      guilds.SetRank(alice_, bob_, nanommo::protocol::RANK_MEMBER).ok());
+  EXPECT_EQ(guilds.Of(bob_)->rank, nanommo::protocol::RANK_MEMBER);
+}

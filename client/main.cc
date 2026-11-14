@@ -612,7 +612,8 @@ int main(int argc, char* argv[]) {
         guild_window.Invited(*std::move(invite));
       }
       if (const std::optional<nanommo::protocol::GuildAction> guild =
-              guild_window.Build(connection->guild())) {
+              guild_window.Build(connection->guild(),
+                                 connection->world().you())) {
         nanommo::protocol::Input ask = sent;
         *ask.mutable_guild() = *guild;
         connection->Send(ask);
