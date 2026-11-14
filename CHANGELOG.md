@@ -7,6 +7,11 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.69.0 (2026-11-14)
+
+- Everyone else is drawn 100 milliseconds in the past, between two worlds, so they move smoothly when
+  worlds come late, and carry on for a moment when one is lost.
+
 ## 0.68.0 (2026-11-14)
 
 - Your keys walk you at once, and the server's answer corrects you: the client sends its keys each

@@ -128,7 +128,25 @@ you at once instead, the way the server will, and the server's answer corrects i
 - While the server moves you itself, along a walk you asked for, up to a monster, with a skill, or
   you're dead, your keys don't walk you on the client either, and you're drawn moving as the server
   says.
-- You're drawn where the prediction has you, walking as your keys say. Everyone else is still drawn
-  easing towards where the server last had them.
+- You're drawn where the prediction has you, walking as your keys say. Everyone else is drawn a
+  moment in the past (below).
 
 To feel it, put a delay on the server's packets with the `netem` service above, and walk.
+
+## Everyone else, a moment in the past
+
+Worlds come 20 times a second, but not evenly: one can be late, two can come together, and over
+UDP one can be lost. Drawing each player and monster where the newest world has them shows that as
+a stop and a lurch. So the client draws everyone else as they were a moment ago, between two worlds
+it already has (`client/interpolation.h`).
+
+- It keeps the last second of worlds, each with the time the server sent it, on the server's
+  clock, and the time it came, on the client's. A world's other parts fill it in as they come.
+- The two clocks needn't agree. The world that came quickest says best how far apart they are, as
+  the others were held up on the way by that much more.
+- It draws everyone else as they were two ticks ago, 100 milliseconds, on the server's clock,
+  between the two worlds on either side of then. Two ticks is enough for a world up to a tick late.
+- With no world after then, as when the next one is lost, the last two carry them on the way they
+  were going, two ticks at most, and then they wait for it.
+- You're the prediction's (above), so you're drawn now, and everyone else 100 milliseconds ago:
+  that's the price of seeing them move smoothly.
