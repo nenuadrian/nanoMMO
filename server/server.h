@@ -11,6 +11,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -112,6 +113,15 @@ class Server {
   void ShowEvents(const std::vector<Event>& happened);
   void Broadcast();
   void BroadcastCopy(const Copy& copy, bool full);
+  /// What goes to the player's client in this world: the pieces of the
+  /// players and monsters in view that have changed since the world it has
+  /// whole, and the rest by their ids, in still, which is one more piece. It
+  /// remembers what it sent, for the next.
+  std::vector<std::string_view> Delta(
+      uint32_t id, const Copy& copy, const View& view,
+      const std::map<uint32_t, std::string>& players,
+      const std::map<uint32_t, std::string>& monsters, int64_t sent,
+      std::string& still);
   void SendChat();
   /// To each player whose bag has changed since we last sent it.
   void SendBags();
@@ -168,6 +178,16 @@ class Server {
     int ticks = 0;
   };
   std::map<uint32_t, Steady> steady_;
+  /// What each client was sent in its last worlds, by when each was sent:
+  /// the copy of the land it was in, as ids are a land's own, and each
+  /// player's and monster's piece, by its hash.
+  struct Sent {
+    const Copy* copy = nullptr;
+    std::map<uint64_t, std::size_t> pieces;
+  };
+  std::map<uint32_t, std::map<int64_t, Sent>> history_;
+  /// The newest world each client has whole, by when it was sent.
+  std::map<uint32_t, int64_t> seen_;
   /// The revision of each player's bag we sent them last.
   std::map<uint32_t, uint32_t> sent_bags_;
   /// And of their quests.

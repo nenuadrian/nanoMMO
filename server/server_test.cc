@@ -852,3 +852,22 @@ TEST_F(ServerTest, CatchesUpWithAClientItFellBehind) {
   }));
   EXPECT_FALSE(seen.contains(1));
 }
+
+TEST_F(ServerTest, LeavesOutWhatHasntChangedSinceTheWorldTheClientHas) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, server_->port(), Token(bob_));
+  // A world without names, as most are: names come once a second.
+  ASSERT_TRUE(RunUntil([&] {
+    return alice.Sees(bob_) && alice.world().players(0).name().empty();
+  }));
+
+  // Both stand still, and alice says she has that world whole.
+  nanommo::protocol::Input input;
+  input.set_seen(alice.world().sent());
+  alice.Send(input);
+  // Then bob comes to her by his id alone.
+  EXPECT_TRUE(RunUntil([&] {
+    const auto& still = alice.world().still_players();
+    return std::ranges::find(still, bob_) != still.end() && !alice.Sees(bob_);
+  }));
+}

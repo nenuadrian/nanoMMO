@@ -53,6 +53,10 @@ constexpr std::chrono::seconds kStoryRefill{10};
 constexpr int kItemBurst = 10;
 constexpr std::chrono::milliseconds kItemRefill{100};
 
+// A second of the worlds each client was sent, to leave out of the next what
+// hasn't changed since the one it has.
+constexpr std::size_t kMostRemembered = 20;
+
 // A client sends an input a tick, so a few queue up only when the network
 // holds some back and lets them through together. More than this, and the
 // oldest go, so that a player doesn't fall further and further behind.
@@ -259,6 +263,9 @@ void Server::Accept() {
         protocol::Input input;
         World* land = WorldOf(*id);
         if (land != nullptr && input.ParseFromString(bytes)) {
+          if (input.seen() > seen_[*id]) {
+            seen_[*id] = input.seen();
+          }
           // Numbered keys wait for their tick, so that the client knows which
           // tick each of its inputs moved it in.
           if (input.sequence() != 0) {
@@ -377,6 +384,8 @@ void Server::Leave(uint32_t id) {
   inputs_.erase(id);
   steady_.erase(id);
   acked_.erase(id);
+  history_.erase(id);
+  seen_.erase(id);
   if (const auto member = members_.find(id); member != members_.end()) {
     const uint32_t guild = member->second.guild;
     members_.erase(member);
@@ -1035,27 +1044,20 @@ void Server::BroadcastCopy(const Copy& copy, bool full) {
   const int64_t sent = NowMicros();
   for (const auto& [cell, view] :
        Views(land.players(), land.monsters(), copy.npc_cells)) {
-    std::vector<std::string_view> pieces;
-    pieces.reserve(view.players.size() + view.monsters.size() +
-                   (full ? view.npcs.size() : 0));
-    for (const uint32_t id : view.players) {
-      pieces.push_back(players.at(id));
-    }
-    for (const uint32_t id : view.monsters) {
-      pieces.push_back(monsters.at(id));
-    }
-    if (full) {
-      for (const uint32_t id : view.npcs) {
-        pieces.push_back(npcs.at(id));
-      }
-    }
-    // The players in a cell get the same world, so they share its bytes.
-    std::shared_ptr<const std::string> whole;
-    std::vector<std::shared_ptr<const std::string>> parts;
     for (const uint32_t id : view.here) {
       const auto session = sessions_.find(id);
       if (session == sessions_.end()) {
         continue;
+      }
+      // Each client's world is its own now, as each has a world of its own
+      // whole, and what's changed since differs.
+      std::string still;
+      std::vector<std::string_view> pieces =
+          Delta(id, copy, view, players, monsters, sent, still);
+      if (full) {
+        for (const uint32_t npc : view.npcs) {
+          pieces.push_back(npcs.at(npc));
+        }
       }
       const Player& player = land.players().at(id);
       const Level level = LevelFor(player.experience);
@@ -1092,32 +1094,94 @@ void Server::BroadcastCopy(const Copy& copy, bool full) {
       std::string own = you.SerializeAsString();
       const auto udp = udp_clients_.find(id);
       if (udp != udp_clients_.end()) {
-        if (parts.empty()) {
-          for (std::string& part : Split(pieces, sent)) {
-            parts.push_back(
-                std::make_shared<const std::string>(std::move(part)));
-          }
-        }
         // A datagram arrives whole or not at all, so it needs no size in front.
-        for (const auto& part : parts) {
-          metrics_.AddBytesSent(part->size() + own.size());
-          SendTo(udp->second, part, own);
+        for (std::string& part : Split(pieces, sent)) {
+          const auto bytes =
+              std::make_shared<const std::string>(std::move(part));
+          metrics_.AddBytesSent(bytes->size() + own.size());
+          SendTo(udp->second, bytes, own);
         }
       } else {
-        if (!whole) {
-          protocol::World stamp;
-          stamp.set_sent(sent);
-          std::string bytes = stamp.SerializeAsString();
-          for (const std::string_view piece : pieces) {
-            bytes.append(piece);
-          }
-          whole = std::make_shared<const std::string>(std::move(bytes));
+        protocol::World stamp;
+        stamp.set_sent(sent);
+        std::string bytes = stamp.SerializeAsString();
+        for (const std::string_view piece : pieces) {
+          bytes.append(piece);
         }
+        const auto whole =
+            std::make_shared<const std::string>(std::move(bytes));
         metrics_.AddBytesSent(kHeaderSize + whole->size() + own.size());
         session->second->Send(whole, std::move(own));
       }
     }
   }
+}
+
+std::vector<std::string_view> Server::Delta(
+    uint32_t id, const Copy& copy, const View& view,
+    const std::map<uint32_t, std::string>& players,
+    const std::map<uint32_t, std::string>& monsters, int64_t sent,
+    std::string& still) {
+  std::map<int64_t, Sent>& history = history_[id];
+  // The world the client has whole, if we still have what we sent in it,
+  // and it was in this copy of the land.
+  const auto seen = seen_.find(id);
+  auto baseline = history.end();
+  if (seen != seen_.end()) {
+    const auto found = history.find(seen->second);
+    if (found != history.end() && found->second.copy == &copy) {
+      baseline = found;
+    }
+  }
+  Sent& now = history[sent];
+  now.copy = &copy;
+  std::vector<std::string_view> pieces;
+  // Whether the piece has changed since the world the client has, which it
+  // then needs. Either way, this world has it. Each world sent since has to
+  // have had it the same too, as the client may have had those: one that
+  // changed and changed back would leave it with the change.
+  const auto changed = [&](uint64_t key, std::string_view piece) {
+    const std::size_t hash = std::hash<std::string_view>{}(piece);
+    now.pieces[key] = hash;
+    bool same = baseline != history.end();
+    // The end too, should the clock have stepped back past the client's.
+    for (auto world = baseline;
+         same && world != history.end() && world->first != sent; ++world) {
+      const auto before = world->second.pieces.find(key);
+      same = world->second.copy == &copy &&
+             before != world->second.pieces.end() && before->second == hash;
+    }
+    if (same) {
+      return false;
+    }
+    pieces.push_back(piece);
+    return true;
+  };
+  protocol::World unchanged;
+  for (const uint32_t player : view.players) {
+    if (!changed(player, players.at(player))) {
+      unchanged.add_still_players(player);
+    }
+  }
+  // A monster's id goes above a player's, as the two count apart.
+  for (const uint32_t monster : view.monsters) {
+    if (!changed(uint64_t{1} << 32 | monster, monsters.at(monster))) {
+      unchanged.add_still_monsters(monster);
+    }
+  }
+  if (unchanged.still_players_size() + unchanged.still_monsters_size() > 0) {
+    still = unchanged.SerializeAsString();
+    pieces.push_back(still);
+  }
+  // The client never asks for one older than the world it has, and a second
+  // of them is plenty.
+  if (seen != seen_.end()) {
+    history.erase(history.begin(), history.lower_bound(seen->second));
+  }
+  while (history.size() > kMostRemembered) {
+    history.erase(history.begin());
+  }
+  return pieces;
 }
 
 void Server::SendChat() {
