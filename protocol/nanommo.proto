@@ -296,3 +296,10 @@ message LoginReply {
 message Hello {
   string token = 1;
 }
+
+// A guild member's rank, from the least. MySQL keeps it as the member's grade.
+enum Rank {
+  RANK_MEMBER = 0;
+  RANK_OFFICER = 1;
+  RANK_LEADER = 2;
+}
