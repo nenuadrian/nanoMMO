@@ -150,3 +150,24 @@ it already has (`client/interpolation.h`).
   were going, two ticks at most, and then they wait for it.
 - You're the prediction's (above), so you're drawn now, and everyone else 100 milliseconds ago:
   that's the price of seeing them move smoothly.
+
+## Only what's changed
+
+Each world used to carry everyone near you, whole, 20 times a second, so a player standing in a
+crowd cost the same as one walking through it. Now each world leaves out what hasn't changed since
+the newest world your client has.
+
+- Each input says the newest world the client has whole, every part of it, by when it was sent
+  (`seen`), and the bots' say so too, each tick, as a client's do.
+- The server remembers a second of what it sent each client: the copy of the land it was in, and a
+  hash of each player's and monster's piece (`Server::Delta`).
+- A player or monster whose piece is the same as in the world the client has goes by its id alone,
+  in `still_players` or `still_monsters`. The client keeps those as it has them, and as still near
+  it. Anyone in neither, in a world that came whole, is gone, as before.
+- A world the server no longer remembers, or from another copy of a land, whose ids are its own, is
+  no help, and everything goes whole, as before. So does a world to a client that says nothing.
+- Each client's world is its own now, so the clients in a cell no longer share their datagrams.
+
+With forty bots on one machine (`nanommo_bot localhost localhost 40 5 1 udp`), the server sent
+16.8 KB a second to each before, and 7.6 KB after, from `nanommo_bytes_sent_total`. Those who
+move still go whole each tick: a player walking changes where they are, and so their piece.

@@ -7,6 +7,12 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.70.0 (2026-11-14)
+
+- Each world leaves out the players and monsters that haven't changed since the newest world the
+  client has whole, and names them by their ids: 7.6 KB a second to each of forty bots, from 16.8.
+- The bots send their keys each tick, as the client does.
+
 ## 0.69.0 (2026-11-14)
 
 - Everyone else is drawn 100 milliseconds in the past, between two worlds, so they move smoothly when
