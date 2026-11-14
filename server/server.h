@@ -86,6 +86,7 @@ class Server {
   void QuitGuild(uint32_t id);
   void SetRank(uint32_t id, uint32_t player, protocol::Rank rank);
   void Kick(uint32_t id, uint32_t player);
+  void Disband(uint32_t id);
   /// To the guild's players in this world, at once, over TCP.
   void GuildSay(uint32_t id, const std::string& text);
   /// Sends each of the guild's players here a line from the server.

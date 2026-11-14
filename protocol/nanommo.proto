@@ -343,6 +343,8 @@ message GuildAction {
     // Take a player of a lower rank out of the guild, by their character's
     // id.
     uint32 kick = 9;
+    // The leader ends the guild, for everyone in it.
+    bool disband = 10;
   }
 }
 

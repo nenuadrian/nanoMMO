@@ -3,6 +3,7 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <string>
 #include <utility>
 
 #include "client/theme.h"
@@ -131,9 +132,45 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
       if (GameButton("Leave the guild", {width, 0.0f})) {
         action.emplace().set_leave(true);
       }
+      if (yours.rank() == protocol::RANK_LEADER &&
+          GameButton("Disband the guild", {width, 0.0f})) {
+        disbanding_ = true;
+      }
     }
   }
   EndPanel();
+  if (disbanding_ && !yours.name().empty()) {
+    if (std::optional<protocol::GuildAction> disband =
+            BuildDisband(yours.name())) {
+      action = std::move(disband);
+    }
+  }
+  return action;
+}
+
+std::optional<protocol::GuildAction> GuildWindow::BuildDisband(
+    const std::string& guild) {
+  const ImVec2 display = ImGui::GetIO().DisplaySize;
+  ImGui::SetNextWindowPos({display.x / 2.0f, display.y * 0.42f},
+                          ImGuiCond_Always, {0.5f, 0.5f});
+  bool open = true;
+  std::optional<protocol::GuildAction> action;
+  BeginPanel("Disband?", &open,
+             ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
+                 ImGuiWindowFlags_NoSavedSettings);
+  ImGui::Text("Disband %s, for everyone in it, for good?", guild.c_str());
+  ImGui::Spacing();
+  if (GameButton("Disband", {Ui(150.0f), 0.0f}, true)) {
+    action.emplace().set_disband(true);
+    open = false;
+  }
+  ImGui::SameLine();
+  if (GameButton("Keep it", {Ui(150.0f), 0.0f}) ||
+      ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+    open = false;
+  }
+  EndPanel();
+  disbanding_ = open;
   return action;
 }
 

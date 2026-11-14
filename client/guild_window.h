@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <string>
 
 #include "protocol/nanommo.pb.h"
 
@@ -34,6 +35,8 @@ class GuildWindow {
 
  private:
   std::optional<protocol::GuildAction> BuildQuestion();
+  /// Asks the leader whether to disband the guild, for everyone in it.
+  std::optional<protocol::GuildAction> BuildDisband(const std::string& guild);
 
   bool visible_ = false;
   /// The name of a guild to found: up to 24 letters, and the end.
@@ -43,6 +46,7 @@ class GuildWindow {
   std::optional<protocol::GuildInvite> invite_;
   /// When it came, in ImGui's seconds.
   double invited_at_ = 0.0;
+  bool disbanding_ = false;
 };
 
 }  // namespace nanommo

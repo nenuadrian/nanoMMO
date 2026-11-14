@@ -313,3 +313,17 @@ TEST_F(GuildsTest, AKickAndALeaveAtOnceGoOneAfterTheOther) {
   EXPECT_TRUE(absl::IsNotFound(kicked.ok() ? left : kicked));
   EXPECT_TRUE(absl::IsNotFound(guilds.Of(bob_).status()));
 }
+
+TEST_F(GuildsTest, OnlyTheLeaderDisbands) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  ASSERT_TRUE(guilds.Invite(alice_, bob_).ok());
+  ASSERT_TRUE(guilds.Accept(bob_).ok());
+
+  EXPECT_TRUE(absl::IsPermissionDenied(guilds.Disband(bob_).status()));
+  const absl::StatusOr<nanommo::Membership> ended = guilds.Disband(alice_);
+  ASSERT_TRUE(ended.ok()) << ended.status();
+  EXPECT_EQ(ended->name, "Iron Wolves");
+  EXPECT_TRUE(absl::IsNotFound(guilds.Of(bob_).status()));
+  EXPECT_TRUE(guilds.Create(world_, dave_, "Iron Wolves").ok());
+}

@@ -540,6 +540,9 @@ void Server::Guild(uint32_t id, const protocol::GuildAction& action) {
     case protocol::GuildAction::kKick:
       Kick(id, action.kick());
       break;
+    case protocol::GuildAction::kDisband:
+      Disband(id);
+      break;
     case protocol::GuildAction::kSay:
     case protocol::GuildAction::ACTION_NOT_SET:
       break;
@@ -662,6 +665,25 @@ void Server::Kick(uint32_t id, uint32_t player) {
   TellGuild(kicked->guild, absl::StrCat(WorldOf(id)->players().at(id).name,
                                         " removed ", kicked->player_name,
                                         " from ", kicked->guild_name, "."));
+}
+
+void Server::Disband(uint32_t id) {
+  const absl::StatusOr<Membership> ended = guilds_.Disband(id);
+  if (!ended.ok()) {
+    Refuse(id, ended.status());
+    return;
+  }
+  const std::string news = absl::StrCat(WorldOf(id)->players().at(id).name,
+                                        " disbanded ", ended->name, ".");
+  TellGuild(ended->guild, news);
+  // Everyone in it who's playing here is in no guild now.
+  std::erase_if(members_, [&](const auto& member) {
+    if (member.second.guild != ended->guild) {
+      return false;
+    }
+    guild_news_.insert(member.first);
+    return true;
+  });
 }
 
 void Server::GuildSay(uint32_t id, const std::string& text) {

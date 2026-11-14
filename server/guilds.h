@@ -111,6 +111,11 @@ class Guilds {
   /// player isn't in their guild.
   absl::StatusOr<Changed> Kick(uint32_t from, uint32_t player);
 
+  /// The leader ends their guild, for everyone in it, and its name is free
+  /// again. A PermissionDenied error says the one who asks doesn't lead it.
+  /// Returns the guild that ended.
+  absl::StatusOr<Membership> Disband(uint32_t from);
+
   /// Who's in the guild, the highest rank first, and by name, as MySQL has
   /// them: their levels are a few seconds behind a world's, and none of them
   /// online, which only a world knows.

@@ -319,6 +319,28 @@ absl::StatusOr<Changed> Guilds::Kick(uint32_t from, uint32_t player) {
   return changed;
 }
 
+absl::StatusOr<Membership> Guilds::Disband(uint32_t from) {
+  Membership ended;
+  const absl::Status done = database_.Transaction([&]() -> absl::Status {
+    const absl::StatusOr<Membership> leading = LockFor(database_, from);
+    if (!leading.ok()) {
+      return leading.status();
+    }
+    if (leading->rank != protocol::RANK_LEADER) {
+      return absl::PermissionDeniedError("Only the leader disbands the guild.");
+    }
+    ended = *leading;
+    // Its members' rows go with it.
+    return database_
+        .Run("DELETE FROM guilds WHERE id = ?", {absl::StrCat(ended.guild)})
+        .status();
+  });
+  if (!done.ok()) {
+    return done;
+  }
+  return ended;
+}
+
 absl::StatusOr<std::vector<protocol::GuildMember>> Guilds::Roster(
     uint32_t guild) {
   const absl::StatusOr<Result> rows = database_.Run(
