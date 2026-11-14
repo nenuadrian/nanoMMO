@@ -281,6 +281,44 @@ absl::StatusOr<Changed> Guilds::SetRank(uint32_t from, uint32_t player,
   return changed;
 }
 
+absl::StatusOr<Changed> Guilds::Kick(uint32_t from, uint32_t player) {
+  if (from == player) {
+    return absl::InvalidArgumentError("To go, leave the guild.");
+  }
+  Changed changed;
+  const absl::Status done = database_.Transaction([&]() -> absl::Status {
+    const absl::StatusOr<Membership> acting = LockFor(database_, from);
+    if (!acting.ok()) {
+      return acting.status();
+    }
+    const absl::StatusOr<protocol::Rank> theirs =
+        RankIn(database_, acting->guild, player);
+    if (!theirs.ok()) {
+      return theirs.status();
+    }
+    if (acting->rank <= *theirs) {
+      return absl::PermissionDeniedError(
+          "The leader removes officers and members, and officers members.");
+    }
+    changed.guild = acting->guild;
+    changed.guild_name = acting->name;
+    const absl::StatusOr<Result> named = database_.Run(
+        "SELECT name FROM players WHERE id = ?", {absl::StrCat(player)});
+    if (!named.ok()) {
+      return named.status();
+    }
+    changed.player_name = named->rows.empty() ? "" : named->rows.front()[0];
+    return database_
+        .Run("DELETE FROM guild_members WHERE player = ?",
+             {absl::StrCat(player)})
+        .status();
+  });
+  if (!done.ok()) {
+    return done;
+  }
+  return changed;
+}
+
 absl::StatusOr<std::vector<protocol::GuildMember>> Guilds::Roster(
     uint32_t guild) {
   const absl::StatusOr<Result> rows = database_.Run(

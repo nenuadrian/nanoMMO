@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -266,4 +267,49 @@ TEST_F(GuildsTest, OnlyTheLeaderChangesRanks) {
   ASSERT_TRUE(
       guilds.SetRank(alice_, bob_, nanommo::protocol::RANK_MEMBER).ok());
   EXPECT_EQ(guilds.Of(bob_)->rank, nanommo::protocol::RANK_MEMBER);
+}
+
+TEST_F(GuildsTest, RanksSayWhoRemovesWhom) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  for (const uint32_t joining : {bob_, dave_}) {
+    ASSERT_TRUE(guilds.Invite(alice_, joining).ok());
+    ASSERT_TRUE(guilds.Accept(joining).ok());
+  }
+  ASSERT_TRUE(
+      guilds.SetRank(alice_, bob_, nanommo::protocol::RANK_OFFICER).ok());
+
+  EXPECT_TRUE(absl::IsPermissionDenied(guilds.Kick(dave_, bob_).status()));
+  EXPECT_TRUE(absl::IsPermissionDenied(guilds.Kick(bob_, alice_).status()));
+  const absl::StatusOr<nanommo::Changed> kicked = guilds.Kick(bob_, dave_);
+  ASSERT_TRUE(kicked.ok()) << kicked.status();
+  EXPECT_EQ(kicked->player_name, name_ + "d");
+  EXPECT_TRUE(absl::IsNotFound(guilds.Of(dave_).status()));
+  EXPECT_TRUE(guilds.Kick(alice_, bob_).ok());
+}
+
+// A kick and a leave at once, on two connections, as two instances of the
+// world would: the guild's row makes one wait for the other, and neither
+// deadlocks.
+TEST_F(GuildsTest, AKickAndALeaveAtOnceGoOneAfterTheOther) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  ASSERT_TRUE(guilds.Invite(alice_, bob_).ok());
+  ASSERT_TRUE(guilds.Accept(bob_).ok());
+  std::unique_ptr<nanommo::Database> other = nanommo::testing::TestDatabase();
+  std::unique_ptr<nanommo::Redis> other_redis = nanommo::testing::TestRedis();
+  ASSERT_TRUE(other && other_redis);
+  nanommo::Guilds elsewhere(*other, *other_redis);
+
+  absl::Status kicked;
+  absl::Status left;
+  std::thread kicking([&] { kicked = guilds.Kick(alice_, bob_).status(); });
+  std::thread leaving([&] { left = elsewhere.Leave(bob_).status(); });
+  kicking.join();
+  leaving.join();
+
+  // Whichever went second found bob gone.
+  EXPECT_NE(kicked.ok(), left.ok()) << kicked << " " << left;
+  EXPECT_TRUE(absl::IsNotFound(kicked.ok() ? left : kicked));
+  EXPECT_TRUE(absl::IsNotFound(guilds.Of(bob_).status()));
 }

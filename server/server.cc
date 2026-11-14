@@ -537,6 +537,9 @@ void Server::Guild(uint32_t id, const protocol::GuildAction& action) {
     case protocol::GuildAction::kDemote:
       SetRank(id, action.demote(), protocol::RANK_MEMBER);
       break;
+    case protocol::GuildAction::kKick:
+      Kick(id, action.kick());
+      break;
     case protocol::GuildAction::kSay:
     case protocol::GuildAction::ACTION_NOT_SET:
       break;
@@ -641,6 +644,24 @@ void Server::SetRank(uint32_t id, uint32_t player, protocol::Rank rank) {
             absl::StrCat(changed->player_name, rank == protocol::RANK_OFFICER
                                                    ? " is an officer now."
                                                    : " is a member now."));
+}
+
+void Server::Kick(uint32_t id, uint32_t player) {
+  const absl::StatusOr<Changed> kicked = guilds_.Kick(id, player);
+  if (!kicked.ok()) {
+    Refuse(id, kicked.status());
+    return;
+  }
+  // If they're playing here, they hear it, and lose the name over their head.
+  if (members_.erase(player) > 0) {
+    guild_news_.insert(player);
+    Notify(player,
+           absl::StrCat("You were removed from ", kicked->guild_name, "."));
+  }
+  RefreshGuild(kicked->guild);
+  TellGuild(kicked->guild, absl::StrCat(WorldOf(id)->players().at(id).name,
+                                        " removed ", kicked->player_name,
+                                        " from ", kicked->guild_name, "."));
 }
 
 void Server::GuildSay(uint32_t id, const std::string& text) {

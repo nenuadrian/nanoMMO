@@ -340,6 +340,9 @@ message GuildAction {
     // their character's id.
     uint32 promote = 7;
     uint32 demote = 8;
+    // Take a player of a lower rank out of the guild, by their character's
+    // id.
+    uint32 kick = 9;
   }
 }
 

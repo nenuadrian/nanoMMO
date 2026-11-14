@@ -82,15 +82,18 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
           ImGui::Selectable(member.name().c_str(), false,
                             ImGuiSelectableFlags_SpanAllColumns);
           ImGui::PopStyleColor();
-          if (member.id() != you && leader &&
+          if (member.id() != you && yours.rank() > member.rank() &&
               ImGui::BeginPopupContextItem("Member")) {
-            if (member.rank() == protocol::RANK_MEMBER &&
+            if (leader && member.rank() == protocol::RANK_MEMBER &&
                 ImGui::MenuItem("Make an officer")) {
               action.emplace().set_promote(member.id());
             }
-            if (member.rank() == protocol::RANK_OFFICER &&
+            if (leader && member.rank() == protocol::RANK_OFFICER &&
                 ImGui::MenuItem("Make a member")) {
               action.emplace().set_demote(member.id());
+            }
+            if (ImGui::MenuItem("Remove from the guild")) {
+              action.emplace().set_kick(member.id());
             }
             ImGui::EndPopup();
           }

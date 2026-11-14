@@ -694,3 +694,29 @@ TEST_F(ServerTest, TheLeaderMakesAnOfficer) {
   EXPECT_TRUE(RunUntil(
       [&] { return !bob.notices().empty() && bob.notices().back() == news; }));
 }
+
+TEST_F(ServerTest, TheLeaderRemovesAMember) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, server_->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] { return alice.guild() && bob.guild(); }));
+  nanommo::protocol::Input input;
+  input.mutable_guild()->set_create("Iron Wolves");
+  alice.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return alice.guild()->name() == "Iron Wolves"; }));
+  input.mutable_guild()->set_invite(names_[bob_]);
+  alice.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return bob.invite().has_value(); }));
+  input.mutable_guild()->set_accept(true);
+  bob.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return bob.guild()->name() == "Iron Wolves"; }));
+
+  input.mutable_guild()->set_kick(bob_);
+  alice.Send(input);
+  EXPECT_TRUE(RunUntil([&] {
+    return bob.guild()->name().empty() && alice.guild()->members_size() == 1;
+  }));
+  EXPECT_TRUE(RunUntil([&] {
+    return !bob.notices().empty() &&
+           bob.notices().back() == "You were removed from Iron Wolves.";
+  }));
+}

@@ -105,6 +105,12 @@ class Guilds {
   absl::StatusOr<Changed> SetRank(uint32_t from, uint32_t player,
                                   protocol::Rank rank);
 
+  /// Takes a player out of the guild of the one who asks, whose rank has to
+  /// be above theirs: the leader removes officers and members, and officers
+  /// members. A PermissionDenied error says it isn't, NotFound that the
+  /// player isn't in their guild.
+  absl::StatusOr<Changed> Kick(uint32_t from, uint32_t player);
+
   /// Who's in the guild, the highest rank first, and by name, as MySQL has
   /// them: their levels are a few seconds behind a world's, and none of them
   /// online, which only a world knows.
