@@ -77,6 +77,10 @@ message Input {
   Point walk_to = 14;
   // Something to do about the player's guild. Sent once, like an item's.
   GuildAction guild = 15;
+  // Which of the player's inputs this is, from 1: the client sends one each
+  // tick, with the keys as they are then, and the server applies them in
+  // order, one a tick. 0 for keys the server applies at once, as a bot's.
+  uint32 sequence = 16;
 }
 
 // A place in a land, in metres from its middle.
@@ -247,6 +251,8 @@ message World {
   Guild guild = 20;
   // A guild asking you to join, which comes on its own, over TCP.
   GuildInvite invite = 21;
+  // The last of your inputs the server has applied, by its sequence.
+  uint32 acked = 22;
 }
 
 // To the login server: log in with a name and password, or make an account,

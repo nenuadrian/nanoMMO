@@ -1,7 +1,9 @@
 #include "server/server.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <deque>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -50,6 +52,24 @@ constexpr std::chrono::seconds kStoryRefill{10};
 // ten a second.
 constexpr int kItemBurst = 10;
 constexpr std::chrono::milliseconds kItemRefill{100};
+
+// A client sends an input a tick, so a few queue up only when the network
+// holds some back and lets them through together. More than this, and the
+// oldest go, so that a player doesn't fall further and further behind.
+constexpr std::size_t kMostQueued = 5;
+
+// A client sends one a tick, but a slow frame sends two or three together,
+// so up to three waiting is a client a little ahead of our tick. More means
+// some came late and we're behind it, so each tick skips one, until we've
+// caught up.
+constexpr std::size_t kMostBehind = 3;
+
+// Inputs come in as fast as they go out, so a queue a burst filled stays that
+// full, each input a tick late for each one ahead of it. If two or more waited
+// at the start of every tick for a second, the queue's kept more than it needs,
+// and it drops one, until one waiting is the most it keeps for long.
+constexpr std::size_t kMostSteady = 2;
+constexpr int kSteadyTicks = 20;
 
 // Each guild action is a transaction in MySQL, which the tick waits for, so a
 // player gets three at once, and then one a second.
@@ -239,9 +259,22 @@ void Server::Accept() {
         protocol::Input input;
         World* land = WorldOf(*id);
         if (land != nullptr && input.ParseFromString(bytes)) {
-          land->SetInput(*id, input.x(), input.z(), input.run(),
-                         input.attack());
-          land->Pick(*id, input.target());
+          // Numbered keys wait for their tick, so that the client knows which
+          // tick each of its inputs moved it in.
+          if (input.sequence() != 0) {
+            std::deque<protocol::Input>& queued = inputs_[*id];
+            queued.push_back(input);
+            if (queued.size() > kMostQueued) {
+              queued.pop_front();
+            }
+          } else if (!inputs_.contains(*id)) {
+            // Keys that aren't numbered are applied at once, unless the
+            // client numbers its keys, when they're a copy of the last ones,
+            // sent with something else.
+            land->SetInput(*id, input.x(), input.z(), input.run(),
+                           input.attack());
+            land->Pick(*id, input.target());
+          }
           if (input.respawn()) {
             land->Respawn(*id);
           }
@@ -341,6 +374,9 @@ void Server::Leave(uint32_t id) {
   story_limits_.erase(id);
   item_limits_.erase(id);
   guild_limits_.erase(id);
+  inputs_.erase(id);
+  steady_.erase(id);
+  acked_.erase(id);
   if (const auto member = members_.find(id); member != members_.end()) {
     const uint32_t guild = member->second.guild;
     members_.erase(member);
@@ -804,6 +840,7 @@ void Server::Tick() {
     return;
   }
   const auto start = std::chrono::steady_clock::now();
+  ApplyInputs();
   copies_.Step(interval_);
   for (const Notice& notice : copies_.TakeNotices()) {
     if (sessions_.contains(notice.player)) {
@@ -835,6 +872,32 @@ void Server::Tick() {
   // From the last expiry, not from now, so that the ticks don't drift.
   timer_.expires_at(timer_.expiry() + interval_);
   timer_.async_wait([this](std::error_code) { Tick(); });
+}
+
+void Server::ApplyInputs() {
+  for (auto& [id, queued] : inputs_) {
+    Steady& steady = steady_[id];
+    steady.fewest = std::min(steady.fewest, queued.size());
+    bool drain = false;
+    if (++steady.ticks == kSteadyTicks) {
+      drain = steady.fewest >= kMostSteady;
+      steady = {};
+    }
+    World* land = WorldOf(id);
+    if (queued.empty() || land == nullptr) {
+      continue;
+    }
+    // A skipped input counts as applied, and the client corrects the step it
+    // walked for it. Draining needs two waiting, so one is left to apply.
+    if (queued.size() > kMostBehind || drain) {
+      queued.pop_front();
+    }
+    const protocol::Input& input = queued.front();
+    land->SetInput(id, input.x(), input.z(), input.run(), input.attack());
+    land->Pick(id, input.target());
+    acked_[id] = input.sequence();
+    queued.pop_front();
+  }
 }
 
 void Server::SaveChanged() {
@@ -1014,6 +1077,17 @@ void Server::BroadcastCopy(const Copy& copy, bool full) {
       }
       you.set_seed(seed_ + kLands[copy.land].seed);
       you.set_land(static_cast<uint32_t>(copy.land));
+      if (const auto acked = acked_.find(id); acked != acked_.end()) {
+        you.set_acked(acked->second);
+      }
+      // Where you are, with the last input applied, in every datagram, so
+      // the two always come together, whichever part has you otherwise.
+      protocol::Player* here = you.add_players();
+      *here = ToProtocol(id, player);
+      here->clear_name();
+      here->clear_level();
+      here->clear_max_health();
+      here->clear_weapon();
       std::string own = you.SerializeAsString();
       const auto udp = udp_clients_.find(id);
       if (udp != udp_clients_.end()) {

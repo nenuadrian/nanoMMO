@@ -128,6 +128,17 @@ TEST(Parts, KeepsNamesAndLevelsBetweenTheTicksThatSendThem) {
   EXPECT_EQ(assembled.world().players(0).guild(), "");
 }
 
+TEST(Parts, TakesTheInputAckedFromTheNewestWorld) {
+  nanommo::Parts assembled;
+  nanommo::protocol::World first = MakeWorld(1, 1);
+  first.set_acked(7);
+  assembled.Add(first);
+  nanommo::protocol::World second = MakeWorld(1, 2);
+  second.set_acked(8);
+  assembled.Add(second);
+  EXPECT_EQ(assembled.world().acked(), 8u);
+}
+
 TEST(Parts, KeepsYourCooldownsAndSkills) {
   nanommo::protocol::World world = MakeWorld(1, 1);
   (*world.mutable_cooldowns())[2] = 1500;

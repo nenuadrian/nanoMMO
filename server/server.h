@@ -5,6 +5,8 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -99,6 +101,8 @@ class Server {
   /// Sends the player a line from the server, which has no name.
   void Notify(uint32_t id, const std::string& text);
   void Receive();
+  /// Each player's next numbered input, one a tick, before the world steps.
+  void ApplyInputs();
   void Tick();
   void SaveChanged();
   /// What happened in the worlds this tick, into the events stream.
@@ -153,6 +157,17 @@ class Server {
   std::map<uint32_t, Membership> members_;
   /// The players whose guild we've to send them.
   std::set<uint32_t> guild_news_;
+  /// Each player's numbered inputs that haven't been applied yet, oldest
+  /// first, and the last one that has.
+  std::map<uint32_t, std::deque<protocol::Input>> inputs_;
+  std::map<uint32_t, uint32_t> acked_;
+  /// The fewest of each player's inputs waiting at the start of a tick, over
+  /// the ticks since their queue was last checked.
+  struct Steady {
+    std::size_t fewest = std::numeric_limits<std::size_t>::max();
+    int ticks = 0;
+  };
+  std::map<uint32_t, Steady> steady_;
   /// The revision of each player's bag we sent them last.
   std::map<uint32_t, uint32_t> sent_bags_;
   /// And of their quests.

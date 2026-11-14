@@ -45,6 +45,7 @@
 #include "client/predicted_bag.h"
 #include "client/quest_window.h"
 #include "client/renderer.h"
+#include "client/round_trip.h"
 #include "client/settings.h"
 #include "client/sound.h"
 #include "client/soundboard.h"
@@ -63,6 +64,8 @@
 namespace {
 
 constexpr uint16_t kLoginPort = 7778;
+// The server's tick, 20 a second, which the keys go out at.
+constexpr float kInputTick = 0.05f;
 
 // In metres from where we walk to by ourselves: there.
 constexpr float kThere = 0.6f;
@@ -216,6 +219,10 @@ int main(int argc, char* argv[]) {
   std::optional<std::string> entering;
   std::string world_name;
   nanommo::protocol::Input sent;
+  // The numbered keys, one each of the server's ticks.
+  uint32_t sequence = 0;
+  float input_clock = 0.0f;
+  nanommo::RoundTrip round_trip;
   // The monster the player picked, by its id.
   uint32_t target = 0;
   // Where we asked to walk to by ourselves, and for how long we have.
@@ -287,16 +294,23 @@ int main(int argc, char* argv[]) {
       const Vector3 direction = camera.Relative(nanommo::Movement());
       const bool run = nanommo::Running();
       const bool attack = nanommo::Attacking();
-      if (direction.x != sent.x() || direction.z != sent.z() ||
-          run != sent.run() || attack != sent.attack() ||
-          target != sent.target()) {
-        sent.set_x(direction.x);
-        sent.set_z(direction.z);
-        sent.set_run(run);
-        sent.set_attack(attack);
-        sent.set_target(target);
-        connection->Send(sent);
+      sent.set_x(direction.x);
+      sent.set_z(direction.z);
+      sent.set_run(run);
+      sent.set_attack(attack);
+      sent.set_target(target);
+      // The keys go once each of the server's ticks, numbered, so that it
+      // applies them in order, a tick each, and says which it's applied. A
+      // slow frame sends three at most, as many as the server lets wait.
+      input_clock = std::min(input_clock + GetFrameTime(), kInputTick * 3);
+      while (input_clock >= kInputTick) {
+        input_clock -= kInputTick;
+        nanommo::protocol::Input keys = sent;
+        keys.set_sequence(++sequence);
+        connection->Send(keys);
+        round_trip.Sent(sequence, GetTime());
       }
+      round_trip.Acked(connection->world().acked(), GetTime());
       // The keys and a swing call off a walk we asked for, as on the server.
       if (direction.x != 0.0f || direction.z != 0.0f || attack) {
         destination.reset();
@@ -552,8 +566,10 @@ int main(int argc, char* argv[]) {
                                    : nanommo::MinimapTurn::kNorthUp)) {
         map_open = !map_open;
       }
-      nanommo::DrawQuestTracker(*content, connection->quests(),
-                                land_map.minimap_bottom());
+      const float under = land_map.minimap_bottom();
+      nanommo::DrawQuestTracker(
+          *content, connection->quests(),
+          under + nanommo::DrawRoundTrip(round_trip.milliseconds(), under));
       if (const std::optional<nanommo::Place> place = land_map.DrawMap(
               renderer.figures(), target, destination, &map_open);
           place && terrain->Walkable(place->x, place->z)) {

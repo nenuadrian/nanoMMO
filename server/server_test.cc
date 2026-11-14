@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -98,6 +99,16 @@ class TestPlayer {
 
   void Send(const nanommo::protocol::Input& input) {
     auto bytes = std::make_shared<const std::string>(nanommo::Frame(input));
+    asio::async_write(stream_, asio::buffer(*bytes),
+                      [bytes](std::error_code, std::size_t) {});
+  }
+
+  // In one write, so that they arrive together.
+  void SendTogether(const std::vector<nanommo::protocol::Input>& inputs) {
+    auto bytes = std::make_shared<std::string>();
+    for (const nanommo::protocol::Input& input : inputs) {
+      *bytes += nanommo::Frame(input);
+    }
     asio::async_write(stream_, asio::buffer(*bytes),
                       [bytes](std::error_code, std::size_t) {});
   }
@@ -745,4 +756,99 @@ TEST_F(ServerTest, DisbandingTakesEveryonesTagOff) {
       absl::StrCat(names_[alice_], " disbanded Iron Wolves.");
   EXPECT_TRUE(RunUntil(
       [&] { return !bob.notices().empty() && bob.notices().back() == news; }));
+}
+
+TEST_F(ServerTest, AppliesNumberedInputsOneATickInOrder) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
+
+  // Three at once, as a network that held them back would let them through.
+  std::vector<nanommo::protocol::Input> held(3);
+  for (uint32_t sequence = 1; sequence <= 3; ++sequence) {
+    held[sequence - 1].set_x(1.0f);
+    held[sequence - 1].set_sequence(sequence);
+  }
+  alice.SendTogether(held);
+  std::set<uint32_t> seen;
+  EXPECT_TRUE(RunUntil([&] {
+    seen.insert(alice.world().acked());
+    return alice.world().acked() == 3;
+  }));
+  // Each tick took one, so the worlds in between said 1 and 2.
+  EXPECT_TRUE(seen.contains(1) && seen.contains(2));
+}
+
+TEST_F(ServerTest, DrainsAQueueABurstLeftFull) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
+
+  // Three at once, and then one each world, as a client keeps up after a slow
+  // frame: two wait behind each new one, until the queue drains them.
+  std::vector<nanommo::protocol::Input> held(3);
+  for (uint32_t sequence = 1; sequence <= 3; ++sequence) {
+    held[sequence - 1].set_sequence(sequence);
+  }
+  alice.SendTogether(held);
+  uint32_t sequence = 3;
+  int64_t last = alice.world().sent();
+  EXPECT_TRUE(RunUntil([&] {
+    if (alice.world().sent() == last) {
+      return false;
+    }
+    last = alice.world().sent();
+    // Level: the world applied the newest we'd sent before it.
+    if (sequence > 3 && alice.world().acked() == sequence) {
+      return true;
+    }
+    nanommo::protocol::Input next;
+    next.set_sequence(++sequence);
+    alice.Send(next);
+    return false;
+  }));
+}
+
+TEST_F(ServerTest, DrainsNothingFromAClientThatKeepsUp) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
+
+  // One each world for two seconds: each is applied, and none is dropped.
+  uint32_t sequence = 0;
+  int64_t last = alice.world().sent();
+  std::set<uint32_t> seen;
+  EXPECT_TRUE(RunUntil([&] {
+    if (alice.world().sent() == last) {
+      return false;
+    }
+    last = alice.world().sent();
+    seen.insert(alice.world().acked());
+    if (sequence == 40) {
+      return true;
+    }
+    nanommo::protocol::Input next;
+    next.set_sequence(++sequence);
+    alice.Send(next);
+    return false;
+  }));
+  for (uint32_t applied = 1; applied < 40; ++applied) {
+    EXPECT_TRUE(seen.contains(applied)) << applied;
+  }
+}
+
+TEST_F(ServerTest, CatchesUpWithAClientItFellBehind) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
+
+  // Five held back and let through together: the server skips the oldest
+  // while more than three wait, and is level again in four ticks.
+  std::vector<nanommo::protocol::Input> held(5);
+  for (uint32_t sequence = 1; sequence <= 5; ++sequence) {
+    held[sequence - 1].set_sequence(sequence);
+  }
+  alice.SendTogether(held);
+  std::set<uint32_t> seen;
+  EXPECT_TRUE(RunUntil([&] {
+    seen.insert(alice.world().acked());
+    return alice.world().acked() == 5;
+  }));
+  EXPECT_FALSE(seen.contains(1));
 }

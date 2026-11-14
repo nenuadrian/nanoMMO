@@ -13,11 +13,12 @@ namespace nanommo {
 namespace {
 
 // Room for the fields besides the players and the monsters: sent, part,
-// parts, and the client's own you, experience, next level, seed, land and
-// respawn, whose field number takes two bytes, its cooldowns, up to ten bytes
-// each for the nine skills a hotbar holds, and the skills it knows, a byte
-// each, after two for the field.
-constexpr std::size_t kRoom = 55 + 9 * 10 + 2 + 9;
+// parts, and the client's own you, experience, next level, seed, land,
+// respawn and acked, whose field numbers take two bytes, its cooldowns, up to
+// ten bytes each for the nine skills a hotbar holds, the skills it knows, a
+// byte each, after two for the field, and its own player, without its name,
+// up to 60 bytes.
+constexpr std::size_t kRoom = 62 + 9 * 10 + 2 + 9 + 60;
 
 // Names, kinds, levels and weapons come once a second, and protobuf leaves
 // out a field that's empty or zero, which no name, level or kind is, so we
@@ -114,6 +115,7 @@ void Parts::Add(const protocol::World& part) {
   seed_ = part.seed();
   land_ = part.land();
   respawn_ = part.respawn();
+  acked_ = part.acked();
   cooldowns_ = {part.cooldowns().begin(), part.cooldowns().end()};
   skills_ = {part.skills().begin(), part.skills().end()};
   arrived_.insert(part.part());
@@ -149,6 +151,7 @@ protocol::World Parts::world() const {
   world.set_seed(seed_);
   world.set_land(land_);
   world.set_respawn(respawn_);
+  world.set_acked(acked_);
   world.mutable_cooldowns()->insert(cooldowns_.begin(), cooldowns_.end());
   world.mutable_skills()->Add(skills_.begin(), skills_.end());
   world.set_sent(sent_);
