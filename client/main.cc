@@ -43,6 +43,7 @@
 #include "client/player_frame.h"
 #include "client/postprocess.h"
 #include "client/predicted_bag.h"
+#include "client/prediction.h"
 #include "client/quest_window.h"
 #include "client/renderer.h"
 #include "client/round_trip.h"
@@ -223,6 +224,12 @@ int main(int argc, char* argv[]) {
   uint32_t sequence = 0;
   float input_clock = 0.0f;
   nanommo::RoundTrip round_trip;
+  // Where we are before the server says so, from the keys we've sent, and the
+  // keys, for drawing us walking as they say.
+  nanommo::Prediction prediction;
+  int64_t corrected_at = 0;
+  Vector3 keys{0.0f, 0.0f, 0.0f};
+  bool keys_run = false;
   // The monster the player picked, by its id.
   uint32_t target = 0;
   // Where we asked to walk to by ourselves, and for how long we have.
@@ -305,11 +312,18 @@ int main(int argc, char* argv[]) {
       input_clock = std::min(input_clock + GetFrameTime(), kInputTick * 3);
       while (input_clock >= kInputTick) {
         input_clock -= kInputTick;
-        nanommo::protocol::Input keys = sent;
-        keys.set_sequence(++sequence);
-        connection->Send(keys);
+        nanommo::protocol::Input numbered = sent;
+        numbered.set_sequence(++sequence);
+        connection->Send(numbered);
         round_trip.Sent(sequence, GetTime());
+        // And they walk us now, as the server will when they reach it.
+        if (terrain) {
+          prediction.Walk(*terrain, sequence, direction.x, direction.z, run,
+                          kInputTick);
+        }
       }
+      keys = direction;
+      keys_run = run;
       round_trip.Acked(connection->world().acked(), GetTime());
       // The keys and a swing call off a walk we asked for, as on the server.
       if (direction.x != 0.0f || direction.z != 0.0f || attack) {
@@ -365,8 +379,29 @@ int main(int argc, char* argv[]) {
 
     if (in_world) {
       const nanommo::protocol::World& world = connection->world();
-      std::vector<nanommo::Figure> figures =
-          animator.Update(world, GetFrameTime());
+      // Each world from the server puts us where it has us, after the keys it
+      // applied, and walks us again through those it hasn't yet.
+      if (world.sent() != corrected_at) {
+        corrected_at = world.sent();
+        for (const nanommo::protocol::Player& player : world.players()) {
+          if (player.id() == world.you()) {
+            prediction.Correct(*terrain, player.x(), player.z(), world.acked(),
+                               kInputTick);
+          }
+        }
+      }
+      prediction.Settle(GetFrameTime());
+      std::vector<nanommo::Figure> figures = animator.Update(
+          nanommo::Predicted(world, prediction, keys.x, keys.z, keys_run),
+          GetFrameTime());
+      // Ourselves where the prediction has us, without the easing the
+      // others get towards where the server last had them.
+      for (nanommo::Figure& figure : figures) {
+        if (figure.you && prediction.placed()) {
+          figure.position.x = prediction.shown_x();
+          figure.position.z = prediction.shown_z();
+        }
+      }
       for (nanommo::Figure& figure : figures) {
         figure.position.y =
             terrain->Height(figure.position.x, figure.position.z);
