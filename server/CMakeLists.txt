@@ -6,6 +6,14 @@ target_link_libraries(nanommo_inventory PUBLIC
   nanommo_protocol nanommo_content absl::status absl::strings
 )
 
+# How a player walks, which the client runs too, to walk you before the
+# server's answer comes. Like the terrain, it doesn't fuse a multiply and an
+# add, so a step comes out the same on every machine.
+add_library(nanommo_walking walking.cc)
+target_include_directories(nanommo_walking PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(nanommo_walking PUBLIC nanommo_terrain)
+target_compile_options(nanommo_walking PRIVATE -ffp-contract=off)
+
 add_library(nanommo_server_core
   tick.cc listen.cc world.cc copies.cc monsters.cc npcs.cc levels.cc session.cc interest.cc
   server.cc metrics.cc password.cc database.cc events.cc
@@ -14,7 +22,7 @@ add_library(nanommo_server_core
 )
 target_include_directories(nanommo_server_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_server_core PUBLIC
-  nanommo_inventory nanommo_protocol nanommo_content nanommo_terrain asio prometheus-cpp::core Tracy::TracyClient
+  nanommo_inventory nanommo_walking nanommo_protocol nanommo_content nanommo_terrain asio prometheus-cpp::core Tracy::TracyClient
   PkgConfig::sodium PkgConfig::mysqlclient hiredis
   httplib::httplib nlohmann_json::nlohmann_json
   absl::memory absl::status absl::statusor absl::strings absl::time absl::absl_check
@@ -33,7 +41,7 @@ add_executable(nanommo_recorder recorder_main.cc)
 target_link_libraries(nanommo_recorder PRIVATE nanommo_server_core)
 
 add_executable(nanommo_server_tests
-  tick_test.cc inventory_test.cc world_test.cc copies_test.cc monsters_test.cc interest_test.cc
+  tick_test.cc inventory_test.cc walking_test.cc world_test.cc copies_test.cc monsters_test.cc interest_test.cc
   levels_test.cc metrics_test.cc password_test.cc
   database_test.cc accounts_test.cc guilds_test.cc players_test.cc tokens_test.cc
   login_server_test.cc consul_test.cc token_bucket_test.cc stories_test.cc

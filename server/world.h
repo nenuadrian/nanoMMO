@@ -15,6 +15,7 @@
 #include "content/content.h"
 #include "protocol/nanommo.pb.h"
 #include "server/inventory.h"
+#include "server/walking.h"
 #include "terrain/lands.h"
 #include "terrain/paths.h"
 #include "terrain/terrain.h"
@@ -233,16 +234,11 @@ uint32_t MainHandOf(const Player& player);
 /// has something in it, by its ids in the items file.
 std::vector<uint32_t> WornOf(const Player& player);
 
-/// Moves to the place, or if the terrain's in the way there, as far as it can
-/// along x or along z alone, so that it slides along a coast.
-void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z);
-
 class World {
  public:
-  /// In tiles a second. A tile is a metre, and that's the walk clip's speed.
-  static constexpr float kWalkSpeed = 1.8f;
-
-  static constexpr float kRunSpeed = 3.1f;
+  /// As walking.h has them, which the monsters go at too.
+  static constexpr float kWalkSpeed = nanommo::kWalkSpeed;
+  static constexpr float kRunSpeed = nanommo::kRunSpeed;
 
   /// A player who swings or uses a skill at the monster they picked, while
   /// it's out of reach, runs up to this share of the reach first, so that a

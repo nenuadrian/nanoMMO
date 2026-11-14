@@ -136,17 +136,6 @@ std::vector<uint32_t> WornOf(const Player& player) {
   return worn;
 }
 
-void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z) {
-  if (terrain.Walkable(to_x, to_z)) {
-    x = to_x;
-    z = to_z;
-  } else if (terrain.Walkable(to_x, z)) {
-    x = to_x;
-  } else if (terrain.Walkable(x, to_z)) {
-    z = to_z;
-  }
-}
-
 World::World(uint32_t seed, Terrain terrain,
              std::shared_ptr<const Content> content,
              std::shared_ptr<Paths> paths)
@@ -581,14 +570,10 @@ void World::Move(Player& player, std::chrono::nanoseconds time) {
 
 void World::Go(Player& player, float to_x, float to_z, bool run,
                std::chrono::nanoseconds time) {
-  const float seconds = std::chrono::duration<float>(time).count();
-  const float speed = run ? kRunSpeed : kWalkSpeed;
-  const float edge = terrain_.edge();
   float x = player.x;
   float z = player.z;
-  Walk(terrain_, x, z,
-       std::clamp(player.x + to_x * speed * seconds, -edge, edge),
-       std::clamp(player.z + to_z * speed * seconds, -edge, edge));
+  WalkAlong(terrain_, x, z, to_x, to_z, run,
+            std::chrono::duration<float>(time).count());
   // Motion comes from how far it actually went, so that a player pushing
   // against the edge or the sea stands still, instead of walking on the spot.
   const float dx = x - player.x;
