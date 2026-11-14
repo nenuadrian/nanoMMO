@@ -350,4 +350,16 @@ message GuildInvite {
 message Guild {
   string name = 1;
   Rank rank = 2;
+  // Who's in it, the highest rank first, and by name.
+  repeated GuildMember members = 3;
+}
+
+// One of a guild's players, for its roster.
+message GuildMember {
+  uint32 id = 1;
+  string name = 2;
+  Rank rank = 3;
+  uint32 level = 4;
+  // Whether they're playing in the world now.
+  bool online = 5;
 }

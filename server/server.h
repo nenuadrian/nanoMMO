@@ -88,6 +88,8 @@ class Server {
   void GuildSay(uint32_t id, const std::string& text);
   /// Sends each of the guild's players here a line from the server.
   void TellGuild(uint32_t guild, const std::string& text);
+  /// Sends each of the guild's players here its roster with the next news.
+  void RefreshGuild(uint32_t guild);
   /// Tells the player why their guild action failed: in the error's words
   /// when it's about what they asked, and with "try again" when it's MySQL.
   void Refuse(uint32_t id, const absl::Status& why);
@@ -110,6 +112,9 @@ class Server {
   void SendQuests();
   /// To each player as they join, and as their guild changes.
   void SendGuilds();
+  /// The guild's roster from MySQL, with who's playing here, and their level
+  /// as it is now.
+  std::vector<protocol::GuildMember> Roster(uint32_t guild);
   void SendTo(const asio::ip::udp::endpoint& client,
               std::shared_ptr<const std::string> part, std::string own);
 

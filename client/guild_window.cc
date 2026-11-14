@@ -2,6 +2,7 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <utility>
 
 #include "client/theme.h"
@@ -60,6 +61,33 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
     } else {
       ImGui::TextUnformatted(yours.name().c_str());
       ImGui::TextDisabled("%s", RankName(yours.rank()));
+      // The roster, the highest rank first, and those playing in white.
+      if (ImGui::BeginTable(
+              "Roster", 3,
+              ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp,
+              {width, 0.0f})) {
+        ImGui::TableSetupColumn("Name");
+        ImGui::TableSetupColumn("Rank");
+        ImGui::TableSetupColumn("Level");
+        ImGui::TableHeadersRow();
+        for (const protocol::GuildMember& member : yours.members()) {
+          ImGui::TableNextRow();
+          ImGui::BeginDisabled(!member.online());
+          ImGui::TableNextColumn();
+          ImGui::TextUnformatted(member.name().c_str());
+          ImGui::TableNextColumn();
+          ImGui::TextUnformatted(RankName(member.rank()));
+          ImGui::TableNextColumn();
+          ImGui::Text("%u", member.level());
+          ImGui::EndDisabled();
+        }
+        ImGui::EndTable();
+      }
+      const auto online = std::ranges::count_if(
+          yours.members(),
+          [](const protocol::GuildMember& member) { return member.online(); });
+      ImGui::TextDisabled("%d of %d playing now.", static_cast<int>(online),
+                          yours.members_size());
       // Officers and the leader ask players in, by name.
       if (yours.rank() != protocol::RANK_MEMBER) {
         ImGui::Spacing();

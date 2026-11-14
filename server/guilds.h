@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -88,6 +89,11 @@ class Guilds {
 
   /// The player leaves their guild, as LeaveGuild says, in a transaction.
   absl::StatusOr<Left> Leave(uint32_t player);
+
+  /// Who's in the guild, the highest rank first, and by name, as MySQL has
+  /// them: their levels are a few seconds behind a world's, and none of them
+  /// online, which only a world knows.
+  absl::StatusOr<std::vector<protocol::GuildMember>> Roster(uint32_t guild);
 
  private:
   Database& database_;

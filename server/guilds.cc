@@ -7,6 +7,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "server/levels.h"
 
 namespace nanommo {
 
@@ -182,6 +183,38 @@ absl::StatusOr<Membership> Guilds::Accept(uint32_t player) {
     return joined;
   }
   return membership;
+}
+
+absl::StatusOr<std::vector<protocol::GuildMember>> Guilds::Roster(
+    uint32_t guild) {
+  const absl::StatusOr<Result> rows = database_.Run(
+      "SELECT guild_members.player, players.name, guild_members.grade, "
+      "players.experience FROM guild_members "
+      "JOIN players ON players.id = guild_members.player "
+      "WHERE guild_members.guild = ? "
+      "ORDER BY guild_members.grade DESC, players.name",
+      {absl::StrCat(guild)});
+  if (!rows.ok()) {
+    return rows.status();
+  }
+  std::vector<protocol::GuildMember> roster;
+  roster.reserve(rows->rows.size());
+  for (const std::vector<std::string>& row : rows->rows) {
+    uint32_t id = 0;
+    int grade = 0;
+    uint32_t experience = 0;
+    if (!absl::SimpleAtoi(row[0], &id) || !absl::SimpleAtoi(row[2], &grade) ||
+        !absl::SimpleAtoi(row[3], &experience) ||
+        !protocol::Rank_IsValid(grade)) {
+      return absl::InternalError("a guild member that isn't numbers");
+    }
+    protocol::GuildMember& member = roster.emplace_back();
+    member.set_id(id);
+    member.set_name(row[1]);
+    member.set_rank(static_cast<protocol::Rank>(grade));
+    member.set_level(static_cast<uint32_t>(LevelFor(experience).number));
+  }
+  return roster;
 }
 
 absl::Status Guilds::Decline(uint32_t player) {

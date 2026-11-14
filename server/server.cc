@@ -310,6 +310,8 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   const absl::StatusOr<Membership> membership = guilds_.Of(*id);
   if (membership.ok()) {
     members_[*id] = *membership;
+    // The rest of the guild sees them online.
+    RefreshGuild(membership->guild);
   } else if (!absl::IsNotFound(membership.status())) {
     std::cerr << "couldn't load player " << *id
               << "'s guild: " << membership.status() << "\n";
@@ -339,7 +341,11 @@ void Server::Leave(uint32_t id) {
   story_limits_.erase(id);
   item_limits_.erase(id);
   guild_limits_.erase(id);
-  members_.erase(id);
+  if (const auto member = members_.find(id); member != members_.end()) {
+    const uint32_t guild = member->second.guild;
+    members_.erase(member);
+    RefreshGuild(guild);
+  }
   guild_news_.erase(id);
   sent_bags_.erase(id);
   sent_quests_.erase(id);
@@ -584,7 +590,7 @@ void Server::Join(uint32_t id) {
     return;
   }
   members_[id] = *joined;
-  guild_news_.insert(id);
+  RefreshGuild(joined->guild);
   TellGuild(joined->guild, absl::StrCat(WorldOf(id)->players().at(id).name,
                                         " joined ", joined->name, "."));
 }
@@ -597,6 +603,7 @@ void Server::QuitGuild(uint32_t id) {
   }
   members_.erase(id);
   guild_news_.insert(id);
+  RefreshGuild(left->guild);
   std::string news = absl::StrCat(WorldOf(id)->players().at(id).name, " left ",
                                   left->name, ".");
   if (left->successor != 0) {
@@ -645,6 +652,14 @@ void Server::GuildSay(uint32_t id, const std::string& text) {
     if (membership.guild == member->second.guild) {
       metrics_.AddBytesSent(kHeaderSize + bytes->size());
       sessions_.at(other)->Send(bytes, {});
+    }
+  }
+}
+
+void Server::RefreshGuild(uint32_t guild) {
+  for (const auto& [id, membership] : members_) {
+    if (membership.guild == guild) {
+      guild_news_.insert(id);
     }
   }
 }
@@ -1027,6 +1042,8 @@ void Server::SendQuests() {
 }
 
 void Server::SendGuilds() {
+  // Each guild's roster is read once, for all its players who get news.
+  std::map<uint32_t, std::vector<protocol::GuildMember>> rosters;
   for (const uint32_t id : guild_news_) {
     const auto session = sessions_.find(id);
     if (session == sessions_.end()) {
@@ -1038,12 +1055,38 @@ void Server::SendGuilds() {
     if (const auto member = members_.find(id); member != members_.end()) {
       guild->set_name(member->second.name);
       guild->set_rank(member->second.rank);
+      auto roster = rosters.find(member->second.guild);
+      if (roster == rosters.end()) {
+        roster =
+            rosters.emplace(member->second.guild, Roster(member->second.guild))
+                .first;
+      }
+      guild->mutable_members()->Add(roster->second.begin(),
+                                    roster->second.end());
     }
     std::string frame = Frame(news);
     metrics_.AddBytesSent(frame.size());
     session->second->Send(std::move(frame));
   }
   guild_news_.clear();
+}
+
+std::vector<protocol::GuildMember> Server::Roster(uint32_t guild) {
+  absl::StatusOr<std::vector<protocol::GuildMember>> roster =
+      guilds_.Roster(guild);
+  if (!roster.ok()) {
+    std::cerr << "couldn't read guild " << guild
+              << "'s roster: " << roster.status() << "\n";
+    return {};
+  }
+  for (protocol::GuildMember& member : *roster) {
+    if (World* land = WorldOf(member.id()); land != nullptr) {
+      member.set_online(true);
+      member.set_level(static_cast<uint32_t>(
+          LevelFor(land->players().at(member.id()).experience).number));
+    }
+  }
+  return *std::move(roster);
 }
 
 void Server::SendTo(const asio::ip::udp::endpoint& client,

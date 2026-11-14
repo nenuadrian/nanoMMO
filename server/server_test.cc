@@ -639,3 +639,31 @@ TEST_F(ServerTest, LeavingTakesTheTagOffAndHandsTheGuildOn) {
   EXPECT_TRUE(RunUntil(
       [&] { return !bob.notices().empty() && bob.notices().back() == news; }));
 }
+
+TEST_F(ServerTest, TheRosterShowsWhosPlaying) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  auto bob = std::make_unique<TestPlayer>(io_, *client_tls_, server_->port(),
+                                          Token(bob_));
+  ASSERT_TRUE(RunUntil([&] { return alice.guild() && bob->guild(); }));
+  nanommo::protocol::Input input;
+  input.mutable_guild()->set_create("Iron Wolves");
+  alice.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return alice.guild()->name() == "Iron Wolves"; }));
+  input.mutable_guild()->set_invite(names_[bob_]);
+  alice.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return bob->invite().has_value(); }));
+  input.mutable_guild()->set_accept(true);
+  bob->Send(input);
+  ASSERT_TRUE(RunUntil([&] {
+    return alice.guild()->members_size() == 2 &&
+           alice.guild()->members(1).online();
+  }));
+  EXPECT_EQ(alice.guild()->members(1).id(), bob_);
+
+  // Bob goes, and alice's roster shows him offline.
+  bob->Leave();
+  EXPECT_TRUE(RunUntil([&] {
+    return alice.guild()->members_size() == 2 &&
+           !alice.guild()->members(1).online();
+  }));
+}

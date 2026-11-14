@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -216,4 +217,26 @@ TEST_F(GuildsTest, DeletingTheLeaderHandsTheGuildOn) {
 
   ASSERT_TRUE(nanommo::Characters(*database_).Delete(account_, alice_).ok());
   EXPECT_EQ(guilds.Of(bob_)->rank, nanommo::protocol::RANK_LEADER);
+}
+
+TEST_F(GuildsTest, TheRosterHasTheHighestRankFirstThenByName) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  const absl::StatusOr<nanommo::Membership> founded =
+      guilds.Create(world_, alice_, "Iron Wolves");
+  ASSERT_TRUE(founded.ok());
+  for (const uint32_t joining : {dave_, bob_}) {
+    ASSERT_TRUE(guilds.Invite(alice_, joining).ok());
+    ASSERT_TRUE(guilds.Accept(joining).ok());
+  }
+
+  const absl::StatusOr<std::vector<nanommo::protocol::GuildMember>> roster =
+      guilds.Roster(founded->guild);
+  ASSERT_TRUE(roster.ok()) << roster.status();
+  ASSERT_EQ(roster->size(), 3u);
+  EXPECT_EQ((*roster)[0].id(), alice_);
+  EXPECT_EQ((*roster)[0].rank(), nanommo::protocol::RANK_LEADER);
+  EXPECT_EQ((*roster)[1].id(), bob_);
+  EXPECT_EQ((*roster)[2].id(), dave_);
+  EXPECT_EQ((*roster)[2].level(), 1u);
+  EXPECT_FALSE((*roster)[2].online());
 }
