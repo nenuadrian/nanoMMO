@@ -118,7 +118,8 @@ Then, in another terminal:
 | M | The map |
 | I | The bag |
 | C | The character |
-| Enter | The chat |
+| G | The guild |
+| Enter | The chat, and `/g` and a space before a line for your guild |
 | Escape | Closes what's open, or opens the menu, with Settings and Log out |
 
 More in [Gameplay](gameplay.md).

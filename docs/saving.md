@@ -52,6 +52,34 @@ docker compose exec mysql mysql -unanommo -pnanommo nanommo -e 'SELECT * FROM pl
 docker compose logs saver
 ```
 
+## Guilds
+
+A guild changes for players who aren't the one who acts: a leader who leaves makes someone else the
+leader. A player's own world saves them, in Redis, and a guild in there could be written back by
+any world that had it as it was. So guilds are in MySQL alone, and each change is a transaction.
+
+| Table | Has |
+|---|---|
+| `guilds` | Each guild's id, world and name, with a unique key on the world and the name, which MySQL's default collation compares without case |
+| `guild_members` | Each member, by their character's id, its primary key, so a character is in one guild at most, with their grade: 0 a member, 1 an officer, 2 the leader. A deleted character's row goes with it, and a guild's rows with the guild |
+
+- Founding inserts the guild and its leader in one transaction, so a character in a guild
+  already can't take a name.
+- Every change to a guild locks its row in `guilds` first, `SELECT ... FOR UPDATE`, so changes
+  to one guild happen one at a time, and in the same order, which can't deadlock.
+- Invitations are in Redis, as `guild_invite:<character>`, holding the guild's id. `SET ... NX EX
+  60` lets one guild ask a player at a time, from any instance, and lets it run out by itself.
+  Joining reads it, and deletes it once the player has joined or can't, so that a MySQL that fails
+  for a moment leaves it to try again, and saying no deletes it, so that another guild can ask.
+- The world server reads a player's guild as they join, and keeps the guilds of its players.
+- A statement waits two seconds at most for a lock another transaction holds, not MySQL's fifty,
+  as a world's tick waits for it, and fails then as `Aborted`. The player is told to try again.
+
+```bash
+docker compose exec mysql mysql -unanommo -pnanommo nanommo -e 'SELECT * FROM guilds'
+docker compose exec redis redis-cli KEYS 'guild_invite:*'
+```
+
 ## Migrations
 
 The tables are made and changed by migrations, SQL files in `db/` that [Flyway](https://github.com/flyway/flyway)

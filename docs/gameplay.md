@@ -269,5 +269,28 @@ your sword.
   said and refused, in `nanommo_chat_lines_total`, which the dashboard shows a minute.
 
 Each line goes to everyone in the world, so with a thousand players in a world, the server sends
-each line a thousand times. Chat for the players nearby, or for a party or a guild, would send each
-line to far fewer.
+each line a thousand times. A guild's lines go to its players alone (below).
+
+## Guilds
+
+G, or the shield on the button bar, opens the guild window. A guild is in one world, like its
+characters, and a character is in one guild at most.
+
+| Who | Can |
+|---|---|
+| Anyone in no guild | Found one, with a name of 3 to 24 letters, one space between words, which nobody else in the world has, whatever its case |
+| The leader and officers | Ask someone in, by the name of a character playing in the world, whatever its case |
+| Anyone in a guild | Talk to it, with `/g` and a space before the line, and leave it |
+
+- An invitation is a question on the player's screen, with Join and Not now. It waits a minute,
+  and a player has one at a time: another guild asking before they've answered is told they've
+  been asked. Not now says no, so that another can ask.
+- When the leader leaves, the highest rank left leads, and of those, who joined first. The last one
+  out ends the guild, and its name is free again. Deleting a character leaves its guild, in the same transaction.
+- A player's guild shows under their name, in angle brackets, and in their frame across from their
+  name. It comes with their name, once a second.
+- A guild's lines are green in the chat, after `[Guild]`. They go to its players in the world at
+  once, over TCP, on the chat's own limit and cleaning.
+- The guild's players hear who joined and who left. Anything refused is said in the chat, in yellow.
+- Each guild action is a transaction in MySQL, which the world's tick waits for, so a player gets
+  three at once, and then one a second.

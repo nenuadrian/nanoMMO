@@ -7,6 +7,13 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.66.0 (2026-11-14)
+
+- Guilds: found one from the guild window, on G, ask players in by name, talk to it with `/g`, and
+  leave it, the leader's place going to who's been in longest. Its name shows under each player's.
+- Guilds are in MySQL, `V11__guilds.sql`, and invitations in Redis, for a minute.
+- A MySQL statement waits two seconds at most for another's lock, and fails as `Aborted`.
+
 ## 0.65.0 (2026-11-13)
 
 - `doctor.sh` checks the tools, the libraries, Docker, the ports and the certificates, and ends with
