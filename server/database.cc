@@ -40,6 +40,11 @@ absl::Status Error(unsigned int code, const char* message) {
   if (code == ER_DUP_ENTRY) {
     return absl::AlreadyExistsError(message);
   }
+  // Another transaction held what this one needed for too long, or the two
+  // waited for each other: it's worth trying again.
+  if (code == ER_LOCK_WAIT_TIMEOUT || code == ER_LOCK_DEADLOCK) {
+    return absl::AbortedError(absl::StrCat("MySQL gave up: ", message));
+  }
   if (code == CR_SERVER_GONE_ERROR || code == CR_SERVER_LOST ||
       code == ER_CLIENT_INTERACTION_TIMEOUT) {
     return absl::UnavailableError(
@@ -87,6 +92,13 @@ absl::Status Database::Connect() {
                          name_.c_str(), 0, nullptr, 0) == nullptr) {
     const absl::Status status = absl::UnavailableError(
         absl::StrCat("couldn't connect to MySQL: ", mysql_error(mysql)));
+    mysql_close(mysql);
+    return status;
+  }
+  // A world's tick waits for what it asks of MySQL, so a statement waits two
+  // seconds at most for a lock another transaction holds, not MySQL's fifty.
+  if (mysql_query(mysql, "SET SESSION innodb_lock_wait_timeout = 2") != 0) {
+    const absl::Status status = Error(mysql_errno(mysql), mysql_error(mysql));
     mysql_close(mysql);
     return status;
   }

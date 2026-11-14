@@ -75,6 +75,8 @@ message Input {
   // Somewhere to walk to by itself, around what's in the way. Sent once; the
   // keys, a swing or a skill call the walk off.
   Point walk_to = 14;
+  // Something to do about the player's guild. Sent once, like an item's.
+  GuildAction guild = 15;
 }
 
 // A place in a land, in metres from its middle.
@@ -231,6 +233,9 @@ message World {
   repeated Event events = 18;
   // While you're dead: how long until you can come back, in milliseconds.
   uint32 respawn = 19;
+  // Your guild, which comes on its own, over TCP, as you join and as it
+  // changes.
+  Guild guild = 20;
 }
 
 // To the login server: log in with a name and password, or make an account,
@@ -302,4 +307,19 @@ enum Rank {
   RANK_MEMBER = 0;
   RANK_OFFICER = 1;
   RANK_LEADER = 2;
+}
+
+// What a player does about their guild. The server says why not in a line
+// from nobody.
+message GuildAction {
+  oneof action {
+    // Found a guild of that name, and lead it.
+    string create = 1;
+  }
+}
+
+// Your guild, and your rank in it, or no name for none.
+message Guild {
+  string name = 1;
+  Rank rank = 2;
 }

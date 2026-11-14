@@ -35,8 +35,8 @@ class Database {
   Database& operator=(const Database&) = delete;
 
   /// Values go apart from the SQL, one for each ?, so they stay values. A
-  /// duplicate key comes back as an AlreadyExists error, and a lost
-  /// connection as Unavailable.
+  /// duplicate key comes back as an AlreadyExists error, a lost connection as
+  /// Unavailable, and a lock waited for too long, or a deadlock, as Aborted.
   absl::StatusOr<Result> Run(std::string_view sql,
                              const std::vector<std::string>& values = {});
 

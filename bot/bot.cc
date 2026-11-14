@@ -204,6 +204,10 @@ void Bot::Receive(std::string_view bytes) {
     quests_ = world.quests();
     return;
   }
+  // A bot founds no guild, so it doesn't need to know it's in none.
+  if (world.has_guild()) {
+    return;
+  }
   parts_.Add(world);
   // Once the monster it hunts is dead, the bot thinks again, and doesn't swing
   // at the body for as long as it holds its input.

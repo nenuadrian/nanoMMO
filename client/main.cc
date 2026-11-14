@@ -30,6 +30,7 @@
 #include "client/foley.h"
 #include "client/gate.h"
 #include "client/gui.h"
+#include "client/guild_window.h"
 #include "client/hotbar.h"
 #include "client/input.h"
 #include "client/jukebox.h"
@@ -186,6 +187,7 @@ int main(int argc, char* argv[]) {
   nanommo::Menu menu;
   nanommo::CharacterScreen character_screen(content->items);
   nanommo::BagWindow bag_window(content->items);
+  nanommo::GuildWindow guild_window;
   nanommo::ChatWindow chat_window;
   nanommo::TalkWindow talk_window;
   nanommo::TrainerWindow trainer_window(content->skills);
@@ -468,6 +470,8 @@ int main(int argc, char* argv[]) {
           quest_window.Close();
         } else if (bag_window.visible()) {
           bag_window.Toggle();
+        } else if (guild_window.visible()) {
+          guild_window.Toggle();
         } else if (*character_screen.mutable_visible()) {
           character_screen.Toggle();
         } else if (target != 0) {
@@ -486,6 +490,9 @@ int main(int argc, char* argv[]) {
       }
       if (IsKeyPressed(KEY_I) && !nanommo::Typing()) {
         bag_window.Toggle();
+      }
+      if (IsKeyPressed(KEY_G) && !nanommo::Typing()) {
+        guild_window.Toggle();
       }
       character_screen.Render(renderer);
       player_frame.Render(renderer);
@@ -595,8 +602,15 @@ int main(int argc, char* argv[]) {
         connection->Send(ask);
         predicted_bag.Act(bag, *item);
       }
+      if (const std::optional<nanommo::protocol::GuildAction> guild =
+              guild_window.Build(connection->guild())) {
+        nanommo::protocol::Input ask = sent;
+        *ask.mutable_guild() = *guild;
+        connection->Send(ask);
+      }
       menu.BuildButtons(character_screen.mutable_visible(),
-                        bag_window.mutable_visible(), &map_open);
+                        bag_window.mutable_visible(),
+                        guild_window.mutable_visible(), &map_open);
       bool reset_hotbar = false;
       switch (menu.Build(settings, *renderer.mutable_atmosphere(),
                          nanommo::kLooks[land].atmosphere, &reset_hotbar)) {

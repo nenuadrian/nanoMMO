@@ -30,7 +30,7 @@ class Menu {
 
   /// The row of buttons in the bottom right, for the windows the keys open,
   /// with their keys in their tooltips, and this menu's.
-  void BuildButtons(bool* character, bool* bag, bool* map);
+  void BuildButtons(bool* character, bool* bag, bool* guild, bool* map);
 
  private:
   enum class Page { kInterface, kSound, kGraphics, kSky, kKeys };

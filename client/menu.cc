@@ -63,7 +63,7 @@ void SliderPercent(const char* label, float& value) {
 }
 
 // The keys, and what each does, for the keys' page.
-constexpr std::array<std::pair<const char*, const char*>, 15> kKeys = {{
+constexpr std::array<std::pair<const char*, const char*>, 16> kKeys = {{
     {"W A S D, or the arrows", "Walk"},
     {"Shift", "Run"},
     {"Space", "Swing what you hold"},
@@ -76,6 +76,7 @@ constexpr std::array<std::pair<const char*, const char*>, 15> kKeys = {{
     {"M", "The map"},
     {"C", "Your character"},
     {"I", "Your bag"},
+    {"G", "Your guild"},
     {"Enter", "Chat"},
     {"Escape", "Close what's open, or this menu"},
     {"Drag an item out of the bag", "Throw it away"},
@@ -259,7 +260,7 @@ void Menu::BuildSettings(Settings& settings, Atmosphere& atmosphere,
   EndPanel();
 }
 
-void Menu::BuildButtons(bool* character, bool* bag, bool* map) {
+void Menu::BuildButtons(bool* character, bool* bag, bool* guild, bool* map) {
   const ImVec2 display = ImGui::GetIO().DisplaySize;
   ImGui::SetNextWindowPos({display.x - Ui(18.0f), display.y - Ui(18.0f)},
                           ImGuiCond_Always, {1.0f, 1.0f});
@@ -281,6 +282,10 @@ void Menu::BuildButtons(bool* character, bool* bag, bool* map) {
   ImGui::SameLine();
   if (BarButton("##bag", ICON_FA_BAG_SHOPPING, *bag, "Bag (I)")) {
     *bag = !*bag;
+  }
+  ImGui::SameLine();
+  if (BarButton("##guild", ICON_FA_SHIELD_HALVED, *guild, "Guild (G)")) {
+    *guild = !*guild;
   }
   ImGui::SameLine();
   if (BarButton("##map", ICON_FA_MAP, *map, "Map (M)")) {

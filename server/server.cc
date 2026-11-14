@@ -50,6 +50,11 @@ constexpr std::chrono::seconds kStoryRefill{10};
 constexpr int kItemBurst = 10;
 constexpr std::chrono::milliseconds kItemRefill{100};
 
+// Each guild action is a transaction in MySQL, which the tick waits for, so a
+// player gets three at once, and then one a second.
+constexpr int kGuildBurst = 3;
+constexpr std::chrono::seconds kGuildRefill{1};
+
 protocol::Motion ToProtocol(Motion motion) {
   switch (motion) {
     case Motion::kWalk:
@@ -152,10 +157,10 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
     asio::io_context& io, uint16_t port, asio::ssl::context& tls,
     std::chrono::nanoseconds interval, std::string name, uint32_t seed,
     const Content& content, Metrics& metrics, Tokens& tokens, Players& players,
-    Events& events, Storyteller& storyteller) {
+    Guilds& guilds, Events& events, Storyteller& storyteller) {
   std::unique_ptr<Server> server = absl::WrapUnique(
       new Server(io, tls, interval, std::move(name), seed, content, metrics,
-                 tokens, players, events, storyteller));
+                 tokens, players, guilds, events, storyteller));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -166,7 +171,7 @@ absl::StatusOr<std::unique_ptr<Server>> Server::Create(
 Server::Server(asio::io_context& io, asio::ssl::context& tls,
                std::chrono::nanoseconds interval, std::string name,
                uint32_t seed, const Content& content, Metrics& metrics,
-               Tokens& tokens, Players& players, Events& events,
+               Tokens& tokens, Players& players, Guilds& guilds, Events& events,
                Storyteller& storyteller)
     : acceptor_(io),
       tls_(tls),
@@ -179,6 +184,7 @@ Server::Server(asio::io_context& io, asio::ssl::context& tls,
       metrics_(metrics),
       tokens_(tokens),
       players_(players),
+      guilds_(guilds),
       events_(events),
       storyteller_(storyteller) {}
 
@@ -262,6 +268,9 @@ void Server::Accept() {
           if (input.has_item()) {
             Item(*id, input.item());
           }
+          if (input.has_guild()) {
+            Guild(*id, input.guild());
+          }
         }
       };
       const auto on_close = [this, id] {
@@ -295,6 +304,16 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
     return 0;
   }
   copies_.Join(*id, *player);
+  // Their guild is in MySQL, as others change it too, and they get it, or
+  // that they're in none, with the first guild news.
+  const absl::StatusOr<Membership> membership = guilds_.Of(*id);
+  if (membership.ok()) {
+    members_[*id] = *membership;
+  } else if (!absl::IsNotFound(membership.status())) {
+    std::cerr << "couldn't load player " << *id
+              << "'s guild: " << membership.status() << "\n";
+  }
+  guild_news_.insert(*id);
   // Names, kinds and NPCs go out once a second, so the next broadcast is a
   // full one, and a player who's just joined, say from another instance,
   // gets them in their first world.
@@ -304,6 +323,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   chat_limits_.emplace(*id, TokenBucket(kChatBurst, kChatRefill));
   story_limits_.emplace(*id, TokenBucket(kStoryBurst, kStoryRefill));
   item_limits_.emplace(*id, TokenBucket(kItemBurst, kItemRefill));
+  guild_limits_.emplace(*id, TokenBucket(kGuildBurst, kGuildRefill));
   udp_tokens_[hello.token()] = *id;
   std::cout << player->name << " joined, as player " << *id << std::endl;
   return *id;
@@ -317,6 +337,9 @@ void Server::Leave(uint32_t id) {
   chat_limits_.erase(id);
   story_limits_.erase(id);
   item_limits_.erase(id);
+  guild_limits_.erase(id);
+  members_.erase(id);
+  guild_news_.erase(id);
   sent_bags_.erase(id);
   sent_quests_.erase(id);
   std::erase_if(udp_tokens_,
@@ -469,6 +492,47 @@ void Server::Item(uint32_t id, const protocol::ItemAction& action) {
   }
 }
 
+void Server::Guild(uint32_t id, const protocol::GuildAction& action) {
+  // Like the bag, so that the next instance reads the guild as it'll stay.
+  if (handing_over_) {
+    return;
+  }
+  if (!guild_limits_.at(id).Take(std::chrono::steady_clock::now())) {
+    Notify(id, "You're doing that too fast.");
+    return;
+  }
+  switch (action.action_case()) {
+    case protocol::GuildAction::kCreate:
+      Found(id, action.create());
+      break;
+    case protocol::GuildAction::ACTION_NOT_SET:
+      break;
+  }
+}
+
+void Server::Found(uint32_t id, const std::string& name) {
+  const absl::StatusOr<Membership> founded = guilds_.Create(name_, id, name);
+  if (!founded.ok()) {
+    Refuse(id, founded.status());
+    return;
+  }
+  members_[id] = *founded;
+  guild_news_.insert(id);
+  std::cout << WorldOf(id)->players().at(id).name << " founded "
+            << founded->name << std::endl;
+}
+
+void Server::Refuse(uint32_t id, const absl::Status& why) {
+  if (absl::IsUnavailable(why) || absl::IsInternal(why) ||
+      absl::IsAborted(why)) {
+    std::cerr << "a guild action of player " << id << " failed: " << why
+              << "\n";
+    Notify(id, "That didn't work. Try again.");
+    return;
+  }
+  Notify(id, std::string(why.message()));
+}
+
 void Server::Notify(uint32_t id, const std::string& text) {
   protocol::World notice;
   notice.add_chat()->set_text(text);
@@ -549,6 +613,7 @@ void Server::Tick() {
   SendChat();
   SendBags();
   SendQuests();
+  SendGuilds();
   metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
   TracyPlot("players", static_cast<int64_t>(players()));
   FrameMark;
@@ -820,6 +885,26 @@ void Server::SendQuests() {
       sent_quests_[id] = player.quests_revision;
     }
   }
+}
+
+void Server::SendGuilds() {
+  for (const uint32_t id : guild_news_) {
+    const auto session = sessions_.find(id);
+    if (session == sessions_.end()) {
+      continue;
+    }
+    // An empty guild, for none, still says so.
+    protocol::World news;
+    protocol::Guild* guild = news.mutable_guild();
+    if (const auto member = members_.find(id); member != members_.end()) {
+      guild->set_name(member->second.name);
+      guild->set_rank(member->second.rank);
+    }
+    std::string frame = Frame(news);
+    metrics_.AddBytesSent(frame.size());
+    session->second->Send(std::move(frame));
+  }
+  guild_news_.clear();
 }
 
 void Server::SendTo(const asio::ip::udp::endpoint& client,

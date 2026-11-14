@@ -23,6 +23,7 @@
 #include "gtest/gtest.h"
 #include "server/accounts.h"
 #include "server/characters.h"
+#include "server/guilds.h"
 #include "server/inventory.h"
 #include "server/test_content.h"
 #include "server/test_services.h"
@@ -70,6 +71,11 @@ class TestPlayer {
   /// The quests the player's on, as the server last sent them, once it has.
   const std::optional<nanommo::protocol::Quests>& quests() const {
     return quests_;
+  }
+
+  /// The player's guild, as the server last sent it, once it has.
+  const std::optional<nanommo::protocol::Guild>& guild() const {
+    return guild_;
   }
 
   /// What the server told the player, which nobody said.
@@ -124,6 +130,8 @@ class TestPlayer {
             }
             if (world.has_inventory()) {
               bag_ = world.inventory();
+            } else if (world.has_guild()) {
+              guild_ = world.guild();
             } else if (world.has_quests()) {
               quests_ = world.quests();
             } else if (!world.events().empty()) {
@@ -150,6 +158,7 @@ class TestPlayer {
   nanommo::protocol::World world_;
   nanommo::protocol::Inventory bag_;
   std::optional<nanommo::protocol::Quests> quests_;
+  std::optional<nanommo::protocol::Guild> guild_;
   std::vector<std::string> notices_;
   std::vector<nanommo::protocol::Event> events_;
   bool closed_ = false;
@@ -168,6 +177,7 @@ class ServerTest : public ::testing::Test {
     bob_ = NewAccount();
     tokens_ = std::make_unique<nanommo::Tokens>(*redis_);
     players_ = std::make_unique<nanommo::Players>(*database_, *redis_);
+    guilds_ = std::make_unique<nanommo::Guilds>(*database_);
     events_ = std::make_unique<nanommo::Events>(*redis_);
     // Nobody asks it for a story, as the world has no NPCs.
     storyteller_ = std::make_unique<nanommo::Storyteller>(io_, "127.0.0.1");
@@ -177,9 +187,10 @@ class ServerTest : public ::testing::Test {
     ASSERT_TRUE(server_tls_.ok() && client_tls_.ok());
 
     absl::StatusOr<std::unique_ptr<nanommo::Server>> server =
-        nanommo::Server::Create(
-            io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1,
-            content_, metrics_, *tokens_, *players_, *events_, *storyteller_);
+        nanommo::Server::Create(io_, 0, *server_tls_,
+                                std::chrono::milliseconds(50), world_, 1,
+                                content_, metrics_, *tokens_, *players_,
+                                *guilds_, *events_, *storyteller_);
     ASSERT_TRUE(server.ok()) << server.status();
     server_ = *std::move(server);
   }
@@ -194,7 +205,12 @@ class ServerTest : public ::testing::Test {
                                   {"SREM", "items:unsaved", key}})
                       .ok());
     }
-    // Their characters go with them.
+    // Their characters go with them, and their memberships with those, but
+    // not the guilds.
+    if (database_) {
+      EXPECT_TRUE(
+          database_->Run("DELETE FROM guilds WHERE world = ?", {world_}).ok());
+    }
     for (const uint32_t id : accounts_) {
       EXPECT_TRUE(
           database_
@@ -248,6 +264,7 @@ class ServerTest : public ::testing::Test {
   uint32_t bob_ = 0;
   std::unique_ptr<nanommo::Tokens> tokens_;
   std::unique_ptr<nanommo::Players> players_;
+  std::unique_ptr<nanommo::Guilds> guilds_;
   std::unique_ptr<nanommo::Events> events_;
   std::unique_ptr<nanommo::Storyteller> storyteller_;
   const std::string world_ = nanommo::testing::TestName();
@@ -279,9 +296,10 @@ TEST_F(ServerTest, PlayersSeeEachOtherUntilOneLeaves) {
 TEST_F(ServerTest, HandsItsPlayersOverToTheNextInstance) {
   // The world's next instance, in this process, on a port of its own.
   absl::StatusOr<std::unique_ptr<nanommo::Server>> next =
-      nanommo::Server::Create(
-          io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1,
-          content_, metrics_, *tokens_, *players_, *events_, *storyteller_);
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1,
+                              content_, metrics_, *tokens_, *players_, *guilds_,
+                              *events_, *storyteller_);
   ASSERT_TRUE(next.ok()) << next.status();
   TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
   ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
@@ -358,7 +376,7 @@ TEST_F(ServerTest, SendsEachPlayerTheirBagAsItChanges) {
   absl::StatusOr<std::unique_ptr<nanommo::Server>> armed =
       nanommo::Server::Create(
           io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1, gear,
-          metrics_, *tokens_, *players_, *events_, *storyteller_);
+          metrics_, *tokens_, *players_, *guilds_, *events_, *storyteller_);
   ASSERT_TRUE(armed.ok()) << armed.status();
   TestPlayer alice(io_, *client_tls_, (*armed)->port(), Token(alice_));
 
@@ -408,9 +426,10 @@ TEST_F(ServerTest, SendsEachPlayerTheirQuestsAsTheyChange) {
     spawns { kind: 1 land: "Meadows" x: 1 z: 0 }
   )pb");
   absl::StatusOr<std::unique_ptr<nanommo::Server>> guarded =
-      nanommo::Server::Create(
-          io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1,
-          content, metrics_, *tokens_, *players_, *events_, *storyteller_);
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1, content,
+                              metrics_, *tokens_, *players_, *guilds_, *events_,
+                              *storyteller_);
   ASSERT_TRUE(guarded.ok()) << guarded.status();
   TestPlayer alice(io_, *client_tls_, (*guarded)->port(), Token(alice_));
 
@@ -443,9 +462,10 @@ TEST_F(ServerTest, ShowsEachHitToThePlayersNearIt) {
   spawn.set_x(1.0f);
   content.monsters.spawns.push_back(spawn);
   absl::StatusOr<std::unique_ptr<nanommo::Server>> haunted =
-      nanommo::Server::Create(
-          io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1,
-          content, metrics_, *tokens_, *players_, *events_, *storyteller_);
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1, content,
+                              metrics_, *tokens_, *players_, *guilds_, *events_,
+                              *storyteller_);
   ASSERT_TRUE(haunted.ok()) << haunted.status();
   TestPlayer alice(io_, *client_tls_, (*haunted)->port(), Token(alice_));
   TestPlayer bob(io_, *client_tls_, (*haunted)->port(), Token(bob_));
@@ -465,4 +485,32 @@ TEST_F(ServerTest, ShowsEachHitToThePlayersNearIt) {
   EXPECT_EQ(hit(bob)->monster(), 1u);
   EXPECT_EQ(hit(bob)->amount(), 15u);
   EXPECT_NE(hit(alice), alice.events().end());
+}
+
+TEST_F(ServerTest, FoundsAGuildFromTheGame) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, server_->port(), Token(bob_));
+  // Each hears they're in no guild as they join.
+  ASSERT_TRUE(RunUntil([&] { return alice.guild() && bob.guild(); }));
+  EXPECT_EQ(alice.guild()->name(), "");
+
+  nanommo::protocol::Input found;
+  found.mutable_guild()->set_create("Iron  Wolves");
+  alice.Send(found);
+  ASSERT_TRUE(RunUntil([&] { return !alice.notices().empty(); }));
+  EXPECT_EQ(alice.notices().back(),
+            "Guild names are letters, with one space between words.");
+
+  found.mutable_guild()->set_create("Iron Wolves");
+  alice.Send(found);
+  ASSERT_TRUE(RunUntil([&] { return alice.guild()->name() == "Iron Wolves"; }));
+  EXPECT_EQ(alice.guild()->rank(), nanommo::protocol::RANK_LEADER);
+
+  found.mutable_guild()->set_create("iron wolves");
+  bob.Send(found);
+  ASSERT_TRUE(RunUntil([&] { return !bob.notices().empty(); }));
+  EXPECT_EQ(
+      bob.notices().back(),
+      absl::StrCat("There's a guild called that in ", world_, " already."));
+  EXPECT_EQ(bob.guild()->name(), "");
 }
