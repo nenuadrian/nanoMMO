@@ -117,6 +117,8 @@ message Player {
   // While they use a skill, how many they've started, so that a skill straight
   // after itself, such as a swing held down, starts again on everyone's screen.
   uint32 casts = 14;
+  // The name of the guild they're in, which comes with their name.
+  string guild = 15;
 }
 
 message Monster {

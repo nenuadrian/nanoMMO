@@ -20,6 +20,8 @@ namespace nanommo {
 struct Figure {
   uint32_t id = 0;
   std::string name;
+  /// A player's guild, by its name, or empty.
+  std::string guild;
   bool you = false;
   bool monster = false;
   bool npc = false;

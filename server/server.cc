@@ -732,6 +732,10 @@ void Server::BroadcastCopy(const Copy& copy, bool full) {
         entry.clear_level();
         entry.clear_max_health();
         entry.clear_weapon();
+      } else if (const auto member = members_.find(id);
+                 member != members_.end()) {
+        // Their guild goes with their name, once a second.
+        entry.set_guild(member->second.name);
       }
       players[id] = Piece(entry);
     }

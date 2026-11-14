@@ -22,7 +22,8 @@ constexpr std::size_t kRoom = 55 + 9 * 10 + 2 + 9;
 // Names, kinds, levels and weapons come once a second, and protobuf leaves
 // out a field that's empty or zero, which no name, level or kind is, so we
 // keep the last ones we had. A player can hold no weapon, so a weapon goes by
-// the name: a player with their name has their weapon too, none included.
+// the name: a player with their name has their weapon and guild too, none
+// included.
 template <typename Unit>
 void Update(Unit& known, const Unit& now) {
   Unit merged = now;
@@ -36,6 +37,7 @@ void Update(Unit& known, const Unit& now) {
     if (merged.name().empty()) {
       merged.set_name(known.name());
       merged.set_weapon(known.weapon());
+      merged.set_guild(known.guild());
     }
   } else {
     if (merged.kind() == 0) {

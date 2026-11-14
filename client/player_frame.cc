@@ -129,6 +129,14 @@ void PlayerFrame::Draw(const std::vector<Figure>& figures,
   DrawGradientText(draw, GetFonts().title, Ui(16.0f),
                    {left, plate_min.y + Ui(7.0f)}, colors::kGoldLight,
                    colors::kGold, you->name.c_str());
+  // Your guild, across from your name, as the target's level is.
+  if (!you->guild.empty()) {
+    const ImVec2 extent =
+        bold->CalcTextSizeA(Ui(13.0f), FLT_MAX, 0.0f, you->guild.c_str());
+    DrawShadowedText(draw, bold, Ui(13.0f),
+                     {right - extent.x, plate_min.y + Ui(9.0f)}, colors::kMuted,
+                     you->guild.c_str());
+  }
   const std::string health = absl::StrCat(you->health, " / ", you->max_health);
   const ImVec2 health_min{left, plate_min.y + Ui(30.0f)};
   const ImVec2 health_max{right, health_min.y + Ui(16.0f)};

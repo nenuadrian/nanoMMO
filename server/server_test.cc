@@ -514,3 +514,20 @@ TEST_F(ServerTest, FoundsAGuildFromTheGame) {
       absl::StrCat("There's a guild called that in ", world_, " already."));
   EXPECT_EQ(bob.guild()->name(), "");
 }
+
+TEST_F(ServerTest, OthersSeeTheGuildWithYourName) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, server_->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] { return bob.Sees(alice_); }));
+
+  nanommo::protocol::Input found;
+  found.mutable_guild()->set_create("Iron Wolves");
+  alice.Send(found);
+  // It comes with her name, in the world sent in full once a second.
+  EXPECT_TRUE(RunUntil([&] {
+    return std::ranges::any_of(
+        bob.world().players(), [&](const nanommo::protocol::Player& player) {
+          return player.id() == alice_ && player.guild() == "Iron Wolves";
+        });
+  }));
+}

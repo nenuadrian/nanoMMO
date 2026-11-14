@@ -17,6 +17,8 @@ constexpr ImU32 kLevel = IM_COL32(190, 190, 190, 255);
 constexpr ImU32 kYourName = IM_COL32(255, 210, 80, 255);
 constexpr ImU32 kMonsterName = IM_COL32(255, 140, 120, 255);
 constexpr ImU32 kNpcName = IM_COL32(150, 230, 140, 255);
+constexpr ImU32 kGuild = IM_COL32(205, 190, 150, 255);
+constexpr float kGuildScale = 0.85f;
 // A quest's mark, over an NPC's name, in gold, and twice its size.
 constexpr ImU32 kMark = IM_COL32(255, 205, 60, 255);
 constexpr float kMarkScale = 2.0f;
@@ -108,8 +110,20 @@ void DrawNameplates(const std::vector<Figure>& figures,
         font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, level.c_str()).x;
     const ImVec2 name_size =
         font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, figure.name.c_str());
+    float top = bar_min.y - 2.0f;
+    // A player's guild goes under their name, smaller, in the angle brackets
+    // games put a guild in.
+    if (!figure.guild.empty()) {
+      const std::string guild = "<" + figure.guild + ">";
+      const float guild_size = font_size * kGuildScale;
+      const ImVec2 extent =
+          font->CalcTextSizeA(guild_size, FLT_MAX, 0.0f, guild.c_str());
+      top -= extent.y;
+      DrawShadowedText(draw, guild_size, {at.x - extent.x / 2, top}, kGuild,
+                       guild);
+    }
+    top -= name_size.y;
     const float left = at.x - (level_width + name_size.x) / 2;
-    const float top = bar_min.y - 2.0f - name_size.y;
     DrawShadowedText(draw, font_size, {left, top}, kLevel, level);
     DrawShadowedText(draw, font_size, {left + level_width, top},
                      NameColor(figure), figure.name);

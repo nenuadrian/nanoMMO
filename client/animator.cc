@@ -115,6 +115,7 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
     Figure figure =
         Follow(players_, player, player.skill(), player.casts(), seconds);
     figure.name = player.name();
+    figure.guild = player.guild();
     figure.you = player.id() == world.you();
     figure.weapon = player.weapon();
     figure.wearing = {player.wearing().begin(), player.wearing().end()};
