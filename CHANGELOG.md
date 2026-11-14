@@ -7,6 +7,12 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.67.0 (2026-11-14)
+
+- The guild window lists the guild's players, by rank, with their level and who's playing now.
+- The leader makes members officers and officers members, removes anyone, and disbands the guild.
+  Officers remove members.
+
 ## 0.66.0 (2026-11-14)
 
 - Guilds: found one from the guild window, on G, ask players in by name, talk to it with `/g`, and

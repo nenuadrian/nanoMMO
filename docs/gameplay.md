@@ -279,8 +279,14 @@ characters, and a character is in one guild at most.
 | Who | Can |
 |---|---|
 | Anyone in no guild | Found one, with a name of 3 to 24 letters, one space between words, which nobody else in the world has, whatever its case |
-| The leader and officers | Ask someone in, by the name of a character playing in the world, whatever its case |
-| Anyone in a guild | Talk to it, with `/g` and a space before the line, and leave it |
+| The leader | Make a member an officer, or an officer a member, remove anyone, and disband the guild, after a question |
+| Officers | Ask someone in, by the name of a character playing in the world, whatever its case, and remove members |
+| Anyone in a guild | Talk to it, with `/g` and a space before the line, see its roster, and leave it |
+
+- The guild window lists the guild's players, the highest rank first and then by name, with their
+  level, and those playing now in white. A right-click on someone opens a menu of what your rank
+  lets you do to theirs. The roster comes again as anyone in the guild joins or leaves it, or the
+  world.
 
 - An invitation is a question on the player's screen, with Join and Not now. It waits a minute,
   and a player has one at a time: another guild asking before they've answered is told they've

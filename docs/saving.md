@@ -65,8 +65,12 @@ any world that had it as it was. So guilds are in MySQL alone, and each change i
 
 - Founding inserts the guild and its leader in one transaction, so a character in a guild
   already can't take a name.
-- Every change to a guild locks its row in `guilds` first, `SELECT ... FOR UPDATE`, so changes
-  to one guild happen one at a time, and in the same order, which can't deadlock.
+- Every change to a guild locks its row in `guilds` first, `SELECT ... FOR UPDATE`, then the
+  member's own (`LockFor` in `server/guilds.cc`), so changes to one guild happen one at a time, and
+  in the same order, which can't deadlock. A test runs a kick and a leave at once on two
+  connections, and whichever goes second finds the player gone.
+- The roster is read from MySQL once a tick at most for each guild, and each world adds who's
+  playing there, and their level as it is.
 - Invitations are in Redis, as `guild_invite:<character>`, holding the guild's id. `SET ... NX EX
   60` lets one guild ask a player at a time, from any instance, and lets it run out by itself.
   Joining reads it, and deletes it once the player has joined or can't, so that a MySQL that fails
