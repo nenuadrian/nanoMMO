@@ -73,16 +73,22 @@ protocol::World Interpolation::Shown(const protocol::World& newest,
     return shown;
   }
   const double then = Then(now);
-  // The last snapshot at or before then, and the one after it.
+  // The last snapshot at or before then, and the one after it. With none
+  // after it, the next world is late or lost, and the last two carry them on
+  // the way they were going, kMostAhead at most.
   auto after = std::ranges::find_if(
       snapshots_, [then](const Snapshot& s) { return s.sent > then; });
-  if (after == snapshots_.begin() || after == snapshots_.end()) {
+  if (after == snapshots_.begin()) {
     return shown;
+  }
+  if (after == snapshots_.end()) {
+    after = std::prev(snapshots_.end());
   }
   const Snapshot& from = *std::prev(after);
   const Snapshot& to = *after;
-  const float share =
-      static_cast<float>((then - from.sent) / (to.sent - from.sent));
+  const double gap = to.sent - from.sent;
+  const float share = static_cast<float>(
+      std::min((then - from.sent) / gap, 1.0 + kMostAhead / gap));
   Between(*shown.mutable_players(), newest.you(), from.players, to.players,
           share);
   Between(*shown.mutable_monsters(), 0, from.monsters, to.monsters, share);

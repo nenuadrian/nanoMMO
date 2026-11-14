@@ -62,3 +62,16 @@ TEST(Interpolation, FillsInAWorldAsItsPartsCome) {
   // Halfway between the two worlds, with the clock from the first part.
   EXPECT_NEAR(interpolation.Shown(whole, 1005.155).players(0).x(), 0.5f, 1e-4f);
 }
+
+TEST(Interpolation, CarriesThemOnAWhileWhenAWorldIsLost) {
+  nanommo::Interpolation interpolation;
+  interpolation.Add(At(5.00, 0.0f), 1005.03);
+  interpolation.Add(At(5.05, 1.0f), 1005.08);
+  const nanommo::protocol::World newest = At(5.10, 2.0f);
+  interpolation.Add(newest, 1005.13);
+
+  // The world sent at 5.15 is lost: at 5.15, they go on the way they were.
+  EXPECT_NEAR(interpolation.Shown(newest, 1005.28).players(0).x(), 3.0f, 1e-4f);
+  // And stop kMostAhead past the newest, at 5.20, to wait.
+  EXPECT_NEAR(interpolation.Shown(newest, 1005.43).players(0).x(), 4.0f, 1e-4f);
+}

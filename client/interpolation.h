@@ -18,6 +18,10 @@ class Interpolation {
   /// world can come up to one tick late and still be there in time.
   static constexpr double kDelay = 0.1;
 
+  /// How far past the newest world we carry them on, along the way they were
+  /// going, when the next one's late or lost, before they wait for it.
+  static constexpr double kMostAhead = 0.1;
+
   /// A world as it came, at the time on our clock, in seconds. More of a world
   /// we have, as its other parts come, fills it in, and keeps the time its
   /// first part came.
