@@ -6,11 +6,17 @@
 #include <deque>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "protocol/chat.h"
 #include "protocol/nanommo.pb.h"
 
 namespace nanommo {
+
+/// What a line typed in the chat says to the guild, when it starts with /g
+/// and a space, even if that's nothing, which the server drops, or nothing at
+/// all, for a line to the world.
+std::optional<std::string> GuildLine(std::string_view typed);
 
 /// What's said in the world, in the bottom left, over a field to type in,
 /// which Enter goes to. Its close button folds it into a button, which says

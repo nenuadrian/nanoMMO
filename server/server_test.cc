@@ -88,6 +88,9 @@ class TestPlayer {
   /// What the server told the player, which nobody said.
   const std::vector<std::string>& notices() const { return notices_; }
 
+  /// What players said that this player heard, oldest first.
+  const std::vector<nanommo::protocol::Chat>& heard() const { return heard_; }
+
   /// What the player saw happen, oldest first.
   const std::vector<nanommo::protocol::Event>& events() const {
     return events_;
@@ -150,6 +153,8 @@ class TestPlayer {
               for (const nanommo::protocol::Chat& line : world.chat()) {
                 if (line.name().empty()) {
                   notices_.push_back(line.text());
+                } else {
+                  heard_.push_back(line);
                 }
               }
             } else {
@@ -170,6 +175,7 @@ class TestPlayer {
   std::optional<nanommo::protocol::Guild> guild_;
   std::optional<nanommo::protocol::GuildInvite> invite_;
   std::vector<std::string> notices_;
+  std::vector<nanommo::protocol::Chat> heard_;
   std::vector<nanommo::protocol::Event> events_;
   bool closed_ = false;
 };
@@ -571,4 +577,38 @@ TEST_F(ServerTest, AskedPlayersJoin) {
   EXPECT_TRUE(RunUntil([&] {
     return !alice.notices().empty() && alice.notices().back() == joined;
   }));
+}
+
+TEST_F(ServerTest, GuildChatReachesTheGuildAlone) {
+  const uint32_t carol_id = NewAccount();
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, server_->port(), Token(bob_));
+  TestPlayer carol(io_, *client_tls_, server_->port(), Token(carol_id));
+  ASSERT_TRUE(
+      RunUntil([&] { return alice.guild() && bob.guild() && carol.guild(); }));
+  nanommo::protocol::Input input;
+  input.mutable_guild()->set_create("Iron Wolves");
+  alice.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return alice.guild()->name() == "Iron Wolves"; }));
+  input.mutable_guild()->set_invite(names_[bob_]);
+  alice.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return bob.invite().has_value(); }));
+  input.mutable_guild()->set_accept(true);
+  bob.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return bob.guild()->name() == "Iron Wolves"; }));
+
+  input.mutable_guild()->set_say("meet at the Crypt gate");
+  alice.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return !bob.heard().empty(); }));
+  EXPECT_EQ(bob.heard().back().name(), names_[alice_]);
+  EXPECT_EQ(bob.heard().back().text(), "meet at the Crypt gate");
+  EXPECT_EQ(bob.heard().back().channel(), nanommo::protocol::CHANNEL_GUILD);
+  // Carol hears the world's line alice says after, and not the guild's
+  // before it, over the same connection.
+  nanommo::protocol::Input world;
+  world.set_say("hello all");
+  alice.Send(world);
+  ASSERT_TRUE(RunUntil([&] { return !carol.heard().empty(); }));
+  EXPECT_EQ(carol.heard().size(), 1u);
+  EXPECT_EQ(carol.heard().front().text(), "hello all");
 }

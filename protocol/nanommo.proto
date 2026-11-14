@@ -172,9 +172,16 @@ message Quests {
   repeated uint32 done = 3;
 }
 
+// Who hears a line: the whole world, or the guild of the one who said it.
+enum Channel {
+  CHANNEL_WORLD = 0;
+  CHANNEL_GUILD = 1;
+}
+
 message Chat {
   string name = 1;
   string text = 2;
+  Channel channel = 3;
 }
 
 // Where a player goes when their world's instance hands its players over to
@@ -325,6 +332,8 @@ message GuildAction {
     bool accept = 3;
     // Say no to the guild that asked, so that another can.
     bool decline = 4;
+    // A line of chat for the guild alone.
+    string say = 5;
   }
 }
 

@@ -498,6 +498,11 @@ void Server::Guild(uint32_t id, const protocol::GuildAction& action) {
   if (handing_over_) {
     return;
   }
+  // A line of chat has the chat's own limit, and doesn't touch MySQL.
+  if (action.has_say()) {
+    GuildSay(id, action.say());
+    return;
+  }
   if (!guild_limits_.at(id).Take(std::chrono::steady_clock::now())) {
     Notify(id, "You're doing that too fast.");
     return;
@@ -517,6 +522,7 @@ void Server::Guild(uint32_t id, const protocol::GuildAction& action) {
         Refuse(id, declined);
       }
       break;
+    case protocol::GuildAction::kSay:
     case protocol::GuildAction::ACTION_NOT_SET:
       break;
   }
@@ -578,6 +584,41 @@ void Server::Join(uint32_t id) {
   guild_news_.insert(id);
   TellGuild(joined->guild, absl::StrCat(WorldOf(id)->players().at(id).name,
                                         " joined ", joined->name, "."));
+}
+
+void Server::GuildSay(uint32_t id, const std::string& text) {
+  const auto member = members_.find(id);
+  if (member == members_.end()) {
+    Notify(id, "You're in no guild.");
+    return;
+  }
+  if (!chat_limits_.at(id).Take(std::chrono::steady_clock::now())) {
+    metrics_.AddChatLine("refused");
+    Notify(id, "You're talking too fast, so nobody heard that.");
+    return;
+  }
+  const std::optional<std::string> clean = CleanChat(text);
+  if (!clean) {
+    metrics_.AddChatLine("refused");
+    return;
+  }
+  metrics_.AddChatLine("said");
+  protocol::World said;
+  protocol::Chat* line = said.add_chat();
+  line->set_name(WorldOf(id)->players().at(id).name);
+  line->set_text(*clean);
+  line->set_channel(protocol::CHANNEL_GUILD);
+  std::cout << "[" << member->second.name << "] " << line->name() << ": "
+            << line->text() << std::endl;
+  // Serialized once, for all of them, like the world's chat.
+  const auto bytes =
+      std::make_shared<const std::string>(said.SerializeAsString());
+  for (const auto& [other, membership] : members_) {
+    if (membership.guild == member->second.guild) {
+      metrics_.AddBytesSent(kHeaderSize + bytes->size());
+      sessions_.at(other)->Send(bytes, {});
+    }
+  }
 }
 
 void Server::TellGuild(uint32_t guild, const std::string& text) {

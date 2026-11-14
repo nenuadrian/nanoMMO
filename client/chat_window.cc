@@ -23,12 +23,21 @@ constexpr float kButton = 23.0f;
 
 constexpr ImVec4 kName{1.0f, 0.63f, 0.29f, 1.0f};
 constexpr ImVec4 kServer{1.0f, 0.83f, 0.3f, 1.0f};
+constexpr ImVec4 kGuild{0.45f, 0.9f, 0.45f, 1.0f};
 
 bool Same(const protocol::Chat& a, const protocol::Chat& b) {
   return a.name() == b.name() && a.text() == b.text();
 }
 
 }  // namespace
+
+std::optional<std::string> GuildLine(std::string_view typed) {
+  constexpr std::string_view kCommand = "/g ";
+  if (!typed.starts_with(kCommand)) {
+    return std::nullopt;
+  }
+  return std::string(typed.substr(kCommand.size()));
+}
 
 std::size_t ChatWindow::Unread(const std::deque<protocol::Chat>& lines,
                                const std::optional<protocol::Chat>& seen) {
@@ -138,11 +147,23 @@ std::optional<std::string> ChatWindow::Build(
       ImGui::PopStyleColor();
       continue;
     }
+    // The guild's lines are green, all of them, so they stand apart.
+    const bool guild = line.channel() == protocol::CHANNEL_GUILD;
+    if (guild) {
+      ImGui::PushStyleColor(ImGuiCol_Text, kGuild);
+    }
     ImGui::PushFont(GetFonts().bold, 0.0f);
-    ImGui::TextColored(kName, "%s:", line.name().c_str());
+    if (guild) {
+      ImGui::Text("[Guild] %s:", line.name().c_str());
+    } else {
+      ImGui::TextColored(kName, "%s:", line.name().c_str());
+    }
     ImGui::PopFont();
     ImGui::SameLine();
     ImGui::TextWrapped("%s", line.text().c_str());
+    if (guild) {
+      ImGui::PopStyleColor();
+    }
   }
   // Follow the newest line, unless the player has scrolled up to read.
   if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
@@ -156,9 +177,9 @@ std::optional<std::string> ChatWindow::Build(
   }
   ImGui::SetNextItemWidth(-FLT_MIN);
   std::optional<std::string> said;
-  if (ImGui::InputTextWithHint("##say", "Press Enter to chat", typing_.data(),
-                               typing_.size(),
-                               ImGuiInputTextFlags_EnterReturnsTrue) &&
+  if (ImGui::InputTextWithHint(
+          "##say", "Press Enter to chat, /g for your guild", typing_.data(),
+          typing_.size(), ImGuiInputTextFlags_EnterReturnsTrue) &&
       typing_[0] != '\0') {
     said = typing_.data();
     typing_.fill('\0');

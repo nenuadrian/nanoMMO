@@ -563,7 +563,12 @@ int main(int argc, char* argv[]) {
               chat_window.Build(connection->chat())) {
         // With what we sent last, so that we keep moving as we were.
         nanommo::protocol::Input say = sent;
-        say.set_say(*line);
+        if (const std::optional<std::string> to_guild =
+                nanommo::GuildLine(*line)) {
+          say.mutable_guild()->set_say(*to_guild);
+        } else {
+          say.set_say(*line);
+        }
         connection->Send(say);
       }
       if (const std::optional<nanommo::protocol::Talk> talk =
