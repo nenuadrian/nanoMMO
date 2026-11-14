@@ -41,6 +41,11 @@ class Parts {
 
   protocol::World world() const;
 
+  /// The newest world that's come whole, every part of it, by when it was
+  /// sent, or 0: the server leaves out of the next ones what hasn't changed
+  /// since.
+  int64_t whole() const { return whole_; }
+
  private:
   struct HeardNpc {
     protocol::Npc npc;
@@ -59,6 +64,7 @@ class Parts {
   std::map<uint32_t, uint32_t> cooldowns_;
   std::vector<uint32_t> skills_;
   int64_t sent_ = 0;
+  int64_t whole_ = 0;
   std::map<uint32_t, protocol::Player> players_;
   std::map<uint32_t, protocol::Monster> monsters_;
   std::map<uint32_t, HeardNpc> npcs_;

@@ -128,6 +128,11 @@ void Parts::Add(const protocol::World& part) {
     Update(monsters_[monster.id()], monster);
     seen_monsters_.insert(monster.id());
   }
+  // Those that haven't changed since the world we have whole are as we have
+  // them, and still here.
+  seen_.insert(part.still_players().begin(), part.still_players().end());
+  seen_monsters_.insert(part.still_monsters().begin(),
+                        part.still_monsters().end());
   for (const protocol::Npc& npc : part.npcs()) {
     npcs_[npc.id()] = {.npc = npc, .sent = part.sent()};
   }
@@ -135,6 +140,7 @@ void Parts::Add(const protocol::World& part) {
     return std::chrono::microseconds(sent_ - npc.second.sent) > kNpcTimeout;
   });
   if (arrived_.size() == std::max(part.parts(), 1u)) {
+    whole_ = sent_;
     std::erase_if(players_, [this](const auto& player) {
       return !seen_.contains(player.first);
     });

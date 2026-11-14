@@ -183,3 +183,20 @@ TEST(Parts, KeepsNpcsBetweenTheWorldsThatSendThemUntilTheyAreGone) {
   assembled.Add(MakeWorld(1, 5 * kSecond));
   EXPECT_EQ(assembled.world().npcs_size(), 0);
 }
+
+TEST(Parts, KeepsTheStillAsTheyWereAndSaysWhichWorldCameWhole) {
+  nanommo::Parts assembled;
+  nanommo::protocol::World first = MakeWorld(3, 1);
+  assembled.Add(first);
+  EXPECT_EQ(assembled.whole(), 1);
+
+  // A whole world with player 1 in it and the others still: none of them go.
+  nanommo::protocol::World next = MakeWorld(1, 2, 5.0f);
+  next.add_still_players(next.players(0).id() + 1);
+  next.add_still_players(next.players(0).id() + 2);
+  assembled.Add(next);
+  const nanommo::protocol::World result = assembled.world();
+  ASSERT_EQ(result.players_size(), 3);
+  EXPECT_EQ(result.players(1).x(), first.players(1).x());
+  EXPECT_EQ(assembled.whole(), 2);
+}

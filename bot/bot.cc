@@ -351,7 +351,10 @@ void Bot::Wander() {
 }
 
 void Bot::Send(const protocol::Input& input) {
-  outgoing_ = Frame(input);
+  // With the newest world it has whole, as the client does.
+  protocol::Input with = input;
+  with.set_seen(parts_.whole());
+  outgoing_ = Frame(with);
   asio::async_write(stream_, asio::buffer(outgoing_),
                     [this](std::error_code error, std::size_t) {
                       if (error) {

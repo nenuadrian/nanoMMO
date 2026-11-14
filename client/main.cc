@@ -317,6 +317,7 @@ int main(int argc, char* argv[]) {
         input_clock -= kInputTick;
         nanommo::protocol::Input numbered = sent;
         numbered.set_sequence(++sequence);
+        numbered.set_seen(connection->whole());
         connection->Send(numbered);
         round_trip.Sent(sequence, GetTime());
         // And they walk us now, as the server will when they reach it,

@@ -81,6 +81,9 @@ message Input {
   // tick, with the keys as they are then, and the server applies them in
   // order, one a tick. 0 for keys the server applies at once, as a bot's.
   uint32 sequence = 16;
+  // The newest world the client has whole, every part of it, by when it was
+  // sent: the server leaves out of the next ones what hasn't changed since.
+  int64 seen = 17;
 }
 
 // A place in a land, in metres from its middle.
@@ -256,6 +259,10 @@ message World {
   // Whether the server moved you itself this tick, along a walk you asked
   // for, up to a monster or with a skill, or you're dead: your keys didn't.
   bool steered = 23;
+  // The players and monsters near you that haven't changed since the world
+  // your client said it has whole, by their ids alone.
+  repeated uint32 still_players = 24;
+  repeated uint32 still_monsters = 25;
 }
 
 // To the login server: log in with a name and password, or make an account,

@@ -44,6 +44,10 @@ class Connection {
   /// The newest lines said in the world, oldest first.
   const std::deque<protocol::Chat>& chat() const { return chat_; }
 
+  /// The newest world that's come whole, by when it was sent, for the server
+  /// to leave out what hasn't changed since.
+  int64_t whole() const { return parts_.whole(); }
+
   /// Where the world's instance told us to go, once it hands its players over.
   const std::optional<protocol::Move>& move() const { return move_; }
 
