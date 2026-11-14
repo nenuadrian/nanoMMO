@@ -7,6 +7,13 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.68.0 (2026-11-14)
+
+- Your keys walk you at once, and the server's answer corrects you: the client sends its keys each
+  tick, numbered, and the server says which it applied.
+- The round trip to the server shows under the minimap.
+- How a player walks is a library, `nanommo_walking`, which the server and the client both link.
+
 ## 0.67.0 (2026-11-14)
 
 - The guild window lists the guild's players, by rank, with their level and who's playing now.

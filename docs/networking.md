@@ -104,3 +104,31 @@ about, as combat text.
   smaller than what happens to you. A kind of event from a newer server shows nothing.
 - A dead monster has no nameplate, and a bot hunting it thinks again as soon as its world shows it
   dead, so it doesn't swing at the body.
+
+## Your own moves, before the server answers
+
+The server decides where everyone is, so with nothing more, a key you press moves you a round trip
+later: at 150 milliseconds, you start and stop walking a beat after your fingers. The client walks
+you at once instead, the way the server will, and the server's answer corrects it.
+
+| Where | What |
+|---|---|
+| The client | Sends its keys once each of the server's ticks, 20 a second, each numbered, from 1 |
+| The server | Applies a player's numbered keys in order, one a tick, before the world steps, keeping a few that arrive together and dropping the oldest past five. A slow frame on the client sends two or three together, so with more than three waiting, it's fallen behind the client, and skips one a tick until it's caught up. Inputs come in as fast as they go out, so a queue a burst filled would stay full: if two or more waited at the start of every tick for a second, it drops one |
+| Each world | Says the last of your inputs the server applied (`acked`), and whether it moved you itself that tick (`steered`), with where you are, in every datagram |
+| The client | Shows the round trip under the minimap: from sending an input to the world that says it was applied |
+
+- The client walks you with each tick's keys as it sends them, with `WalkAlong` from
+  `server/walking.h`, which the server walks players with. It's a library both link, built without
+  fusing a multiply and an add, like the terrain, so a step comes out the same on every machine.
+- Each world puts you where the server has you, after the last input it applied, and walks you
+  again through the ones it hasn't (`client/prediction.h`). When the two agree, nothing moves; when
+  they don't, the server wins, and what the correction moved fades over a tenth of a second, unless
+  it's a jump of two metres or more, as through a gate.
+- While the server moves you itself, along a walk you asked for, up to a monster, with a skill, or
+  you're dead, your keys don't walk you on the client either, and you're drawn moving as the server
+  says.
+- You're drawn where the prediction has you, walking as your keys say. Everyone else is still drawn
+  easing towards where the server last had them.
+
+To feel it, put a delay on the server's packets with the `netem` service above, and walk.
