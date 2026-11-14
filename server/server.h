@@ -83,6 +83,7 @@ class Server {
   /// Asks the player of that name in, if they're playing in this world.
   void Ask(uint32_t id, const std::string& name);
   void Join(uint32_t id);
+  void QuitGuild(uint32_t id);
   /// To the guild's players in this world, at once, over TCP.
   void GuildSay(uint32_t id, const std::string& text);
   /// Sends each of the guild's players here a line from the server.

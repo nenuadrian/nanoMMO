@@ -612,3 +612,30 @@ TEST_F(ServerTest, GuildChatReachesTheGuildAlone) {
   EXPECT_EQ(carol.heard().size(), 1u);
   EXPECT_EQ(carol.heard().front().text(), "hello all");
 }
+
+TEST_F(ServerTest, LeavingTakesTheTagOffAndHandsTheGuildOn) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, server_->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] { return alice.guild() && bob.guild(); }));
+  nanommo::protocol::Input input;
+  input.mutable_guild()->set_create("Iron Wolves");
+  alice.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return alice.guild()->name() == "Iron Wolves"; }));
+  input.mutable_guild()->set_invite(names_[bob_]);
+  alice.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return bob.invite().has_value(); }));
+  input.mutable_guild()->set_accept(true);
+  bob.Send(input);
+  ASSERT_TRUE(RunUntil([&] { return bob.guild()->name() == "Iron Wolves"; }));
+
+  input.mutable_guild()->set_leave(true);
+  alice.Send(input);
+  EXPECT_TRUE(RunUntil([&] {
+    return alice.guild()->name().empty() &&
+           bob.guild()->rank() == nanommo::protocol::RANK_LEADER;
+  }));
+  const std::string news = absl::StrCat(names_[alice_], " left Iron Wolves. ",
+                                        names_[bob_], " leads it now.");
+  EXPECT_TRUE(RunUntil(
+      [&] { return !bob.notices().empty() && bob.notices().back() == news; }));
+}

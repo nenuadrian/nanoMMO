@@ -334,6 +334,8 @@ message GuildAction {
     bool decline = 4;
     // A line of chat for the guild alone.
     string say = 5;
+    // Leave the guild.
+    bool leave = 6;
   }
 }
 

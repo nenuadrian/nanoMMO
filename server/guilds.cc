@@ -188,4 +188,86 @@ absl::Status Guilds::Decline(uint32_t player) {
   return redis_.Command({"DEL", InvitationOf(player)}).status();
 }
 
+absl::StatusOr<Left> Guilds::Leave(uint32_t player) {
+  absl::StatusOr<Left> left;
+  const absl::Status done = database_.Transaction([&]() -> absl::Status {
+    left = LeaveGuild(database_, player);
+    return left.status();
+  });
+  if (!done.ok()) {
+    return done;
+  }
+  return left;
+}
+
+absl::StatusOr<Left> LeaveGuild(Database& database, uint32_t player) {
+  Left left;
+  const absl::StatusOr<Result> in =
+      database.Run("SELECT guild FROM guild_members WHERE player = ?",
+                   {absl::StrCat(player)});
+  if (!in.ok()) {
+    return in.status();
+  }
+  if (in->rows.empty() || !absl::SimpleAtoi(in->rows.front()[0], &left.guild)) {
+    return absl::NotFoundError("You're in no guild.");
+  }
+  // The guild's row first, as every change to a guild locks it, then the
+  // member's, which someone may have changed before we got the guild's.
+  const absl::StatusOr<Result> guild =
+      database.Run("SELECT name FROM guilds WHERE id = ? FOR UPDATE",
+                   {absl::StrCat(left.guild)});
+  const absl::StatusOr<Result> member = database.Run(
+      "SELECT grade FROM guild_members WHERE player = ? AND guild = ? "
+      "FOR UPDATE",
+      {absl::StrCat(player), absl::StrCat(left.guild)});
+  if (!guild.ok() || !member.ok()) {
+    return guild.ok() ? member.status() : guild.status();
+  }
+  if (guild->rows.empty() || member->rows.empty()) {
+    return absl::NotFoundError("You're in no guild.");
+  }
+  left.name = guild->rows.front()[0];
+  const absl::StatusOr<Result> gone = database.Run(
+      "DELETE FROM guild_members WHERE player = ?", {absl::StrCat(player)});
+  if (!gone.ok()) {
+    return gone.status();
+  }
+  if (member->rows.front()[0] !=
+      absl::StrCat(static_cast<int>(protocol::RANK_LEADER))) {
+    return left;
+  }
+  // The highest rank left, and of those, who joined first.
+  const absl::StatusOr<Result> next = database.Run(
+      "SELECT guild_members.player, players.name FROM guild_members "
+      "JOIN players ON players.id = guild_members.player "
+      "WHERE guild_members.guild = ? "
+      "ORDER BY guild_members.grade DESC, guild_members.joined_at, "
+      "guild_members.player LIMIT 1 FOR UPDATE",
+      {absl::StrCat(left.guild)});
+  if (!next.ok()) {
+    return next.status();
+  }
+  if (next->rows.empty()) {
+    left.ended = true;
+    const absl::StatusOr<Result> ended = database.Run(
+        "DELETE FROM guilds WHERE id = ?", {absl::StrCat(left.guild)});
+    if (!ended.ok()) {
+      return ended.status();
+    }
+    return left;
+  }
+  if (!absl::SimpleAtoi(next->rows.front()[0], &left.successor)) {
+    return absl::InternalError("a member that isn't a number");
+  }
+  left.successor_name = next->rows.front()[1];
+  const absl::StatusOr<Result> promoted =
+      database.Run("UPDATE guild_members SET grade = ? WHERE player = ?",
+                   {absl::StrCat(static_cast<int>(protocol::RANK_LEADER)),
+                    absl::StrCat(left.successor)});
+  if (!promoted.ok()) {
+    return promoted.status();
+  }
+  return left;
+}
+
 }  // namespace nanommo

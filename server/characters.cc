@@ -8,6 +8,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "server/accounts.h"
+#include "server/guilds.h"
 #include "server/levels.h"
 
 namespace nanommo {
@@ -109,16 +110,28 @@ absl::StatusOr<uint32_t> Characters::Create(uint32_t account,
 }
 
 absl::Status Characters::Delete(uint32_t account, uint32_t id) {
-  const absl::StatusOr<Result> deleted =
-      database_.Run("DELETE FROM players WHERE id = ? AND account_id = ?",
-                    {absl::StrCat(id), absl::StrCat(account)});
-  if (!deleted.ok()) {
-    return deleted.status();
-  }
-  if (deleted->affected_rows == 0) {
-    return absl::NotFoundError("That character isn't yours.");
-  }
-  return absl::OkStatus();
+  // Only the account's own, which hands on a guild it leads as it goes, in
+  // one transaction, so that the guild changes only if the character goes.
+  return database_.Transaction([&]() -> absl::Status {
+    if (const absl::StatusOr<std::string> world = WorldOf(account, id);
+        !world.ok()) {
+      return world.status();
+    }
+    if (const absl::StatusOr<Left> left = LeaveGuild(database_, id);
+        !left.ok() && !absl::IsNotFound(left.status())) {
+      return left.status();
+    }
+    const absl::StatusOr<Result> deleted =
+        database_.Run("DELETE FROM players WHERE id = ? AND account_id = ?",
+                      {absl::StrCat(id), absl::StrCat(account)});
+    if (!deleted.ok()) {
+      return deleted.status();
+    }
+    if (deleted->affected_rows == 0) {
+      return absl::NotFoundError("That character isn't yours.");
+    }
+    return absl::OkStatus();
+  });
 }
 
 absl::StatusOr<std::string> Characters::WorldOf(uint32_t account, uint32_t id) {

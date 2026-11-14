@@ -25,6 +25,26 @@ struct Membership {
   protocol::Rank rank = protocol::RANK_MEMBER;
 };
 
+/// What leaving a guild did.
+struct Left {
+  uint32_t guild = 0;
+  std::string name;
+  /// Who leads it now, when the one who left led it, and someone's still in
+  /// it, by their character's id and name.
+  uint32_t successor = 0;
+  std::string successor_name;
+  /// Whether they were the last one in it, so it's gone.
+  bool ended = false;
+};
+
+/// The character leaves their guild. When they led it, the one who's been in
+/// it longest leads it now, an officer before a member, and the last one out
+/// ends it. A NotFound error says they're in none. It runs in a transaction
+/// the caller has begun: Leave's own, or a character's deletion, which calls
+/// it too, so that a guild never goes without a leader, and only if the
+/// character goes.
+absl::StatusOr<Left> LeaveGuild(Database& database, uint32_t player);
+
 /// Guilds and who's in them, in MySQL. A guild is in one world, as its
 /// characters are, and a character is in one guild at most. Unlike a player,
 /// whose own world saves them, a guild changes for players other than the one
@@ -65,6 +85,9 @@ class Guilds {
 
   /// The player says no to the guild that asked, so that another can ask.
   absl::Status Decline(uint32_t player);
+
+  /// The player leaves their guild, as LeaveGuild says, in a transaction.
+  absl::StatusOr<Left> Leave(uint32_t player);
 
  private:
   Database& database_;

@@ -75,6 +75,10 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
           player_.fill('\0');
         }
       }
+      ImGui::Spacing();
+      if (GameButton("Leave the guild", {width, 0.0f})) {
+        action.emplace().set_leave(true);
+      }
     }
   }
   EndPanel();

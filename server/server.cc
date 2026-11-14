@@ -522,6 +522,9 @@ void Server::Guild(uint32_t id, const protocol::GuildAction& action) {
         Refuse(id, declined);
       }
       break;
+    case protocol::GuildAction::kLeave:
+      QuitGuild(id);
+      break;
     case protocol::GuildAction::kSay:
     case protocol::GuildAction::ACTION_NOT_SET:
       break;
@@ -584,6 +587,31 @@ void Server::Join(uint32_t id) {
   guild_news_.insert(id);
   TellGuild(joined->guild, absl::StrCat(WorldOf(id)->players().at(id).name,
                                         " joined ", joined->name, "."));
+}
+
+void Server::QuitGuild(uint32_t id) {
+  const absl::StatusOr<Left> left = guilds_.Leave(id);
+  if (!left.ok()) {
+    Refuse(id, left.status());
+    return;
+  }
+  members_.erase(id);
+  guild_news_.insert(id);
+  std::string news = absl::StrCat(WorldOf(id)->players().at(id).name, " left ",
+                                  left->name, ".");
+  if (left->successor != 0) {
+    absl::StrAppend(&news, " ", left->successor_name, " leads it now.");
+    // If they're playing here, they see it at once.
+    if (const auto next = members_.find(left->successor);
+        next != members_.end()) {
+      next->second.rank = protocol::RANK_LEADER;
+      guild_news_.insert(left->successor);
+    }
+  }
+  TellGuild(left->guild, news);
+  Notify(id, left->ended ? absl::StrCat("You were the last in ", left->name,
+                                        ", so it's no more.")
+                         : absl::StrCat("You left ", left->name, "."));
 }
 
 void Server::GuildSay(uint32_t id, const std::string& text) {

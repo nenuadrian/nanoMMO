@@ -40,6 +40,7 @@ class GuildsTest : public ::testing::Test {
     const absl::StatusOr<uint32_t> account =
         nanommo::Accounts(*database_).Create(name_, "hash");
     ASSERT_TRUE(account.ok()) << account.status();
+    account_ = *account;
     nanommo::Characters characters(*database_);
     const absl::StatusOr<uint32_t> alice =
         characters.Create(*account, world_, name_);
@@ -81,6 +82,7 @@ class GuildsTest : public ::testing::Test {
   const std::string name_ = nanommo::testing::TestName();
   const std::string world_ = name_;
   const std::string other_world_ = name_ + "b";
+  uint32_t account_ = 0;
   uint32_t alice_ = 0;
   uint32_t bob_ = 0;
   uint32_t carol_ = 0;
@@ -174,4 +176,44 @@ TEST_F(GuildsTest, SayingNoLetsAnotherGuildAsk) {
   const absl::StatusOr<nanommo::Membership> joined = guilds.Accept(bob_);
   ASSERT_TRUE(joined.ok()) << joined.status();
   EXPECT_EQ(joined->name, "Stone Bears");
+}
+
+TEST_F(GuildsTest, TheLeaderLeavingHandsTheGuildOn) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  for (const uint32_t joining : {bob_, dave_}) {
+    ASSERT_TRUE(guilds.Invite(alice_, joining).ok());
+    ASSERT_TRUE(guilds.Accept(joining).ok());
+  }
+
+  const absl::StatusOr<nanommo::Left> left = guilds.Leave(alice_);
+  ASSERT_TRUE(left.ok()) << left.status();
+  // Bob joined before dave.
+  EXPECT_EQ(left->successor, bob_);
+  EXPECT_FALSE(left->ended);
+  EXPECT_TRUE(absl::IsNotFound(guilds.Of(alice_).status()));
+  EXPECT_EQ(guilds.Of(bob_)->rank, nanommo::protocol::RANK_LEADER);
+  EXPECT_EQ(guilds.Of(dave_)->rank, nanommo::protocol::RANK_MEMBER);
+}
+
+TEST_F(GuildsTest, TheLastOutEndsTheGuild) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+
+  const absl::StatusOr<nanommo::Left> left = guilds.Leave(alice_);
+  ASSERT_TRUE(left.ok()) << left.status();
+  EXPECT_TRUE(left->ended);
+  EXPECT_TRUE(absl::IsNotFound(guilds.Leave(alice_).status()));
+  // So its name is free again.
+  EXPECT_TRUE(guilds.Create(world_, bob_, "Iron Wolves").ok());
+}
+
+TEST_F(GuildsTest, DeletingTheLeaderHandsTheGuildOn) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  ASSERT_TRUE(guilds.Invite(alice_, bob_).ok());
+  ASSERT_TRUE(guilds.Accept(bob_).ok());
+
+  ASSERT_TRUE(nanommo::Characters(*database_).Delete(account_, alice_).ok());
+  EXPECT_EQ(guilds.Of(bob_)->rank, nanommo::protocol::RANK_LEADER);
 }
