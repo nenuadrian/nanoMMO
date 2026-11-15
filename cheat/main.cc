@@ -4,7 +4,7 @@
 // beside the servers, with an account of its own, which it makes the first
 // time:
 //
-//   nanommo_cheat <name> <password> <cheat>
+//   nanommo_cheat <name> <password> <cheat> [<partner>]
 //
 // The cheats, each with what it's after:
 //
@@ -22,7 +22,15 @@
 //     ticks later, to end the swing early and start the next one sooner.
 //
 // The walks go east and back west, three seconds each way, so that it stays
-// near where it started.
+// near where it started. The trades are with the partner named after the
+// cheat, who runs take:
+//
+//   take: asks the partner to trade, offers nothing, and is ready once they
+//     offer something, to compare with.
+//   swap: offers its sword from the bag, and once the partner's ready, moves
+//     it to another slot and is ready too, to give the sword and keep it.
+//   run: offers its sword, and once the partner's ready, is ready too and
+//     leaves at once, to keep the sword when it comes back.
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -33,8 +41,10 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "asio/ssl/context.hpp"
 #include "cheat/measure.h"
 #include "client/connection.h"
@@ -157,7 +167,10 @@ enum class Cheat {
   kFight,
   kRapid,
   kSwing,
-  kCancel
+  kCancel,
+  kTake,
+  kSwap,
+  kRun
 };
 
 // An input that moves what's in one place to another.
@@ -179,13 +192,189 @@ uint32_t FreeSlot(const nanommo::protocol::Inventory& inventory) {
   return slot;
 }
 
+// An input that does something about a trade.
+nanommo::protocol::Input Trading(const nanommo::protocol::TradeAction& action) {
+  nanommo::protocol::Input input;
+  *input.mutable_trade() = action;
+  return input;
+}
+
+// How many of the item the player has, in the bag and worn, said in words.
+std::string Count(const nanommo::protocol::Inventory& inventory,
+                  uint32_t item) {
+  int count = 0;
+  for (const auto& [slot, stack] : inventory.bag()) {
+    count += stack.item() == item ? 1 : 0;
+  }
+  for (const auto& [slot, stack] : inventory.worn()) {
+    count += stack.item() == item ? 1 : 0;
+  }
+  return absl::StrCat(count, count == 1 ? " sword" : " swords");
+}
+
+// The bag's slot that holds the item, if one does.
+std::optional<uint32_t> SlotOf(const nanommo::protocol::Inventory& inventory,
+                               uint32_t item) {
+  for (const auto& [slot, stack] : inventory.bag()) {
+    if (stack.item() == item) {
+      return slot;
+    }
+  }
+  return std::nullopt;
+}
+
+// The trades, with the partner, who runs take. They print what they do, and
+// how many swords they have once the trade's over, or for run, once it's
+// back. Returns what main does.
+int Trade(asio::ssl::context& tls, const std::string& name,
+          const std::string& password, Cheat cheat, const std::string& partner,
+          std::unique_ptr<nanommo::Connection> connection) {
+  nanommo::protocol::Place hand;
+  hand.set_worn(nanommo::items::SLOT_MAIN_HAND);
+  // The kit's sword, by its item, once the bag has come.
+  uint32_t sword = 0;
+  std::chrono::steady_clock::time_point asked;
+  bool open = false;
+  bool stowed = false;
+  std::optional<uint32_t> offered;
+  // When swap moved the sword, if it has.
+  std::optional<std::chrono::steady_clock::time_point> moved;
+  bool ready = false;
+  while (connection->connected()) {
+    connection->Poll();
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    const nanommo::protocol::Inventory& bag = connection->inventory();
+    const auto in_hand = static_cast<uint32_t>(hand.worn());
+    if (sword == 0) {
+      if (bag.worn().contains(in_hand)) {
+        sword = bag.worn().at(in_hand).item();
+        std::cout << "cheat: " << name << " has " << Count(bag, sword)
+                  << std::endl;
+      }
+      continue;
+    }
+    const nanommo::protocol::Trade& trade = connection->trade();
+    if (trade.partner() != partner) {
+      if (open) {
+        // The bag that comes with the trade's end can come a tick after it.
+        const auto end = std::chrono::steady_clock::now();
+        while (std::chrono::steady_clock::now() - end <
+               std::chrono::milliseconds(500)) {
+          connection->Poll();
+          std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        std::cout << "cheat: the trade's over, and " << name << " has "
+                  << Count(connection->inventory(), sword) << std::endl;
+        return 0;
+      }
+      // The partner may not be in yet, so we ask again each second.
+      const auto now = std::chrono::steady_clock::now();
+      if (now - asked >= std::chrono::seconds(1)) {
+        nanommo::protocol::TradeAction ask;
+        ask.set_ask(partner);
+        connection->Send(Trading(ask));
+        asked = now;
+      }
+      continue;
+    }
+    open = true;
+    if (cheat == Cheat::kTake) {
+      if (!ready && trade.theirs().bag_size() > 0) {
+        nanommo::protocol::TradeAction yes;
+        yes.set_ready(true);
+        connection->Send(Trading(yes));
+        ready = true;
+        std::cout << "cheat: " << partner << " offers a sword, so " << name
+                  << " is ready" << std::endl;
+      }
+      continue;
+    }
+    // swap and run offer the sword from the bag, so it goes there first.
+    if (!offered) {
+      if (!stowed) {
+        nanommo::protocol::Place free;
+        free.set_bag(FreeSlot(bag));
+        connection->Send(Move(hand, free));
+        stowed = true;
+      } else if (const std::optional<uint32_t> slot = SlotOf(bag, sword)) {
+        nanommo::protocol::TradeAction offer;
+        offer.mutable_offer()->add_bag(*slot);
+        connection->Send(Trading(offer));
+        offered = slot;
+        std::cout << "cheat: " << name << " offers its sword, from slot "
+                  << *slot << std::endl;
+      }
+      continue;
+    }
+    if (ready || !trade.theirs().ready()) {
+      continue;
+    }
+    nanommo::protocol::TradeAction yes;
+    yes.set_ready(true);
+    if (cheat == Cheat::kSwap) {
+      // The sword leaves the slot it was offered from, and then we're ready.
+      if (!moved) {
+        nanommo::protocol::Place from;
+        from.set_bag(*offered);
+        nanommo::protocol::Place to;
+        to.set_bag(FreeSlot(bag));
+        connection->Send(Move(from, to));
+        moved = std::chrono::steady_clock::now();
+        std::cout << "cheat: " << partner << " is ready, so " << name
+                  << " moves the sword to slot " << to.bag() << std::endl;
+      } else if (!bag.bag().contains(*offered)) {
+        connection->Send(Trading(yes));
+        ready = true;
+        std::cout << "cheat: " << name << " is ready too" << std::endl;
+      } else if (std::chrono::steady_clock::now() - *moved >
+                 std::chrono::seconds(1)) {
+        // The server didn't move it, so the trade goes ahead as offered.
+        connection->Send(Trading(yes));
+        ready = true;
+        std::cout << "cheat: the sword's still in slot " << *offered << ", so "
+                  << name << " is ready with it there" << std::endl;
+      }
+      continue;
+    }
+    // run: ready, and gone before the server's next tick saves the bags.
+    connection->Send(Trading(yes));
+    connection.reset();
+    std::cout << "cheat: " << partner << " is ready, so " << name
+              << " is ready too, and leaves at once" << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    absl::StatusOr<std::string> token = Enter(tls, name, password);
+    if (!token.ok()) {
+      std::cerr << "cheat: " << name
+                << " couldn't come back: " << token.status() << "\n";
+      return 1;
+    }
+    absl::StatusOr<std::unique_ptr<nanommo::Connection>> back =
+        nanommo::Connection::Create("localhost", kWorldPort, tls, *token,
+                                    false);
+    if (!back.ok()) {
+      std::cerr << "cheat: " << back.status() << "\n";
+      return 1;
+    }
+    while ((*back)->connected() && (*back)->inventory().bag().empty()) {
+      (*back)->Poll();
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    std::cout << "cheat: " << name << " is back, and has "
+              << Count((*back)->inventory(), sword) << std::endl;
+    return 0;
+  }
+  std::cout << "cheat: the server closed the connection" << std::endl;
+  return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
   const std::string usage =
       "usage: nanommo_cheat <name> <password> "
-      "<walk|speed|teleport|reach|fight|rapid|swing|cancel>\n";
-  if (argc != 4) {
+      "<walk|speed|teleport|reach|fight|rapid|swing|cancel>\n"
+      "       nanommo_cheat <name> <password> <take|swap|run> <partner>\n";
+  if (argc != 4 && argc != 5) {
     std::cerr << usage;
     return 2;
   }
@@ -209,7 +398,20 @@ int main(int argc, char** argv) {
     cheat = Cheat::kSwing;
   } else if (named == "cancel") {
     cheat = Cheat::kCancel;
+  } else if (named == "take") {
+    cheat = Cheat::kTake;
+  } else if (named == "swap") {
+    cheat = Cheat::kSwap;
+  } else if (named == "run") {
+    cheat = Cheat::kRun;
   } else {
+    std::cerr << usage;
+    return 2;
+  }
+  const bool trades =
+      cheat == Cheat::kTake || cheat == Cheat::kSwap || cheat == Cheat::kRun;
+  // A trade needs a partner, and nothing else does.
+  if (trades != (argc == 5)) {
     std::cerr << usage;
     return 2;
   }
@@ -245,6 +447,9 @@ int main(int argc, char** argv) {
   }
   std::cout << "cheat: " << name << " is in " << kWorld << ", trying " << named
             << std::endl;
+  if (trades) {
+    return Trade(*tls, name, password, cheat, argv[4], *std::move(connection));
+  }
 
   nanommo::Speedometer speed;
   nanommo::Hits hits;
