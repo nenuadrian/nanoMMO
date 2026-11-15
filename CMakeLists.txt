@@ -41,6 +41,11 @@ FetchContent_Declare(
   raylib
   URL https://github.com/raysan5/raylib/archive/refs/tags/6.2.tar.gz
   URL_HASH SHA256=df7a13129b1bec9e73a6962efff170beba310ee6eab8f94cd000b7316b4db5ee
+  # On OpenGL ES, raylib 6.2 transposes one matrix on the CPU, as the first
+  # WebGL couldn't, but hands WebGL an array of them, the bones', untransposed;
+  # the patch transposes those on the CPU too. Without it, people in a browser
+  # grow spindles.
+  PATCH_COMMAND patch -p1 -i ${PROJECT_SOURCE_DIR}/patches/raylib-webgl-bone-matrices.patch
   SYSTEM
 )
 FetchContent_Declare(

@@ -1,0 +1,15 @@
+--- a/src/rlgl.h
++++ b/src/rlgl.h
+@@ -4556,7 +4556,11 @@
+ #elif defined(GRAPHICS_API_OPENGL_ES2)
+     // WARNING: WebGL does not support Matrix transpose ("true" parameter)
+     // REF: https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/uniformMatrix
+-    glUniformMatrix4fv(locIndex, count, false, (const float *)matrices);
++    // So each matrix is transposed on the CPU, as rlSetUniformMatrix does
++    float *transposed = (float *)RL_MALLOC(count*16*sizeof(float));
++    for (int i = 0; i < count; i++) memcpy(transposed + 16*i, rlMatrixToFloatV(matrices[i]).v, 16*sizeof(float));
++    glUniformMatrix4fv(locIndex, count, false, transposed);
++    RL_FREE(transposed);
+ #endif
+ }
+ 
