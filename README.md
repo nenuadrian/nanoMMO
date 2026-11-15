@@ -24,9 +24,9 @@ git clone https://github.com/nenuadrian/nanoMMO.git
 cd nanoMMO
 # What this machine is missing, and the command that installs it.
 ./doctor.sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-ctest --test-dir build
+cmake --preset release
+cmake --build --preset release
+ctest --preset release
 # MySQL, Redis, Consul and the saver, then the certificates, once.
 docker compose up -d --build mysql redis consul saver
 tls/certificates.sh

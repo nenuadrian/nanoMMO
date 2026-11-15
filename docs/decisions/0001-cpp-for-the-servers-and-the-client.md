@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [0026](0026-cpp23-for-the-servers-and-the-client.md)
 
 ## Context
 

@@ -45,7 +45,7 @@ one commit could undo, or that the code makes plain, needs none.
 
 | Number | Title | Status | Episode |
 |---|---|---|---|
-| [0001](0001-cpp-for-the-servers-and-the-client.md) | C++20 for the servers and the client | Accepted | 1 |
+| [0001](0001-cpp-for-the-servers-and-the-client.md) | C++20 for the servers and the client | Superseded by [0026](0026-cpp23-for-the-servers-and-the-client.md) | 1 |
 | [0002](0002-an-authoritative-server-at-a-fixed-tick.md) | An authoritative server, at a fixed tick | Accepted | 1, 3 |
 | [0003](0003-protobuf-as-the-contract.md) | Protobuf as the contract between the client and the servers | Accepted | 1, 3 |
 | [0004](0004-build-test-and-check-in-docker.md) | Build, test and check in Docker, on every push | Accepted | 1, 4, 28, 43 |
@@ -70,3 +70,4 @@ one commit could undo, or that the code makes plain, needs none.
 | [0023](0023-draw-everyone-else-in-the-past.md) | Draw everyone else 100 milliseconds in the past | Accepted | 69 |
 | [0024](0024-leave-out-what-has-not-changed.md) | Leave out of each world what hasn't changed, by its pieces' hashes | Accepted | 70 |
 | [0025](0025-the-server-checks-what-a-client-asks-for.md) | The server checks what a client asks for, and a red-team client tries it | Accepted | 72 |
+| [0026](0026-cpp23-for-the-servers-and-the-client.md) | C++23 for the servers and the client, with each build named in a preset | Accepted | 73 |

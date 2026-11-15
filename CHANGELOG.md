@@ -7,6 +7,19 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.73.0 (2026-11-15)
+
+- `CMakePresets.json` names each way the game is built: `cmake --list-presets=all` lists them, and
+  `cmake --workflow --preset asan` builds the game with the sanitizers and runs the tests. The
+  Dockerfile and CI build with the presets, and the sanitized servers in Compose take `PRESET=tsan`
+  where they took `SANITIZE=thread`.
+- The game is C++23. The servers' timers hand their own lambda to the timer again, without
+  `std::function`, and the terrain's and the client's grids are read by row and column,
+  `grid[j, i]`, with each index checked against its row or column.
+- The sanitizers, the fuzzers, clang-tidy and coverage build with Clang 21, Ubuntu 26.04's own, as
+  Clang 18 crashes on the timers' lambdas.
+- `./doctor.sh` checks the compiler can do the C++23 the game uses. On Ubuntu 24.04, that's GCC 14.
+
 ## 0.72.0 (2026-11-15)
 
 - `nanommo_cheat`, the server's red-team client, tries what a modified client can: more inputs

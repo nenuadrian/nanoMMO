@@ -12,7 +12,7 @@ From a clone to playing, on macOS or Ubuntu 24.04.
 
 | Other systems | |
 |---|---|
-| Ubuntu 22.04 | Its CMake is 3.22, and the game needs 3.28: `sudo snap install cmake --classic` |
+| Ubuntu 22.04 | Its CMake is 3.22 and its compilers are too old for C++23, and the game needs CMake 3.28 and GCC 14 |
 | Windows, and other Linux | Not tested |
 
 ## 1. Get the code
@@ -40,7 +40,8 @@ that installs every missing package. What that is on a new machine:
 | | Run |
 |---|---|
 | macOS | [Homebrew](https://brew.sh), `xcode-select --install`, `brew install cmake ninja pkgconf mysql-client libsodium openssl@3`, and [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/) |
-| Ubuntu 24.04 | `sudo apt update && sudo apt install git cmake ninja-build build-essential pkg-config libmysqlclient-dev libsodium-dev libssl-dev xorg-dev libgl1-mesa-dev docker.io docker-compose-v2 docker-buildx` |
+| Ubuntu 24.04 | `sudo apt update && sudo apt install git cmake ninja-build build-essential g++-14 pkg-config libmysqlclient-dev libsodium-dev libssl-dev xorg-dev libgl1-mesa-dev docker.io docker-compose-v2 docker-buildx` |
+| Ubuntu 24.04's compiler | Its GCC 13 is too old for the C++23 the game uses, so build with GCC 14: `echo 'export CXX=g++-14' >> ~/.bashrc`, then open a new terminal |
 | Ubuntu, once | `sudo usermod -aG docker $USER`, then log out and in again |
 
 Run `./doctor.sh` again until every line is a tick.
@@ -48,16 +49,19 @@ Run `./doctor.sh` again until every line is a tick.
 ## 3. Build and test
 
 ```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-ctest --test-dir build
+cmake --preset release
+cmake --build --preset release
+ctest --preset release
 ```
+
+The release preset builds into `build/`. `cmake --list-presets` lists the others, the sanitizers and
+the rest of [the checks](checks.md), each in a folder of its own.
 
 | Where | Tests |
 |---|---|
-| With a screen | `ctest --test-dir build` |
-| Without one, such as over SSH | `sudo apt install xvfb`, then `xvfb-run -a ctest --test-dir build` |
-| With the database tests, once step 4's services are up | `NANOMMO_MYSQL_HOST=127.0.0.1 NANOMMO_REDIS_HOST=127.0.0.1 NANOMMO_CONSUL_HOST=127.0.0.1 ctest --test-dir build` |
+| With a screen | `ctest --preset release` |
+| Without one, such as over SSH | `sudo apt install xvfb`, then `xvfb-run -a ctest --preset release` |
+| With the database tests, once step 4's services are up | `NANOMMO_MYSQL_HOST=127.0.0.1 NANOMMO_REDIS_HOST=127.0.0.1 NANOMMO_CONSUL_HOST=127.0.0.1 ctest --preset release` |
 
 | You see | It means |
 |---|---|
@@ -165,11 +169,12 @@ NANOMMO_TLS_CA=tls/their-ca.crt ./build/bin/nanommo_client 192.168.1.20
 | You see | Why | Do |
 |---|---|---|
 | `cmake: command not found`, or `CMake 3.28 or higher is required` | No CMake, or an old one | `./doctor.sh` says which, and what to install |
+| `too old for C++23` from `./doctor.sh`, or errors at `this auto self` | A compiler from before the parts of C++23 the game uses, such as Ubuntu 24.04's GCC 13 | GCC 14, as in step 2. CMake keeps the compiler of its first run, so `rm -rf build` before building again |
 | `permission denied while trying to connect to the Docker daemon socket` | Docker is the docker group's | `sudo usermod -aG docker $USER`, then log out and in again |
 | `the --mount option requires BuildKit` | No buildx | `sudo apt install docker-buildx` |
 | `could not determine a constructor for the tag '!override'` | Compose 1, from `apt install docker-compose` | `sudo apt install docker-compose-v2`, and `docker compose`, with a space |
 | `address already in use`, or `port is already allocated` | Something else holds one of the ports | `./doctor.sh` says who |
-| Renderer, Sea and other client tests fail, and `DISPLAY` is missing | No screen | `xvfb-run -a ctest --test-dir build` |
+| Renderer, Sea and other client tests fail, and `DISPLAY` is missing | No screen | `xvfb-run -a ctest --preset release` |
 | `No worlds are up.` | No world has registered with Consul | Start `nanommo_server`, then Refresh |
 | `its certificate doesn't name 192.168.1.20` | The certificate lacks the address you asked for | `tls/certificates.sh tls 192.168.1.20` on the server, then start the servers again |
 | `its certificate has expired` | The servers' certificate lasts 825 days | `tls/certificates.sh` on the server, then start the servers again |

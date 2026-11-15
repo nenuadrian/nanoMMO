@@ -8,6 +8,14 @@ CI does.
 
 ## Checking the code
 
+`CMakePresets.json` names each way the game is built: `release`, the one it ships as, in `build/`,
+and `asan`, `tsan`, `fuzz`, `tidy`, `coverage` and `profile`, each in a `build-<name>/` folder of
+its own, so going from one to another doesn't build the other again. `cmake --list-presets=all`
+lists them, and the Dockerfile's stages and CI build with them. The checks below build with Clang,
+which their presets ask for, version 19 or newer: on Ubuntu 26.04, `sudo apt install clang`. Ubuntu
+24.04's is Clang 18, which crashes generating the code for the timers' lambdas, so run the checks in
+Docker there, where the stages build with Clang 21, Ubuntu 26.04's own.
+
 The tests check what we thought to test. Four more checks look for what we didn't. In a public
 repository, where GitHub's runners are free, CI runs each of them on each push. A private one pays
 for its minutes, so a push there gets the tests, and clang-tidy, the sanitizers and the fuzzers run
@@ -23,18 +31,25 @@ and a build after a change compiles what changed. Each build prints how much it 
 CI has a fresh one for each job, and moves the job's ccache in and out of GitHub's cache around
 its builds.
 
-The sanitizers build checks into the code, which catch it doing something wrong as it runs.
-`-DNANOMMO_SANITIZE=address,undefined` builds everything, the libraries too, with AddressSanitizer,
-for reads and writes out of bounds or after a free, and leaks, and UndefinedBehaviorSanitizer, for
-signed overflow, bad shifts and casts and the like. Both stop the program at the first one.
-`-DNANOMMO_SANITIZE=thread` builds it with ThreadSanitizer instead, for data races, which it
-reports as it goes. The code runs about twice as slowly with the first two, and five to fifteen
-times as slowly with ThreadSanitizer. The `sanitize` stage builds with Clang and runs the tests:
+The sanitizers build checks into the code, which catch it doing something wrong as it runs. The
+`asan` preset builds everything, the libraries too, with AddressSanitizer, for reads and writes out
+of bounds or after a free, and leaks, and UndefinedBehaviorSanitizer, for signed overflow, bad
+shifts and casts and the like. Both stop the program at the first one. The `tsan` preset builds it
+with ThreadSanitizer instead, for data races, which it reports as it goes. The code runs about
+twice as slowly with the first two, and five to fifteen times as slowly with ThreadSanitizer. Each
+has a workflow preset, which configures, builds and runs the tests in one command, and the
+`sanitize` stage runs one in Docker, `asan` unless it's told otherwise:
 
 ```bash
+cmake --workflow --preset asan
 docker build --target sanitize .
-docker build --target sanitize --build-arg SANITIZE=thread .
+docker build --target sanitize --build-arg PRESET=tsan .
 ```
+
+AddressSanitizer stops a read outside what was allocated, and a grid's column past the end of its
+row is still inside the array, in the next row. So `Grid`, the view the terrain and the client read
+their grids through (`terrain/terrain.h`), checks each index against its own row or column, and
+stops the program with abseil's `CHECK` at one outside it, in each build.
 
 ThreadSanitizer keeps its own record of memory at addresses that clash with the kernel's when the
 kernel randomizes them with more than 28 bits. Docker Desktop's kernel uses 18, and Ubuntu's 32 or
@@ -60,7 +75,7 @@ docker compose up -d bots
 docker compose logs server bots
 ```
 
-`SANITIZE=thread` in front of the `up` builds them with ThreadSanitizer, and `docker compose run --rm
+`PRESET=tsan` in front of the `up` builds them with ThreadSanitizer, and `docker compose run --rm
 tests` runs the tests against MySQL, Redis and Consul with the sanitizers on.
 
 The fuzzers in `fuzz/` run with libFuzzer, which comes with Clang. Each is a function that takes
@@ -74,8 +89,8 @@ they're on is one the content has, with no more kills than it asks for, and not 
 
 ```bash
 docker build --target fuzz -t nanommo-fuzz .
-docker run --rm nanommo-fuzz build/bin/stories_fuzzer -max_total_time=60
-docker run --rm nanommo-fuzz build/bin/world_fuzzer -max_total_time=60
+docker run --rm nanommo-fuzz build-fuzz/bin/stories_fuzzer -max_total_time=60
+docker run --rm nanommo-fuzz build-fuzz/bin/world_fuzzer -max_total_time=60
 ```
 
 When a fuzzer breaks a check, it stops and prints the input that did it, and saves it to a file
