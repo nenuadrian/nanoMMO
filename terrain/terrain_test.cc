@@ -2,6 +2,7 @@
 
 #include <bit>
 #include <cstdint>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "terrain/lands.h"
@@ -29,6 +30,18 @@ uint32_t Fingerprint(const nanommo::Terrain& terrain) {
 }
 
 }  // namespace
+
+TEST(GridDeathTest, ReadsByRowAndColumnAndStopsOutsideThem) {
+  std::vector<int> cells(2 * 3);
+  const nanommo::Grid<int> grid(cells.data(), 2, 3);
+  grid[1, 0] = 7;
+
+  // A comma inside square brackets still splits a macro's arguments, so each
+  // read goes in parentheses.
+  EXPECT_EQ((grid[1, 0]), 7);
+  EXPECT_EQ(cells[3], 7);
+  EXPECT_DEATH((grid[0, 3]), "outside");
+}
 
 TEST(Terrain, IsTheSameIslandOnEveryMachine) {
   const nanommo::Terrain island(1);

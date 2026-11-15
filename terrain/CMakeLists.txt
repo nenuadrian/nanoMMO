@@ -1,5 +1,7 @@
 add_library(nanommo_terrain noise.cc terrain.cc lands.cc paths.cc)
 target_include_directories(nanommo_terrain PUBLIC ${PROJECT_SOURCE_DIR})
+# Grid checks its indexes with abseil's CHECK.
+target_link_libraries(nanommo_terrain PUBLIC absl::check)
 # Compilers for Arm, and for x86 with -march, fuse a multiply and an add into
 # one instruction, which rounds once instead of twice. The heights would come
 # out a little different on each machine.

@@ -2,15 +2,34 @@
 #define NANOMMO_TERRAIN_TERRAIN_H_
 
 #include <cstdint>
-#include <mdspan>
 #include <vector>
+
+#include "absl/log/check.h"
 
 namespace nanommo {
 
 /// A grid kept in a single array, a row after another: grid[j, i] is the i-th
-/// of row j.
+/// of row j. Like a span, it points into the array and doesn't keep it. An
+/// index outside its row or column stops the program, as a column past the end
+/// of a row would still be inside the array, in the next row.
 template <typename T>
-using Grid = std::mdspan<T, std::dextents<int, 2>>;
+class Grid {
+ public:
+  Grid(T* cells, int rows, int columns)
+      : cells_(cells), rows_(rows), columns_(columns) {}
+
+  T& operator[](int j, int i) const {
+    CHECK(j >= 0 && j < rows_ && i >= 0 && i < columns_)
+        << "grid[" << j << ", " << i << "] is outside its " << rows_
+        << " rows of " << columns_;
+    return cells_[j * columns_ + i];
+  }
+
+ private:
+  T* cells_;
+  int rows_;
+  int columns_;
+};
 
 struct Tree {
   float x = 0.0f;
