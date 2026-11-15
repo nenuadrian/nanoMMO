@@ -128,6 +128,9 @@ Then, in another terminal:
 
 More in [Gameplay](gameplay.md).
 
+Without the servers, `./build/bin/nanommo_client --offline` plays a world of the client's own: the
+Meadows, for you alone, with nothing saved, as a browser plays it ([Offline](web.md#offline)).
+
 ## 6. Play from another computer
 
 On the computer with the servers, at `192.168.1.20` in this example:

@@ -64,7 +64,8 @@ A world's rules are a library of their own, `nanommo_world`, which needs no data
 `World`, with its players, monsters and NPCs, their levels, their trades (`server/trades.h`), who's
 near whom (`server/interest.h`), what each player is shown of it (`server/shown.h`) and what their
 inputs do (`server/inputs.h`). The world server links it, with MySQL, Redis, Consul and the rest
-around it, and anything else that runs a world can too, the same rules for each.
+around it, and anything else that runs a world can too, the same rules for each: the client does,
+[offline](web.md#offline).
 
 | In `server/shown.h` | |
 |---|---|

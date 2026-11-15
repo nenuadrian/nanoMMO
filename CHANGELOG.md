@@ -7,6 +7,16 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.78.0 (2026-11-16)
+
+- `nanommo_client --offline` plays without the servers, in a world the client runs itself with the
+  world's library, at the server's tick: the Meadows, with its monsters and NPCs, for one player,
+  and nothing saved. Stories, guilds, trades and the other lands say in the chat that they're the
+  servers'. A page can't reach the servers, so in a browser, the client plays offline from the
+  start.
+- raylib is patched (`patches/`) to hand WebGL the bones' matrices transposed, as raylib 6.2
+  doesn't for an array of them, and people in a browser grew spindles.
+
 ## 0.77.0 (2026-11-16)
 
 - The world's rules are a library of their own, `nanommo_world`, without the database or the

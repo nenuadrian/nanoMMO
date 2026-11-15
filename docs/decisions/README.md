@@ -74,3 +74,4 @@ one commit could undo, or that the code makes plain, needs none.
 | [0027](0027-gold-in-the-bag.md) | Gold in the bag's message, with its revision | Accepted | 74 |
 | [0028](0028-a-trade-is-checked-against-the-bags-and-saved-as-one.md) | A trade is checked against the bags, and saved as one | Accepted | 75 |
 | [0029](0029-the-client-in-a-browser-with-emscripten.md) | The client in a browser, with Emscripten and WebGL 2 | Accepted | 76 |
+| [0030](0030-offline-the-client-runs-the-worlds-rules.md) | Offline, the client runs the world's rules itself | Accepted | 78 |
