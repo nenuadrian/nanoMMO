@@ -65,7 +65,10 @@ add_dependencies(nanommo_client nanommo_client_assets)
 # In a browser: a page with the game's canvas, on WebGL 2, and the files the
 # client reads, preloaded into the page's own file system where it reads them.
 # The music is licensed, so it stays out. Each --preload-file is SHELL:, or CMake
-# would take the repeated flag for a duplicate and keep the first alone.
+# would take the repeated flag for a duplicate and keep the first alone. A
+# browser draws a page's frame once its code hands back, and raylib waits for
+# the next frame in WindowShouldClose, so Asyncify lets that wait hand back, in
+# the middle of our loop, and carry on where it was.
 if(EMSCRIPTEN)
   set_target_properties(nanommo_client PROPERTIES SUFFIX ".html")
   set(preloads "")
@@ -75,6 +78,7 @@ if(EMSCRIPTEN)
   endforeach()
   target_link_options(nanommo_client PRIVATE
     -sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+    -sASYNCIFY -sASYNCIFY_STACK_SIZE=65536
     -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1048576 ${preloads}
   )
   # The sound player, the benchmark and the tests run on this machine.
