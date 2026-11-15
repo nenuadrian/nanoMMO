@@ -1,7 +1,11 @@
 add_library(nanommo_protocol
-  nanommo.proto chat.cc framing.cc login_client.cc parts.cc places.cc
-  settings.cc tls.cc version.cc
+  nanommo.proto chat.cc framing.cc parts.cc places.cc settings.cc version.cc
 )
+# Logging in, over TLS, takes sockets, which a browser doesn't give us.
+if(NOT EMSCRIPTEN)
+  target_sources(nanommo_protocol PRIVATE login_client.cc tls.cc)
+  target_link_libraries(nanommo_protocol PUBLIC OpenSSL::SSL)
+endif()
 protobuf_generate(TARGET nanommo_protocol
   IMPORT_DIRS ${PROJECT_SOURCE_DIR} PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}
 )
@@ -17,8 +21,13 @@ set_source_files_properties(settings.cc PROPERTIES
 )
 target_link_libraries(nanommo_protocol PUBLIC
   nanommo_content protobuf::libprotobuf absl::status absl::statusor absl::strings
-  asio OpenSSL::SSL
+  asio
 )
+
+# The tests run on this machine, not in a browser.
+if(EMSCRIPTEN)
+  return()
+endif()
 
 add_executable(nanommo_protocol_tests
   protocol_test.cc framing_test.cc parts_test.cc tls_test.cc chat_test.cc

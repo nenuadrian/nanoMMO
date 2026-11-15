@@ -14,6 +14,11 @@ target_include_directories(nanommo_walking PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_walking PUBLIC nanommo_terrain)
 target_compile_options(nanommo_walking PRIVATE -ffp-contract=off)
 
+# The rest are the servers, which a browser doesn't run.
+if(EMSCRIPTEN)
+  return()
+endif()
+
 add_library(nanommo_server_core
   tick.cc listen.cc world.cc trades.cc copies.cc monsters.cc npcs.cc levels.cc session.cc interest.cc
   server.cc metrics.cc password.cc database.cc events.cc

@@ -3,7 +3,7 @@ add_library(nanommo_client_core
   window.cc audio.cc jukebox.cc sound.cc synth.cc foley.cc soundscape.cc soundboard.cc
   settings.cc gui.cc menu.cc renderer.cc
   offscreen.cc postprocess.cc outline.cc
-  camera.cc scene.cc input.cc connection.cc
+  camera.cc scene.cc input.cc
   login_screen.cc nameplates.cc combat_text.cc player_frame.cc hotbar.cc
   bag_window.cc guild_window.cc trade_window.cc round_trip.cc prediction.cc
   interpolation.cc
@@ -28,6 +28,12 @@ target_link_libraries(nanommo_client_core PUBLIC
   raylib imgui nanommo_protocol nanommo_content nanommo_inventory nanommo_walking nanommo_terrain asio
   absl::memory absl::status absl::statusor absl::strings
 )
+# The servers are over sockets, which a browser doesn't give us.
+if(EMSCRIPTEN)
+  target_sources(nanommo_client_core PRIVATE servers_web.cc)
+else()
+  target_sources(nanommo_client_core PRIVATE connection.cc servers.cc)
+endif()
 
 file(GLOB content_files CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/content/*.txtpb)
 add_custom_target(nanommo_client_assets ALL
@@ -55,6 +61,25 @@ add_custom_target(nanommo_client_assets ALL
 add_executable(nanommo_client main.cc)
 target_link_libraries(nanommo_client PRIVATE nanommo_client_core)
 add_dependencies(nanommo_client nanommo_client_assets)
+
+# In a browser: a page with the game's canvas, on WebGL 2, and the files the
+# client reads, preloaded into the page's own file system where it reads them.
+# The music is licensed, so it stays out. Each --preload-file is SHELL:, or CMake
+# would take the repeated flag for a duplicate and keep the first alone.
+if(EMSCRIPTEN)
+  set_target_properties(nanommo_client PROPERTIES SUFFIX ".html")
+  set(preloads "")
+  foreach(folder content fonts monsters weapons trees)
+    list(APPEND preloads
+      "SHELL:--preload-file ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${folder}@/${folder}")
+  endforeach()
+  target_link_options(nanommo_client PRIVATE
+    -sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+    -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1048576 ${preloads}
+  )
+  # The sound player, the benchmark and the tests run on this machine.
+  return()
+endif()
 
 add_executable(nanommo_sounds sounds_main.cc)
 target_link_libraries(nanommo_sounds PRIVATE nanommo_client_core)

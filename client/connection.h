@@ -16,6 +16,7 @@
 #include "asio/ip/udp.hpp"
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
+#include "client/link.h"
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
 #include "protocol/parts.h"
@@ -23,7 +24,8 @@
 
 namespace nanommo {
 
-class Connection {
+/// A world server, over TLS, with the worlds over UDP or TCP.
+class Connection final : public Link {
  public:
   /// Connects to the server over TLS, or returns why it couldn't.
   static absl::StatusOr<std::unique_ptr<Connection>> Create(
@@ -33,38 +35,19 @@ class Connection {
   Connection(const Connection&) = delete;
   Connection& operator=(const Connection&) = delete;
 
-  void Poll();
-
-  void Send(const protocol::Input& input);
-
-  bool connected() const { return connected_; }
-
-  const protocol::World& world() const { return world_; }
-
-  /// The newest lines said in the world, oldest first.
-  const std::deque<protocol::Chat>& chat() const { return chat_; }
-
-  /// The newest world that's come whole, by when it was sent, for the server
-  /// to leave out what hasn't changed since.
-  int64_t whole() const { return parts_.whole(); }
-
-  /// Where the world's instance told us to go, once it hands its players over.
-  const std::optional<protocol::Move>& move() const { return move_; }
-
-  /// What we carry and wear, as the server last sent it.
-  const protocol::Inventory& inventory() const { return inventory_; }
-  const protocol::Quests& quests() const { return quests_; }
-  /// Our guild, with no name for none.
-  const protocol::Guild& guild() const { return guild_; }
-  /// Our trade, with nobody in it for none.
-  const protocol::Trade& trade() const { return trade_; }
-
-  /// What happened near us since the last time, oldest first, which it hands
-  /// over, as each event comes once.
-  std::vector<protocol::Event> TakeEvents();
-
-  /// The guild that asked us to join since the last time, once.
-  std::optional<protocol::GuildInvite> TakeInvite();
+  void Poll() override;
+  void Send(const protocol::Input& input) override;
+  bool connected() const override { return connected_; }
+  const protocol::World& world() const override { return world_; }
+  const std::deque<protocol::Chat>& chat() const override { return chat_; }
+  int64_t whole() const override { return parts_.whole(); }
+  const std::optional<protocol::Move>& move() const override { return move_; }
+  const protocol::Inventory& inventory() const override { return inventory_; }
+  const protocol::Quests& quests() const override { return quests_; }
+  const protocol::Guild& guild() const override { return guild_; }
+  const protocol::Trade& trade() const override { return trade_; }
+  std::vector<protocol::Event> TakeEvents() override;
+  std::optional<protocol::GuildInvite> TakeInvite() override;
 
  private:
   Connection(asio::ssl::context& tls, const std::string& token);

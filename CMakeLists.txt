@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(nanommo VERSION 0.75.0 LANGUAGES CXX)
+project(nanommo VERSION 0.76.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -53,11 +53,22 @@ FetchContent_Declare(
   URL https://github.com/raylib-extras/rlImGui/archive/1550009359ad975927f7f0e4a3f47e3f27123ea9.tar.gz
   URL_HASH SHA256=7d04ff0c996a89190e1050d3c4448ad784479723c76893efea2d731bd5eb839f
 )
+# In a browser, raylib draws with WebGL 2, which is OpenGL ES 3.0.
+if(EMSCRIPTEN)
+  set(PLATFORM Web CACHE STRING "raylib's platform" FORCE)
+  set(OPENGL_VERSION "ES 3.0" CACHE STRING "raylib's OpenGL" FORCE)
+endif()
 FetchContent_MakeAvailable(raylib imgui rlimgui)
 # By default, raylib skins on the CPU. This leaves it to our vertex shader.
 target_compile_definitions(raylib PRIVATE SUPPORT_GPU_SKINNING=1)
 
 set(protobuf_INSTALL OFF)
+# Built with Emscripten, protoc would be WebAssembly, which can't run here.
+if(EMSCRIPTEN)
+  set(protobuf_BUILD_PROTOC_BINARIES OFF)
+  set(protobuf_BUILD_LIBUPB OFF)
+  set(protobuf_BUILD_TESTS OFF)
+endif()
 set(protobuf_WITH_ZLIB OFF)
 FetchContent_Declare(
   protobuf
@@ -67,6 +78,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(protobuf)
 include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
+# So the web build runs a protoc built for this machine, of the same version:
+# the release preset's.
+if(EMSCRIPTEN)
+  set(NANOMMO_HOST_PROTOC "" CACHE FILEPATH "protoc, built for this machine")
+  if(NOT EXISTS "${NANOMMO_HOST_PROTOC}")
+    message(FATAL_ERROR "The web build runs protoc from NANOMMO_HOST_PROTOC, "
+      "\"${NANOMMO_HOST_PROTOC}\": build the release preset first")
+  endif()
+  add_executable(protobuf::protoc IMPORTED)
+  set_target_properties(protobuf::protoc PROPERTIES
+    IMPORTED_LOCATION ${NANOMMO_HOST_PROTOC})
+endif()
 
 FetchContent_Declare(
   asio
@@ -77,6 +100,8 @@ FetchContent_MakeAvailable(asio)
 add_library(asio INTERFACE)
 target_include_directories(asio SYSTEM INTERFACE ${asio_SOURCE_DIR}/asio/include)
 
+# The rest are the servers' and the tools', which a browser doesn't run.
+if(NOT EMSCRIPTEN)
 # Tracy's macros compile to nothing without -DTRACY_ENABLE=ON. On demand,
 # it records nothing until a profiler connects.
 set(TRACY_ON_DEMAND ON)
@@ -158,6 +183,7 @@ endif()
 pkg_check_modules(mysqlclient REQUIRED IMPORTED_TARGET mysqlclient)
 pkg_check_modules(sodium REQUIRED IMPORTED_TARGET libsodium)
 find_package(OpenSSL 3 REQUIRED)
+endif()
 
 add_library(imgui
   ${imgui_SOURCE_DIR}/imgui.cpp
@@ -193,16 +219,18 @@ add_subdirectory(protocol)
 add_subdirectory(content)
 add_subdirectory(terrain)
 add_subdirectory(server)
-add_subdirectory(bot)
 add_subdirectory(client)
-add_subdirectory(cheat)
-add_subdirectory(cinema)
+if(NOT EMSCRIPTEN)
+  add_subdirectory(bot)
+  add_subdirectory(cheat)
+  add_subdirectory(cinema)
+endif()
 if(NANOMMO_FUZZ)
   add_subdirectory(fuzz)
 endif()
 
 find_package(Doxygen)
-if(DOXYGEN_FOUND)
+if(DOXYGEN_FOUND AND NOT EMSCRIPTEN)
   FetchContent_Declare(
     doxygen_awesome
     URL https://github.com/jothepro/doxygen-awesome-css/archive/refs/tags/v2.5.0.tar.gz

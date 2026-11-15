@@ -61,6 +61,16 @@
       "displayName": "The server with Tracy's zones",
       "binaryDir": "${sourceDir}/build-${presetName}",
       "cacheVariables": { "TRACY_ENABLE": "ON" }
+    },
+    {
+      "name": "web",
+      "displayName": "The client in a browser, with Emscripten's emcmake",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "NANOMMO_HOST_PROTOC": "${sourceDir}/build/bin/protoc"
+      }
     }
   ],
   "buildPresets": [
@@ -82,7 +92,8 @@
       "name": "profile",
       "configurePreset": "profile",
       "targets": ["nanommo_server"]
-    }
+    },
+    { "name": "web", "configurePreset": "web", "targets": ["nanommo_client"] }
   ],
   "testPresets": [
     { "name": "tests", "hidden": true, "output": { "outputOnFailure": true } },

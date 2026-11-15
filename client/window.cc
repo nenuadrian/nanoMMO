@@ -15,7 +15,13 @@ absl::StatusOr<std::unique_ptr<Window>> Window::Create(const std::string& title,
                                                        Visibility visibility) {
   SetTraceLogLevel(LOG_WARNING);
   // Any size the player drags it to, as the interface follows its height.
-  unsigned int flags = FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_RESIZABLE;
+  unsigned int flags = FLAG_WINDOW_RESIZABLE;
+#ifndef __EMSCRIPTEN__
+  // A high-DPI screen gets all its pixels. In a browser, raylib draws a
+  // high-DPI canvas into a quarter of it, so the page draws at its own size
+  // and the browser scales it up.
+  flags |= FLAG_WINDOW_HIGHDPI;
+#endif
   if (visibility == Visibility::kHidden) {
     flags |= FLAG_WINDOW_HIDDEN;
   }

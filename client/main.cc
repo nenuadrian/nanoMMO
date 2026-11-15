@@ -14,7 +14,6 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "asio/ssl/context.hpp"
 #include "client/animator.h"
 #include "client/atmosphere.h"
 #include "client/audio.h"
@@ -24,7 +23,6 @@
 #include "client/chat_window.h"
 #include "client/combat_text.h"
 #include "client/compass.h"
-#include "client/connection.h"
 #include "client/cursor.h"
 #include "client/death_screen.h"
 #include "client/foley.h"
@@ -35,6 +33,7 @@
 #include "client/input.h"
 #include "client/interpolation.h"
 #include "client/jukebox.h"
+#include "client/link.h"
 #include "client/loading.h"
 #include "client/login_screen.h"
 #include "client/map.h"
@@ -48,6 +47,7 @@
 #include "client/quest_window.h"
 #include "client/renderer.h"
 #include "client/round_trip.h"
+#include "client/servers.h"
 #include "client/settings.h"
 #include "client/sound.h"
 #include "client/soundboard.h"
@@ -57,16 +57,13 @@
 #include "client/trainer_window.h"
 #include "client/window.h"
 #include "content/content.h"
-#include "protocol/login_client.h"
 #include "protocol/settings.h"
-#include "protocol/tls.h"
 #include "protocol/version.h"
 #include "terrain/lands.h"
 #include "terrain/terrain.h"
 
 namespace {
 
-constexpr uint16_t kLoginPort = 7778;
 // The server's tick, 20 a second, which the keys go out at.
 constexpr float kInputTick = 0.05f;
 
@@ -77,63 +74,16 @@ constexpr float kThere = 0.6f;
 // we got there, or something stopped us.
 constexpr float kSetOff = 0.5f;
 
-// The login server's answer to the request, which the screen shows, or why
-// there's none.
-std::optional<nanommo::protocol::LoginReply> Ask(
-    const std::string& host, asio::ssl::context& tls,
-    const nanommo::protocol::LoginRequest& request,
-    nanommo::LoginScreen& screen) {
-  absl::StatusOr<nanommo::protocol::LoginReply> reply =
-      nanommo::LogIn(host, kLoginPort, tls, request);
-  if (!reply.ok()) {
-    screen.ShowError(
-        absl::StrCat("Couldn't reach the server: ", reply.status().message()));
-    return std::nullopt;
-  }
-  return *std::move(reply);
-}
-
-// Whether host is the machine it's said on.
-bool ThisMachine(const std::string& host) {
-  return host == "localhost" || host == "127.0.0.1" || host == "::1";
-}
-
-// Into the world, as the character the token's for, at the address the world
-// gave Consul, from a login server at login_host.
-std::unique_ptr<nanommo::Connection> Enter(
-    const nanommo::protocol::WorldListing& world, const std::string& login_host,
-    bool udp, asio::ssl::context& tls, const std::string& token,
-    nanommo::LoginScreen& screen) {
-  std::cout << "nanommo client: entering " << world.name() << " as "
-            << screen.character_name() << '\n';
-  absl::StatusOr<std::unique_ptr<nanommo::Connection>> connection_or =
-      nanommo::Connection::Create(
-          world.host(), static_cast<uint16_t>(world.port()), tls, token, udp);
-  if (!connection_or.ok()) {
-    std::string why(connection_or.status().message());
-    // A world started without NANOMMO_PUBLIC_HOST gives localhost, which from
-    // another machine is that machine, not the world's.
-    if (ThisMachine(world.host()) && !ThisMachine(login_host)) {
-      absl::StrAppend(
-          &why, ". ", world.name(), " says it's at ", world.host(),
-          ": start its server with NANOMMO_PUBLIC_HOST=", login_host);
-    }
-    screen.ShowError(absl::StrCat("Couldn't reach the server: ", why));
-    return nullptr;
-  }
-  return *std::move(connection_or);
-}
-
 }  // namespace
 
 int main(int argc, char* argv[]) {
   std::cout << "nanommo client: version " << nanommo::kVersion << '\n';
   const std::string host = argc > 1 ? argv[1] : "localhost";
   const std::string transport = argc > 2 ? argv[2] : "udp";
-  absl::StatusOr<asio::ssl::context> tls =
-      nanommo::ClientTls(nanommo::FileSetting("NANOMMO_TLS_CA", "tls/ca.crt"));
-  if (!tls.ok()) {
-    std::cerr << "nanommo client: " << tls.status() << "\n";
+  absl::StatusOr<std::unique_ptr<nanommo::Servers>> servers =
+      nanommo::Servers::Create(host, transport == "udp");
+  if (!servers.ok()) {
+    std::cerr << "nanommo client: " << servers.status() << "\n";
     return 1;
   }
 
@@ -219,9 +169,9 @@ int main(int argc, char* argv[]) {
   int land = 0;
   nanommo::FollowCamera camera;
 
-  std::unique_ptr<nanommo::Connection> connection;
+  std::unique_ptr<nanommo::Link> connection;
   // The world's next instance, while we move to it.
-  std::unique_ptr<nanommo::Connection> next;
+  std::unique_ptr<nanommo::Link> next;
   // The token we enter the world with, once the loading screen's up.
   std::optional<std::string> entering;
   std::string world_name;
@@ -251,8 +201,16 @@ int main(int argc, char* argv[]) {
     if (entering && loading.covered()) {
       if (const std::optional<nanommo::protocol::WorldListing>& world =
               login_screen.world()) {
-        connection = Enter(*world, host, transport == "udp", *tls, *entering,
-                           login_screen);
+        std::cout << "nanommo client: entering " << world->name() << " as "
+                  << login_screen.character_name() << '\n';
+        absl::StatusOr<std::unique_ptr<nanommo::Link>> entered =
+            (*servers)->Enter(*world, *entering);
+        if (entered.ok()) {
+          connection = *std::move(entered);
+        } else {
+          login_screen.ShowError(absl::StrCat("Couldn't reach the server: ",
+                                              entered.status().message()));
+        }
       }
       entering.reset();
       sent.Clear();
@@ -266,10 +224,8 @@ int main(int argc, char* argv[]) {
       if (const std::optional<nanommo::protocol::Move>& move =
               connection->move();
           move && !next) {
-        absl::StatusOr<std::unique_ptr<nanommo::Connection>> next_or =
-            nanommo::Connection::Create(
-                move->host(), static_cast<uint16_t>(move->port()), *tls,
-                move->token(), transport == "udp");
+        absl::StatusOr<std::unique_ptr<nanommo::Link>> next_or =
+            (*servers)->Move(*move);
         if (next_or.ok()) {
           next = *std::move(next_or);
           std::cout << "nanommo client: moving to " << move->host() << ":"
@@ -717,8 +673,12 @@ int main(int argc, char* argv[]) {
       }
     } else if (!connection && !entering) {
       if (const auto request = login_screen.Build()) {
-        if (const std::optional<nanommo::protocol::LoginReply> reply =
-                Ask(host, *tls, *request, login_screen)) {
+        absl::StatusOr<nanommo::protocol::LoginReply> reply =
+            (*servers)->Ask(*request);
+        if (!reply.ok()) {
+          login_screen.ShowError(absl::StrCat("Couldn't reach the server: ",
+                                              reply.status().message()));
+        } else {
           // A token for the character picked: into its world, behind the
           // loading screen. Anything else, the screen shows.
           if (request->enter() && reply->ok()) {
