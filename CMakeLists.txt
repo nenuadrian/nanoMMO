@@ -61,6 +61,11 @@ endif()
 FetchContent_MakeAvailable(raylib imgui rlimgui)
 # By default, raylib skins on the CPU. This leaves it to our vertex shader.
 target_compile_definitions(raylib PRIVATE SUPPORT_GPU_SKINNING=1)
+# WebGL 2 reads a texture back as RGBA bytes and no other way, as when the
+# trees' colours are read from theirs, so raylib reads them so.
+if(EMSCRIPTEN)
+  target_compile_definitions(raylib PRIVATE FBO_READ_TEXTURE_AS_RGBA)
+endif()
 
 set(protobuf_INSTALL OFF)
 # Built with Emscripten, protoc would be WebAssembly, which can't run here.
