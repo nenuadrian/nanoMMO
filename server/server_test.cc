@@ -88,6 +88,11 @@ class TestPlayer {
     return invite_;
   }
 
+  /// The player's trade, as the server last sent it, once it has.
+  const std::optional<nanommo::protocol::Trade>& trade() const {
+    return trade_;
+  }
+
   /// What the server told the player, which nobody said.
   const std::vector<std::string>& notices() const { return notices_; }
 
@@ -159,6 +164,8 @@ class TestPlayer {
               invite_ = world.invite();
             } else if (world.has_quests()) {
               quests_ = world.quests();
+            } else if (world.has_trade()) {
+              trade_ = world.trade();
             } else if (!world.events().empty()) {
               events_.insert(events_.end(), world.events().begin(),
                              world.events().end());
@@ -187,6 +194,7 @@ class TestPlayer {
   std::optional<nanommo::protocol::Quests> quests_;
   std::optional<nanommo::protocol::Guild> guild_;
   std::optional<nanommo::protocol::GuildInvite> invite_;
+  std::optional<nanommo::protocol::Trade> trade_;
   std::vector<std::string> notices_;
   std::vector<nanommo::protocol::Chat> heard_;
   std::vector<nanommo::protocol::Event> events_;
@@ -758,6 +766,57 @@ TEST_F(ServerTest, DisbandingTakesEveryonesTagOff) {
       absl::StrCat(names_[alice_], " disbanded Iron Wolves.");
   EXPECT_TRUE(RunUntil(
       [&] { return !bob.notices().empty() && bob.notices().back() == news; }));
+}
+
+TEST_F(ServerTest, TwoPlayersTrade) {
+  // Each joins with the kit: a sword in hand, and three potions.
+  const nanommo::Content gear{.items = nanommo::testing::Gear()};
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> market =
+      nanommo::Server::Create(
+          io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1, gear,
+          metrics_, *tokens_, *players_, *guilds_, *events_, *storyteller_);
+  ASSERT_TRUE(market.ok()) << market.status();
+  TestPlayer alice(io_, *client_tls_, (*market)->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, (*market)->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil(
+      [&] { return alice.bag().revision() > 0 && bob.bag().revision() > 0; }));
+
+  // Alice asks bob, by his name, and he asks her back.
+  nanommo::protocol::Input ask;
+  ask.mutable_trade()->set_ask(names_[bob_]);
+  alice.Send(ask);
+  const std::string asked =
+      absl::StrCat(names_[alice_], " asks to trade. Type /trade ",
+                   names_[alice_], " to say yes.");
+  ASSERT_TRUE(RunUntil(
+      [&] { return !bob.notices().empty() && bob.notices().back() == asked; }));
+  ask.mutable_trade()->set_ask(names_[alice_]);
+  bob.Send(ask);
+  ASSERT_TRUE(RunUntil([&] { return alice.trade() && bob.trade(); }));
+  EXPECT_EQ(alice.trade()->partner(), names_[bob_]);
+  EXPECT_EQ(bob.trade()->partner(), names_[alice_]);
+
+  // She offers her potions, and he sees them.
+  nanommo::protocol::Input offer;
+  offer.mutable_trade()->mutable_offer()->add_bag(0);
+  alice.Send(offer);
+  ASSERT_TRUE(
+      RunUntil([&] { return bob.trade()->theirs().bag().contains(0); }));
+  EXPECT_EQ(bob.trade()->theirs().bag().at(0).count(), 3u);
+
+  // Once both are ready, the potions go across, and it's over for both.
+  nanommo::protocol::Input ready;
+  ready.mutable_trade()->set_ready(true);
+  alice.Send(ready);
+  ASSERT_TRUE(RunUntil([&] { return bob.trade()->theirs().ready(); }));
+  bob.Send(ready);
+  ASSERT_TRUE(RunUntil([&] {
+    return bob.bag().bag().contains(0) && bob.bag().bag().at(0).count() == 6u &&
+           !alice.bag().bag().contains(0);
+  }));
+  EXPECT_TRUE(RunUntil([&] {
+    return alice.trade()->partner().empty() && bob.trade()->partner().empty();
+  }));
 }
 
 TEST_F(ServerTest, AppliesNumberedInputsOneATickInOrder) {

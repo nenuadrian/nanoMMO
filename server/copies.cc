@@ -7,6 +7,7 @@
 #include <iterator>
 #include <map>
 #include <random>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -66,6 +67,14 @@ std::vector<Event> Copies::TakeEvents() {
     }
   }
   return events;
+}
+
+std::set<uint32_t> Copies::TakeTradeNews() {
+  std::set<uint32_t> news;
+  for (auto& [id, copy] : copies_) {
+    news.merge(copy.world.TakeTradeNews());
+  }
+  return news;
 }
 
 int Copies::players() const {

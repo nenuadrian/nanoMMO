@@ -336,6 +336,14 @@ class World {
   /// Calls the player's trade off, for both of them.
   void CancelTrade(uint32_t id);
 
+  /// The player's trade, as their client gets it: who with, by name, and what
+  /// each side offers, or nobody, once it's over.
+  protocol::Trade TradeOf(uint32_t id) const;
+
+  /// The players whose trade has opened, changed or ended since the last
+  /// time, which it hands over.
+  std::set<uint32_t> TakeTradeNews();
+
   uint32_t Spawn(Monster monster);
 
   /// NPCs have ids of their own, apart from the monsters'.

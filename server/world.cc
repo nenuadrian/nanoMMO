@@ -9,6 +9,7 @@
 #include <memory>
 #include <numbers>
 #include <random>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -347,6 +348,18 @@ void World::CancelTrade(uint32_t id) {
          .text = absl::StrCat(players_.at(id).name, " called the trade off.")});
   }
 }
+
+protocol::Trade World::TradeOf(uint32_t id) const {
+  protocol::Trade trade;
+  if (const uint32_t other = trades_.With(id); other != 0) {
+    trade.set_partner(players_.at(other).name);
+    *trade.mutable_yours() = trades_.SideOf(id);
+    *trade.mutable_theirs() = trades_.SideOf(other);
+  }
+  return trade;
+}
+
+std::set<uint32_t> World::TakeTradeNews() { return trades_.TakeNews(); }
 
 void World::Dress(Player& player) const {
   const items::Weapon* before = player.stats.weapon;

@@ -81,6 +81,7 @@ class Server {
   void TakeQuest(uint32_t id, const protocol::Quest& quest);
   void TurnIn(uint32_t id, const protocol::Quest& quest);
   void Item(uint32_t id, const protocol::ItemAction& action);
+  void Trade(uint32_t id, const protocol::TradeAction& action);
   void Guild(uint32_t id, const protocol::GuildAction& action);
   void Found(uint32_t id, const std::string& name);
   /// Asks the player of that name in, if they're playing in this world.
@@ -129,6 +130,8 @@ class Server {
   void SendQuests();
   /// To each player as they join, and as their guild changes.
   void SendGuilds();
+  /// To each player whose trade opened, changed or ended this tick.
+  void SendTrades();
   /// The guild's roster from MySQL, with who's playing here, and their level
   /// as it is now.
   std::vector<protocol::GuildMember> Roster(uint32_t guild);

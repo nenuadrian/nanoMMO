@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <set>
 #include <vector>
 
 #include "content/content.h"
@@ -65,6 +66,10 @@ class Copies {
   /// What's happened in all of them since the last time, each with the copy
   /// it happened in.
   std::vector<Event> TakeEvents();
+
+  /// The players whose trade, in any of them, has opened, changed or ended
+  /// since the last time.
+  std::set<uint32_t> TakeTradeNews();
 
   /// In all the copies.
   int players() const;

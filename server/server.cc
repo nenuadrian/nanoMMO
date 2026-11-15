@@ -312,6 +312,9 @@ void Server::Accept() {
           if (input.has_guild()) {
             Guild(*id, input.guild());
           }
+          if (input.has_trade()) {
+            Trade(*id, input.trade());
+          }
         }
       };
       const auto on_close = [this, id] {
@@ -537,6 +540,40 @@ void Server::Item(uint32_t id, const protocol::ItemAction& action) {
       done = land.DestroyItem(id, action.destroy());
       break;
     case protocol::ItemAction::ACTION_NOT_SET:
+      return;
+  }
+  if (!done.ok()) {
+    Notify(id, std::string(done.message()));
+  }
+}
+
+void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
+  // A trade changes two bags, which the next instance loads as they were
+  // last saved, so nothing trades here after that.
+  if (handing_over_) {
+    return;
+  }
+  // It's moving things too, so it's on the bag's limit.
+  if (!item_limits_.at(id).Take(std::chrono::steady_clock::now())) {
+    Notify(id, "You're moving things too fast.");
+    return;
+  }
+  World& land = *WorldOf(id);
+  absl::Status done;
+  switch (action.action_case()) {
+    case protocol::TradeAction::kAsk:
+      done = land.AskToTrade(id, action.ask());
+      break;
+    case protocol::TradeAction::kOffer:
+      done = land.OfferToTrade(id, action.offer());
+      break;
+    case protocol::TradeAction::kReady:
+      done = land.ReadyToTrade(id, action.ready());
+      break;
+    case protocol::TradeAction::kCancel:
+      land.CancelTrade(id);
+      break;
+    case protocol::TradeAction::ACTION_NOT_SET:
       return;
   }
   if (!done.ok()) {
@@ -875,6 +912,7 @@ void Server::Tick() {
   SendBags();
   SendQuests();
   SendGuilds();
+  SendTrades();
   metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
   TracyPlot("players", static_cast<int64_t>(players()));
   FrameMark;
@@ -1273,6 +1311,23 @@ void Server::SendGuilds() {
     session->second->Send(std::move(frame));
   }
   guild_news_.clear();
+}
+
+void Server::SendTrades() {
+  // A trade has to arrive, as a bag does, so it goes on its own, over TCP, to
+  // each side, and with nobody in it once it's over.
+  for (const uint32_t id : copies_.TakeTradeNews()) {
+    const auto session = sessions_.find(id);
+    const World* land = WorldOf(id);
+    if (session == sessions_.end() || land == nullptr) {
+      continue;
+    }
+    protocol::World news;
+    *news.mutable_trade() = land->TradeOf(id);
+    std::string frame = Frame(news);
+    metrics_.AddBytesSent(frame.size());
+    session->second->Send(std::move(frame));
+  }
 }
 
 std::vector<protocol::GuildMember> Server::Roster(uint32_t guild) {
