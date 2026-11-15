@@ -25,13 +25,14 @@ FROM build AS test
 RUN xvfb-run --auto-servernum ctest --preset release
 
 # On Linux, Clang links GCC's runtime library unless told otherwise, and the
-# sanitizers need some of Clang's own.
+# sanitizers need some of Clang's own. Clang 21 is Ubuntu 26.04's own: Clang 18
+# crashes generating the code for a lambda that hands its own object to Asio.
 FROM toolchain AS clang
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      clang-18 libclang-rt-18-dev llvm-18 \
+      clang-21 libclang-rt-21-dev llvm-21 \
  && rm -rf /var/lib/apt/lists/*
-ENV PATH=/usr/lib/llvm-18/bin:$PATH CC=clang CXX=clang++ \
+ENV PATH=/usr/lib/llvm-21/bin:$PATH CC=clang CXX=clang++ \
     LDFLAGS="-rtlib=compiler-rt -unwindlib=libgcc"
 
 FROM clang AS sanitize
@@ -58,7 +59,7 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
 
 FROM clang AS tidy
 RUN apt-get update \
- && apt-get install -y --no-install-recommends clang-tidy-18 \
+ && apt-get install -y --no-install-recommends clang-tidy-21 \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
