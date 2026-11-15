@@ -222,6 +222,31 @@ absl::Status Inventory::TakeOne(const protocol::Place& place) {
   return absl::OkStatus();
 }
 
+absl::Status Inventory::Take(const protocol::Place& place, uint32_t count) {
+  items::Stack* stack = MutableAt(place);
+  if (stack == nullptr || stack->count() < count) {
+    return absl::NotFoundError("There aren't that many there.");
+  }
+  if (stack->count() > count) {
+    stack->set_count(stack->count() - count);
+  } else {
+    Clear(place);
+  }
+  Changed();
+  return absl::OkStatus();
+}
+
+absl::Status Inventory::TakeGold(uint32_t amount) {
+  if (amount > gold()) {
+    return absl::FailedPreconditionError("You haven't that much gold.");
+  }
+  if (amount > 0) {
+    items_.set_gold(gold() - amount);
+    Changed();
+  }
+  return absl::OkStatus();
+}
+
 absl::Status Inventory::Destroy(const protocol::Place& place) {
   if (At(place) == nullptr) {
     return absl::NotFoundError("There's nothing there.");

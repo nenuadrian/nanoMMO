@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "server/levels.h"
 #include "server/monsters.h"
@@ -34,6 +35,10 @@ bool OneMonster(const skills::Effect& effect) {
 
 float Distance(const Player& player, const Monster& monster) {
   return std::hypot(monster.x - player.x, monster.z - player.z);
+}
+
+float Distance(const Player& a, const Player& b) {
+  return std::hypot(b.x - a.x, b.z - a.z);
 }
 
 // Whether the monster's within the slice in front of the player, as wide as
@@ -175,7 +180,16 @@ void World::Join(uint32_t id, Player player) {
   players_[id] = std::move(player);
 }
 
-void World::Leave(uint32_t id) { players_.erase(id); }
+void World::Leave(uint32_t id) {
+  // Both have to be here to trade.
+  if (const uint32_t other = trades_.End(id); other != 0) {
+    notices_.push_back(
+        {.player = other,
+         .text = absl::StrCat(players_.at(id).name,
+                              " has gone, so the trade's off.")});
+  }
+  players_.erase(id);
+}
 
 absl::Status World::MoveItem(uint32_t id, const protocol::Place& from,
                              const protocol::Place& to, uint32_t count) {
@@ -248,6 +262,90 @@ absl::Status World::UseItem(uint32_t id, uint32_t slot) {
   used.item = item->first;
   used.count = 1;
   return player.inventory.TakeOne(place);
+}
+
+absl::Status World::AskToTrade(uint32_t id, std::string_view name) {
+  const auto player = players_.find(id);
+  const auto other = std::ranges::find_if(players_, [name](const auto& entry) {
+    return absl::EqualsIgnoreCase(entry.second.name, name);
+  });
+  if (player == players_.end() || other == players_.end()) {
+    return absl::NotFoundError("Nobody of that name is here.");
+  }
+  if (other == player) {
+    return absl::InvalidArgumentError("You can't trade with yourself.");
+  }
+  const std::string& asker = player->second.name;
+  const std::string& asked = other->second.name;
+  if (Distance(player->second, other->second) > kTradeReach) {
+    return absl::OutOfRangeError(
+        absl::StrCat("You're too far away to trade with ", asked, "."));
+  }
+  if (trades_.With(id) != 0) {
+    return absl::FailedPreconditionError("You're trading already.");
+  }
+  if (trades_.With(other->first) != 0) {
+    return absl::FailedPreconditionError(
+        absl::StrCat(asked, " is trading with someone already."));
+  }
+  if (!trades_.Ask(id, other->first)) {
+    notices_.push_back(
+        {.player = other->first,
+         .text = absl::StrCat(asker, " asks to trade. Type /trade ", asker,
+                              " to say yes.")});
+    notices_.push_back(
+        {.player = id,
+         .text = absl::StrCat("You asked ", asked, " to trade.")});
+  }
+  return absl::OkStatus();
+}
+
+absl::Status World::OfferToTrade(uint32_t id,
+                                 const protocol::TradeOffer& offer) {
+  const auto player = players_.find(id);
+  if (player == players_.end()) {
+    return absl::NotFoundError("There's nobody to trade.");
+  }
+  return trades_.Offer(id, player->second.inventory, content_->items, offer);
+}
+
+absl::Status World::ReadyToTrade(uint32_t id, bool ready) {
+  const uint32_t other = trades_.With(id);
+  if (other == 0) {
+    return absl::FailedPreconditionError("You're not trading with anyone.");
+  }
+  Player& player = players_.at(id);
+  Player& them = players_.at(other);
+  if (ready && Distance(player, them) > kTradeReach) {
+    return absl::OutOfRangeError(
+        absl::StrCat("You're too far away to trade with ", them.name, "."));
+  }
+  const absl::StatusOr<bool> both = trades_.Ready(id, ready);
+  if (!both.ok() || !*both) {
+    return both.status();
+  }
+  // Both are ready, so they trade, here and now.
+  const absl::Status traded =
+      trades_.Complete(id, player.inventory, them.inventory, content_->items);
+  if (!traded.ok()) {
+    notices_.push_back(
+        {.player = other, .text = std::string(traded.message())});
+    return traded;
+  }
+  notices_.push_back(
+      {.player = id, .text = absl::StrCat("You traded with ", them.name, ".")});
+  notices_.push_back(
+      {.player = other,
+       .text = absl::StrCat("You traded with ", player.name, ".")});
+  return absl::OkStatus();
+}
+
+void World::CancelTrade(uint32_t id) {
+  if (const uint32_t other = trades_.End(id); other != 0) {
+    notices_.push_back(
+        {.player = other,
+         .text = absl::StrCat(players_.at(id).name, " called the trade off.")});
+  }
 }
 
 void World::Dress(Player& player) const {

@@ -234,6 +234,24 @@ TEST(Inventory, CarriesGoldUpToTheMost) {
   EXPECT_EQ(inventory.revision(), 2u);
 }
 
+TEST(Inventory, TakesSomeOffAStackAndGoldAway) {
+  const nanommo::ItemTable gear = nanommo::testing::Gear();
+  nanommo::Inventory inventory;
+  inventory.Add(gear, Of(kBone, 9));
+  inventory.AddGold(30);
+
+  EXPECT_TRUE(inventory.Take(nanommo::InBag(0), 4).ok());
+  EXPECT_EQ(Holds(inventory, nanommo::InBag(0)), std::pair(kBone, 5u));
+  EXPECT_EQ(inventory.Take(nanommo::InBag(0), 6).message(),
+            "There aren't that many there.");
+  EXPECT_TRUE(inventory.Take(nanommo::InBag(0), 5).ok());
+  EXPECT_EQ(Holds(inventory, nanommo::InBag(0)), std::pair(0u, 0u));
+
+  EXPECT_TRUE(inventory.TakeGold(20).ok());
+  EXPECT_EQ(inventory.TakeGold(11).message(), "You haven't that much gold.");
+  EXPECT_EQ(inventory.gold(), 10u);
+}
+
 TEST(Inventory, KeepsItemsTheContentDoesntHave) {
   const nanommo::ItemTable gear = nanommo::testing::Gear();
   nanommo::protocol::Inventory saved;

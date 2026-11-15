@@ -9,12 +9,14 @@
 #include <random>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "content/content.h"
 #include "protocol/nanommo.pb.h"
 #include "server/inventory.h"
+#include "server/trades.h"
 #include "server/walking.h"
 #include "terrain/lands.h"
 #include "terrain/paths.h"
@@ -259,6 +261,9 @@ class World {
 
   static constexpr float kTalkReach = nanommo::kTalkReach;
 
+  /// Two players trade within talking reach, as close as they'd stand to talk.
+  static constexpr float kTradeReach = kTalkReach;
+
   /// Players fight with the content's weapons and skills, so in a world
   /// without content, nobody can. Content doesn't change as the game runs, so
   /// the world's copies of its lands share one.
@@ -315,6 +320,21 @@ class World {
   /// The player uses one of what's in the slot of their bag, such as drinks a
   /// potion, or the error says why not, in words for the player.
   absl::Status UseItem(uint32_t id, uint32_t slot);
+
+  /// The player asks the one of that name here, whatever its case, within
+  /// kTradeReach, to trade, or says yes to them asking first, which opens the
+  /// trade. Or the error says why not, in words for the player.
+  absl::Status AskToTrade(uint32_t id, std::string_view name);
+
+  /// What the player offers in their trade, as Trades::Offer has it.
+  absl::Status OfferToTrade(uint32_t id, const protocol::TradeOffer& offer);
+
+  /// Whether the player's ready to trade. Once both are, within kTradeReach,
+  /// they trade, there and then, or the error says why not.
+  absl::Status ReadyToTrade(uint32_t id, bool ready);
+
+  /// Calls the player's trade off, for both of them.
+  void CancelTrade(uint32_t id);
 
   uint32_t Spawn(Monster monster);
 
@@ -408,6 +428,8 @@ class World {
   std::mt19937 random_;
   std::vector<Notice> notices_;
   std::vector<Event> events_;
+  /// Between the players here, as both have to be.
+  Trades trades_;
 };
 
 }  // namespace nanommo

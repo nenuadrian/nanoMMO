@@ -84,6 +84,9 @@ message Input {
   // The newest world the client has whole, every part of it, by when it was
   // sent: the server leaves out of the next ones what hasn't changed since.
   int64 seen = 17;
+  // Something to do about a trade with another player. Sent once, like an
+  // item's.
+  TradeAction trade = 18;
 }
 
 // A place in a land, in metres from its middle.
@@ -266,6 +269,9 @@ message World {
   // your client said it has whole, by their ids alone.
   repeated uint32 still_players = 24;
   repeated uint32 still_monsters = 25;
+  // Your trade, which comes on its own, over TCP, as it opens and as it
+  // changes, and with nobody in it as it ends.
+  Trade trade = 26;
 }
 
 // To the login server: log in with a name and password, or make an account,
@@ -390,4 +396,44 @@ message GuildMember {
   uint32 level = 4;
   // Whether they're playing in the world now.
   bool online = 5;
+}
+
+// What one side of a trade offers: the stacks at these places of their bag,
+// whole, and gold.
+message TradeOffer {
+  repeated uint32 bag = 1;
+  uint32 gold = 2;
+}
+
+// What a player does about a trade. The server says why not in a line from
+// nobody.
+message TradeAction {
+  oneof action {
+    // Ask the player of that name, near you in your land, to trade, or say
+    // yes to them asking you first.
+    string ask = 1;
+    // What you offer, in place of what you offered before.
+    TradeOffer offer = 2;
+    // Whether you'll trade what's offered, both ways. Once both of you will,
+    // you trade.
+    bool ready = 3;
+    // Call the trade off.
+    bool cancel = 4;
+  }
+}
+
+// One side of a trade: copies of the stacks offered, by their places in the
+// bag they came from, the gold, and whether that side is ready.
+message TradeSide {
+  map<uint32, items.Stack> bag = 1;
+  uint32 gold = 2;
+  bool ready = 3;
+}
+
+// Your trade: who it's with, by their name, or nobody once it's over, and
+// what each of you offers.
+message Trade {
+  string partner = 1;
+  TradeSide yours = 2;
+  TradeSide theirs = 3;
 }

@@ -55,6 +55,13 @@ class Inventory {
   /// Takes one off the stack at the place, as using one does.
   absl::Status TakeOne(const protocol::Place& place);
 
+  /// Takes count off the stack at the place, as trading some does, or the
+  /// error says there aren't that many there.
+  absl::Status Take(const protocol::Place& place, uint32_t count);
+
+  /// Takes the gold away, or the error says there isn't that much.
+  absl::Status TakeGold(uint32_t amount);
+
   /// Throws away all of what's at the place.
   absl::Status Destroy(const protocol::Place& place);
 
