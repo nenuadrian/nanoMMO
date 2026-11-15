@@ -32,6 +32,8 @@ class NoServers final : public Servers {
 
 }  // namespace
 
+bool CanReachServers() { return false; }
+
 absl::StatusOr<std::unique_ptr<Servers>> Servers::Create(std::string, bool) {
   return std::make_unique<NoServers>();
 }

@@ -70,6 +70,8 @@ class NetworkServers final : public Servers {
 
 }  // namespace
 
+bool CanReachServers() { return true; }
+
 absl::StatusOr<std::unique_ptr<Servers>> Servers::Create(std::string host,
                                                          bool udp) {
   absl::StatusOr<asio::ssl::context> tls =

@@ -3,7 +3,7 @@ add_library(nanommo_client_core
   window.cc audio.cc jukebox.cc sound.cc synth.cc foley.cc soundscape.cc soundboard.cc
   settings.cc gui.cc menu.cc renderer.cc
   offscreen.cc postprocess.cc outline.cc
-  camera.cc scene.cc input.cc glsl.cc
+  camera.cc scene.cc input.cc glsl.cc local_connection.cc
   login_screen.cc nameplates.cc combat_text.cc player_frame.cc hotbar.cc
   bag_window.cc guild_window.cc trade_window.cc round_trip.cc prediction.cc
   interpolation.cc
@@ -25,7 +25,8 @@ target_include_directories(nanommo_client_core PUBLIC
   ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}
 )
 target_link_libraries(nanommo_client_core PUBLIC
-  raylib imgui nanommo_protocol nanommo_content nanommo_inventory nanommo_walking nanommo_terrain asio
+  raylib imgui nanommo_protocol nanommo_content nanommo_inventory nanommo_walking nanommo_terrain
+  nanommo_world asio
   absl::memory absl::status absl::statusor absl::strings
 )
 # The servers are over sockets, which a browser doesn't give us.

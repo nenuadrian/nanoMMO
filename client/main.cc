@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -35,6 +36,7 @@
 #include "client/jukebox.h"
 #include "client/link.h"
 #include "client/loading.h"
+#include "client/local_connection.h"
 #include "client/login_screen.h"
 #include "client/map.h"
 #include "client/menu.h"
@@ -78,13 +80,21 @@ constexpr float kSetOff = 0.5f;
 
 int main(int argc, char* argv[]) {
   std::cout << "nanommo client: version " << nanommo::kVersion << '\n';
-  const std::string host = argc > 1 ? argv[1] : "localhost";
-  const std::string transport = argc > 2 ? argv[2] : "udp";
-  absl::StatusOr<std::unique_ptr<nanommo::Servers>> servers =
-      nanommo::Servers::Create(host, transport == "udp");
-  if (!servers.ok()) {
-    std::cerr << "nanommo client: " << servers.status() << "\n";
-    return 1;
+  // Offline, the world is the client's own: with --offline, and in a
+  // browser, which can't reach the servers.
+  const bool offline = !nanommo::CanReachServers() ||
+                       (argc > 1 && std::string_view(argv[1]) == "--offline");
+  std::unique_ptr<nanommo::Servers> servers;
+  if (!offline) {
+    const std::string host = argc > 1 ? argv[1] : "localhost";
+    const std::string transport = argc > 2 ? argv[2] : "udp";
+    absl::StatusOr<std::unique_ptr<nanommo::Servers>> created =
+        nanommo::Servers::Create(host, transport == "udp");
+    if (!created.ok()) {
+      std::cerr << "nanommo client: " << created.status() << "\n";
+      return 1;
+    }
+    servers = *std::move(created);
   }
 
   const absl::StatusOr<nanommo::Content> content =
@@ -199,12 +209,15 @@ int main(int argc, char* argv[]) {
     // Connecting holds up the frame, so it waits for the loading screen to be
     // on the screen first.
     if (entering && loading.covered()) {
-      if (const std::optional<nanommo::protocol::WorldListing>& world =
-              login_screen.world()) {
+      if (offline) {
+        connection =
+            std::make_unique<nanommo::LocalConnection>(*content, "Traveller");
+      } else if (const std::optional<nanommo::protocol::WorldListing>& world =
+                     login_screen.world()) {
         std::cout << "nanommo client: entering " << world->name() << " as "
                   << login_screen.character_name() << '\n';
         absl::StatusOr<std::unique_ptr<nanommo::Link>> entered =
-            (*servers)->Enter(*world, *entering);
+            servers->Enter(*world, *entering);
         if (entered.ok()) {
           connection = *std::move(entered);
         } else {
@@ -225,7 +238,7 @@ int main(int argc, char* argv[]) {
               connection->move();
           move && !next) {
         absl::StatusOr<std::unique_ptr<nanommo::Link>> next_or =
-            (*servers)->Move(*move);
+            servers->Move(*move);
         if (next_or.ok()) {
           next = *std::move(next_or);
           std::cout << "nanommo client: moving to " << move->host() << ":"
@@ -671,10 +684,10 @@ int main(int argc, char* argv[]) {
       if (reset_hotbar) {
         hotbar = nanommo::Hotbar(content->skills);
       }
-    } else if (!connection && !entering) {
+    } else if (!connection && !entering && !offline) {
       if (const auto request = login_screen.Build()) {
         absl::StatusOr<nanommo::protocol::LoginReply> reply =
-            (*servers)->Ask(*request);
+            servers->Ask(*request);
         if (!reply.ok()) {
           login_screen.ShowError(absl::StrCat("Couldn't reach the server: ",
                                               reply.status().message()));
@@ -690,6 +703,13 @@ int main(int argc, char* argv[]) {
           }
         }
       }
+    }
+    // Offline, there's nothing to log in to, so we go straight in, and
+    // logging out starts a world afresh.
+    if (offline && !connection && !entering) {
+      entering = "offline";
+      world_name = "Offline";
+      loading.Cover();
     }
     // Back on the login screen, there's nothing to cover.
     if (!connection && !entering) {

@@ -10,6 +10,9 @@
 
 namespace nanommo {
 
+/// Whether this build can reach the servers at all: a browser's can't.
+bool CanReachServers();
+
 /// The login server and the worlds it lists, over the network. In a browser,
 /// which gives us no sockets, each says why it can't be reached.
 class Servers {
