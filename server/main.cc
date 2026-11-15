@@ -188,8 +188,9 @@ int main(int argc, char* argv[]) {
   constexpr std::chrono::seconds kHeartbeat{2};
   asio::steady_timer heartbeat(io);
   // The lambda gets its own object as its first parameter, self, so that it
-  // can wait on the timer again.
-  auto beat = [&](this auto self, std::error_code error) {
+  // can wait on the timer again. It names its return type, which async_wait
+  // checks, so that it doesn't depend on its early return coming first.
+  auto beat = [&](this auto self, std::error_code error) -> void {
     if (error) {
       return;
     }
@@ -234,7 +235,7 @@ int main(int argc, char* argv[]) {
   constexpr std::chrono::seconds kHandOverTime{10};
   asio::steady_timer leaving(io);
   std::chrono::steady_clock::time_point deadline;
-  auto wait = [&](this auto self, std::error_code) {
+  auto wait = [&](this auto self, std::error_code) -> void {
     if (server->players() == 0 || std::chrono::steady_clock::now() > deadline) {
       io.stop();
       return;

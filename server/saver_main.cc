@@ -57,7 +57,9 @@ int main() {
 
   asio::io_context io;
   asio::steady_timer timer(io, kInterval);
-  auto tick = [&](this auto self, std::error_code error) {
+  // self is the lambda, which waits on the timer again, with its return type
+  // named, as async_wait checks it.
+  auto tick = [&](this auto self, std::error_code error) -> void {
     if (error) {
       return;
     }
