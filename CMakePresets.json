@@ -62,5 +62,71 @@
       "binaryDir": "${sourceDir}/build-${presetName}",
       "cacheVariables": { "TRACY_ENABLE": "ON" }
     }
+  ],
+  "buildPresets": [
+    { "name": "release", "configurePreset": "release" },
+    { "name": "asan", "configurePreset": "asan" },
+    { "name": "tsan", "configurePreset": "tsan" },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz",
+      "targets": ["stories_fuzzer", "world_fuzzer"]
+    },
+    {
+      "name": "tidy",
+      "configurePreset": "tidy",
+      "targets": ["nanommo_protocol", "nanommo_content", "nanommo_client_core"]
+    },
+    { "name": "coverage", "configurePreset": "coverage" },
+    {
+      "name": "profile",
+      "configurePreset": "profile",
+      "targets": ["nanommo_server"]
+    }
+  ],
+  "testPresets": [
+    { "name": "tests", "hidden": true, "output": { "outputOnFailure": true } },
+    { "name": "release", "inherits": "tests", "configurePreset": "release" },
+    { "name": "asan", "inherits": "tests", "configurePreset": "asan" },
+    {
+      "name": "tsan",
+      "inherits": "tests",
+      "configurePreset": "tsan",
+      "environment": { "TSAN_OPTIONS": "suppressions=${sourceDir}/tsan.supp" }
+    },
+    {
+      "name": "coverage",
+      "inherits": "tests",
+      "configurePreset": "coverage",
+      "environment": {
+        "LLVM_PROFILE_FILE": "${sourceDir}/build-coverage/profiles/%p.profraw"
+      }
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "release",
+      "steps": [
+        { "type": "configure", "name": "release" },
+        { "type": "build", "name": "release" },
+        { "type": "test", "name": "release" }
+      ]
+    },
+    {
+      "name": "asan",
+      "steps": [
+        { "type": "configure", "name": "asan" },
+        { "type": "build", "name": "asan" },
+        { "type": "test", "name": "asan" }
+      ]
+    },
+    {
+      "name": "tsan",
+      "steps": [
+        { "type": "configure", "name": "tsan" },
+        { "type": "build", "name": "tsan" },
+        { "type": "test", "name": "tsan" }
+      ]
+    }
   ]
 }
