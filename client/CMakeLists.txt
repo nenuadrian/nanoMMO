@@ -3,7 +3,7 @@ add_library(nanommo_client_core
   window.cc audio.cc jukebox.cc sound.cc synth.cc foley.cc soundscape.cc soundboard.cc
   settings.cc gui.cc menu.cc renderer.cc
   offscreen.cc postprocess.cc outline.cc
-  camera.cc scene.cc input.cc
+  camera.cc scene.cc input.cc glsl.cc
   login_screen.cc nameplates.cc combat_text.cc player_frame.cc hotbar.cc
   bag_window.cc guild_window.cc trade_window.cc round_trip.cc prediction.cc
   interpolation.cc

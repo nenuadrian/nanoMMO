@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "client/glsl.h"
 #include "client/triangles.h"
 
 namespace nanommo {
@@ -169,7 +170,7 @@ Mesh Gem() {
 
 Fx::Fx(const SkillTable& skills, Shader lit, const ItemTable& items)
     : skills_(skills.by_id),
-      light_(LoadShaderFromMemory(kLightVertexShader, kLightFragmentShader)),
+      light_(LoadGlsl(kLightVertexShader, kLightFragmentShader)),
       shard_(LoadModelFromMesh(Gem())) {
   shard_.materials[0].shader = lit;
   for (const auto& [id, item] : items.by_id) {

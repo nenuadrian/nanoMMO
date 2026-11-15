@@ -5,6 +5,8 @@
 
 #include <algorithm>
 
+#include "client/glsl.h"
+
 namespace nanommo {
 
 namespace {
@@ -151,10 +153,10 @@ void DrawInto(const RenderTexture2D& target, const Texture2D& texture) {
 
 // raylib's own vertex shader passes the texture's coordinates on.
 PostProcess::PostProcess()
-    : bright_(LoadShaderFromMemory(nullptr, kBrightShader)),
-      spread_(LoadShaderFromMemory(nullptr, kSpreadShader)),
-      combine_(LoadShaderFromMemory(nullptr, kCombineShader)),
-      fxaa_(LoadShaderFromMemory(nullptr, kFxaaShader)) {}
+    : bright_(LoadGlsl(nullptr, kBrightShader)),
+      spread_(LoadGlsl(nullptr, kSpreadShader)),
+      combine_(LoadGlsl(nullptr, kCombineShader)),
+      fxaa_(LoadGlsl(nullptr, kFxaaShader)) {}
 
 PostProcess::~PostProcess() {
   UnloadRenderTexture(frame_);

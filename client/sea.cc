@@ -5,6 +5,7 @@
 #include <cmath>
 #include <vector>
 
+#include "client/glsl.h"
 #include "client/triangles.h"
 
 namespace nanommo {
@@ -136,7 +137,7 @@ void SetColor(Shader shader, const char* name, Color color) {
 }  // namespace
 
 Sea::Sea(const Terrain& terrain, const Look& look)
-    : shader_(LoadShaderFromMemory(kVertexShader, kFragmentShader)) {
+    : shader_(LoadGlsl(kVertexShader, kFragmentShader)) {
   // A square around the camera, cut into the ground's cells, two triangles
   // each, the way the ground's are, which the waves move. So the ground under
   // each triangle is flat, and the gap up to the water is right at each pixel.

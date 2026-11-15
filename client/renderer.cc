@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "client/glsl.h"
 #include "client/scene.h"
 #include "client/sky.h"
 
@@ -287,13 +288,11 @@ void SetAtmosphere(Shader shader, const Atmosphere& atmosphere) {
 }  // namespace
 
 Renderer::Renderer(const Content& content)
-    : cube_shader_(LoadShaderFromMemory(kVertexShader, kFragmentShader)),
-      character_shader_(
-          LoadShaderFromMemory(kSkinnedVertexShader, kFragmentShader)),
-      outline_{.still = LoadShaderFromMemory(kOutlineVertexShader,
-                                             kOutlineFragmentShader),
-               .skinned = LoadShaderFromMemory(kSkinnedOutlineVertexShader,
-                                               kOutlineFragmentShader)},
+    : cube_shader_(LoadGlsl(kVertexShader, kFragmentShader)),
+      character_shader_(LoadGlsl(kSkinnedVertexShader, kFragmentShader)),
+      outline_{.still = LoadGlsl(kOutlineVertexShader, kOutlineFragmentShader),
+               .skinned = LoadGlsl(kSkinnedOutlineVertexShader,
+                                   kOutlineFragmentShader)},
       cube_(LoadModelFromMesh(GenMeshCube(1.0f, 1.0f, 1.0f))),
       disc_(LoadModelFromMesh(Disc().Upload())),
       spire_(LoadModelFromMesh(Spire().Upload())),

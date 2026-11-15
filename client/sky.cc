@@ -9,6 +9,8 @@
 #include <utility>
 #include <vector>
 
+#include "client/glsl.h"
+
 namespace nanommo {
 namespace {
 
@@ -122,10 +124,8 @@ void SetFloat(Shader shader, const char* name, float value) {
 }  // namespace
 
 Sky::Sky()
-    : dome_shader_(
-          LoadShaderFromMemory(kDomeVertexShader, kDomeFragmentShader)),
-      cloud_shader_(
-          LoadShaderFromMemory(kCloudVertexShader, kCloudFragmentShader)),
+    : dome_shader_(LoadGlsl(kDomeVertexShader, kDomeFragmentShader)),
+      cloud_shader_(LoadGlsl(kCloudVertexShader, kCloudFragmentShader)),
       dome_(LoadModelFromMesh(GenMeshSphere(1.0f, 24, 32))),
       // Few rings and slices, so that each ball is made of big flat faces.
       puff_(LoadModelFromMesh(GenMeshSphere(1.0f, 5, 7))) {
