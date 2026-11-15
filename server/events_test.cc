@@ -46,27 +46,3 @@ TEST(Events, KeepsTheKillsForTheAnalyticsAndNotTheBlows) {
   EXPECT_FALSE(nanommo::ForAnalytics(nanommo::Event::Kind::kHit));
   EXPECT_FALSE(nanommo::ForAnalytics(nanommo::Event::Kind::kHeal));
 }
-
-TEST(Events, ShowsThePlayersTheBlowsAndNotTheirQuests) {
-  const std::optional<nanommo::protocol::Event> hit =
-      nanommo::ForPlayers({.kind = nanommo::Event::Kind::kHit,
-                           .player_id = 3,
-                           .monster_id = 9,
-                           .amount = 15});
-  ASSERT_TRUE(hit.has_value());
-  EXPECT_EQ(hit->kind(), nanommo::protocol::EVENT_HIT);
-  EXPECT_EQ(hit->player(), 3u);
-  EXPECT_EQ(hit->monster(), 9u);
-  EXPECT_EQ(hit->amount(), 15u);
-
-  // A level's amount is the level reached.
-  const std::optional<nanommo::protocol::Event> level = nanommo::ForPlayers(
-      {.kind = nanommo::Event::Kind::kLevel, .player_id = 3, .level = 7});
-  ASSERT_TRUE(level.has_value());
-  EXPECT_EQ(level->kind(), nanommo::protocol::EVENT_LEVEL);
-  EXPECT_EQ(level->amount(), 7u);
-
-  EXPECT_FALSE(
-      nanommo::ForPlayers({.kind = nanommo::Event::Kind::kTake, .player_id = 3})
-          .has_value());
-}

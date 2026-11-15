@@ -114,37 +114,6 @@ bool ForAnalytics(Event::Kind kind) {
   return false;
 }
 
-std::optional<protocol::Event> ForPlayers(const Event& event) {
-  protocol::Event shown;
-  shown.set_player(event.player_id);
-  shown.set_amount(event.amount);
-  switch (event.kind) {
-    case Event::Kind::kHit:
-      shown.set_kind(protocol::EVENT_HIT);
-      shown.set_monster(event.monster_id);
-      return shown;
-    case Event::Kind::kHurt:
-      shown.set_kind(protocol::EVENT_HURT);
-      return shown;
-    case Event::Kind::kHeal:
-      shown.set_kind(protocol::EVENT_HEAL);
-      return shown;
-    case Event::Kind::kLevel:
-      shown.set_kind(protocol::EVENT_LEVEL);
-      shown.set_amount(event.level);
-      return shown;
-    case Event::Kind::kKill:
-    case Event::Kind::kDeath:
-    case Event::Kind::kLoot:
-    case Event::Kind::kPrize:
-    case Event::Kind::kTake:
-    case Event::Kind::kTurnIn:
-    case Event::Kind::kUse:
-      return std::nullopt;
-  }
-  return std::nullopt;
-}
-
 absl::Status Events::Add(const std::vector<std::string>& rows) {
   std::vector<std::vector<std::string>> commands;
   commands.reserve(rows.size());

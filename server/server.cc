@@ -28,6 +28,7 @@
 #include "server/interest.h"
 #include "server/levels.h"
 #include "server/listen.h"
+#include "server/shown.h"
 #include "server/stories.h"
 #include "terrain/lands.h"
 #include "tracy/Tracy.hpp"
@@ -80,24 +81,6 @@ constexpr int kSteadyTicks = 20;
 constexpr int kGuildBurst = 3;
 constexpr std::chrono::seconds kGuildRefill{1};
 
-protocol::Motion ToProtocol(Motion motion) {
-  switch (motion) {
-    case Motion::kWalk:
-      return protocol::MOTION_WALK;
-    case Motion::kRun:
-      return protocol::MOTION_RUN;
-    case Motion::kAttack:
-      return protocol::MOTION_ATTACK;
-    case Motion::kDead:
-      return protocol::MOTION_DEAD;
-    case Motion::kSkill:
-      return protocol::MOTION_SKILL;
-    case Motion::kIdle:
-      break;
-  }
-  return protocol::MOTION_IDLE;
-}
-
 Progress ProgressOf(const Player& player) {
   Progress progress{.x = player.x,
                     .z = player.z,
@@ -125,55 +108,6 @@ Progress ProgressOf(const Player& player) {
     progress.land = out.to;
   }
   return progress;
-}
-
-protocol::Player ToProtocol(uint32_t id, const Player& player) {
-  protocol::Player sent;
-  sent.set_id(id);
-  sent.set_x(player.x);
-  sent.set_z(player.z);
-  sent.set_name(player.name);
-  sent.set_yaw(player.yaw);
-  sent.set_motion(ToProtocol(player.motion));
-  const int level = LevelFor(player.experience).number;
-  sent.set_level(level);
-  sent.set_health(player.health);
-  sent.set_max_health(MaxHealthOf(player));
-  sent.set_weapon(MainHandOf(player));
-  for (const uint32_t item : WornOf(player)) {
-    sent.add_wearing(item);
-  }
-  if (player.motion == Motion::kSkill) {
-    sent.set_skill(player.skill);
-    sent.set_target(player.target);
-    sent.set_casts(player.casts);
-  }
-  return sent;
-}
-
-protocol::Monster ToProtocol(uint32_t id, const Monster& monster) {
-  protocol::Monster sent;
-  sent.set_id(id);
-  sent.set_kind(monster.kind);
-  sent.set_x(monster.x);
-  sent.set_z(monster.z);
-  sent.set_yaw(monster.yaw);
-  sent.set_motion(ToProtocol(monster.motion));
-  sent.set_level(monster.level);
-  sent.set_health(monster.health);
-  sent.set_max_health(monster.max_health);
-  sent.set_height(monster.height);
-  return sent;
-}
-
-protocol::Npc ToProtocol(uint32_t id, const Npc& npc) {
-  protocol::Npc sent;
-  sent.set_id(id);
-  sent.set_kind(npc.kind);
-  sent.set_x(npc.x);
-  sent.set_z(npc.z);
-  sent.set_yaw(npc.yaw);
-  return sent;
 }
 
 }  // namespace
@@ -1121,38 +1055,11 @@ void Server::BroadcastCopy(const Copy& copy, bool full) {
           pieces.push_back(npcs.at(npc));
         }
       }
-      const Player& player = land.players().at(id);
-      const Level level = LevelFor(player.experience);
-      protocol::World you;
-      you.set_you(id);
-      you.set_experience(level.experience);
-      you.set_next_level(level.next);
-      for (const auto& [skill, left] : player.cooldowns) {
-        (*you.mutable_cooldowns())[skill] = static_cast<uint32_t>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(left)
-                .count());
-      }
-      you.mutable_skills()->Add(player.skills.begin(), player.skills.end());
-      if (player.motion == Motion::kDead) {
-        you.set_respawn(static_cast<uint32_t>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                player.respawn)
-                .count()));
-      }
-      you.set_seed(seed_ + kLands[copy.land].seed);
-      you.set_land(static_cast<uint32_t>(copy.land));
-      if (const auto acked = acked_.find(id); acked != acked_.end()) {
-        you.set_acked(acked->second);
-      }
-      you.set_steered(player.steered);
-      // Where you are, with the last input applied, in every datagram, so
-      // the two always come together, whichever part has you otherwise.
-      protocol::Player* here = you.add_players();
-      *here = ToProtocol(id, player);
-      here->clear_name();
-      here->clear_level();
-      here->clear_max_health();
-      here->clear_weapon();
+      const auto acked = acked_.find(id);
+      const protocol::World you = YouIn(
+          id, land.players().at(id), seed_ + kLands[copy.land].seed, copy.land,
+          acked != acked_.end() ? std::optional<uint32_t>(acked->second)
+                                : std::nullopt);
       std::string own = you.SerializeAsString();
       const auto udp = udp_clients_.find(id);
       if (udp != udp_clients_.end()) {
@@ -1271,9 +1178,7 @@ void Server::SendBags() {
       if (session == sessions_.end() || sent_bags_[id] == revision) {
         continue;
       }
-      protocol::World bag;
-      *bag.mutable_inventory() = player.inventory.items();
-      std::string frame = Frame(bag);
+      std::string frame = Frame(BagOf(player));
       metrics_.AddBytesSent(frame.size());
       session->second->Send(std::move(frame));
       sent_bags_[id] = revision;
@@ -1293,13 +1198,7 @@ void Server::SendQuests() {
            sent->second == player.quests_revision)) {
         continue;
       }
-      protocol::World quests;
-      protocol::Quests* on = quests.mutable_quests();
-      on->mutable_on()->insert(player.quests.begin(), player.quests.end());
-      on->mutable_done()->Add(player.quests_done.begin(),
-                              player.quests_done.end());
-      on->set_revision(player.quests_revision);
-      std::string frame = Frame(quests);
+      std::string frame = Frame(QuestsOf(player));
       metrics_.AddBytesSent(frame.size());
       session->second->Send(std::move(frame));
       sent_quests_[id] = player.quests_revision;
