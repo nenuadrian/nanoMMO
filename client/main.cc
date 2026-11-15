@@ -53,6 +53,7 @@
 #include "client/soundboard.h"
 #include "client/soundscape.h"
 #include "client/talk_window.h"
+#include "client/trade_window.h"
 #include "client/trainer_window.h"
 #include "client/window.h"
 #include "content/content.h"
@@ -193,6 +194,7 @@ int main(int argc, char* argv[]) {
   nanommo::CharacterScreen character_screen(content->items);
   nanommo::BagWindow bag_window(content->items);
   nanommo::GuildWindow guild_window;
+  nanommo::TradeWindow trade_window(content->items);
   nanommo::ChatWindow chat_window;
   nanommo::TalkWindow talk_window;
   nanommo::TrainerWindow trainer_window(content->skills);
@@ -210,6 +212,9 @@ int main(int argc, char* argv[]) {
   nanommo::DeathScreen death_screen;
   nanommo::LandMap land_map;
   bool map_open = false;
+  // Whether we were trading last frame, so that the bag opens as a trade
+  // does.
+  bool trading = false;
   std::optional<nanommo::Terrain> terrain;
   int land = 0;
   nanommo::FollowCamera camera;
@@ -626,6 +631,9 @@ int main(int argc, char* argv[]) {
         if (const std::optional<std::string> to_guild =
                 nanommo::GuildLine(*line)) {
           say.mutable_guild()->set_say(*to_guild);
+        } else if (const std::optional<std::string> trader =
+                       nanommo::TradeName(*line)) {
+          say.mutable_trade()->set_ask(*trader);
         } else {
           say.set_say(*line);
         }
@@ -657,8 +665,13 @@ int main(int argc, char* argv[]) {
       std::optional<nanommo::protocol::ItemAction> item =
           character_screen.Build(renderer.figures(), connection->world(),
                                  nanommo::kLands[land].name, bag);
+      // A trade that opens opens the bag too, to drag what's offered from.
+      if (!connection->trade().partner().empty() && !trading) {
+        *bag_window.mutable_visible() = true;
+      }
+      trading = !connection->trade().partner().empty();
       if (std::optional<nanommo::protocol::ItemAction> in_bag =
-              bag_window.Build(bag)) {
+              bag_window.Build(bag, connection->trade().yours())) {
         item = std::move(in_bag);
       }
       if (item) {
@@ -676,6 +689,12 @@ int main(int argc, char* argv[]) {
                                  connection->world().you())) {
         nanommo::protocol::Input ask = sent;
         *ask.mutable_guild() = *guild;
+        connection->Send(ask);
+      }
+      if (const std::optional<nanommo::protocol::TradeAction> trade =
+              trade_window.Build(connection->trade())) {
+        nanommo::protocol::Input ask = sent;
+        *ask.mutable_trade() = *trade;
         connection->Send(ask);
       }
       menu.BuildButtons(character_screen.mutable_visible(),

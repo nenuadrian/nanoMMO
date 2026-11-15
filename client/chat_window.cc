@@ -39,6 +39,14 @@ std::optional<std::string> GuildLine(std::string_view typed) {
   return std::string(typed.substr(kCommand.size()));
 }
 
+std::optional<std::string> TradeName(std::string_view typed) {
+  constexpr std::string_view kCommand = "/trade ";
+  if (!typed.starts_with(kCommand)) {
+    return std::nullopt;
+  }
+  return std::string(typed.substr(kCommand.size()));
+}
+
 std::size_t ChatWindow::Unread(const std::deque<protocol::Chat>& lines,
                                const std::optional<protocol::Chat>& seen) {
   if (!seen) {

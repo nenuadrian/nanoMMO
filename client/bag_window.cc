@@ -210,7 +210,7 @@ std::optional<protocol::ItemAction> QuickAction(const ItemTable& items,
 std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
                                              const protocol::Inventory& bag,
                                              const protocol::Place& place,
-                                             float size) {
+                                             float size, bool locked) {
   const items::Stack* stack = StackAt(bag, place);
   const items::Item* item =
       stack != nullptr ? Find(items, stack->item()) : nullptr;
@@ -223,8 +223,9 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
   const ImVec2 min = ImGui::GetItemRectMin();
   const ImVec2 max = ImGui::GetItemRectMax();
 
-  // Taken hold of, it follows the mouse, from where it was held.
-  if (stack != nullptr &&
+  // Taken hold of, it follows the mouse, from where it was held. Offered in
+  // a trade, it stays, as the trade takes it from here.
+  if (stack != nullptr && !locked &&
       ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
     const ImVec2 down = ImGui::GetIO().MouseClickedPos[ImGuiMouseButton_Left];
     const Dragged dragged{.worn = place.has_worn(),
@@ -242,7 +243,7 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
   ImU32 edge = 0;
   if (held && !source && ImGui::BeginDragDropTarget()) {
     const protocol::Place from = PlaceOf(*held);
-    const bool fits = Fits(items, bag, from, place);
+    const bool fits = !locked && Fits(items, bag, from, place);
     edge = fits ? colors::kGood : colors::kHealth;
     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
             kPayload, ImGuiDragDropFlags_AcceptBeforeDelivery |
@@ -274,8 +275,10 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
     const ImU32 tint = TintOf(item);
     const std::string icon =
         Icon(item != nullptr ? item->look().icon() : kUnknownIcon);
-    // Its place stays, faint, while it's held.
-    DrawSlotIcon(draw, min, max, icon.c_str(), tint, source ? 0.25f : 1.0f);
+    // Its place stays, faint, while it's held, and what's offered in a trade
+    // is faint until it's over.
+    const float alpha = source ? 0.25f : locked ? 0.45f : 1.0f;
+    DrawSlotIcon(draw, min, max, icon.c_str(), tint, alpha);
     if (stack->count() > 1 && !source) {
       const std::string count = absl::StrCat(stack->count());
       ImFont* bold = GetFonts().bold;
@@ -296,7 +299,7 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
                  colors::kMuted, 0.3f);
   }
 
-  if (stack != nullptr && hovered &&
+  if (stack != nullptr && !locked && hovered &&
       ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
     action = QuickAction(items, bag, place);
   }
@@ -315,11 +318,14 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
       for (std::size_t i = 1; i < lines.size(); ++i) {
         ImGui::TextDisabled("%s", lines[i].c_str());
       }
+      if (locked) {
+        ImGui::TextDisabled("Offered in the trade");
+      }
     }
     ImGui::EndTooltip();
   }
 
-  if (stack != nullptr && ImGui::BeginPopupContextItem("menu")) {
+  if (stack != nullptr && !locked && ImGui::BeginPopupContextItem("menu")) {
     if (place.has_bag() && item != nullptr && item->has_use() &&
         ImGui::MenuItem("Use")) {
       action.emplace().set_use(place.bag());
@@ -344,8 +350,58 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
   return action;
 }
 
+bool StackSlot(const ItemTable& items, const items::Stack* stack, float size,
+               uint32_t edge) {
+  const bool clicked = ImGui::InvisibleButton("##stack", {size, size});
+  const ImVec2 min = ImGui::GetItemRectMin();
+  const ImVec2 max = ImGui::GetItemRectMax();
+  ImDrawList* draw = ImGui::GetWindowDrawList();
+  DrawSlot(draw, min, max, edge);
+  if (stack == nullptr) {
+    return false;
+  }
+  const items::Item* item = Find(items, stack->item());
+  DrawSlotIcon(
+      draw, min, max,
+      Icon(item != nullptr ? item->look().icon() : kUnknownIcon).c_str(),
+      TintOf(item));
+  if (stack->count() > 1) {
+    const std::string count = absl::StrCat(stack->count());
+    ImFont* bold = GetFonts().bold;
+    const float count_size = Ui(14.0f);
+    const ImVec2 extent =
+        bold->CalcTextSizeA(count_size, FLT_MAX, 0.0f, count.c_str());
+    DrawShadowedText(draw, bold, count_size,
+                     {max.x - extent.x - Ui(4.0f), max.y - extent.y - Ui(2.0f)},
+                     colors::kPaper, count.c_str());
+  }
+  if (ImGui::IsItemHovered()) {
+    const std::vector<std::string> lines = ItemLines(items, *stack);
+    ImGui::BeginTooltip();
+    ImGui::PushFont(GetFonts().title, 15.0f);
+    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGoldLight), "%s",
+                       lines.front().c_str());
+    ImGui::PopFont();
+    for (std::size_t i = 1; i < lines.size(); ++i) {
+      ImGui::TextDisabled("%s", lines[i].c_str());
+    }
+    ImGui::EndTooltip();
+  }
+  return clicked;
+}
+
+std::optional<protocol::Place> AcceptItem() {
+  const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kPayload);
+  if (payload == nullptr) {
+    return std::nullopt;
+  }
+  Dragged dragged;
+  std::memcpy(&dragged, payload->Data, sizeof(dragged));
+  return PlaceOf(dragged);
+}
+
 std::optional<protocol::ItemAction> BagWindow::Build(
-    const protocol::Inventory& bag) {
+    const protocol::Inventory& bag, const protocol::TradeSide& offered) {
   std::optional<protocol::ItemAction> action;
   // Let go of over nothing, from the bag or from what's worn, it's thrown
   // away, once the player says so.
@@ -375,8 +431,8 @@ std::optional<protocol::ItemAction> BagWindow::Build(
       if (index % kColumns != 0) {
         ImGui::SameLine();
       }
-      if (std::optional<protocol::ItemAction> done =
-              ItemSlot(items_, bag, InBag(index), slot)) {
+      if (std::optional<protocol::ItemAction> done = ItemSlot(
+              items_, bag, InBag(index), slot, offered.bag().contains(index))) {
         action = std::move(done);
       }
     }

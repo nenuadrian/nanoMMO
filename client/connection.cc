@@ -110,9 +110,9 @@ void Connection::Read() {
                                 connected_ = false;
                                 return;
                               }
-                              // Chat, moves, our bag, our quests, our guild
-                              // and the events come on their own, with
-                              // nothing of the world in them.
+                              // Chat, moves, our bag, our quests, our
+                              // guild, our trade and the events come on
+                              // their own, with nothing of the world in them.
                               if (world.has_move()) {
                                 move_ = world.move();
                               } else if (world.has_inventory()) {
@@ -121,6 +121,8 @@ void Connection::Read() {
                                 quests_ = world.quests();
                               } else if (world.has_guild()) {
                                 guild_ = world.guild();
+                              } else if (world.has_trade()) {
+                                trade_ = world.trade();
                               } else if (world.has_invite()) {
                                 invite_ = world.invite();
                               } else if (!world.events().empty()) {

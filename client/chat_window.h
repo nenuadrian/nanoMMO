@@ -18,6 +18,10 @@ namespace nanommo {
 /// all, for a line to the world.
 std::optional<std::string> GuildLine(std::string_view typed);
 
+/// Who a line typed in the chat asks to trade with, by their name, when it
+/// starts with /trade and a space, or nothing, for any other line.
+std::optional<std::string> TradeName(std::string_view typed);
+
 /// What's said in the world, in the bottom left, over a field to type in,
 /// which Enter goes to. Its close button folds it into a button, which says
 /// how many lines have come since, and which, or Enter, opens it again.

@@ -33,11 +33,23 @@ std::optional<protocol::ItemAction> QuickAction(const ItemTable& items,
 /// stack: it follows the mouse, and each slot it's over lights green if the
 /// server would let it go there, and red if not. They double-click it to use,
 /// wear or take it off, and right-click it for a menu that throws it away
-/// too. Returns what they ask for, which the server does or refuses.
+/// too. Returns what they ask for, which the server does or refuses. A slot
+/// that's locked, as one offered in a trade is, does none of that, and shows
+/// its item faint.
 std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
                                              const protocol::Inventory& bag,
                                              const protocol::Place& place,
-                                             float size);
+                                             float size, bool locked = false);
+
+/// Draws a stack, or nothing, in a slot of the size that doesn't drag: its
+/// icon, how many, and its lines when the mouse is over it, with the edge
+/// lit in the colour, if there's one. Returns whether it was clicked.
+bool StackSlot(const ItemTable& items, const items::Stack* stack, float size,
+               uint32_t edge = 0);
+
+/// Within a drag and drop target: where the item that's let go of over it was
+/// dragged from, in the bag or worn, once it's let go of.
+std::optional<protocol::Place> AcceptItem();
 
 /// The bag, in a window of its own, which I opens and closes. An item dragged
 /// out of it, or off the player, and let go of over nothing is thrown away,
@@ -51,7 +63,9 @@ class BagWindow {
   bool visible() const { return visible_; }
   void Toggle() { visible_ = !visible_; }
 
-  std::optional<protocol::ItemAction> Build(const protocol::Inventory& bag);
+  /// What's offered in a trade stays in its slot until the trade's over.
+  std::optional<protocol::ItemAction> Build(
+      const protocol::Inventory& bag, const protocol::TradeSide& offered = {});
 
  private:
   /// Asks whether to throw away what's at throwing_.

@@ -56,6 +56,8 @@ class Connection {
   const protocol::Quests& quests() const { return quests_; }
   /// Our guild, with no name for none.
   const protocol::Guild& guild() const { return guild_; }
+  /// Our trade, with nobody in it for none.
+  const protocol::Trade& trade() const { return trade_; }
 
   /// What happened near us since the last time, oldest first, which it hands
   /// over, as each event comes once.
@@ -91,6 +93,7 @@ class Connection {
   protocol::Inventory inventory_;
   protocol::Quests quests_;
   protocol::Guild guild_;
+  protocol::Trade trade_;
   std::optional<protocol::GuildInvite> invite_;
   std::vector<protocol::Event> events_;
   bool udp_worlds_ = false;

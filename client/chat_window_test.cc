@@ -9,3 +9,9 @@ TEST(ChatWindow, SendsALineThatStartsWithSlashGToTheGuild) {
   EXPECT_EQ(nanommo::GuildLine("/g "), "");
   EXPECT_EQ(nanommo::GuildLine("/go away"), std::nullopt);
 }
+
+TEST(ChatWindow, AsksToTradeWithThePlayerNamedAfterSlashTrade) {
+  EXPECT_EQ(nanommo::TradeName("/trade bob"), "bob");
+  EXPECT_EQ(nanommo::TradeName("trade bob"), std::nullopt);
+  EXPECT_EQ(nanommo::TradeName("/trader"), std::nullopt);
+}
