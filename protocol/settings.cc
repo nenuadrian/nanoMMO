@@ -20,7 +20,8 @@ std::string FileSetting(const char* name, const std::string& path) {
     return value;
   }
   // The build puts the repository's folder in NANOMMO_SOURCE_DIR.
-  const std::string repository = absl::StrCat(NANOMMO_SOURCE_DIR, "/", path);
+  // Not const, so that returning it moves it.
+  std::string repository = absl::StrCat(NANOMMO_SOURCE_DIR, "/", path);
   if (Exists(repository) || !Exists(path)) {
     return repository;
   }
