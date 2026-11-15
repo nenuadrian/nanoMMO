@@ -53,7 +53,9 @@ class Players {
   absl::StatusOr<Player> Load(const std::string& world, uint32_t id);
 
   /// Into Redis, all of them in a single round trip, and marked unsaved, with
-  /// the bags of those whose bags changed, which are marked unsaved apart.
+  /// the bags of those whose bags changed, which are marked unsaved apart. It's
+  /// one transaction, so Redis keeps all of it or none: the two bags a trade
+  /// changed are never saved one without the other.
   absl::Status Save(const std::string& world,
                     const std::map<uint32_t, Progress>& changed,
                     const std::map<uint32_t, protocol::Inventory>& bags = {});

@@ -127,6 +127,14 @@ class TestPlayer {
     stream_.lowest_layer().close(ignored);
   }
 
+  // Sends the input, and leaves as soon as it's sent, as a client that quits
+  // straight after it would, before the server's next tick.
+  void SendAndLeave(const nanommo::protocol::Input& input) {
+    auto bytes = std::make_shared<const std::string>(nanommo::Frame(input));
+    asio::async_write(stream_, asio::buffer(*bytes),
+                      [this, bytes](std::error_code, std::size_t) { Leave(); });
+  }
+
  private:
   void Greet(const std::string& token, std::error_code error) {
     if (error) {
@@ -822,6 +830,67 @@ TEST_F(ServerTest, TwoPlayersTrade) {
   EXPECT_TRUE(RunUntil([&] {
     return alice.trade()->partner().empty() && bob.trade()->partner().empty();
   }));
+}
+
+TEST_F(ServerTest, ATradeAndALeaveLeaveOneSword) {
+  // Each joins with the kit: a sword in hand, and three potions.
+  const nanommo::Content gear{.items = nanommo::testing::Gear()};
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> market =
+      nanommo::Server::Create(
+          io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1, gear,
+          metrics_, *tokens_, *players_, *guilds_, *events_, *storyteller_);
+  ASSERT_TRUE(market.ok()) << market.status();
+  TestPlayer alice(io_, *client_tls_, (*market)->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, (*market)->port(), Token(bob_));
+  // The swords in a bag, and worn.
+  const auto swords = [](const nanommo::protocol::Inventory& bag) {
+    int count = 0;
+    for (const auto& [slot, stack] : bag.bag()) {
+      count += stack.item() == 1u ? 1 : 0;
+    }
+    for (const auto& [slot, stack] : bag.worn()) {
+      count += stack.item() == 1u ? 1 : 0;
+    }
+    return count;
+  };
+  ASSERT_TRUE(RunUntil(
+      [&] { return swords(alice.bag()) == 1 && swords(bob.bag()) == 1; }));
+
+  // Alice puts her sword in her bag, and they open a trade.
+  nanommo::protocol::Input stow;
+  nanommo::protocol::ItemMove* sword = stow.mutable_item()->mutable_move();
+  *sword->mutable_from() = nanommo::Worn(nanommo::items::SLOT_MAIN_HAND);
+  *sword->mutable_to() = nanommo::InBag(1);
+  alice.Send(stow);
+  ASSERT_TRUE(RunUntil([&] { return alice.bag().bag().contains(1); }));
+  nanommo::protocol::Input ask;
+  ask.mutable_trade()->set_ask(names_[bob_]);
+  alice.Send(ask);
+  ask.mutable_trade()->set_ask(names_[alice_]);
+  bob.Send(ask);
+  ASSERT_TRUE(RunUntil([&] { return alice.trade() && bob.trade(); }));
+
+  // She offers it, and once bob's ready for it, she's ready too, and gone
+  // before the next tick.
+  nanommo::protocol::Input offer;
+  offer.mutable_trade()->mutable_offer()->add_bag(1);
+  alice.Send(offer);
+  ASSERT_TRUE(
+      RunUntil([&] { return bob.trade()->theirs().bag().contains(1); }));
+  nanommo::protocol::Input ready;
+  ready.mutable_trade()->set_ready(true);
+  ready.mutable_trade()->set_revision(bob.trade()->revision());
+  bob.Send(ready);
+  ASSERT_TRUE(RunUntil([&] { return alice.trade()->theirs().ready(); }));
+  ready.mutable_trade()->set_revision(alice.trade()->revision());
+  alice.SendAndLeave(ready);
+  ASSERT_TRUE(RunUntil(
+      [&] { return (*market)->players() == 1 && swords(bob.bag()) == 2; }));
+
+  // Bob has her sword, and she comes back without it.
+  TestPlayer back(io_, *client_tls_, (*market)->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return back.bag().revision() > 0; }));
+  EXPECT_EQ(swords(back.bag()) + swords(bob.bag()), 2);
 }
 
 TEST_F(ServerTest, AppliesNumberedInputsOneATickInOrder) {

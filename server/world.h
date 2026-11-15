@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "content/content.h"
 #include "protocol/nanommo.pb.h"
 #include "server/inventory.h"
@@ -332,9 +333,10 @@ class World {
   absl::Status OfferToTrade(uint32_t id, const protocol::TradeOffer& offer);
 
   /// Whether the player's ready to trade, at the revision of the trade they
-  /// saw. Once both are, within kTradeReach, they trade, there and then, or
-  /// the error says why not.
-  absl::Status ReadyToTrade(uint32_t id, bool ready, uint32_t revision);
+  /// saw. Once both are, within kTradeReach, they trade, there and then, and
+  /// it returns who with, or 0 until then. Or the error says why not.
+  absl::StatusOr<uint32_t> ReadyToTrade(uint32_t id, bool ready,
+                                        uint32_t revision);
 
   /// Calls the player's trade off, for both of them.
   void CancelTrade(uint32_t id);

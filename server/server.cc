@@ -377,6 +377,12 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
 
 void Server::Leave(uint32_t id) {
   std::cout << WorldOf(id)->players().at(id).name << " left" << std::endl;
+  // Nothing saves them once they're gone, so what's changed since the last
+  // tick goes now. The next instance has loaded them as they were saved when
+  // the handover began, which this mustn't write over.
+  if (!handing_over_) {
+    Save({id});
+  }
   copies_.Leave(id);
   saved_.erase(id);
   sessions_.erase(id);
@@ -567,9 +573,18 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
     case protocol::TradeAction::kOffer:
       done = land.OfferToTrade(id, action.offer());
       break;
-    case protocol::TradeAction::kReady:
-      done = land.ReadyToTrade(id, action.ready(), action.revision());
+    case protocol::TradeAction::kReady: {
+      const absl::StatusOr<uint32_t> traded =
+          land.ReadyToTrade(id, action.ready(), action.revision());
+      done = traded.status();
+      // Both bags go into Redis together, as they trade, before either player
+      // hears of it, so that a crash or a leave can't keep one and lose the
+      // other.
+      if (traded.value_or(0) != 0) {
+        Save({id, *traded});
+      }
       break;
+    }
     case protocol::TradeAction::kCancel:
       land.CancelTrade(id);
       break;
@@ -950,18 +965,28 @@ void Server::ApplyInputs() {
 void Server::SaveChanged() {
   ZoneScoped;
   const auto start = std::chrono::steady_clock::now();
-  std::map<uint32_t, Progress> changed;
-  std::map<uint32_t, protocol::Inventory> bags;
+  std::vector<uint32_t> everyone;
   for (const auto& [copy_id, copy] : copies_.all()) {
     for (const auto& [id, player] : copy.world.players()) {
-      const Progress progress = ProgressOf(player);
-      if (progress != saved_[id]) {
-        // The bag goes too only when its revision has moved.
-        if (progress.items_revision != saved_[id].items_revision) {
-          bags[id] = player.inventory.items();
-        }
-        changed[id] = progress;
+      everyone.push_back(id);
+    }
+  }
+  Save(everyone);
+  metrics_.ObserveSave(std::chrono::steady_clock::now() - start);
+}
+
+void Server::Save(const std::vector<uint32_t>& ids) {
+  std::map<uint32_t, Progress> changed;
+  std::map<uint32_t, protocol::Inventory> bags;
+  for (const uint32_t id : ids) {
+    const Player& player = WorldOf(id)->players().at(id);
+    const Progress progress = ProgressOf(player);
+    if (progress != saved_[id]) {
+      // The bag goes too only when its revision has moved.
+      if (progress.items_revision != saved_[id].items_revision) {
+        bags[id] = player.inventory.items();
       }
+      changed[id] = progress;
     }
   }
   const absl::Status status = players_.Save(name_, changed, bags);
@@ -973,7 +998,6 @@ void Server::SaveChanged() {
     std::cerr << "couldn't save " << changed.size() << " players: " << status
               << "\n";
   }
-  metrics_.ObserveSave(std::chrono::steady_clock::now() - start);
 }
 
 void Server::RecordEvents(const std::vector<Event>& happened) {

@@ -249,7 +249,7 @@ absl::Status Players::Save(
   if (items_unsaved.size() > 2) {
     commands.push_back(items_unsaved);
   }
-  return redis_.Pipeline(commands).status();
+  return redis_.Transaction(commands);
 }
 
 absl::StatusOr<int> Players::Flush() {

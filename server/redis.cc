@@ -183,4 +183,51 @@ absl::StatusOr<std::vector<std::vector<std::string>>> Redis::Pipeline(
   return replies;
 }
 
+absl::Status Redis::Transaction(
+    const std::vector<std::vector<std::string>>& commands) {
+  const absl::Status connected = ReconnectIfLost(context_);
+  if (!connected.ok()) {
+    return connected;
+  }
+  Append(context_, {"MULTI"});
+  for (const std::vector<std::string>& words : commands) {
+    Append(context_, words);
+  }
+  Append(context_, {"EXEC"});
+  // MULTI's OK, and each command's QUEUED, or an error for one Redis
+  // wouldn't queue, which makes EXEC run none of them.
+  absl::Status error;
+  for (std::size_t i = 0; i <= commands.size(); ++i) {
+    const absl::StatusOr<Reply> reply = NextReply(context_);
+    if (!reply.ok()) {
+      return reply.status();
+    }
+    if ((*reply)->type == REDIS_REPLY_ERROR) {
+      error.Update(absl::InternalError(absl::StrCat("Redis: ", Text(**reply))));
+    }
+  }
+  const absl::StatusOr<Reply> exec = NextReply(context_);
+  if (!exec.ok()) {
+    return exec.status();
+  }
+  if (!error.ok()) {
+    return error;
+  }
+  // EXEC's reply is a list of the commands' replies, once it's run them.
+  // Redis doesn't undo the others when one fails as it runs, say on a key
+  // that holds another type, so that's an error too.
+  if ((*exec)->type != REDIS_REPLY_ARRAY ||
+      (*exec)->elements != commands.size()) {
+    return absl::InternalError(
+        absl::StrCat("Redis didn't run the transaction: ", Text(**exec)));
+  }
+  for (std::size_t i = 0; i < (*exec)->elements; ++i) {
+    if ((*exec)->element[i]->type == REDIS_REPLY_ERROR) {
+      return absl::InternalError(
+          absl::StrCat("Redis: ", Text(*(*exec)->element[i])));
+    }
+  }
+  return absl::OkStatus();
+}
+
 }  // namespace nanommo

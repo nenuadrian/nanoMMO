@@ -106,7 +106,12 @@ class Server {
   /// Each player's next numbered input, one a tick, before the world steps.
   void ApplyInputs();
   void Tick();
+  /// Everyone who's changed since they were last saved, once a tick.
   void SaveChanged();
+  /// Those of the players who've changed since they were last saved, into
+  /// Redis, as one: everyone once a tick, the two sides of a trade as it's
+  /// done, and a player as they leave.
+  void Save(const std::vector<uint32_t>& ids);
   /// What happened in the worlds this tick, into the events stream.
   void RecordEvents(const std::vector<Event>& happened);
   /// To each player near what happened, in their copy, after the world, so

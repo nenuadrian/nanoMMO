@@ -273,8 +273,9 @@ TEST(Trades, PlayersTradeWithinReachInTheirWorld) {
 
   ASSERT_TRUE(world.OfferToTrade(1, Offer({0})).ok());
   EXPECT_EQ(world.TradeOf(2).revision(), 1u);
-  ASSERT_TRUE(world.ReadyToTrade(1, true, 1).ok());
-  ASSERT_TRUE(world.ReadyToTrade(2, true, 1).ok());
+  EXPECT_EQ(world.ReadyToTrade(1, true, 1).value_or(1), 0u);
+  // He's ready last, and they trade.
+  EXPECT_EQ(world.ReadyToTrade(2, true, 1).value_or(0), 1u);
   // Her three potions went onto his.
   EXPECT_EQ(world.players().at(1).inventory.At(nanommo::InBag(0)), nullptr);
   EXPECT_EQ(world.players().at(2).inventory.At(nanommo::InBag(0))->count(), 6u);
@@ -294,7 +295,7 @@ TEST(Trades, PlayersTradeWithinReachInTheirWorld) {
   notices = world.TakeNotices();
   ASSERT_EQ(notices.size(), 1u);
   EXPECT_EQ(notices[0].text, "bob has gone, so the trade's off.");
-  EXPECT_EQ(world.ReadyToTrade(1, true, 0).message(),
+  EXPECT_EQ(world.ReadyToTrade(1, true, 0).status().message(),
             "You're not trading with anyone.");
 }
 

@@ -324,7 +324,8 @@ absl::Status World::OfferToTrade(uint32_t id,
   return trades_.Offer(id, player->second.inventory, content_->items, offer);
 }
 
-absl::Status World::ReadyToTrade(uint32_t id, bool ready, uint32_t revision) {
+absl::StatusOr<uint32_t> World::ReadyToTrade(uint32_t id, bool ready,
+                                             uint32_t revision) {
   const uint32_t other = trades_.With(id);
   if (other == 0) {
     return absl::FailedPreconditionError("You're not trading with anyone.");
@@ -336,8 +337,11 @@ absl::Status World::ReadyToTrade(uint32_t id, bool ready, uint32_t revision) {
         absl::StrCat("You're too far away to trade with ", them.name, "."));
   }
   const absl::StatusOr<bool> both = trades_.Ready(id, ready, revision);
-  if (!both.ok() || !*both) {
+  if (!both.ok()) {
     return both.status();
+  }
+  if (!*both) {
+    return 0;
   }
   // Both are ready, so they trade, here and now.
   const absl::Status traded =
@@ -352,7 +356,7 @@ absl::Status World::ReadyToTrade(uint32_t id, bool ready, uint32_t revision) {
   notices_.push_back(
       {.player = other,
        .text = absl::StrCat("You traded with ", player.name, ".")});
-  return absl::OkStatus();
+  return other;
 }
 
 void World::CancelTrade(uint32_t id) {

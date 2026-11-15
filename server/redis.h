@@ -30,6 +30,13 @@ class Redis {
   absl::StatusOr<std::vector<std::vector<std::string>>> Pipeline(
       const std::vector<std::vector<std::string>>& commands);
 
+  /// Runs the commands as one transaction, between MULTI and EXEC, in a
+  /// single round trip: Redis runs them all at once, with no one else's
+  /// commands in between, or none of them if it couldn't take one. Fails if
+  /// any of them failed.
+  absl::Status Transaction(
+      const std::vector<std::vector<std::string>>& commands);
+
   /// An entry of a stream: its id, and its fields and values, one after the
   /// other.
   struct Entry {
