@@ -1,15 +1,15 @@
 #!/bin/sh
 set -eu
 
-# Each test's process writes what it ran to a file of its own.
-export LLVM_PROFILE_FILE=/tmp/coverage/%p.profraw
-xvfb-run --auto-servernum ctest --test-dir build --output-on-failure
-llvm-profdata merge -o /tmp/coverage/tests.profdata /tmp/coverage/*.profraw
+# The coverage preset has each test's process write what it ran to a file of
+# its own, in build-coverage/profiles.
+xvfb-run --auto-servernum ctest --preset coverage
+llvm-profdata merge -o build-coverage/tests.profdata build-coverage/profiles/*.profraw
 
-set -- -instr-profile /tmp/coverage/tests.profdata \
+set -- -instr-profile build-coverage/tests.profdata \
   -ignore-filename-regex '_deps|_test\.cc|\.pb\.'
 # The programs too, so that code no test reaches counts, at zero.
-for binary in build/bin/nanommo_*; do
+for binary in build-coverage/bin/nanommo_*; do
   set -- "$@" -object "$binary"
 done
 llvm-cov show "$@" -format html -output-dir /coverage \

@@ -55,11 +55,11 @@ jobs:
       - id: asan
         if: github.event_name != 'workflow_dispatch'
         uses: actions/cache/restore@v6
-        with: { path: .passed, key: "passed-sanitize-address-undefined-${{ steps.scope.outputs.tree }}", lookup-only: true }
+        with: { path: .passed, key: "passed-sanitize-asan-${{ steps.scope.outputs.tree }}", lookup-only: true }
       - id: tsan
         if: github.event_name != 'workflow_dispatch'
         uses: actions/cache/restore@v6
-        with: { path: .passed, key: "passed-sanitize-thread-${{ steps.scope.outputs.tree }}", lookup-only: true }
+        with: { path: .passed, key: "passed-sanitize-tsan-${{ steps.scope.outputs.tree }}", lookup-only: true }
       - id: fuzz
         if: github.event_name != 'workflow_dispatch'
         uses: actions/cache/restore@v6
@@ -189,18 +189,14 @@ jobs:
     timeout-minutes: 75
     strategy:
       matrix:
-        sanitize: ["address,undefined", "thread"]
+        preset: [asan, tsan]
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-sanitize-${{ matrix.sanitize }}
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-sanitize-${{ matrix.preset }}
       cancel-in-progress: true
     env:
-      SANITIZE: ${{ matrix.sanitize }}
+      PRESET: ${{ matrix.preset }}
       COMPOSE_FILE: compose.yaml:compose.sanitize.yaml
     steps:
-      # A cache key can't hold a comma.
-      - id: leg
-        run: echo "name=${SANITIZE//,/-}" >> "$GITHUB_OUTPUT"
-
       - uses: actions/checkout@v7
 
       # ccache's files from this job's last run go into BuildKit's cache
@@ -209,8 +205,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-sanitize-${{ steps.leg.outputs.name }}-${{ github.sha }}
-          restore-keys: ccache-sanitize-${{ steps.leg.outputs.name }}-
+          key: ccache-sanitize-${{ matrix.preset }}-${{ github.sha }}
+          restore-keys: ccache-sanitize-${{ matrix.preset }}-
       - uses: reproducible-containers/buildkit-cache-dance@v3.4.0
         with:
           cache-map: '{"${{ runner.temp }}/ccache": "/root/.cache/ccache"}'
@@ -221,7 +217,7 @@ jobs:
         run: sudo sysctl -w vm.mmap_rnd_bits=28
 
       - name: Build and run the tests with the sanitizers
-        run: docker build --target sanitize --build-arg SANITIZE .
+        run: docker build --target sanitize --build-arg PRESET .
 
       - name: Run the tests against MySQL and Redis with the sanitizers
         run: docker compose run --rm tests
@@ -238,7 +234,7 @@ jobs:
 
       - run: touch .passed
       - uses: actions/cache/save@v6
-        with: { path: .passed, key: "passed-sanitize-${{ steps.leg.outputs.name }}-${{ needs.gate.outputs.tree }}" }
+        with: { path: .passed, key: "passed-sanitize-${{ matrix.preset }}-${{ needs.gate.outputs.tree }}" }
 
   fuzz:
     needs: gate
@@ -270,8 +266,8 @@ jobs:
 
       - name: Fuzz each for a minute
         run: |
-          docker run --rm nanommo-fuzz build/bin/stories_fuzzer -max_total_time=60
-          docker run --rm nanommo-fuzz build/bin/world_fuzzer -max_total_time=60
+          docker run --rm nanommo-fuzz build-fuzz/bin/stories_fuzzer -max_total_time=60
+          docker run --rm nanommo-fuzz build-fuzz/bin/world_fuzzer -max_total_time=60
 
       - run: touch .passed
       - uses: actions/cache/save@v6

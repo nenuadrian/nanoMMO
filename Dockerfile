@@ -16,13 +16,13 @@ WORKDIR /src
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/ccache \
     ccache --zero-stats \
- && cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
- && cmake --build build \
+ && cmake --preset release \
+ && cmake --build --preset release \
  && ccache --show-stats
 
 FROM build AS test
 # xvfb-run gives the client's tests a virtual display to open their window on.
-RUN xvfb-run --auto-servernum ctest --test-dir build --output-on-failure
+RUN xvfb-run --auto-servernum ctest --preset release
 
 # On Linux, Clang links GCC's runtime library unless told otherwise, and the
 # sanitizers need some of Clang's own.
@@ -35,26 +35,25 @@ ENV PATH=/usr/lib/llvm-18/bin:$PATH CC=clang CXX=clang++ \
     LDFLAGS="-rtlib=compiler-rt -unwindlib=libgcc"
 
 FROM clang AS sanitize
-ARG SANITIZE=address,undefined
+# asan or tsan: a workflow preset configures, builds and runs the tests.
+ARG PRESET=asan
+# For the servers Compose runs from this image; the tests get it from tsan's
+# test preset.
 ENV TSAN_OPTIONS=suppressions=/src/tsan.supp
 WORKDIR /src
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/ccache \
     ccache --zero-stats \
- && cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-      -DNANOMMO_SANITIZE=${SANITIZE} \
- && cmake --build build \
- && ccache --show-stats \
- && xvfb-run --auto-servernum ctest --test-dir build --output-on-failure
+ && xvfb-run --auto-servernum cmake --workflow --preset ${PRESET} \
+ && ccache --show-stats
 
 FROM clang AS fuzz
 WORKDIR /src
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/ccache \
     ccache --zero-stats \
- && cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-      -DNANOMMO_SANITIZE=address,undefined -DNANOMMO_FUZZ=ON \
- && cmake --build build --target stories_fuzzer world_fuzzer \
+ && cmake --preset fuzz \
+ && cmake --build --preset fuzz \
  && ccache --show-stats
 
 FROM clang AS tidy
@@ -66,10 +65,10 @@ COPY . .
 # clang-tidy reads the headers protoc writes, so those come first.
 RUN --mount=type=cache,target=/root/.cache/ccache \
     ccache --zero-stats \
- && cmake -S . -B build -G Ninja -DNANOMMO_FUZZ=ON \
- && cmake --build build --target nanommo_protocol nanommo_content nanommo_client_core \
+ && cmake --preset tidy \
+ && cmake --build --preset tidy \
  && ccache --show-stats \
- && run-clang-tidy -quiet -p build \
+ && run-clang-tidy -quiet -p build-tidy \
       '^/src/(server|bot|client|protocol|content|terrain|fuzz)/(?!.*_test\.cc)'
 
 FROM clang AS coverage
@@ -77,8 +76,8 @@ WORKDIR /src
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/ccache \
     ccache --zero-stats \
- && cmake -S . -B build -G Ninja -DNANOMMO_COVERAGE=ON \
- && cmake --build build \
+ && cmake --preset coverage \
+ && cmake --build --preset coverage \
  && ccache --show-stats
 
 FROM ubuntu:26.04 AS runtime
@@ -136,8 +135,8 @@ ENTRYPOINT ["netem.sh"]
 
 FROM build AS profile-build
 RUN --mount=type=cache,target=/root/.cache/ccache \
-    cmake -S . -B build -DTRACY_ENABLE=ON \
- && cmake --build build --target nanommo_server
+    cmake --preset profile \
+ && cmake --build --preset profile
 
 # Ubuntu's perf wants a build for the running kernel, and Docker Desktop's
 # kernel isn't Ubuntu's, so we put the generic build on the path.
@@ -152,7 +151,7 @@ RUN mkdir /opt/flamegraph \
  && tar -xzf /tmp/41fee1f99f9276008b7cd112fca19dc3ea84ac32.tar.gz -C /opt/flamegraph --strip-components 1 \
  && rm /tmp/*.tar.gz
 ENV PATH=/opt/flamegraph:$PATH
-COPY --from=profile-build /src/build/bin/nanommo_server /usr/local/bin/
+COPY --from=profile-build /src/build-profile/bin/nanommo_server /usr/local/bin/
 COPY content/*.txtpb /usr/local/share/nanommo/content/
 ENV NANOMMO_CONTENT=/usr/local/share/nanommo/content
 COPY bench/profile.sh /usr/local/bin/
