@@ -1,3 +1,7 @@
+# optin.cplusplus.VirtualCall is off: it finds asio's resolver calling its own
+# shutdown() in its destructor, which is defined behaviour, through GCC 15's
+# destroy_at. A call to a pure virtual one, the real bug, is still found, by
+# cplusplus.PureVirtualCall.
 Checks: >
   -*,
   bugprone-*,
@@ -6,6 +10,7 @@ Checks: >
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-narrowing-conversions,
   clang-analyzer-*,
+  -clang-analyzer-optin.cplusplus.VirtualCall,
   concurrency-*,
   -concurrency-mt-unsafe,
   performance-*,

@@ -70,8 +70,8 @@ include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
 
 FetchContent_Declare(
   asio
-  URL https://github.com/chriskohlhoff/asio/archive/refs/tags/asio-1-38-2.tar.gz
-  URL_HASH SHA256=9f2648fa483e58a6bf848d970ee0ea650ca19ed7769dfa520ed4f7b8d27af1db
+  URL https://github.com/chriskohlhoff/asio/archive/refs/tags/asio-1-39-0.tar.gz
+  URL_HASH SHA256=cc27087fad4b6d85c6b8e4c896c57144b417cfc5a5eab9e204565f51adaec1de
 )
 FetchContent_MakeAvailable(asio)
 add_library(asio INTERFACE)
@@ -82,8 +82,8 @@ target_include_directories(asio SYSTEM INTERFACE ${asio_SOURCE_DIR}/asio/include
 set(TRACY_ON_DEMAND ON)
 FetchContent_Declare(
   tracy
-  URL https://github.com/wolfpld/tracy/archive/refs/tags/v0.14.1.tar.gz
-  URL_HASH SHA256=bf4af567e9c7524d07f3caa745fad02fb33bd5694f11910750382d1efbb251c1
+  URL https://github.com/wolfpld/tracy/archive/refs/tags/v0.15.0.tar.gz
+  URL_HASH SHA256=3d57da54aa67d7875da1e8fecd0bd5957675cef73c27dd52bffb6ab8d290a5e6
   SYSTEM
 )
 FetchContent_MakeAvailable(tracy)
@@ -135,8 +135,8 @@ if(NANOMMO_SANITIZE MATCHES "thread")
 endif()
 FetchContent_Declare(
   httplib
-  URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.64.0.tar.gz
-  URL_HASH SHA256=1ada413782af5e67e80452c39b7c90beb6fa4fc8341e18c0896bf95684b9a620
+  URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.65.0.tar.gz
+  URL_HASH SHA256=6fda8f23ff811a751c2b6e694fe2f1aa1625df53a317110329ef57a18f9fa5fb
   SYSTEM
 )
 FetchContent_MakeAvailable(httplib)
