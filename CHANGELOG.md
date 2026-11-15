@@ -7,6 +7,13 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.76.0 (2026-11-16)
+
+- The client builds for a browser, with Emscripten: `emcmake cmake --preset web`, then
+  `cmake --build --preset web`, makes a page that draws with WebGL 2. It shows the login screen,
+  and says it has no way to the servers yet.
+- Each shader loads through `LoadGlsl`, which gives it WebGL 2's version line in a browser.
+
 ## 0.75.0 (2026-11-15)
 
 - `nanommo_cheat` trades with a partner, who runs `take`. `swap` moves the sword it offered once

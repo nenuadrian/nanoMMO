@@ -73,3 +73,4 @@ one commit could undo, or that the code makes plain, needs none.
 | [0026](0026-cpp23-for-the-servers-and-the-client.md) | C++23 for the servers and the client, with each build named in a preset | Accepted | 73 |
 | [0027](0027-gold-in-the-bag.md) | Gold in the bag's message, with its revision | Accepted | 74 |
 | [0028](0028-a-trade-is-checked-against-the-bags-and-saved-as-one.md) | A trade is checked against the bags, and saved as one | Accepted | 75 |
+| [0029](0029-the-client-in-a-browser-with-emscripten.md) | The client in a browser, with Emscripten and WebGL 2 | Accepted | 76 |
