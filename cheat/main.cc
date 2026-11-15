@@ -6,15 +6,26 @@
 //
 //   nanommo_cheat <name> <password> <cheat>
 //
-//   walk   one running input a tick, as the client sends, to compare with
-//   speed  three running inputs a tick, to run faster than the server lets us
+// The cheats, each with what it's after:
 //
-// It runs east and back west, three seconds each way, so that it stays near
-// where it started.
+//   walk: one running input a tick, as the client sends, to compare with.
+//   speed: three running inputs a tick, to run faster than running.
+//   teleport: a direction a thousand times the client's, and then one that
+//     isn't a number, east and then west, to go further than running would.
+//   reach: a monster about 20 metres away, picked and swung at, to hit it
+//     from where it stands.
+//   fight: the nearest monster, and the first skill each time it's ready,
+//     to compare with.
+//   rapid: the same, but the skill ten times a tick, to use it more often.
+//
+// The walks go east and back west, three seconds each way, so that it stays
+// near where it started.
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <string>
 #include <thread>
@@ -107,27 +118,67 @@ const nanommo::protocol::Player* Us(const nanommo::protocol::World& world) {
   return nullptr;
 }
 
+// The monster the world has with the id, if it has it.
+const nanommo::protocol::Monster* Monster(const nanommo::protocol::World& world,
+                                          uint32_t id) {
+  for (const nanommo::protocol::Monster& monster : world.monsters()) {
+    if (monster.id() == id) {
+      return &monster;
+    }
+  }
+  return nullptr;
+}
+
+// The live monster nearest to being that far from us, or 0 for none.
+uint32_t Pick(const nanommo::protocol::World& world,
+              const nanommo::protocol::Player& us, float away) {
+  uint32_t picked = 0;
+  float best = std::numeric_limits<float>::max();
+  for (const nanommo::protocol::Monster& monster : world.monsters()) {
+    const float off =
+        std::abs(std::hypot(monster.x() - us.x(), monster.z() - us.z()) - away);
+    if (monster.health() > 0 && off < best) {
+      best = off;
+      picked = monster.id();
+    }
+  }
+  return picked;
+}
+
+enum class Cheat { kWalk, kSpeed, kTeleport, kReach, kFight, kRapid };
+
 }  // namespace
 
 int main(int argc, char** argv) {
   const std::string usage =
-      "usage: nanommo_cheat <name> <password> <walk|speed>\n";
+      "usage: nanommo_cheat <name> <password> "
+      "<walk|speed|teleport|reach|fight|rapid>\n";
   if (argc != 4) {
     std::cerr << usage;
     return 2;
   }
   const std::string name = argv[1];
   const std::string password = argv[2];
-  const std::string cheat = argv[3];
-  int each_tick = 0;
-  if (cheat == "walk") {
-    each_tick = 1;
-  } else if (cheat == "speed") {
-    each_tick = 3;
+  const std::string named = argv[3];
+  Cheat cheat = Cheat::kWalk;
+  if (named == "walk") {
+    cheat = Cheat::kWalk;
+  } else if (named == "speed") {
+    cheat = Cheat::kSpeed;
+  } else if (named == "teleport") {
+    cheat = Cheat::kTeleport;
+  } else if (named == "reach") {
+    cheat = Cheat::kReach;
+  } else if (named == "fight") {
+    cheat = Cheat::kFight;
+  } else if (named == "rapid") {
+    cheat = Cheat::kRapid;
   } else {
     std::cerr << usage;
     return 2;
   }
+  const bool fights = cheat == Cheat::kReach || cheat == Cheat::kFight ||
+                      cheat == Cheat::kRapid;
 
   absl::StatusOr<asio::ssl::context> tls =
       nanommo::ClientTls(nanommo::FileSetting("NANOMMO_TLS_CA", "tls/ca.crt"));
@@ -155,11 +206,13 @@ int main(int argc, char** argv) {
     std::cerr << "cheat: " << connection.status() << "\n";
     return 1;
   }
-  std::cout << "cheat: " << name << " is in " << kWorld << ", trying " << cheat
+  std::cout << "cheat: " << name << " is in " << kWorld << ", trying " << named
             << std::endl;
 
   nanommo::Speedometer speed;
+  nanommo::Hits hits;
   uint32_t sequence = 0;
+  uint32_t target = 0;
   int sent = 0;
   int64_t last = 0;
   const auto start = std::chrono::steady_clock::now();
@@ -167,33 +220,94 @@ int main(int argc, char** argv) {
   auto second = start;
   while ((*connection)->connected()) {
     (*connection)->Poll();
+    const auto now = std::chrono::steady_clock::now();
+    const double seconds = std::chrono::duration<double>(now - start).count();
     const nanommo::protocol::World& world = (*connection)->world();
-    if (world.sent() != last) {
+    const nanommo::protocol::Player* us = Us(world);
+    if (world.sent() != last && us != nullptr) {
       last = world.sent();
-      if (const nanommo::protocol::Player* us = Us(world)) {
-        speed.Add(static_cast<double>(world.sent()) / 1e6, us->x(), us->z());
+      speed.Add(static_cast<double>(world.sent()) / 1e6, us->x(), us->z());
+    }
+    for (const nanommo::protocol::Event& event : (*connection)->TakeEvents()) {
+      if (event.kind() == nanommo::protocol::EVENT_HIT &&
+          event.player() == world.you()) {
+        hits.Add(seconds, event.amount());
       }
     }
-    const auto now = std::chrono::steady_clock::now();
+    // A fight picks its monster once it sees us, and again when it's gone.
+    if (fights && us != nullptr) {
+      const nanommo::protocol::Monster* picked = Monster(world, target);
+      if (picked == nullptr || picked->health() == 0) {
+        target = Pick(world, *us, cheat == Cheat::kReach ? 20.0f : 0.0f);
+      }
+    }
+    const auto ways = (now - start) / kEachWay;
+    const bool east = ways % 2 == 0;
+    // Teleport sends each way as 1000 for three seconds, and then as not a
+    // number for three, which leaves the last keys as they were.
+    const bool number = ways % 2 == 0;
+    const float far = (ways / 2) % 2 == 0 ? 1000.0f : -1000.0f;
     if (now >= tick) {
       tick += kTick;
-      const bool east = (now - start) / kEachWay % 2 == 0;
-      for (int i = 0; i < each_tick; ++i) {
+      // The keys, numbered, once a tick, or three times for speed.
+      const int keys = cheat == Cheat::kSpeed ? 3 : 1;
+      for (int i = 0; i < keys; ++i) {
         nanommo::protocol::Input input;
-        input.set_x(east ? 1.0f : -1.0f);
-        input.set_run(true);
+        if (cheat == Cheat::kTeleport) {
+          input.set_x(number ? far : std::numeric_limits<float>::quiet_NaN());
+          input.set_run(true);
+        } else if (fights) {
+          input.set_target(target);
+          input.set_attack(target != 0);
+        } else {
+          input.set_x(east ? 1.0f : -1.0f);
+          input.set_run(true);
+        }
         input.set_sequence(++sequence);
         input.set_seen((*connection)->whole());
         (*connection)->Send(input);
         ++sent;
       }
+      // A skill goes on its own, unnumbered, as the client sends one: once
+      // it's ready for a fight, and ten times a tick for rapid.
+      if (target != 0 && world.skills_size() > 0) {
+        const uint32_t skill = world.skills(0);
+        const bool ready = !world.cooldowns().contains(skill);
+        const int uses = cheat == Cheat::kRapid            ? 10
+                         : cheat == Cheat::kFight && ready ? 1
+                                                           : 0;
+        for (int i = 0; i < uses; ++i) {
+          nanommo::protocol::Input use;
+          use.set_skill(skill);
+          (*connection)->Send(use);
+          ++sent;
+        }
+      }
     }
     if (now - second >= std::chrono::seconds(1)) {
       second = now;
-      std::cout << "cheat: " << cheat << " sent " << sent
-                << " inputs a second, and ran " << std::fixed
-                << std::setprecision(1) << speed.MetresASecond() << " m/s"
-                << std::endl;
+      std::cout << "cheat: " << named << " sent " << sent
+                << " inputs a second, and ";
+      if (cheat == Cheat::kTeleport) {
+        std::cout << "with x "
+                  << (number ? (far > 0 ? "1000" : "-1000") : "not a number")
+                  << " ran ";
+      }
+      std::cout << std::fixed << std::setprecision(1);
+      if (!fights) {
+        std::cout << (cheat == Cheat::kTeleport ? "" : "ran ")
+                  << speed.MetresASecond() << " m/s";
+      } else {
+        const nanommo::protocol::Monster* picked = Monster(world, target);
+        if (picked != nullptr && us != nullptr) {
+          std::cout << "is "
+                    << std::hypot(picked->x() - us->x(), picked->z() - us->z())
+                    << " m from its monster, ";
+        }
+        std::cout << "hits " << hits.PerSecond(seconds) << " times a second, "
+                  << hits.DamagePerSecond(seconds) << " damage a second";
+      }
+      std::cout << std::endl;
       sent = 0;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(5));

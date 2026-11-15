@@ -29,3 +29,15 @@ TEST(Speedometer, LeavesOutAWorldThatCameLate) {
   speed.Add(1.5, 100.0f, 0.0f);
   EXPECT_NEAR(speed.MetresASecond(), 3.0f, 1e-4f);
 }
+
+TEST(Hits, CountsTheLastFiveSeconds) {
+  nanommo::Hits hits;
+  // A hit of 10 each second, for eight seconds.
+  for (int second = 1; second <= 8; ++second) {
+    hits.Add(second, 10);
+  }
+  EXPECT_FLOAT_EQ(hits.PerSecond(8.0), 1.0f);
+  EXPECT_FLOAT_EQ(hits.DamagePerSecond(8.0), 10.0f);
+  // Three seconds on, two of the five seconds had hits.
+  EXPECT_FLOAT_EQ(hits.PerSecond(11.0), 0.4f);
+}
