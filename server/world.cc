@@ -252,6 +252,15 @@ absl::Status World::UseItem(uint32_t id, uint32_t slot) {
 
 void World::Dress(Player& player) const {
   const items::Weapon* before = player.stats.weapon;
+  // Whether the skill they're using has landed its first blow, with the
+  // weapon they held for it.
+  bool landed = false;
+  if (player.motion == Motion::kSkill) {
+    const skills::Effect& effect = player.effect;
+    const uint32_t first =
+        effect.blows_size() > 0 ? effect.blows(0).at_ms() : effect.hit_ms();
+    landed = player.cast >= std::chrono::milliseconds(first);
+  }
   player.stats = {};
   for (const auto& [slot, stack] : player.inventory.items().worn()) {
     const auto item = content_->items.by_id.find(stack.item());
@@ -269,10 +278,12 @@ void World::Dress(Player& player) const {
     }
   }
   // Less to wear can mean less health to have, and a swing with a weapon
-  // that's been put away is over.
+  // that's been put away is over, before its blow lands. After, it plays out,
+  // with the effect it started with, as putting the weapon away and back
+  // would end it early, for the next swing to start sooner.
   player.health = std::min(player.health, MaxHealthOf(player));
   if (player.motion == Motion::kSkill && player.stats.weapon != before &&
-      content_->skills.by_id.at(player.skill).effect().weapon()) {
+      !landed && content_->skills.by_id.at(player.skill).effect().weapon()) {
     player.motion = Motion::kIdle;
   }
 }
@@ -496,8 +507,7 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
     return;
   }
   if (player.motion == Motion::kSkill) {
-    const skills::Effect effect =
-        EffectOf(player, content_->skills.by_id.at(player.skill));
+    const skills::Effect& effect = player.effect;
     const auto before = player.cast;
     player.cast += time;
     Stride(player, effect);
@@ -510,7 +520,9 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
       const skills::Blow& blow =
           effect.blows_size() > 0 ? effect.blows(index) : once;
       const std::chrono::milliseconds hit(blow.at_ms());
-      if (before < hit && player.cast >= hit) {
+      const bool armed =
+          !effect.weapon() || player.stats.weapon == player.cast_weapon;
+      if (before < hit && player.cast >= hit && armed) {
         Land(id, player, effect, blow, index, blows);
       }
     }
@@ -684,11 +696,13 @@ void World::Start(Player& player, const skills::Skill& skill) {
   // Any skill uses up the chain, which the swing's end starts again.
   player.chain = 0;
   ++player.casts;
+  player.effect = EffectOf(player, skill);
+  player.cast_weapon = player.stats.weapon;
   if (skill.cooldown_ms() > 0) {
     player.cooldowns[skill.id()] =
         std::chrono::milliseconds(skill.cooldown_ms());
   }
-  Aim(player, EffectOf(player, skill).reach());
+  Aim(player, player.effect.reach());
   player.cast_x = player.x;
   player.cast_z = player.z;
 }

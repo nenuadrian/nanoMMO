@@ -909,6 +909,39 @@ TEST(World, SwingsOnlyWithAWeaponInHand) {
   EXPECT_EQ(world.monsters().at(skeleton).health, 50);
 }
 
+TEST(World, PuttingTheWeaponAwayAfterItsBlowDoesntSwingSooner) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Gear()));
+  world.Join(1, {.z = 0.5f});
+  const uint32_t skeleton =
+      world.Spawn(nanommo::MonsterOf(nanommo::testing::Skeleton(), 1.0f, 0.0f));
+  world.Pick(1, skeleton);
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  world.Step(kTick);
+  ASSERT_EQ(world.players().at(1).casts, 1u);
+  for (int tick = 0; tick < 40 && world.monsters().at(skeleton).health == 50;
+       ++tick) {
+    world.Step(kTick);
+  }
+  ASSERT_LT(world.monsters().at(skeleton).health, 50);
+
+  // The sword into the bag, once the blow has landed, for a tick, and back,
+  // as a client that wants its next swing sooner would.
+  ASSERT_TRUE(world
+                  .MoveItem(1, nanommo::Worn(nanommo::items::SLOT_MAIN_HAND),
+                            nanommo::InBag(5))
+                  .ok());
+  world.Step(kTick);
+  ASSERT_TRUE(world
+                  .MoveItem(1, nanommo::InBag(5),
+                            nanommo::Worn(nanommo::items::SLOT_MAIN_HAND))
+                  .ok());
+  world.Step(kTick);
+  // The swing plays out, so the next one starts when it would have.
+  EXPECT_EQ(world.players().at(1).motion, nanommo::Motion::kSkill);
+  EXPECT_EQ(world.players().at(1).casts, 1u);
+}
+
 TEST(World, ArmourTakesTheBlowsAndHealthComesWithIt) {
   // Two worlds that go the same way, but for the cap.
   const auto fight = [](nanommo::Player player) {

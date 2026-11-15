@@ -65,6 +65,11 @@ struct Player {
   /// into it they are.
   uint32_t skill = 0;
   std::chrono::nanoseconds cast{0};
+  /// What the skill does, as it was when it started, with the weapon in hand
+  /// then, so that changing the weapon doesn't change how long it takes. And
+  /// that weapon, as a weapon skill's blows land only while it's in hand.
+  skills::Effect effect;
+  const items::Weapon* cast_weapon = nullptr;
   /// Where they stood as the skill started, which its strides go on from.
   float cast_x = 0.0f;
   float cast_z = 0.0f;
