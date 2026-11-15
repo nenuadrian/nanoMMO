@@ -17,6 +17,9 @@
 //   fight: the nearest monster, and the first skill each time it's ready,
 //     to compare with.
 //   rapid: the same, but the skill ten times a tick, to use it more often.
+//   swing: the nearest monster, with the weapon alone, to compare with.
+//   cancel: the same, but the weapon put away after each hit, and back two
+//     ticks later, to end the swing early and start the next one sooner.
 //
 // The walks go east and back west, three seconds each way, so that it stays
 // near where it started.
@@ -27,6 +30,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <thread>
 
@@ -145,14 +149,42 @@ uint32_t Pick(const nanommo::protocol::World& world,
   return picked;
 }
 
-enum class Cheat { kWalk, kSpeed, kTeleport, kReach, kFight, kRapid };
+enum class Cheat {
+  kWalk,
+  kSpeed,
+  kTeleport,
+  kReach,
+  kFight,
+  kRapid,
+  kSwing,
+  kCancel
+};
+
+// An input that moves what's in one place to another.
+nanommo::protocol::Input Move(const nanommo::protocol::Place& from,
+                              const nanommo::protocol::Place& to) {
+  nanommo::protocol::Input input;
+  nanommo::protocol::ItemMove* move = input.mutable_item()->mutable_move();
+  *move->mutable_from() = from;
+  *move->mutable_to() = to;
+  return input;
+}
+
+// The first slot of the bag with nothing in it.
+uint32_t FreeSlot(const nanommo::protocol::Inventory& inventory) {
+  uint32_t slot = 0;
+  while (inventory.bag().contains(slot)) {
+    ++slot;
+  }
+  return slot;
+}
 
 }  // namespace
 
 int main(int argc, char** argv) {
   const std::string usage =
       "usage: nanommo_cheat <name> <password> "
-      "<walk|speed|teleport|reach|fight|rapid>\n";
+      "<walk|speed|teleport|reach|fight|rapid|swing|cancel>\n";
   if (argc != 4) {
     std::cerr << usage;
     return 2;
@@ -173,12 +205,17 @@ int main(int argc, char** argv) {
     cheat = Cheat::kFight;
   } else if (named == "rapid") {
     cheat = Cheat::kRapid;
+  } else if (named == "swing") {
+    cheat = Cheat::kSwing;
+  } else if (named == "cancel") {
+    cheat = Cheat::kCancel;
   } else {
     std::cerr << usage;
     return 2;
   }
   const bool fights = cheat == Cheat::kReach || cheat == Cheat::kFight ||
-                      cheat == Cheat::kRapid;
+                      cheat == Cheat::kRapid || cheat == Cheat::kSwing ||
+                      cheat == Cheat::kCancel;
 
   absl::StatusOr<asio::ssl::context> tls =
       nanommo::ClientTls(nanommo::FileSetting("NANOMMO_TLS_CA", "tls/ca.crt"));
@@ -213,6 +250,9 @@ int main(int argc, char** argv) {
   nanommo::Hits hits;
   uint32_t sequence = 0;
   uint32_t target = 0;
+  // Where cancel put its weapon, and when it puts it back.
+  std::optional<nanommo::protocol::Place> away;
+  std::chrono::steady_clock::time_point back;
   int sent = 0;
   int64_t last = 0;
   const auto start = std::chrono::steady_clock::now();
@@ -232,7 +272,27 @@ int main(int argc, char** argv) {
       if (event.kind() == nanommo::protocol::EVENT_HIT &&
           event.player() == world.you()) {
         hits.Add(seconds, event.amount());
+        // Once the blow has landed, the weapon goes into the bag, and back two
+        // ticks later, so that the server sees a tick without it.
+        const nanommo::protocol::Inventory& bag = (*connection)->inventory();
+        const auto hand = static_cast<uint32_t>(nanommo::items::SLOT_MAIN_HAND);
+        if (cheat == Cheat::kCancel && !away && bag.worn().contains(hand)) {
+          nanommo::protocol::Place worn;
+          worn.set_worn(nanommo::items::SLOT_MAIN_HAND);
+          away.emplace();
+          away->set_bag(FreeSlot(bag));
+          (*connection)->Send(Move(worn, *away));
+          back = std::chrono::steady_clock::now() + 2 * kTick;
+          ++sent;
+        }
       }
+    }
+    if (away && std::chrono::steady_clock::now() >= back) {
+      nanommo::protocol::Place worn;
+      worn.set_worn(nanommo::items::SLOT_MAIN_HAND);
+      (*connection)->Send(Move(*away, worn));
+      away.reset();
+      ++sent;
     }
     // A fight picks its monster once it sees us, and again when it's gone.
     if (fights && us != nullptr) {
@@ -270,7 +330,8 @@ int main(int argc, char** argv) {
       }
       // A skill goes on its own, unnumbered, as the client sends one: once
       // it's ready for a fight, and ten times a tick for rapid.
-      if (target != 0 && world.skills_size() > 0) {
+      const bool skills = cheat == Cheat::kFight || cheat == Cheat::kRapid;
+      if (skills && target != 0 && world.skills_size() > 0) {
         const uint32_t skill = world.skills(0);
         const bool ready = !world.cooldowns().contains(skill);
         const int uses = cheat == Cheat::kRapid            ? 10
