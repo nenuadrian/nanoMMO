@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(nanommo VERSION 0.76.0 LANGUAGES CXX)
+project(nanommo VERSION 0.77.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -105,8 +105,6 @@ FetchContent_MakeAvailable(asio)
 add_library(asio INTERFACE)
 target_include_directories(asio SYSTEM INTERFACE ${asio_SOURCE_DIR}/asio/include)
 
-# The rest are the servers' and the tools', which a browser doesn't run.
-if(NOT EMSCRIPTEN)
 # Tracy's macros compile to nothing without -DTRACY_ENABLE=ON. On demand,
 # it records nothing until a profiler connects.
 set(TRACY_ON_DEMAND ON)
@@ -117,6 +115,9 @@ FetchContent_Declare(
   SYSTEM
 )
 FetchContent_MakeAvailable(tracy)
+
+# The rest are the servers' and the tools', which a browser doesn't run.
+if(NOT EMSCRIPTEN)
 
 set(ENABLE_PUSH OFF)
 set(ENABLE_COMPRESSION OFF)

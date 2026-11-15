@@ -14,20 +14,33 @@ target_include_directories(nanommo_walking PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_walking PUBLIC nanommo_terrain)
 target_compile_options(nanommo_walking PRIVATE -ffp-contract=off)
 
-# The rest are the servers, which a browser doesn't run.
+# The world's rules: its players, monsters and NPCs, their levels and skills,
+# their trades, and who's near whom. They need no database or network, so the
+# client can run them too.
+add_library(nanommo_world world.cc trades.cc monsters.cc npcs.cc levels.cc interest.cc)
+target_include_directories(nanommo_world PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(nanommo_world PUBLIC
+  nanommo_inventory nanommo_walking nanommo_protocol nanommo_content nanommo_terrain
+  absl::status absl::strings
+)
+
+# The rest are the servers, which a browser doesn't run. Tracy's zones compile
+# to nothing without TRACY_ENABLE, so there, the world takes its header alone.
 if(EMSCRIPTEN)
+  target_include_directories(nanommo_world SYSTEM PUBLIC ${tracy_SOURCE_DIR}/public)
   return()
 endif()
+target_link_libraries(nanommo_world PUBLIC Tracy::TracyClient)
 
 add_library(nanommo_server_core
-  tick.cc listen.cc world.cc trades.cc copies.cc monsters.cc npcs.cc levels.cc session.cc interest.cc
+  tick.cc listen.cc copies.cc session.cc
   server.cc metrics.cc password.cc database.cc events.cc
   accounts.cc characters.cc guilds.cc players.cc redis.cc tokens.cc
   login_server.cc consul.cc token_bucket.cc stories.cc storyteller.cc recorder.cc
 )
 target_include_directories(nanommo_server_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_server_core PUBLIC
-  nanommo_inventory nanommo_walking nanommo_protocol nanommo_content nanommo_terrain asio prometheus-cpp::core Tracy::TracyClient
+  nanommo_world nanommo_inventory nanommo_walking nanommo_protocol nanommo_content nanommo_terrain asio prometheus-cpp::core Tracy::TracyClient
   PkgConfig::sodium PkgConfig::mysqlclient hiredis
   httplib::httplib nlohmann_json::nlohmann_json
   absl::memory absl::status absl::statusor absl::strings absl::time absl::absl_check
