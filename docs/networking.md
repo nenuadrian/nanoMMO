@@ -78,7 +78,7 @@ same machine as the server:
 | Within 64 m, names and levels once a second | 1,200 players | 20, ticks of 26 ms (p50) | 94 KB/s |
 
 On a VPS with 2 vCPUs, with the bots on it too, the game server now keeps its 20 ticks a second up to
-about 700 players, where it fell behind past 400.
+about 700 players, where before it fell behind past 400.
 
 ## What happens near you
 

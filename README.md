@@ -97,3 +97,4 @@ How each part of the game works is in `docs/`, a page each, which the
 - [Deployment](docs/deployment.md): a server with Docker Compose, handing players over without downtime, and deploying on push.
 - [Code style and checks](docs/checks.md): clang-format and cpplint, the sanitizers, the fuzzers, clang-tidy and the coverage report.
 - [Versions and dependencies](docs/releases.md): the game's version, which clients the login server lets in, releases, and keeping the libraries, images and packages up to date.
+- [Decisions](docs/decisions/README.md): why the game is built the way it is, a short record for each choice that would be costly to undo, and what it costs us.
