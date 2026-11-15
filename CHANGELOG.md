@@ -7,6 +7,12 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.77.0 (2026-11-16)
+
+- The world's rules are a library of their own, `nanommo_world`, without the database or the
+  network: the world, its trades, what each player is shown of it, and what their inputs do. The
+  server runs its worlds with it, as before.
+
 ## 0.76.0 (2026-11-16)
 
 - The client builds for a browser, with Emscripten: `emcmake cmake --preset web`, then

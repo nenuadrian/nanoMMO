@@ -58,6 +58,26 @@ servers from before saving while a deploy migrates, and the saver writes a playe
 before worlds to Ember. The rankings on the website show each player's world. The bots connect to
 port 7777 of the host they're given, so they play in Ember (`server` in Compose).
 
+## The world's library
+
+A world's rules are a library of their own, `nanommo_world`, which needs no database or network:
+`World`, with its players, monsters and NPCs, their levels, their trades (`server/trades.h`), who's
+near whom (`server/interest.h`), what each player is shown of it (`server/shown.h`) and what their
+inputs do (`server/inputs.h`). The world server links it, with MySQL, Redis, Consul and the rest
+around it, and anything else that runs a world can too, the same rules for each.
+
+| In `server/shown.h` | |
+|---|---|
+| `ToProtocol` | A player, a monster or an NPC as the protocol has it |
+| `YouIn` | What a player's own client is told about them each tick, with the last input applied |
+| `BagOf`, `QuestsOf` | Their bag and their quests, as each goes when it's changed |
+| `ForPlayers` | What the players near an event see of it |
+
+| In `server/inputs.h` | |
+|---|---|
+| `Inputs` | Each player's numbered inputs, which wait for their tick, the queue's limits, and the last one applied |
+| `DoItem` | An item moved, used or thrown away |
+
 ## Lands
 
 Each world has three lands, each an island of its own: the Meadows, where players start, the
