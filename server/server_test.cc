@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -30,6 +31,7 @@
 #include "server/inventory.h"
 #include "server/test_content.h"
 #include "server/test_services.h"
+#include "server/walking.h"
 #include "terrain/lands.h"
 
 namespace {
@@ -832,6 +834,49 @@ TEST_F(ServerTest, DrainsNothingFromAClientThatKeepsUp) {
   for (uint32_t applied = 1; applied < 40; ++applied) {
     EXPECT_TRUE(seen.contains(applied)) << applied;
   }
+}
+
+TEST_F(ServerTest, MoreInputsThanTicksDontRunFaster) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
+  const auto place = [&] {
+    for (const nanommo::protocol::Player& player : alice.world().players()) {
+      if (player.id() == alice_) {
+        return std::pair{player.x(), player.z()};
+      }
+    }
+    return std::pair{0.0f, 0.0f};
+  };
+
+  // Three running inputs each world, for two seconds, where the client sends
+  // one a tick: the server still applies one a tick.
+  const auto [from_x, from_z] = place();
+  const int64_t from = alice.world().sent();
+  int64_t last = from;
+  uint32_t sequence = 0;
+  EXPECT_TRUE(RunUntil([&] {
+    if (alice.world().sent() == last) {
+      return false;
+    }
+    last = alice.world().sent();
+    if (last - from >= 2'000'000) {
+      return true;
+    }
+    std::vector<nanommo::protocol::Input> three(3);
+    for (nanommo::protocol::Input& input : three) {
+      input.set_x(1.0f);
+      input.set_run(true);
+      input.set_sequence(++sequence);
+    }
+    alice.SendTogether(three);
+    return false;
+  }));
+  const auto [to_x, to_z] = place();
+  const double speed = std::hypot(to_x - from_x, to_z - from_z) /
+                       (static_cast<double>(last - from) / 1e6);
+  // It ran, and no faster than running.
+  EXPECT_GT(speed, nanommo::kRunSpeed * 0.5);
+  EXPECT_LE(speed, nanommo::kRunSpeed * 1.05);
 }
 
 TEST_F(ServerTest, CatchesUpWithAClientItFellBehind) {
