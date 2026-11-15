@@ -341,3 +341,35 @@ TEST_F(PlayersTest, KeepsTheQuestsTheyreOnAndHaveDone) {
   EXPECT_EQ(player->quests, (std::map<uint32_t, uint32_t>{{2, 3}}));
   EXPECT_EQ(player->quests_done, (std::set<uint32_t>{1}));
 }
+
+TEST_F(PlayersTest, SavesGoldWithTheBag) {
+  nanommo::Players players(*database_, *redis_);
+  const std::string id = std::to_string(id_);
+  nanommo::protocol::Inventory bag = Bag(2);
+  bag.set_gold(120);
+  ASSERT_TRUE(
+      players.Save("Ember", {{id_, {.items_revision = 2}}}, {{id_, bag}}).ok());
+  // Redis has it in the bag's bytes.
+  absl::StatusOr<nanommo::Player> player = players.Load("Ember", id_);
+  ASSERT_TRUE(player.ok());
+  EXPECT_EQ(player->inventory.gold(), 120u);
+
+  // MySQL keeps it in the player's row, with the bag's revision.
+  ASSERT_TRUE(players.Flush().ok());
+  const absl::StatusOr<nanommo::Result> rows = database_->Run(
+      "SELECT items_revision, gold FROM players WHERE id = ?", {id});
+  ASSERT_TRUE(rows.ok());
+  EXPECT_EQ(rows->rows, (std::vector<std::vector<std::string>>{{"2", "120"}}));
+
+  // A save of where they are alone leaves it, and with Redis's copy gone, it
+  // comes back from there.
+  ASSERT_TRUE(
+      players.Save("Ember", {{id_, {.x = 2.0f, .items_revision = 2}}}).ok());
+  ASSERT_TRUE(players.Flush().ok());
+  ASSERT_TRUE(redis_->Command({"DEL", "player:Ember:" + id}).ok());
+  player = players.Load("Ember", id_);
+  ASSERT_TRUE(player.ok());
+  EXPECT_EQ(player->inventory.gold(), 120u);
+  EXPECT_TRUE(Same(player->inventory.items(), bag))
+      << player->inventory.items().DebugString();
+}

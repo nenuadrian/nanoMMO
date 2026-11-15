@@ -75,16 +75,23 @@ protocol::Quests QuestsOf(const Progress& progress) {
   return quests;
 }
 
-// The bag from its rows: place, item, count and state. What an earlier
-// server doesn't know of a later one's state, it leaves out.
+// The bag from its rows: place, item, count and state, with its revision
+// and gold from the player's row. What an earlier server doesn't know of a
+// later one's state, it leaves out.
 absl::StatusOr<protocol::Inventory> BagOf(const Result& rows,
-                                          const std::string& revision) {
+                                          const std::string& revision,
+                                          const std::string& gold) {
   protocol::Inventory bag;
   uint32_t number = 0;
   if (!revision.empty() && !absl::SimpleAtoi(revision, &number)) {
     return absl::InternalError("a saved revision that isn't a number");
   }
   bag.set_revision(number);
+  uint32_t coins = 0;
+  if (!gold.empty() && !absl::SimpleAtoi(gold, &coins)) {
+    return absl::InternalError("a saved gold that isn't a number");
+  }
+  bag.set_gold(coins);
   google::protobuf::util::JsonParseOptions options;
   options.ignore_unknown_fields = true;
   for (const std::vector<std::string>& row : rows.rows) {
@@ -118,8 +125,8 @@ absl::StatusOr<protocol::Inventory> BagOf(const Result& rows,
 absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
   // A character in another world is no player of this one's.
   const absl::StatusOr<Result> result = database_.Run(
-      "SELECT name, x, z, experience, health, land, items_revision, quests "
-      "FROM players WHERE id = ? AND world = ?",
+      "SELECT name, x, z, experience, health, land, items_revision, quests, "
+      "gold FROM players WHERE id = ? AND world = ?",
       {std::to_string(id), world});
   if (!result.ok()) {
     return result.status();
@@ -150,7 +157,7 @@ absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
   if (!items.ok()) {
     return items.status();
   }
-  absl::StatusOr<protocol::Inventory> bag = BagOf(*items, row[6]);
+  absl::StatusOr<protocol::Inventory> bag = BagOf(*items, row[6], row[8]);
   if (!bag.ok()) {
     return bag.status();
   }
@@ -314,11 +321,11 @@ absl::StatusOr<int> Players::Flush() {
       }
       // A hash saved before we kept health or weapons has none, which goes in
       // as NULL, and one saved before lands is in the Meadows. A bag that
-      // hasn't changed keeps the revision MySQL has.
+      // hasn't changed keeps the revision and the gold MySQL has.
       absl::StrAppend(&sql, rows == 0 ? "" : ", ",
                       "ROW(?, ?, ?, ?, ?, NULLIF(?, ''), "
                       "COALESCE(NULLIF(?, ''), 'Meadows'), NULLIF(?, ''), "
-                      "NULLIF(?, ''), NULLIF(?, ''))");
+                      "NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''))");
       ++rows;
       const std::string& world = hash[0];
       const std::string& player = hash[1];
@@ -326,9 +333,10 @@ absl::StatusOr<int> Players::Flush() {
       values.insert(values.end(), hash.begin() + 2, hash.begin() + 8);
       protocol::Inventory bag;
       if (!bag_changed || hash[9].empty() || !bag.ParseFromString(hash[9])) {
-        values.push_back("");
+        values.insert(values.end(), {"", ""});
       } else {
         values.push_back(absl::StrCat(bag.revision()));
+        values.push_back(absl::StrCat(bag.gold()));
         bag_keys.push_back(keys[i]);
         absl::StrAppend(&gone_sql, gone_values.empty() ? "" : ", ", "?");
         gone_values.push_back(player);
@@ -369,13 +377,14 @@ absl::StatusOr<int> Players::Flush() {
     absl::StrAppend(
         &sql,
         ") AS saved (id, world, x, z, experience, health, land, weapon, "
-        "items_revision, quests) "
+        "items_revision, gold, quests) "
         "ON players.id = saved.id AND players.world = saved.world "
         "SET players.x = saved.x, players.z = saved.z, "
         "players.experience = saved.experience, players.health = saved.health, "
         "players.land = saved.land, players.weapon = saved.weapon, "
         "players.items_revision = "
         "COALESCE(saved.items_revision, players.items_revision), "
+        "players.gold = COALESCE(saved.gold, players.gold), "
         "players.quests = COALESCE(saved.quests, players.quests)");
     absl::StrAppend(&gone_sql, ")");
     // A bag's rows can't go without the rows that take their place, or a

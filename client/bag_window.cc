@@ -15,6 +15,7 @@
 #include "absl/strings/str_cat.h"
 #include "client/icon.h"
 #include "client/theme.h"
+#include "extras/IconsFontAwesome6.h"
 #include "protocol/places.h"
 #include "server/inventory.h"
 
@@ -380,6 +381,9 @@ std::optional<protocol::ItemAction> BagWindow::Build(
       }
     }
     ImGui::PopStyleVar();
+    // Gold takes no slot, so it goes under them.
+    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGold),
+                       ICON_FA_COINS " %u gold", bag.gold());
     const std::size_t used = bag.bag().size();
     ImGui::TextDisabled(
         "%zu of %u slots used. Drag an item out to throw it "
