@@ -7,6 +7,14 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.71.0 (2026-11-15)
+
+- `docs/decisions` records why the game is built the way it is: a record for each choice that would
+  be costly to undo, with what else we weighed and what it costs us.
+- The images build from Ubuntu 26.04, and Compose runs MySQL 26.10 and the newest of its other
+  services. The C++ libraries, the website's packages and the storyteller's are up to date too.
+- A setting's path is moved rather than copied as it's returned, as clang-tidy asks.
+
 ## 0.70.0 (2026-11-14)
 
 - Each world leaves out the players and monsters that haven't changed since the newest world the
