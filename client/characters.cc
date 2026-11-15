@@ -45,7 +45,7 @@ bool HasWord(std::string name, std::string_view word) {
   std::ranges::transform(name, name.begin(), [](unsigned char c) {
     return static_cast<char>(std::tolower(c));
   });
-  return name.find(word) != std::string::npos;
+  return name.contains(word);
 }
 
 // raylib samples glTF clips 60 times a second, and the last frame is the

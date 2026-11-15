@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 project(nanommo VERSION 0.73.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 # With Clang, CMake looks for C++20 modules, which we don't use.

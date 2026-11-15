@@ -25,8 +25,7 @@ bool EndsSentence(std::string_view word) {
   if (word.ends_with('"')) {
     word.remove_suffix(1);
   }
-  return !word.empty() &&
-         kSentenceEnds.find(word.back()) != std::string_view::npos;
+  return !word.empty() && kSentenceEnds.contains(word.back());
 }
 
 // Where to cut a word longer than a line. In UTF-8, each byte after a
