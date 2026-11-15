@@ -383,7 +383,8 @@ class World {
             int damage);
   /// Gives the player back as much of the health as they're missing.
   void Heal(uint32_t id, Player& player, int health);
-  /// What the monster the player's just killed drops, into their bag.
+  /// What the monster the player's just killed drops, into their bag, and its
+  /// gold.
   void Loot(uint32_t id, Player& player, const Monster& monster);
   /// Puts count of the item into the bag, each with rolls of its own, and
   /// returns how many fitted.

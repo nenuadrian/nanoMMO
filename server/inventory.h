@@ -20,11 +20,16 @@ class Inventory {
  public:
   static constexpr uint32_t kBagSlots = nanommo::kBagSlots;
 
+  /// The most gold a player carries: a billion, so that adding any two
+  /// amounts of it never goes past what a uint32_t holds.
+  static constexpr uint32_t kMostGold = 1'000'000'000;
+
   Inventory() = default;
   explicit Inventory(protocol::Inventory items) : items_(std::move(items)) {}
 
   const protocol::Inventory& items() const { return items_; }
   uint32_t revision() const { return items_.revision(); }
+  uint32_t gold() const { return items_.gold(); }
 
   /// What's at the place, or nullptr when it's empty, or isn't a place.
   const items::Stack* At(const protocol::Place& place) const;
@@ -32,6 +37,9 @@ class Inventory {
   /// Into the bag: onto stacks of the item that have room, then into empty
   /// slots, from the first. Returns how many didn't fit.
   uint32_t Add(const ItemTable& table, const items::Stack& stack);
+
+  /// Adds the gold, up to kMostGold, and returns how much didn't fit.
+  uint32_t AddGold(uint32_t amount);
 
   /// Wears it, if it's worn and its slot is free, and returns whether it did,
   /// as for a new player's kit.

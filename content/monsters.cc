@@ -36,6 +36,11 @@ absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text) {
                          " to ", drop.max(), " of item ", drop.item()));
       }
     }
+    if (kind.gold().max() < kind.gold().min()) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("the ", kind.name(), " drops from ", kind.gold().min(),
+                       " to ", kind.gold().max(), " gold"));
+    }
   }
   MonsterTable table{.kinds = *std::move(kinds),
                      .spawns = {file.spawns().begin(), file.spawns().end()},

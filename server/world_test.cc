@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "gtest/gtest.h"
 #include "server/events.h"
 #include "server/levels.h"
@@ -1081,6 +1082,39 @@ TEST(World, LeavesWhatDoesntFitInTheBag) {
   ASSERT_EQ(notices.size(), 1u);
   EXPECT_EQ(notices[0].text,
             "Your bag is full, so you left 2 Bones and a Blade behind.");
+}
+
+TEST(World, MonstersDropGold) {
+  nanommo::MonsterTable monsters = Looted();
+  nanommo::monsters::Gold* gold = monsters.kinds.at(1).mutable_gold();
+  gold->set_min(4);
+  gold->set_max(9);
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Gear(), {}, monsters));
+  world.Join(1, {});
+  Kill(world, 1);
+
+  const uint32_t carried = world.players().at(1).inventory.gold();
+  EXPECT_GE(carried, 4u);
+  EXPECT_LE(carried, 9u);
+  std::vector<nanommo::Notice> notices = world.TakeNotices();
+  ASSERT_EQ(notices.size(), 1u);
+  EXPECT_EQ(notices[0].text,
+            absl::StrCat("The Skeleton dropped 2 Bones, a Blade and ", carried,
+                         " gold."));
+
+  // Gold takes no slot, so a player whose bag is full gets it all the same.
+  nanommo::Player full = With(1, true);
+  for (uint32_t slot = 0; slot < nanommo::kBagSlots; ++slot) {
+    full.inventory.Add(nanommo::testing::Gear(), One(kCap));
+  }
+  world.Join(2, full);
+  Kill(world, 2);
+  EXPECT_GE(world.players().at(2).inventory.gold(), 4u);
+  notices = world.TakeNotices();
+  ASSERT_EQ(notices.size(), 2u);
+  EXPECT_TRUE(notices[0].text.ends_with(" gold."));
 }
 
 namespace {

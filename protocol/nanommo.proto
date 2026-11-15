@@ -168,6 +168,9 @@ message Inventory {
   // By items.Slot, which can't be a map's key itself.
   map<uint32, items.Stack> worn = 2;
   uint32 revision = 3;
+  // In no slot, and changed with the bag, as a trade gives items and gold
+  // together.
+  uint32 gold = 4;
 }
 
 // The quests a player is on, by their ids, with how many they've killed for

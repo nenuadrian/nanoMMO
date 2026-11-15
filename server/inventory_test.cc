@@ -219,6 +219,21 @@ TEST(Inventory, CountsEachChangeAsARevision) {
   EXPECT_EQ(inventory.revision(), 2u);
 }
 
+TEST(Inventory, CarriesGoldUpToTheMost) {
+  nanommo::Inventory inventory;
+  EXPECT_EQ(inventory.AddGold(40), 0u);
+  EXPECT_EQ(inventory.gold(), 40u);
+  // Gold changes the bag, so it goes with the bag's revision.
+  EXPECT_EQ(inventory.revision(), 1u);
+
+  // What doesn't fit under the most comes back, and what's none isn't a
+  // change.
+  EXPECT_EQ(inventory.AddGold(nanommo::Inventory::kMostGold), 40u);
+  EXPECT_EQ(inventory.gold(), nanommo::Inventory::kMostGold);
+  EXPECT_EQ(inventory.AddGold(5), 5u);
+  EXPECT_EQ(inventory.revision(), 2u);
+}
+
 TEST(Inventory, KeepsItemsTheContentDoesntHave) {
   const nanommo::ItemTable gear = nanommo::testing::Gear();
   nanommo::protocol::Inventory saved;

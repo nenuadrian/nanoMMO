@@ -897,6 +897,15 @@ void World::Loot(uint32_t id, Player& player, const Monster& monster) {
       left.push_back(Some(item->second, count - fitted));
     }
   }
+  // Gold takes no slot, so a full bag takes it too.
+  if (const monsters::Gold& gold = kind->second.gold(); gold.max() > 0) {
+    const uint32_t coins =
+        std::uniform_int_distribution(gold.min(), gold.max())(random_);
+    if (const uint32_t carried = coins - player.inventory.AddGold(coins);
+        carried > 0) {
+      kept.push_back(absl::StrCat(carried, " gold"));
+    }
+  }
   if (!kept.empty()) {
     notices_.push_back({.player = id,
                         .text = absl::StrCat("The ", kind->second.name(),

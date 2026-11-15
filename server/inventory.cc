@@ -131,6 +131,16 @@ uint32_t Inventory::Add(const ItemTable& table, const items::Stack& stack) {
   return left;
 }
 
+uint32_t Inventory::AddGold(uint32_t amount) {
+  const uint32_t room = kMostGold > gold() ? kMostGold - gold() : 0;
+  const uint32_t added = std::min(amount, room);
+  if (added > 0) {
+    items_.set_gold(gold() + added);
+    Changed();
+  }
+  return amount - added;
+}
+
 bool Inventory::Wear(const ItemTable& table, const items::Stack& stack) {
   const items::Item* item = Find(table, stack.item());
   if (item == nullptr || !item->has_equip() ||

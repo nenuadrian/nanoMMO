@@ -34,6 +34,7 @@ TEST(Content, ReadsTheGamesContent) {
   EXPECT_FALSE(content->figures.body().empty());
   const nanommo::monsters::Kind& skeleton = content->monsters.kinds.at(1);
   EXPECT_EQ(skeleton.name(), "Skeleton");
+  EXPECT_GT(skeleton.gold().max(), 0u);
   EXPECT_FALSE(content->monsters.spawns.empty());
   EXPECT_TRUE(std::ranges::any_of(content->npcs.kinds, [](const auto& kind) {
     return kind.second.talks();
@@ -351,6 +352,11 @@ TEST(Content, RefusesLootThatDoesntAddUp) {
           .status()
           .message(),
       "the Skeleton drops from 3 to 1 of item 3");
+  EXPECT_EQ(nanommo::ParseMonsters("kinds { id: 1 name: \"Skeleton\" "
+                                   "gold { min: 9 max: 2 } }")
+                .status()
+                .message(),
+            "the Skeleton drops from 9 to 2 gold");
 
   // What a monster drops has to be in the items file.
   nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);

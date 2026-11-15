@@ -39,6 +39,13 @@ message Drop {
   uint32 max = 4;
 }
 
+// How much gold a kind of monster drops each time, from min to max, which
+// goes to its killer without a slot of the bag. Without it, none.
+message Gold {
+  uint32 min = 1;
+  uint32 max = 2;
+}
+
 message Kind {
   // From one, and a kind keeps its id for good.
   uint32 id = 1;
@@ -50,6 +57,7 @@ message Kind {
   Fight fight = 6;
   Look look = 7;
   repeated Drop loot = 8;
+  Gold gold = 9;
 }
 
 // A monster that always has its home in the same place, in metres from the
