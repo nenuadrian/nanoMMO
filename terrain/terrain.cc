@@ -56,11 +56,12 @@ Terrain::Terrain(uint32_t seed, float wading)
       wading_(wading),
       cells_(kIslandCells),
       corners_((kIslandCells + 1) * (kIslandCells + 1)) {
+  const Grid<float> corners(corners_.data(), cells_ + 1, cells_ + 1);
   for (int j = 0; j <= cells_; ++j) {
     for (int i = 0; i <= cells_; ++i) {
       const float x = i * kCell - half_size();
       const float z = j * kCell - half_size();
-      corners_[j * (cells_ + 1) + i] = IslandHeight(seed, x, z, half_size());
+      corners[j, i] = IslandHeight(seed, x, z, half_size());
     }
   }
   Plant();
@@ -69,6 +70,7 @@ Terrain::Terrain(uint32_t seed, float wading)
 void Terrain::Plant() {
   tree_squares_ = static_cast<int>(2.0f * half_size() / kTreeSpacing);
   tree_in_.assign(tree_squares_ * tree_squares_, -1);
+  const Grid<int> squares(tree_in_.data(), tree_squares_, tree_squares_);
   for (int j = 0; j < tree_squares_; ++j) {
     for (int i = 0; i < tree_squares_; ++i) {
       // Each square rolls its own dice: where in the square its tree
@@ -88,7 +90,7 @@ void Terrain::Plant() {
           std::sqrt(x * x + z * z) < kClearing) {
         continue;
       }
-      tree_in_[j * tree_squares_ + i] = static_cast<int>(trees_.size());
+      squares[j, i] = static_cast<int>(trees_.size());
       trees_.push_back({.x = x,
                         .z = z,
                         .yaw = 2.0f * std::numbers::pi_v<float> * roll(3),
@@ -126,12 +128,13 @@ bool Terrain::Walkable(float x, float z) const {
 bool Terrain::InATree(float x, float z) const {
   const int i = static_cast<int>(std::floor((x + half_size()) / kTreeSpacing));
   const int j = static_cast<int>(std::floor((z + half_size()) / kTreeSpacing));
+  const Grid<const int> squares(tree_in_.data(), tree_squares_, tree_squares_);
   // A trunk near the side of its square is closer to us than its square is.
   for (int down = std::max(j - 1, 0);
        down <= std::min(j + 1, tree_squares_ - 1); ++down) {
     for (int across = std::max(i - 1, 0);
          across <= std::min(i + 1, tree_squares_ - 1); ++across) {
-      const int tree = tree_in_[down * tree_squares_ + across];
+      const int tree = squares[down, across];
       if (tree >= 0 &&
           std::hypot(trees_[tree].x - x, trees_[tree].z - z) < kTrunk) {
         return true;

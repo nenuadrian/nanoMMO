@@ -2,9 +2,15 @@
 #define NANOMMO_TERRAIN_TERRAIN_H_
 
 #include <cstdint>
+#include <mdspan>
 #include <vector>
 
 namespace nanommo {
+
+/// A grid kept in a single array, a row after another: grid[j, i] is the i-th
+/// of row j.
+template <typename T>
+using Grid = std::mdspan<T, std::dextents<int, 2>>;
 
 struct Tree {
   float x = 0.0f;
@@ -50,7 +56,9 @@ class Terrain {
   const std::vector<Tree>& trees() const { return trees_; }
 
   /// The height at a corner of the grid, from 0 to cells() along each side.
-  float Corner(int i, int j) const { return corners_[j * (cells_ + 1) + i]; }
+  float Corner(int i, int j) const {
+    return Grid<const float>(corners_.data(), cells_ + 1, cells_ + 1)[j, i];
+  }
 
   uint32_t seed() const { return seed_; }
 

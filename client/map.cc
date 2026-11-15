@@ -268,7 +268,7 @@ Image DrawLand(const Terrain& terrain, int land) {
   const float half = terrain.half_size();
   const int size = static_cast<int>(2.0f * half);
   Image image = GenImageColor(size, size, BLACK);
-  auto* pixels = static_cast<Color*>(image.data);
+  const Grid<Color> pixels(static_cast<Color*>(image.data), size, size);
   const float inside = half - 1.01f;
   const auto height = [&terrain, inside](float x, float z) {
     return terrain.Height(std::clamp(x, -inside, inside),
@@ -299,7 +299,7 @@ Image DrawLand(const Terrain& terrain, int land) {
                  255};
       }
       color.a = 255;
-      pixels[down * size + across] = color;
+      pixels[down, across] = color;
     }
   }
   // Each tree as a dark spot, in the trees' colour.
@@ -310,7 +310,7 @@ Image DrawLand(const Terrain& terrain, int land) {
     for (int j = down - 1; j <= down; ++j) {
       for (int i = across - 1; i <= across; ++i) {
         if (i >= 0 && j >= 0 && i < size && j < size) {
-          pixels[j * size + i] = tree;
+          pixels[j, i] = tree;
         }
       }
     }

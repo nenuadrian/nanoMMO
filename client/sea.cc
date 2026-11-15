@@ -170,9 +170,10 @@ Sea::Sea(const Terrain& terrain, const Look& look)
   // can read.
   const int corners = terrain.cells() + 1;
   std::vector<float> heights(corners * corners);
+  const Grid<float> ground(heights.data(), corners, corners);
   for (int j = 0; j < corners; ++j) {
     for (int i = 0; i < corners; ++i) {
-      heights[j * corners + i] = terrain.Corner(i, j);
+      ground[j, i] = terrain.Corner(i, j);
     }
   }
   ground_ = LoadTextureFromImage({.data = heights.data(),
