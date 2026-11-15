@@ -4,7 +4,6 @@
 #include <csignal>
 #include <cstdint>
 #include <exception>
-#include <functional>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -188,7 +187,9 @@ int main(int argc, char* argv[]) {
   std::string said;
   constexpr std::chrono::seconds kHeartbeat{2};
   asio::steady_timer heartbeat(io);
-  std::function<void(std::error_code)> beat = [&](std::error_code error) {
+  // The lambda gets its own object as its first parameter, self, so that it
+  // can wait on the timer again.
+  auto beat = [&](this auto self, std::error_code error) {
     if (error) {
       return;
     }
@@ -225,7 +226,7 @@ int main(int argc, char* argv[]) {
           });
     }
     heartbeat.expires_after(kHeartbeat);
-    heartbeat.async_wait(beat);
+    heartbeat.async_wait(self);
   };
   beat({});
 
@@ -233,13 +234,13 @@ int main(int argc, char* argv[]) {
   constexpr std::chrono::seconds kHandOverTime{10};
   asio::steady_timer leaving(io);
   std::chrono::steady_clock::time_point deadline;
-  std::function<void(std::error_code)> wait = [&](std::error_code) {
+  auto wait = [&](this auto self, std::error_code) {
     if (server->players() == 0 || std::chrono::steady_clock::now() > deadline) {
       io.stop();
       return;
     }
     leaving.expires_after(std::chrono::milliseconds(100));
-    leaving.async_wait(wait);
+    leaving.async_wait(self);
   };
 
   // As process one in a container, SIGTERM does nothing unless we handle it.

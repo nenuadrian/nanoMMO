@@ -1,6 +1,5 @@
 #include <chrono>
 #include <csignal>
-#include <functional>
 #include <iostream>
 #include <memory>
 #include <utility>
@@ -58,13 +57,13 @@ int main() {
 
   asio::io_context io;
   asio::steady_timer timer(io, kInterval);
-  std::function<void(std::error_code)> tick = [&](std::error_code error) {
+  auto tick = [&](this auto self, std::error_code error) {
     if (error) {
       return;
     }
     Flush(players);
     timer.expires_at(timer.expiry() + kInterval);
-    timer.async_wait(tick);
+    timer.async_wait(self);
   };
   timer.async_wait(tick);
 
