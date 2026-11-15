@@ -420,6 +420,10 @@ message TradeAction {
     // Call the trade off.
     bool cancel = 4;
   }
+  // With ready, the revision of the trade it's for, as the server last sent
+  // it. A ready for an earlier one does nothing, as it's for offers that have
+  // changed since.
+  uint32 revision = 5;
 }
 
 // One side of a trade: copies of the stacks offered, by their places in the
@@ -436,4 +440,6 @@ message Trade {
   string partner = 1;
   TradeSide yours = 2;
   TradeSide theirs = 3;
+  // Goes up with each change to either offer, and a ready names it.
+  uint32 revision = 4;
 }

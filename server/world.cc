@@ -42,6 +42,11 @@ float Distance(const Player& a, const Player& b) {
   return std::hypot(b.x - a.x, b.z - a.z);
 }
 
+// What's offered in a trade stays where it is until the trade's over, as the
+// trade takes it from there.
+constexpr std::string_view kOffered =
+    "You can't, while it's offered in your trade.";
+
 // Whether the monster's within the slice in front of the player, as wide as
 // the arc, in degrees. Without one, it's all the way round.
 bool InArc(const Player& player, const Monster& monster, float arc) {
@@ -198,6 +203,9 @@ absl::Status World::MoveItem(uint32_t id, const protocol::Place& from,
   if (found == players_.end()) {
     return absl::NotFoundError("There's nobody to move it.");
   }
+  if (trades_.Holds(id, from) || trades_.Holds(id, to)) {
+    return absl::FailedPreconditionError(kOffered);
+  }
   Player& player = found->second;
   const absl::Status moved =
       player.inventory.Move(content_->items, from, to, count);
@@ -211,6 +219,9 @@ absl::Status World::DestroyItem(uint32_t id, const protocol::Place& place) {
   const auto found = players_.find(id);
   if (found == players_.end()) {
     return absl::NotFoundError("There's nobody to throw it away.");
+  }
+  if (trades_.Holds(id, place)) {
+    return absl::FailedPreconditionError(kOffered);
   }
   Player& player = found->second;
   const absl::Status destroyed = player.inventory.Destroy(place);
@@ -227,6 +238,9 @@ absl::Status World::UseItem(uint32_t id, uint32_t slot) {
   }
   Player& player = found->second;
   const protocol::Place place = InBag(slot);
+  if (trades_.Holds(id, place)) {
+    return absl::FailedPreconditionError(kOffered);
+  }
   const items::Stack* stack = player.inventory.At(place);
   if (stack == nullptr) {
     return absl::NotFoundError("There's nothing there.");
@@ -310,7 +324,7 @@ absl::Status World::OfferToTrade(uint32_t id,
   return trades_.Offer(id, player->second.inventory, content_->items, offer);
 }
 
-absl::Status World::ReadyToTrade(uint32_t id, bool ready) {
+absl::Status World::ReadyToTrade(uint32_t id, bool ready, uint32_t revision) {
   const uint32_t other = trades_.With(id);
   if (other == 0) {
     return absl::FailedPreconditionError("You're not trading with anyone.");
@@ -321,7 +335,7 @@ absl::Status World::ReadyToTrade(uint32_t id, bool ready) {
     return absl::OutOfRangeError(
         absl::StrCat("You're too far away to trade with ", them.name, "."));
   }
-  const absl::StatusOr<bool> both = trades_.Ready(id, ready);
+  const absl::StatusOr<bool> both = trades_.Ready(id, ready, revision);
   if (!both.ok() || !*both) {
     return both.status();
   }
@@ -355,6 +369,7 @@ protocol::Trade World::TradeOf(uint32_t id) const {
     trade.set_partner(players_.at(other).name);
     *trade.mutable_yours() = trades_.SideOf(id);
     *trade.mutable_theirs() = trades_.SideOf(other);
+    trade.set_revision(trades_.RevisionOf(id));
   }
   return trade;
 }

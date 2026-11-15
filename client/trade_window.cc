@@ -148,6 +148,7 @@ std::optional<protocol::TradeAction> TradeWindow::Build(
     if (GameButton(yours.ready() ? "Not ready" : "Ready", {Ui(150.0f), 0.0f},
                    !yours.ready())) {
       action.emplace().set_ready(!yours.ready());
+      action->set_revision(trade.revision());
     }
     ImGui::SameLine();
     if (theirs.ready()) {

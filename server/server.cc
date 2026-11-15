@@ -568,7 +568,7 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
       done = land.OfferToTrade(id, action.offer());
       break;
     case protocol::TradeAction::kReady:
-      done = land.ReadyToTrade(id, action.ready());
+      done = land.ReadyToTrade(id, action.ready(), action.revision());
       break;
     case protocol::TradeAction::kCancel:
       land.CancelTrade(id);

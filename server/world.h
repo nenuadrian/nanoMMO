@@ -311,14 +311,16 @@ class World {
 
   /// Moves the player's items around, as Inventory::Move does, wearing them
   /// and taking them off, or the error says why not, in words for the player.
+  /// Nothing goes to or from a place they offer in a trade.
   absl::Status MoveItem(uint32_t id, const protocol::Place& from,
                         const protocol::Place& to, uint32_t count = 0);
 
-  /// Throws away all of what's at the place.
+  /// Throws away all of what's at the place, unless they offer it in a trade.
   absl::Status DestroyItem(uint32_t id, const protocol::Place& place);
 
   /// The player uses one of what's in the slot of their bag, such as drinks a
-  /// potion, or the error says why not, in words for the player.
+  /// potion, unless they offer it in a trade, or the error says why not, in
+  /// words for the player.
   absl::Status UseItem(uint32_t id, uint32_t slot);
 
   /// The player asks the one of that name here, whatever its case, within
@@ -329,15 +331,16 @@ class World {
   /// What the player offers in their trade, as Trades::Offer has it.
   absl::Status OfferToTrade(uint32_t id, const protocol::TradeOffer& offer);
 
-  /// Whether the player's ready to trade. Once both are, within kTradeReach,
-  /// they trade, there and then, or the error says why not.
-  absl::Status ReadyToTrade(uint32_t id, bool ready);
+  /// Whether the player's ready to trade, at the revision of the trade they
+  /// saw. Once both are, within kTradeReach, they trade, there and then, or
+  /// the error says why not.
+  absl::Status ReadyToTrade(uint32_t id, bool ready, uint32_t revision);
 
   /// Calls the player's trade off, for both of them.
   void CancelTrade(uint32_t id);
 
-  /// The player's trade, as their client gets it: who with, by name, and what
-  /// each side offers, or nobody, once it's over.
+  /// The player's trade, as their client gets it: who with, by name, what
+  /// each side offers, and its revision, or nobody, once it's over.
   protocol::Trade TradeOf(uint32_t id) const;
 
   /// The players whose trade has opened, changed or ended since the last

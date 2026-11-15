@@ -800,15 +800,20 @@ TEST_F(ServerTest, TwoPlayersTrade) {
   nanommo::protocol::Input offer;
   offer.mutable_trade()->mutable_offer()->add_bag(0);
   alice.Send(offer);
-  ASSERT_TRUE(
-      RunUntil([&] { return bob.trade()->theirs().bag().contains(0); }));
+  ASSERT_TRUE(RunUntil([&] {
+    return bob.trade()->theirs().bag().contains(0) &&
+           alice.trade()->yours().bag().contains(0);
+  }));
   EXPECT_EQ(bob.trade()->theirs().bag().at(0).count(), 3u);
 
-  // Once both are ready, the potions go across, and it's over for both.
+  // Once both are ready, for the offers they've seen, the potions go across,
+  // and it's over for both.
   nanommo::protocol::Input ready;
   ready.mutable_trade()->set_ready(true);
+  ready.mutable_trade()->set_revision(alice.trade()->revision());
   alice.Send(ready);
   ASSERT_TRUE(RunUntil([&] { return bob.trade()->theirs().ready(); }));
+  ready.mutable_trade()->set_revision(bob.trade()->revision());
   bob.Send(ready);
   ASSERT_TRUE(RunUntil([&] {
     return bob.bag().bag().contains(0) && bob.bag().bag().at(0).count() == 6u &&

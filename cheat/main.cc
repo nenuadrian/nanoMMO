@@ -282,6 +282,7 @@ int Trade(asio::ssl::context& tls, const std::string& name,
       if (!ready && trade.theirs().bag_size() > 0) {
         nanommo::protocol::TradeAction yes;
         yes.set_ready(true);
+        yes.set_revision(trade.revision());
         connection->Send(Trading(yes));
         ready = true;
         std::cout << "cheat: " << partner << " offers a sword, so " << name
@@ -311,6 +312,7 @@ int Trade(asio::ssl::context& tls, const std::string& name,
     }
     nanommo::protocol::TradeAction yes;
     yes.set_ready(true);
+    yes.set_revision(trade.revision());
     if (cheat == Cheat::kSwap) {
       // The sword leaves the slot it was offered from, and then we're ready.
       if (!moved) {

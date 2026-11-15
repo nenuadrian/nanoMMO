@@ -7,9 +7,25 @@
 #include <set>
 #include <utility>
 
+#include "google/protobuf/util/message_differencer.h"
 #include "protocol/places.h"
 
 namespace nanommo {
+
+namespace {
+
+// Whether what's there is the item that was offered, with the same rolls,
+// however many of it there are.
+bool SameItem(const items::Stack* there, const items::Stack& offered) {
+  if (there == nullptr) {
+    return false;
+  }
+  items::Stack same = *there;
+  same.set_count(offered.count());
+  return google::protobuf::util::MessageDifferencer::Equals(same, offered);
+}
+
+}  // namespace
 
 bool Trades::Ask(uint32_t id, uint32_t other) {
   const auto asked = asked_.find(other);
@@ -32,6 +48,17 @@ uint32_t Trades::With(uint32_t id) const {
 
 const protocol::TradeSide& Trades::SideOf(uint32_t id) const {
   return sides_.at(id).offer;
+}
+
+uint32_t Trades::RevisionOf(uint32_t id) const {
+  const auto side = sides_.find(id);
+  return side != sides_.end() ? side->second.revision : 0;
+}
+
+bool Trades::Holds(uint32_t id, const protocol::Place& place) const {
+  const auto side = sides_.find(id);
+  return side != sides_.end() && place.has_bag() &&
+         side->second.offer.bag().contains(place.bag());
 }
 
 absl::Status Trades::Offer(uint32_t id, const Inventory& bag,
@@ -57,17 +84,25 @@ absl::Status Trades::Offer(uint32_t id, const Inventory& bag,
   }
   offered.set_gold(offer.gold());
   side->second.offer = std::move(offered);
-  // There's something new to look at, so neither side is ready.
+  // There's something new to look at, so neither side is ready, and a ready
+  // sent for what was there before is for the revision before.
   const uint32_t other = side->second.with;
   sides_.at(other).offer.set_ready(false);
+  sides_.at(other).revision = ++side->second.revision;
   news_.insert({id, other});
   return absl::OkStatus();
 }
 
-absl::StatusOr<bool> Trades::Ready(uint32_t id, bool ready) {
+absl::StatusOr<bool> Trades::Ready(uint32_t id, bool ready, uint32_t revision) {
   const auto side = sides_.find(id);
   if (side == sides_.end()) {
     return absl::FailedPreconditionError("You're not trading with anyone.");
+  }
+  // An offer can change while a ready's on its way, and the ready is for the
+  // offers the player saw.
+  if (ready && revision != side->second.revision) {
+    return absl::FailedPreconditionError(
+        "The trade has changed, so look at it again.");
   }
   side->second.offer.set_ready(ready);
   const uint32_t other = side->second.with;
@@ -88,11 +123,16 @@ absl::Status Trades::Complete(uint32_t id, Inventory& bag, Inventory& other_bag,
     return why;
   };
   // First each side gives up what it offered, so that its bag has that room
-  // for what it gets. As many as were offered come off each place, which
-  // trusts that what was offered is still there.
+  // for what it gets. Each place has to have the item still, and at least as
+  // many as were offered, or Take fails: a kill can add to a stack that's
+  // offered, and what it adds stays the player's.
   for (std::size_t side = 0; side < 2; ++side) {
     for (const auto& [slot, stack] : offers[side]->bag()) {
-      after[side].Take(InBag(slot), stack.count()).IgnoreError();
+      if (!SameItem(after[side].At(InBag(slot)), stack) ||
+          !after[side].Take(InBag(slot), stack.count()).ok()) {
+        return refuse(absl::FailedPreconditionError(
+            "The items offered aren't all there any more."));
+      }
     }
     if (!after[side].TakeGold(offers[side]->gold()).ok()) {
       return refuse(absl::FailedPreconditionError(
