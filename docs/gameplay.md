@@ -202,6 +202,12 @@ doesn't one at a time, each with rolls of its own, so two Ash Blades are seldom 
 the chat says what the monster dropped, and what didn't fit, if the bag was full, which stays
 behind. The world keeps those lines as it steps, and the server sends them after the tick.
 
+Monsters drop gold too, each time, from their kind's `gold` in the monsters file: one to five for a
+skeleton, three to nine for an Ash Skeleton, and six to fourteen for a Crypt Skeleton. It takes no
+slot, so a full bag takes it too, up to a billion (`Inventory::kMostGold`), and the bag shows it
+under its slots. It's part of the bag's message, `Inventory.gold`, so a change to it is a change to
+the bag, which goes to the client and is saved with it (see [Saving players](saving.md)).
+
 The server decides it all, as it does a swing. The client sends what you do with an item in
 `Input`'s `item`, once, and the world moves the items, with `server/inventory.h`, or says why not,
 in a line in the chat from nobody. A player can do ten things with items at once, then ten a
@@ -300,3 +306,36 @@ characters, and a character is in one guild at most.
 - The guild's players hear who joined and who left. Anything refused is said in the chat, in yellow.
 - Each guild action is a transaction in MySQL, which the world's tick waits for, so a player gets
   three at once, and then one a second.
+
+## Trading
+
+Two players in the same land trade items and gold. `/trade` and a name in the chat asks that
+player, whatever its case, within talking reach, four metres (`World::kTradeReach`), and they
+hear it as a line in the chat, with the `/trade` that says yes. Once each has asked the other, the
+trade window opens on both screens, and the bag with it.
+
+- What you offer is on the left: drag items onto it from the bag, a whole stack at a time, click
+  one to take it back, and type the gold. What they offer is on the right.
+- Ready says you'll trade what's offered, both ways, and each side's slots light green once it is.
+  A change to either offer makes neither side ready, as there's something new to look at.
+- Once both are ready, within four metres, they trade there and then: each gets what the other
+  offered, all of it or none. If a bag hasn't room, neither changes, neither side is ready, and a
+  line in the chat says why.
+- Closing the window calls the trade off, and so does either player leaving the land or the game.
+  A player trades with one other at a time.
+- The bag keeps what you've offered where it is, faint, until the trade's over: it doesn't drag,
+  use or wear it.
+
+The server decides it all, as it does a move in the bag. Both players are in the same copy of a
+land, so each world keeps its trades (`server/trades.h`). The client sends what it does in
+`Input`'s `trade`, once, and the world does it as the message comes, or says why not in a line
+from nobody: an offer names the places in the bag, and the world keeps a copy of each stack as it
+is then, which the other side sees. After each tick, each player whose trade opened, changed or
+ended gets it, on its own, over TCP, as `World`'s `trade`, with nobody in it once it's over. A
+trade moves things between bags, so it's on the bag's limit, and nothing trades while the world
+hands its players over to its next instance, where a trade that was open is gone.
+
+This is the simple version. The trade gives the copies of the stacks as they were offered, and
+takes as many as were offered off each place, trusting that what was offered is still there, and
+that a side that's ready saw the offer that's there now. Each player's bag is then saved as any
+bag that's changed is, with its own player.

@@ -80,8 +80,8 @@ How each part of the game works is in `docs/`, a page each, which the
 [API docs](https://nenuadrian.github.io/nanoMMO/) have in their menu too:
 
 - [Getting started](docs/getting-started.md): from a clone to playing, on macOS and Ubuntu, and what each error means.
-- [Gameplay](docs/gameplay.md): monsters, health and levels, fighting, skills, items, quests, chat and
-  guilds.
+- [Gameplay](docs/gameplay.md): monsters, health and levels, fighting, skills, items and gold,
+  quests, chat, guilds and trading.
 - [Content](docs/content.md): the items, monsters, NPCs, quests and skills, as data the servers, the client and the bots read.
 - [NPCs](docs/npcs.md): who stands where, and the storyteller, which tells stories with mvGPT.
 - [Graphics and sound](docs/graphics.md): the characters, the interface, the map, the sky, the music, the sound effects, made from numbers, and the post-processing: bloom, cel shading and anti-aliasing.

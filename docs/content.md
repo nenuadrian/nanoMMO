@@ -18,7 +18,7 @@ skills (see [Skills](gameplay.md#skills)).
   client's: an item's or a monster's model, its length or height, where a weapon is held, an
   item's icon and tint, a monster's tint, and an NPC's skin, hair colour, way to wear its hair,
   weapon and clothes, and the colour of what it wears that's dyed. A monster's level, health,
-  experience and loot are the server's too.
+  experience, loot and gold are the server's too.
 - An item is the parts it has, and no type: `stack` says how many go in a slot of a bag, `equip`
   where it's worn and what it adds, as `modifiers` of `STAT_DAMAGE`, `STAT_HEALTH` or
   `STAT_ARMOUR`, `use` what using one does and how often, and `rolls` the modifiers each one gets
@@ -41,8 +41,9 @@ skills (see [Skills](gameplay.md#skills)).
   fit in a slot, no item has a retired id, each spawn and camps names a kind and a land we have, no monster with a
   fixed home has a leash that reaches the middle of its land, where players come back to life,
   each skill has a level and lands before it's over, each starting skill is in the file, and each
-  drop has a chance from nothing to one, and goes from fewer to more, each kind of NPC has a skin,
-  and each quest has a giver, asks for some kills, and gives some of each of its prizes. Once every
+  drop has a chance from nothing to one, and goes from fewer to more, as a monster's gold goes from
+  less to more, each kind of NPC has a skin, and each quest has a giver, asks for some kills, and
+  gives some of each of its prizes. Once every
   file is read, `CheckContent` checks what no file can on its own: that each item a monster drops is
   in the items file, each skill a trainer teaches is in the skills file, each NPC's hair is in the
   figures file and its clothes in the items file, each quest's giver, monster and prizes are in

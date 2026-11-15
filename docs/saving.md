@@ -5,8 +5,8 @@ Redis: a hash for each player in each world, `player:<world>:<account id>`, with
 `x`, `z`, `experience`, `health`, `land`, `weapon`, what's in their main hand, and `skills`, the ids
 of the skills they know with commas between them, and its key in a set, `players:unsaved` (see
 [Worlds](worlds.md)). A player whose bag's revision has moved gets `items` too, the bag's `Inventory`
-message in protobuf's bytes, and their key goes into `items:unsaved` as well. Their quests go in
-`quests`, a `Quests` message in protobuf's bytes, the same the client gets. It sends all of it in
+message in protobuf's bytes, with their gold in it, and their key goes into `items:unsaved` as
+well. Their quests go in `quests`, a `Quests` message in protobuf's bytes, the same the client gets. It sends all of it in
 one round trip, as a pipeline, so saving takes a few
 milliseconds a tick with hundreds of players, and the server keeps up with as many players as it did
 without saving. Writing each change to MySQL instead, one statement at a time, takes the tick past
@@ -32,7 +32,10 @@ as its rolls, as protobuf's JSON for a stack. A field a later server adds to a s
 state with no migration. A bag's rows go, and its new rows go in, which has to happen all or not at
 all, or a failure between the two would empty it, so each batch is a transaction, with the players'
 rows, which the bags' rows need first. `players.items_revision`, from V8, keeps the bag's revision,
-so that a player who emptied their bag isn't taken for a new one, and given the kit again.
+so that a player who emptied their bag isn't taken for a new one, and given the kit again, and
+`players.gold`, from V12, their gold, which is in the bag's message and goes with its revision, so
+the saver writes it as it does the bag's rows, and a bag that hasn't changed keeps the gold MySQL
+has.
 `players.quests`, from V9, keeps their quests, as protobuf's JSON for the `Quests` message: they're a
 few numbers, read and written whole with the player, and never looked up by quest, so they go with
 the player's row, with no table of their own. A hash with no quests, from before them or of a player

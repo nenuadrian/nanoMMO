@@ -7,6 +7,16 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.74.0 (2026-11-15)
+
+- Monsters drop gold, into their killer's bag, full or not, which shows it under its slots: one to
+  five for a skeleton, three to nine for an Ash Skeleton, and six to fourteen for a Crypt Skeleton.
+  It's part of the bag's message, and MySQL keeps it in `players.gold`, `V12__players_gold.sql`.
+- Trading: `/trade` and a name in the chat asks a player within four metres, and once they ask
+  back, a window opens on both screens. Drag items onto it from the bag, type the gold, and press
+  Ready, and once both sides are ready, each gets what the other offered.
+- This is the simple version of trading, which trusts that what's offered stays where it was.
+
 ## 0.73.0 (2026-11-15)
 
 - `CMakePresets.json` names each way the game is built: `cmake --list-presets=all` lists them, and
