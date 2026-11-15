@@ -69,3 +69,4 @@ one commit could undo, or that the code makes plain, needs none.
 | [0022](0022-numbered-inputs-and-client-side-prediction.md) | Numbered inputs, and client-side prediction | Accepted | 68 |
 | [0023](0023-draw-everyone-else-in-the-past.md) | Draw everyone else 100 milliseconds in the past | Accepted | 69 |
 | [0024](0024-leave-out-what-has-not-changed.md) | Leave out of each world what hasn't changed, by its pieces' hashes | Accepted | 70 |
+| [0025](0025-the-server-checks-what-a-client-asks-for.md) | The server checks what a client asks for, and a red-team client tries it | Accepted | 72 |

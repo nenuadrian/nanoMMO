@@ -7,6 +7,15 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.72.0 (2026-11-15)
+
+- `nanommo_cheat`, the server's red-team client, tries what a modified client can: more inputs
+  than ticks, a direction a thousand times too long or not a number, a swing from 20 metres, a
+  skill sent ten times a tick, and a swing cut short to start the next sooner.
+- A skill keeps the timings of the weapon it started with, so a swing whose blow has landed plays
+  out when its weapon is put in the bag and back, and the next one doesn't start sooner. It did,
+  about twice as often.
+
 ## 0.71.0 (2026-11-15)
 
 - `docs/decisions` records why the game is built the way it is: a record for each choice that would

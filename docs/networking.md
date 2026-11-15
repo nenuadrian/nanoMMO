@@ -171,3 +171,21 @@ the newest world your client has.
 With forty bots on one machine (`nanommo_bot localhost localhost 40 5 1 udp`), the server sent
 16.8 KB a second to each before, and 7.6 KB after, from `nanommo_bytes_sent_total`. Those who
 move still go whole each tick: a player walking changes where they are, and so their piece.
+
+## What a modified client can try
+
+The client runs on the player's machine, so anything it sends can be made up. `nanommo_cheat` is
+the server's red-team client: a player without a window, who breaks the client's rules one way at a
+time and prints what it gets for it (`cheat/main.cc`). It runs beside the servers, with an account
+of its own: `nanommo_cheat <name> <password> <cheat>`.
+
+| Cheat | What it sends | What it gets |
+|---|---|---|
+| `speed` | Three running inputs a tick, where the client sends one | 3.1 m/s, as running does: the server applies one input a tick (`ServerTest.MoreInputsThanTicksDontRunFaster`) |
+| `teleport` | A direction of 1000, then one that isn't a number | 3.1 m/s: a direction is scaled back to a length of one, and one that isn't a number is ignored, so the last keys go on |
+| `reach` | A swing at a monster 20 metres away | No hit from there: the server runs the player up to the monster first |
+| `rapid` | Its first skill ten times a tick | No more hits than using it once it's ready: the cooldowns are the server's |
+| `cancel` | Its weapon into the bag as each blow lands, and back two ticks later | Nothing, from 0.72.0: a skill keeps the timings of the weapon it started with, so a swing whose blow has landed plays out (`World.PuttingTheWeaponAwayAfterItsBlowDoesntSwingSooner`). Before, the next swing started as soon as the weapon was back, about twice as often |
+
+`walk`, `fight` and `swing` keep the rules, to compare with. Why the server checks everything is
+[decision 25](decisions/0025-the-server-checks-what-a-client-asks-for.md).
