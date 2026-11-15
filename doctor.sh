@@ -63,12 +63,27 @@ if has ninja; then
 else
   want "ninja: not found" ninja ninja-build
 fi
-if has c++; then
-  ok "$(c++ --version | head -n 1)"
+# The compiler the release preset builds with, which CXX names, if it's set.
+# The game is C++23, and two of the parts it uses came late to the compilers
+# (GCC 14, Clang 19 and Xcode 16.3): a member function that takes its object
+# as a parameter, and a subscript operator with two indexes. So we ask the
+# compiler to compile both.
+compiler=${CXX:-c++}
+if ! has "$compiler"; then
+  if $mac; then
+    bad "a C++ compiler: not found" "xcode-select --install"
+  else
+    want "a C++ compiler: not found" "" build-essential
+  fi
+elif printf 'struct S {\n  void f(this S&) {}\n  int operator[](int, int) const { return 0; }\n};\n' |
+  "$compiler" -std=c++23 -fsyntax-only -x c++ - 2> /dev/null; then
+  ok "$("$compiler" --version | head -n 1)"
 elif $mac; then
-  bad "a C++ compiler: not found" "xcode-select --install"
+  bad "$("$compiler" --version | head -n 1): too old for C++23" \
+    "Xcode 16.3 or newer, from the App Store"
 else
-  want "a C++ compiler: not found" "" build-essential
+  bad "$("$compiler" --version | head -n 1): too old for C++23" \
+    "sudo apt install g++-14, then export CXX=g++-14 before CMake's first run"
 fi
 if ! has pkg-config; then
   want "pkg-config: not found" pkgconf pkg-config
@@ -150,7 +165,7 @@ if ! $mac && [ -z "${DISPLAY:-}" ]; then
     ok "xvfb-run, for the client's tests without a screen"
   else
     note "no screen, and no xvfb-run for the client's tests" \
-      "sudo apt install xvfb, then: xvfb-run -a ctest --test-dir build"
+      "sudo apt install xvfb, then: xvfb-run -a ctest --preset release"
   fi
 fi
 
