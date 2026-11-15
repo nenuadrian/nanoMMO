@@ -26,6 +26,7 @@
 #include "server/copies.h"
 #include "server/events.h"
 #include "server/guilds.h"
+#include "server/inputs.h"
 #include "server/interest.h"
 #include "server/metrics.h"
 #include "server/players.h"
@@ -175,17 +176,9 @@ class Server {
   std::map<uint32_t, Membership> members_;
   /// The players whose guild we've to send them.
   std::set<uint32_t> guild_news_;
-  /// Each player's numbered inputs that haven't been applied yet, oldest
-  /// first, and the last one that has.
-  std::map<uint32_t, std::deque<protocol::Input>> inputs_;
-  std::map<uint32_t, uint32_t> acked_;
-  /// The fewest of each player's inputs waiting at the start of a tick, over
-  /// the ticks since their queue was last checked.
-  struct Steady {
-    std::size_t fewest = std::numeric_limits<std::size_t>::max();
-    int ticks = 0;
-  };
-  std::map<uint32_t, Steady> steady_;
+  /// Each player's numbered inputs that haven't been applied yet, and the
+  /// last one that has.
+  Inputs inputs_;
   /// What each client was sent in its last worlds, by when each was sent:
   /// the copy of the land it was in, as ids are a land's own, and each
   /// player's and monster's piece, by its hash.
