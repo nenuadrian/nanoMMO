@@ -1,0 +1,66 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "release",
+      "displayName": "Release, as the servers and the client ship",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "clang",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "asan",
+      "inherits": "clang",
+      "displayName": "AddressSanitizer and UndefinedBehaviorSanitizer",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "NANOMMO_SANITIZE": "address,undefined"
+      }
+    },
+    {
+      "name": "tsan",
+      "inherits": "clang",
+      "displayName": "ThreadSanitizer",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "NANOMMO_SANITIZE": "thread"
+      }
+    },
+    {
+      "name": "fuzz",
+      "inherits": "asan",
+      "displayName": "The fuzzers, with AddressSanitizer and UBSan",
+      "cacheVariables": { "NANOMMO_FUZZ": "ON" }
+    },
+    {
+      "name": "tidy",
+      "inherits": "clang",
+      "displayName": "The compile commands clang-tidy reads",
+      "cacheVariables": { "NANOMMO_FUZZ": "ON" }
+    },
+    {
+      "name": "coverage",
+      "inherits": "clang",
+      "displayName": "The lines the tests run",
+      "cacheVariables": { "NANOMMO_COVERAGE": "ON" }
+    },
+    {
+      "name": "profile",
+      "inherits": "release",
+      "displayName": "The server with Tracy's zones",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "cacheVariables": { "TRACY_ENABLE": "ON" }
+    }
+  ]
+}
