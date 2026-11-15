@@ -177,7 +177,8 @@ move still go whole each tick: a player walking changes where they are, and so t
 The client runs on the player's machine, so anything it sends can be made up. `nanommo_cheat` is
 the server's red-team client: a player without a window, who breaks the client's rules one way at a
 time and prints what it gets for it (`cheat/main.cc`). It runs beside the servers, with an account
-of its own: `nanommo_cheat <name> <password> <cheat>`.
+of its own: `nanommo_cheat <name> <password> <cheat>`, and for a trade, the partner it trades
+with, who runs `take`: `nanommo_cheat <name> <password> <cheat> <partner>`.
 
 | Cheat | What it sends | What it gets |
 |---|---|---|
@@ -186,6 +187,9 @@ of its own: `nanommo_cheat <name> <password> <cheat>`.
 | `reach` | A swing at a monster 20 metres away | No hit from there: the server runs the player up to the monster first |
 | `rapid` | Its first skill ten times a tick | No more hits than using it once it's ready: the cooldowns are the server's |
 | `cancel` | Its weapon into the bag as each blow lands, and back two ticks later | Nothing, from 0.72.0: a skill keeps the timings of the weapon it started with, so a swing whose blow has landed plays out (`World.PuttingTheWeaponAwayAfterItsBlowDoesntSwingSooner`). Before, the next swing started as soon as the weapon was back, about twice as often |
+| `swap` | Its sword offered from the bag, and once the partner's ready, a move of the sword to another slot, and its own ready | Nothing, from 0.75.0: a place that's offered is held until the trade's over, so the move is refused, and the partner gets the sword (`Trades.WhatsOfferedStaysWhereItIsUntilTheTradesOver`). The trade gives nothing unless each place still has what was offered (`Trades.AnItemMovedAfterItsOfferedIsntGivenTwice`). Before, the partner got the copy made at the offer, and the sword stayed too: three swords from two |
+| `run` | Its sword offered, and once the partner's ready, its own ready, and it leaves at once | Nothing, from 0.75.0: a trade saves both bags, together, as it's done, and a player who leaves is saved as they go, so it comes back without the sword (`ServerTest.ATradeAndALeaveLeaveOneSword`). Before, it left before the tick that would have saved its bag, and came back to the bag Redis had from before the trade: three swords from two |
 
-`walk`, `fight` and `swing` keep the rules, to compare with. Why the server checks everything is
-[decision 25](decisions/0025-the-server-checks-what-a-client-asks-for.md).
+`walk`, `fight`, `swing` and `take` keep the rules, to compare with. Why the server checks
+everything is [decision 25](decisions/0025-the-server-checks-what-a-client-asks-for.md), and how a
+trade is checked and saved, [decision 28](decisions/0028-a-trade-is-checked-against-the-bags-and-saved-as-one.md).

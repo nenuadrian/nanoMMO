@@ -324,7 +324,7 @@ trade window opens on both screens, and the bag with it.
 - Closing the window calls the trade off, and so does either player leaving the land or the game.
   A player trades with one other at a time.
 - The bag keeps what you've offered where it is, faint, until the trade's over: it doesn't drag,
-  use or wear it.
+  use or wear it, and the server won't either.
 
 The server decides it all, as it does a move in the bag. Both players are in the same copy of a
 land, so each world keeps its trades (`server/trades.h`). The client sends what it does in
@@ -335,7 +335,18 @@ ended gets it, on its own, over TCP, as `World`'s `trade`, with nobody in it onc
 trade moves things between bags, so it's on the bag's limit, and nothing trades while the world
 hands its players over to its next instance, where a trade that was open is gone.
 
-This is the simple version. The trade gives the copies of the stacks as they were offered, and
-takes as many as were offered off each place, trusting that what was offered is still there, and
-that a side that's ready saw the offer that's there now. Each player's bag is then saved as any
-bag that's changed is, with its own player.
+The server trusts none of what the client says about the trade, and checks it against the bags as
+it has them:
+
+- A place you offer from is held until the trade's over. The world refuses to move, use, wear or
+  throw away what's there, or to put anything there: "You can't, while it's offered in your
+  trade."
+- Each change to either offer takes the trade to its next revision, which comes with the trade.
+  A ready names the revision it was for, and one for an earlier revision does nothing, as the
+  offers have changed since: "The trade has changed, so look at it again."
+- Before it gives anything, the trade checks each place offered still has the same item, with the
+  same rolls, and at least as many as were offered. A kill can add to a stack you've offered, and
+  what it adds stays yours. If a place hasn't, nothing's given, and neither side is ready: "The
+  items offered aren't all there any more."
+- Once they've traded, both players are saved, together, in one Redis transaction, before either
+  hears of it, and a player who leaves is saved as they go (see [Saving](saving.md)).

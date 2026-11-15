@@ -7,11 +7,21 @@ of the skills they know with commas between them, and its key in a set, `players
 [Worlds](worlds.md)). A player whose bag's revision has moved gets `items` too, the bag's `Inventory`
 message in protobuf's bytes, with their gold in it, and their key goes into `items:unsaved` as
 well. Their quests go in `quests`, a `Quests` message in protobuf's bytes, the same the client gets. It sends all of it in
-one round trip, as a pipeline, so saving takes a few
+one round trip, as one transaction, `MULTI`, the commands and `EXEC`, so that Redis keeps all of it
+or none of it (`Redis::Transaction`), and saving takes a few
 milliseconds a tick with hundreds of players, and the server keeps up with as many players as it did
 without saving. Writing each change to MySQL instead, one statement at a time, takes the tick past
 its 50 ms at around 50 players: each save is two round trips, to prepare the statement and to run
 it, and a commit that waits for the disk.
+
+A trade changes two players' bags at once, as the second ready arrives, between ticks. Saved apart,
+by a save cut off half way or a player who leaves before the next tick, one bag would be kept as it
+was and the other as it is, and an item would be made or lost. So a trade that's done saves both
+players there and then, in one transaction, before either hears of it, and a player who leaves is
+saved as they go, as nothing saves them once they've gone
+([decision 28](decisions/0028-a-trade-is-checked-against-the-bags-and-saved-as-one.md)). While the
+world hands its players over to its next instance, a player who leaves isn't saved, as the next
+instance has loaded them already, from what was saved as the handover began.
 
 `nanommo_saver` takes the unsaved players out of the set every five seconds, and writes them to the
 `players` table, 500 to an `UPDATE` of the characters' rows, which the login server made (see

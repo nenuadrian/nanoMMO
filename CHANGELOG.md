@@ -7,6 +7,17 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.75.0 (2026-11-15)
+
+- `nanommo_cheat` trades with a partner, who runs `take`. `swap` moves the sword it offered once
+  its partner's ready, and `run` is ready and leaves at once, each to keep the sword it gives. Both
+  made three swords from two, and neither does now.
+- What's offered in a trade stays where it is until the trade's over: the server won't move, use,
+  wear or throw it away. The trade gives nothing unless each place still has what was offered, and
+  a ready is for the offers its player saw, so one that crosses a change to an offer does nothing.
+- A trade saves both players at once, as it's done, and a player who leaves is saved as they go.
+  Every save into Redis is one transaction.
+
 ## 0.74.0 (2026-11-15)
 
 - Monsters drop gold, into their killer's bag, full or not, which shows it under its slots: one to
