@@ -87,6 +87,9 @@ message Input {
   // Something to do about a trade with another player. Sent once, like an
   // item's.
   TradeAction trade = 18;
+  // Something to do about a duel with another player. Sent once, like a
+  // trade's.
+  DuelAction duel = 19;
 }
 
 // A place in a land, in metres from its middle.
@@ -272,6 +275,9 @@ message World {
   // Your trade, which comes on its own, over TCP, as it opens and as it
   // changes, and with nobody in it as it ends.
   Trade trade = 26;
+  // Your duel, which comes the same way, as it's asked for, counts down,
+  // starts and ends.
+  Duel duel = 27;
 }
 
 // To the login server: log in with a name and password, or make an account,
@@ -442,4 +448,45 @@ message Trade {
   TradeSide theirs = 3;
   // Goes up with each change to either offer, and a ready names it.
   uint32 revision = 4;
+}
+
+// What a player does about a duel. The server says why not in a line from
+// nobody.
+message DuelAction {
+  oneof action {
+    // Ask the player of that name, near you in your land, to duel.
+    string ask = 1;
+    // Say yes to the player who asked you, which starts the countdown.
+    bool accept = 2;
+    // Say no to them.
+    bool decline = 3;
+    // Give the duel up, to the other side, or call it off before it starts.
+    bool yield = 4;
+  }
+}
+
+// How far a duel has got, from the ask to the fight.
+enum DuelState {
+  DUEL_NONE = 0;
+  // You asked them, and they haven't answered.
+  DUEL_ASKING = 1;
+  // They asked you.
+  DUEL_ASKED = 2;
+  // It starts once the countdown's over.
+  DUEL_COUNTDOWN = 3;
+  // Each of you can hit the other, and nobody else.
+  DUEL_FIGHTING = 4;
+}
+
+// Your duel: who it's with, by their name and their id, or nobody once it's
+// over, and how far it's got.
+message Duel {
+  string opponent = 1;
+  uint32 opponent_id = 2;
+  DuelState state = 3;
+  // During the countdown, how long until the duel starts, in milliseconds.
+  uint32 countdown = 4;
+  // From the countdown on, where the one who asked stood as the other said
+  // yes, which neither of you may go far from.
+  Point flag = 5;
 }

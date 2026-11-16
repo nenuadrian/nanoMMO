@@ -16,6 +16,7 @@
 #include "absl/status/statusor.h"
 #include "content/content.h"
 #include "protocol/nanommo.pb.h"
+#include "server/duels.h"
 #include "server/inventory.h"
 #include "server/trades.h"
 #include "server/walking.h"
@@ -349,6 +350,27 @@ class World {
   /// time, which it hands over.
   std::set<uint32_t> TakeTradeNews();
 
+  /// The player asks the one of that name here, whatever its case, within
+  /// Duels::kReach, to duel, or says yes to them asking first. Or the error
+  /// says why not, in words for the player.
+  absl::Status AskToDuel(uint32_t id, std::string_view name);
+
+  /// The player says yes or no to the one who asked them to duel. A yes puts
+  /// the flag down where the one who asked stands, and starts the countdown.
+  absl::Status AnswerDuel(uint32_t id, bool yes);
+
+  /// The player gives their duel up, and the other side wins it, or before
+  /// it's started, calls it off.
+  absl::Status Yield(uint32_t id);
+
+  /// The player's duel, as their client gets it: who with, how far it's got,
+  /// and its flag, or nobody, once it's over.
+  protocol::Duel DuelOf(uint32_t id) const;
+
+  /// The players whose duel has been asked for, counted down, started or
+  /// ended since the last time, which it hands over.
+  std::set<uint32_t> TakeDuelNews();
+
   uint32_t Spawn(Monster monster);
 
   /// NPCs have ids of their own, apart from the monsters'.
@@ -429,6 +451,11 @@ class World {
   void Hit(Monster& monster);
   /// An event of the kind, for the player, by their id, where they are.
   Event& Record(Event::Kind kind, uint32_t id, const Player& player);
+  /// After everyone's acted: the duels' asks and countdowns run down, and a
+  /// duellist who's dead, or too far from the flag, loses.
+  void Referee(std::chrono::nanoseconds time);
+  /// The player's lost their duel, which is over, and both hear who won.
+  void Lose(uint32_t id);
 
   Terrain terrain_;
   std::shared_ptr<const Content> content_;
@@ -443,6 +470,7 @@ class World {
   std::vector<Event> events_;
   /// Between the players here, as both have to be.
   Trades trades_;
+  Duels duels_;
 };
 
 }  // namespace nanommo

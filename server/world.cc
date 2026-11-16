@@ -190,12 +190,17 @@ void World::Join(uint32_t id, Player player) {
 }
 
 void World::Leave(uint32_t id) {
-  // Both have to be here to trade.
+  // Both have to be here to trade, or to duel.
   if (const uint32_t other = trades_.End(id); other != 0) {
     notices_.push_back(
         {.player = other,
          .text = absl::StrCat(players_.at(id).name,
                               " has gone, so the trade's off.")});
+  }
+  if (const uint32_t other = duels_.End(id); other != 0) {
+    notices_.push_back({.player = other,
+                        .text = absl::StrCat(players_.at(id).name,
+                                             " has gone, so the duel's off.")});
   }
   players_.erase(id);
 }
@@ -382,6 +387,118 @@ protocol::Trade World::TradeOf(uint32_t id) const {
 }
 
 std::set<uint32_t> World::TakeTradeNews() { return trades_.TakeNews(); }
+
+absl::Status World::AskToDuel(uint32_t id, std::string_view name) {
+  const auto player = players_.find(id);
+  const auto other = std::ranges::find_if(players_, [name](const auto& entry) {
+    return absl::EqualsIgnoreCase(entry.second.name, name);
+  });
+  if (player == players_.end() || other == players_.end()) {
+    return absl::NotFoundError("Nobody of that name is here.");
+  }
+  if (other == player) {
+    return absl::InvalidArgumentError("You can't duel yourself.");
+  }
+  // Asking back the one who asked is a yes.
+  if (const Duels::Duel* duel = duels_.Of(id);
+      duel != nullptr && duel->state == Duels::State::kAsked &&
+      duel->challenged == id && duel->challenger == other->first) {
+    return AnswerDuel(id, true);
+  }
+  const std::string& asker = player->second.name;
+  const std::string& asked = other->second.name;
+  if (Distance(player->second, other->second) > Duels::kReach) {
+    return absl::OutOfRangeError(
+        absl::StrCat("You're too far away to duel ", asked, "."));
+  }
+  if (duels_.Of(id) != nullptr) {
+    return absl::FailedPreconditionError("You're in a duel already.");
+  }
+  if (duels_.Of(other->first) != nullptr) {
+    return absl::FailedPreconditionError(
+        absl::StrCat(asked, " is in a duel already."));
+  }
+  duels_.Ask(id, other->first);
+  notices_.push_back(
+      {.player = other->first,
+       .text = absl::StrCat(asker,
+                            " asks you to duel. Type /duel yes to say yes.")});
+  notices_.push_back(
+      {.player = id, .text = absl::StrCat("You asked ", asked, " to duel.")});
+  return absl::OkStatus();
+}
+
+absl::Status World::AnswerDuel(uint32_t id, bool yes) {
+  const Duels::Duel* duel = duels_.Of(id);
+  if (duel == nullptr || duel->challenged != id ||
+      duel->state != Duels::State::kAsked) {
+    return absl::NotFoundError("Nobody's asked you to duel.");
+  }
+  const uint32_t asker = duel->challenger;
+  const Player& challenger = players_.at(asker);
+  const Player& player = players_.at(id);
+  if (!yes) {
+    duels_.End(id);
+    notices_.push_back(
+        {.player = asker,
+         .text = absl::StrCat(player.name, " said no to a duel.")});
+    return absl::OkStatus();
+  }
+  // They may have walked apart while the ask waited.
+  if (Distance(player, challenger) > Duels::kReach) {
+    return absl::OutOfRangeError(
+        absl::StrCat("You're too far away to duel ", challenger.name, "."));
+  }
+  duels_.Accept(id, {.x = challenger.x, .z = challenger.z});
+  return absl::OkStatus();
+}
+
+absl::Status World::Yield(uint32_t id) {
+  const Duels::Duel* duel = duels_.Of(id);
+  if (duel == nullptr) {
+    return absl::NotFoundError("You're not in a duel.");
+  }
+  if (duel->state == Duels::State::kFighting) {
+    Lose(id);
+    return absl::OkStatus();
+  }
+  const uint32_t other = duels_.End(id);
+  notices_.push_back(
+      {.player = other,
+       .text = absl::StrCat(players_.at(id).name, " called the duel off.")});
+  return absl::OkStatus();
+}
+
+protocol::Duel World::DuelOf(uint32_t id) const {
+  protocol::Duel shown;
+  const Duels::Duel* duel = duels_.Of(id);
+  if (duel == nullptr) {
+    return shown;
+  }
+  const uint32_t other = duel->Against(id);
+  shown.set_opponent(players_.at(other).name);
+  shown.set_opponent_id(other);
+  switch (duel->state) {
+    case Duels::State::kAsked:
+      shown.set_state(duel->challenger == id ? protocol::DUEL_ASKING
+                                             : protocol::DUEL_ASKED);
+      return shown;
+    case Duels::State::kCountdown:
+      shown.set_state(protocol::DUEL_COUNTDOWN);
+      shown.set_countdown(static_cast<uint32_t>(
+          std::chrono::duration_cast<std::chrono::milliseconds>(duel->left)
+              .count()));
+      break;
+    case Duels::State::kFighting:
+      shown.set_state(protocol::DUEL_FIGHTING);
+      break;
+  }
+  shown.mutable_flag()->set_x(duel->flag.x);
+  shown.mutable_flag()->set_z(duel->flag.z);
+  return shown;
+}
+
+std::set<uint32_t> World::TakeDuelNews() { return duels_.TakeNews(); }
 
 void World::Dress(Player& player) const {
   const items::Weapon* before = player.stats.weapon;
@@ -623,6 +740,7 @@ void World::Step(std::chrono::nanoseconds time) {
   for (auto& [id, monster] : monsters_) {
     Act(monster, time);
   }
+  Referee(time);
 }
 
 void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
@@ -1115,6 +1233,49 @@ Event& World::Record(Event::Kind kind, uint32_t id, const Player& player) {
                                     .land = player.land,
                                     .x = player.x,
                                     .z = player.z});
+}
+
+void World::Referee(std::chrono::nanoseconds time) {
+  for (const Duels::Duel& asked : duels_.Step(time)) {
+    notices_.push_back(
+        {.player = asked.challenger,
+         .text = absl::StrCat(players_.at(asked.challenged).name,
+                              " didn't answer, so there's no duel.")});
+  }
+  // Losing ends a duel, so the losers are found first, and lose after.
+  std::vector<uint32_t> losers;
+  for (const auto& [challenger, duel] : duels_.all()) {
+    if (duel.state != Duels::State::kFighting) {
+      continue;
+    }
+    for (const uint32_t side : {duel.challenger, duel.challenged}) {
+      const Player& player = players_.at(side);
+      const bool strayed =
+          std::hypot(player.x - duel.flag.x, player.z - duel.flag.z) >
+          Duels::kFlagReach;
+      if (strayed) {
+        notices_.push_back(
+            {.player = side, .text = "You went too far from the flag."});
+      }
+      if (strayed || player.motion == Motion::kDead) {
+        losers.push_back(side);
+        break;
+      }
+    }
+  }
+  for (const uint32_t loser : losers) {
+    Lose(loser);
+  }
+}
+
+void World::Lose(uint32_t id) {
+  const uint32_t winner = duels_.End(id);
+  notices_.push_back(
+      {.player = id,
+       .text = absl::StrCat(players_.at(winner).name, " won the duel.")});
+  notices_.push_back({.player = winner,
+                      .text = absl::StrCat("You won the duel against ",
+                                           players_.at(id).name, ".")});
 }
 
 void World::Act(Monster& monster, std::chrono::nanoseconds time) {
