@@ -183,19 +183,53 @@ player, so the server keeps it to the two who said yes, and checks the rest as i
 | `Input` | `target_player`, 20 | The player picked, with each input, beside the monster's `target`. The world keeps it only for the opponent in a duel that's started, so it can't hurt anyone else |
 | `World` | `duel`, 27 | Who with, by name and id, how far it's got, the countdown's milliseconds and the flag. On its own, over TCP, to both sides, as it's asked for, at each second of the countdown, and as it starts and ends, with nobody in it once it's over |
 | `Player` | `target_player`, 16 | While they use a skill in a duel, the player it's for, so that its fx land on them on everyone's screen, as `target` does for a monster |
+| `Input` | `drawn`, 21 | When, on the server's clock, in microseconds, the client was drawing everyone else as it sent it, with each numbered input: a blow on the opponent is checked against where they were then (below) |
 
-The server hits a duellist where it has them as the blow lands, while the other's client draws them
-100 milliseconds in the past, as it does everyone else (above). So against a player who's moving, a
-blow that looked as if it missed can land, and one that looked as if it would land can miss, by as
-far as they go in that time and the trip to the server. Making up for that is for a later episode.
+## Blows where the attacker saw them
+
+A client draws everyone else 100 milliseconds in the past (above), and its keys reach the server a
+round trip after the world they answer left it, so by the time a blow lands, the player it was
+aimed at has moved on from where the attacker saw them. Running, at 3.1 metres a second, with a
+round trip of 50 to 200 milliseconds, that's 0.5 to 0.9 metres, against a sword's reach of 1.6: a
+blow that looked in reach misses, and one that looked as if it would miss can land. Making up for
+it is called lag compensation, and the server does it for a duel's blows.
+
+- Each World keeps where each of its players is after each step, for the last second, by a clock of
+  its own that goes on a step at a time (`server/history.h`). It gives where they were at any time
+  in that second, between the ticks on either side.
+- Each numbered input says when, on the server's clock, its client was drawing everyone else as it
+  sent it (`drawn`): 100 milliseconds before the newest world, as the clocks go
+  (`Interpolation::Drawn`). As the input is applied, the server takes how far behind its own clock
+  that is.
+- A player's blows on their duel opponent are checked against where the opponent was that long
+  before: the reach and the arc, and the aim and the run-up, which go by where the one picked is.
+  Nobody's moved: the history is only looked at.
+- A client can say anything, so the server believes 200 milliseconds at most
+  (`Inputs::kMostRewind`): the 100 a client draws everyone in the past, and a round trip of up to
+  100. A time further back is 200 milliseconds, and a time ahead of the server's clock is now, as is
+  an input that doesn't say, as a bot's.
+- A monster is hit where it is, as a blow pushes and throws it from there. It stands still to swing,
+  and comes to whoever hurt it, so where a client drew it a moment ago is near enough.
+
+The cost falls on the player who's hit: running off, out of reach on their own screen, they can
+still be hit where they were up to 200 milliseconds before, 0.62 metres behind them at a run. A
+client can always say it's the most behind, so a modified one gets that whatever its network, about
+100 milliseconds more than a client beside the server (`stale`, below). Over a round trip of 100
+milliseconds, a player has to lead a runner a little, as everyone did before. Why it's 200
+milliseconds, and duels only, is
+[decision 34](decisions/0034-duel-blows-are-checked-where-the-attacker-saw-the-target.md).
+
+To see it, put a delay on the server's packets with the `netem` service, start a duel, and have
+the other player run out of reach as a blow comes.
 
 ## What a modified client can try
 
 The client runs on the player's machine, so anything it sends can be made up. `nanommo_cheat` is
 the server's red-team client: a player without a window, who breaks the client's rules one way at a
 time and prints what it gets for it (`cheat/main.cc`). It runs beside the servers, with an account
-of its own: `nanommo_cheat <name> <password> <cheat>`, and for a trade, the partner it trades
-with, who runs `take`: `nanommo_cheat <name> <password> <cheat> <partner>`.
+of its own: `nanommo_cheat <name> <password> <cheat>`, and for a trade or a duel, the partner, who
+runs `take` for a trade, and for a duel says yes in their client, or runs `duel`:
+`nanommo_cheat <name> <password> <cheat> <partner>`.
 
 | Cheat | What it sends | What it gets |
 |---|---|---|
@@ -207,9 +241,10 @@ with, who runs `take`: `nanommo_cheat <name> <password> <cheat> <partner>`.
 | `swap` | Its sword offered from the bag, and once the partner's ready, a move of the sword to another slot, and its own ready | Nothing, from 0.75.0: a place that's offered is held until the trade's over, so the move is refused, and the partner gets the sword (`Trades.WhatsOfferedStaysWhereItIsUntilTheTradesOver`). The trade gives nothing unless each place still has what was offered (`Trades.AnItemMovedAfterItsOfferedIsntGivenTwice`). Before, the partner got the copy made at the offer, and the sword stayed too: three swords from two |
 | `run` | Its sword offered, and once the partner's ready, its own ready, and it leaves at once | Nothing, from 0.75.0: a trade saves both bags, together, as it's done, and a player who leaves is saved as they go, so it comes back without the sword (`ServerTest.ATradeAndALeaveLeaveOneSword`). Before, it left before the tick that would have saved its bag, and came back to the bag Redis had from before the trade: three swords from two |
 | `twice` | A hello to the world's second instance too, with a token of its own, each second for twenty seconds until it's let in, and its sword traded away on the first, which it leaves. On the second, which loaded its bag before the trade, a move of the sword into the bag | Nothing, from 0.79.0: a character plays on one instance at a time, the one that has their lease, so the second turns it away, and the trade goes as it should (`ServerTest.ACharacterPlaysOnOneInstanceAtATime`). Should the first stall for longer than a lease, the second can take it, and the first can't save it any more, and drops it (`ServerTest.AnInstanceDropsAPlayerWhoseLeaseItsLost`). Before, each instance saved it as it had it, and the second saved its bag from before the trade over the trade: three swords from two |
+| `stale` | In a duel, with each input, that its client drew everyone a second before its newest world, where a client says 100 milliseconds, to hit its opponent where they were a second ago | No more than 200 milliseconds back, from 0.82.0, which the server believes at most (`Inputs.AClaimFurtherBackThanTheMostIsTheMost`), so its blows land within reach of where its opponent was then, and not of where they were a second ago (`ServerTest.ADuelBlowLandsWhereTheClientDrewThemUpToTheMost`). It prints what it says, with how far off its opponent was then and is now, and each blow that lands. That's 100 milliseconds more than a client beside the server says, 0.31 metres on a runner |
 
-`walk`, `fight`, `swing` and `take` keep the rules, to compare with. Why the server checks
-everything is [decision 25](decisions/0025-the-server-checks-what-a-client-asks-for.md), how a
-trade is checked and saved, [decision 28](decisions/0028-a-trade-is-checked-against-the-bags-and-saved-as-one.md),
+`walk`, `fight`, `swing`, `take` and `duel` keep the rules, to compare with. Why the server
+checks everything is [decision 25](decisions/0025-the-server-checks-what-a-client-asks-for.md), how
+a trade is checked and saved, [decision 28](decisions/0028-a-trade-is-checked-against-the-bags-and-saved-as-one.md),
 and why a character plays on one instance at a time,
 [decision 31](decisions/0031-a-character-is-leased-to-one-instance-at-a-time.md).

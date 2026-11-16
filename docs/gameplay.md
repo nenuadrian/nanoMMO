@@ -370,6 +370,10 @@ and the one who asked hears that nobody answered.
   you up to them first, out of its reach, as it does to a monster. A skill that hits all around hits
   them too. Nobody else can be picked, so nobody else hits either of them, and neither hits anyone
   else. Monsters fight on as before.
+- Your screen draws your opponent a moment in the past, as it does everyone else, so your blows on
+  them are checked against where your screen had them, up to a fifth of a second back: a blow that
+  looked as if it would reach someone running off lands, and one that looked short of someone
+  coming closer misses ([Networking](networking.md#blows-where-the-attacker-saw-them)).
 - The blow that would leave a duellist no health leaves them one, and they've lost: nobody dies in a
   duel. A duellist who goes more than 25 metres from the flag, or dies, to a monster, loses too, and
   so does one who types `/duel yield`. Both hear who won, in the chat: "alice won the duel." and

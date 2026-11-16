@@ -7,6 +7,16 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.82.0 (2026-11-16)
+
+- Lag compensation for duels: a blow on a duel opponent is checked against where the attacker's
+  client drew them, a moment in the past, and not where they are as it lands, up to 200
+  milliseconds back. Each World keeps where its players have been for the last second
+  (`server/history.h`), and each numbered input says when its client was drawing everyone, as
+  `Input`'s `drawn`. Monsters are hit where they are.
+- `nanommo_cheat`'s `stale` says it drew its duel opponent a second before, and gets 200
+  milliseconds of it. `duel` says what a client does, to compare with.
+
 ## 0.81.0 (2026-11-16)
 
 - Duels: `/duel` and a name asks a player within ten metres, and `/duel yes`, or Duel on the
