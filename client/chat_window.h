@@ -22,6 +22,11 @@ std::optional<std::string> GuildLine(std::string_view typed);
 /// starts with /trade and a space, or nothing, for any other line.
 std::optional<std::string> TradeName(std::string_view typed);
 
+/// What a line typed in the chat does about a duel, when it starts with /duel
+/// and a space: yes or no to the one who asked, yield, or, with a name, asks
+/// that player. Nothing, for any other line.
+std::optional<protocol::DuelAction> DuelLine(std::string_view typed);
+
 /// What's said in the world, in the bottom left, over a field to type in,
 /// which Enter goes to. Its close button folds it into a button, which says
 /// how many lines have come since, and which, or Enter, opens it again.

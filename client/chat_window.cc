@@ -8,6 +8,7 @@
 #include <deque>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "client/theme.h"
 #include "extras/IconsFontAwesome6.h"
@@ -45,6 +46,25 @@ std::optional<std::string> TradeName(std::string_view typed) {
     return std::nullopt;
   }
   return std::string(typed.substr(kCommand.size()));
+}
+
+std::optional<protocol::DuelAction> DuelLine(std::string_view typed) {
+  constexpr std::string_view kCommand = "/duel ";
+  if (!typed.starts_with(kCommand)) {
+    return std::nullopt;
+  }
+  const std::string_view what = typed.substr(kCommand.size());
+  protocol::DuelAction action;
+  if (what == "yes") {
+    action.set_accept(true);
+  } else if (what == "no") {
+    action.set_decline(true);
+  } else if (what == "yield") {
+    action.set_yield(true);
+  } else {
+    action.set_ask(std::string(what));
+  }
+  return action;
 }
 
 std::size_t ChatWindow::Unread(const std::deque<protocol::Chat>& lines,

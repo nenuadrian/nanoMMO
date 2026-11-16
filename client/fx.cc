@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "client/glsl.h"
+#include "client/picking.h"
 #include "client/triangles.h"
 
 namespace nanommo {
@@ -217,7 +218,7 @@ void Fx::Update(const std::vector<Figure>& figures, float seconds) {
     // A monster the skill kills is let go of, so the cast keeps where it
     // fell, and the rest of its fx still land there.
     for (const Figure& other : figures) {
-      if (other.monster && other.id == figure.target && figure.target != 0) {
+      if (Picked(other, figure.target, figure.target_player)) {
         cast.target = other.position;
       }
     }

@@ -18,7 +18,9 @@ TEST(Inbox, FilesEachKindOfMessageWhereTheGameReadsIt) {
   events.add_events();
   protocol::World move;
   move.mutable_move()->set_port(7778);
-  for (const protocol::World& message : {chat, bag, events, move}) {
+  protocol::World duel;
+  duel.mutable_duel()->set_opponent("bob");
+  for (const protocol::World& message : {chat, bag, events, move, duel}) {
     ASSERT_TRUE(inbox.Take(message.SerializeAsString()).ok());
   }
   ASSERT_EQ(inbox.chat().size(), 1u);
@@ -29,6 +31,7 @@ TEST(Inbox, FilesEachKindOfMessageWhereTheGameReadsIt) {
   EXPECT_TRUE(inbox.TakeEvents().empty());
   ASSERT_TRUE(inbox.move().has_value());
   EXPECT_EQ(inbox.move()->port(), 7778u);
+  EXPECT_EQ(inbox.duel().opponent(), "bob");
 }
 
 TEST(Inbox, RefusesWhatIsntAMessage) {

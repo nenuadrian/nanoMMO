@@ -96,15 +96,22 @@ class Renderer {
     reactions_.Hit(monster, player);
   }
 
-  /// The monster the player picked, by its id, which gets a ring at its feet,
-  /// or 0 for none.
-  void set_target(uint32_t target) { target_ = target; }
+  /// The monster the player picked, by its id, or in a duel, the player, by
+  /// theirs, which gets a ring at its feet, or 0 for none.
+  void set_target(uint32_t target, uint32_t player = 0) {
+    target_ = target;
+    target_player_ = player;
+  }
 
   /// Where the player's walking to by themselves, which gets a ring of its
   /// own, if they are.
   void set_destination(std::optional<Vector3> destination) {
     destination_ = destination;
   }
+
+  /// Where a duel's flag is, while there's one: a pole, with a ring at its
+  /// foot, and a ring as far out as the duellists can go.
+  void set_flag(std::optional<Vector3> flag) { flag_ = flag; }
 
   /// How far the fog has lifted, as Loading::clear says: from 0, where it
   /// hides all but what's nearest, to 1, the atmosphere's own.
@@ -121,7 +128,9 @@ class Renderer {
   std::vector<Cube> cubes_;
   std::vector<Figure> figures_;
   uint32_t target_ = 0;
+  uint32_t target_player_ = 0;
   std::optional<Vector3> destination_;
+  std::optional<Vector3> flag_;
   float clear_ = 1.0f;
   /// The seconds Animate has moved the world on by, which the sea's waves and
   /// the clouds go by.

@@ -3,6 +3,7 @@
 #include <raymath.h>
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <optional>
 #include <vector>
@@ -59,10 +60,19 @@ const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray,
   });
 }
 
-const Figure* PickMonster(const std::vector<Figure>& figures, const Ray& ray) {
-  return Pick(figures, ray, [](const Figure& figure) {
-    return figure.monster && figure.to != protocol::MOTION_DEAD;
+const Figure* PickMonster(const std::vector<Figure>& figures, const Ray& ray,
+                          uint32_t opponent) {
+  return Pick(figures, ray, [opponent](const Figure& figure) {
+    return (figure.monster || Picked(figure, 0, opponent)) &&
+           figure.to != protocol::MOTION_DEAD;
   });
+}
+
+bool Picked(const Figure& figure, uint32_t target, uint32_t target_player) {
+  if (figure.monster) {
+    return target != 0 && figure.id == target;
+  }
+  return !figure.npc && target_player != 0 && figure.id == target_player;
 }
 
 std::optional<Vector3> PickGround(const Terrain& terrain, const Ray& ray) {

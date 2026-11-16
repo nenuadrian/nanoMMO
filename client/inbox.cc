@@ -19,8 +19,8 @@ absl::Status Inbox::Take(std::string_view message) {
   if (!world.ParseFromArray(message.data(), static_cast<int>(message.size()))) {
     return absl::DataLossError("couldn't read the server's message");
   }
-  // Chat, moves, our bag, our quests, our guild, our trade and the events
-  // come on their own, with nothing of the world in them.
+  // Chat, moves, our bag, our quests, our guild, our trade, our duel and the
+  // events come on their own, with nothing of the world in them.
   if (world.has_move()) {
     move_ = world.move();
   } else if (world.has_inventory()) {
@@ -31,6 +31,8 @@ absl::Status Inbox::Take(std::string_view message) {
     guild_ = world.guild();
   } else if (world.has_trade()) {
     trade_ = world.trade();
+  } else if (world.has_duel()) {
+    duel_ = world.duel();
   } else if (world.has_invite()) {
     invite_ = world.invite();
   } else if (!world.events().empty()) {

@@ -15,9 +15,9 @@ namespace nanommo {
 
 /// What a world server has sent us, filed by kind, for the game to read each
 /// frame: the world, put together from its parts, and the chat, our bag, our
-/// quests, our guild, our trade, the moves and the events, which each come
-/// on their own. Whatever carries the messages, a socket on a computer or a
-/// WebSocket in a browser, hands them to one of these.
+/// quests, our guild, our trade, our duel, the moves and the events, which
+/// each come on their own. Whatever carries the messages, a socket on a
+/// computer or a WebSocket in a browser, hands them to one of these.
 class Inbox {
  public:
   /// Files one of the server's messages, or returns why it isn't one.
@@ -35,6 +35,7 @@ class Inbox {
   const protocol::Quests& quests() const { return quests_; }
   const protocol::Guild& guild() const { return guild_; }
   const protocol::Trade& trade() const { return trade_; }
+  const protocol::Duel& duel() const { return duel_; }
 
   /// The events since the last time, oldest first, handed over once.
   std::vector<protocol::Event> TakeEvents();
@@ -50,6 +51,7 @@ class Inbox {
   protocol::Quests quests_;
   protocol::Guild guild_;
   protocol::Trade trade_;
+  protocol::Duel duel_;
   std::optional<protocol::GuildInvite> invite_;
   std::vector<protocol::Event> events_;
 };

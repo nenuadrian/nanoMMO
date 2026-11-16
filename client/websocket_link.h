@@ -92,6 +92,7 @@ class WebSocketLink final : public Link {
   const protocol::Quests& quests() const override { return inbox_.quests(); }
   const protocol::Guild& guild() const override { return inbox_.guild(); }
   const protocol::Trade& trade() const override { return inbox_.trade(); }
+  const protocol::Duel& duel() const override { return inbox_.duel(); }
   std::vector<protocol::Event> TakeEvents() override {
     return inbox_.TakeEvents();
   }

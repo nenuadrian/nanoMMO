@@ -26,6 +26,7 @@
 #include "client/compass.h"
 #include "client/cursor.h"
 #include "client/death_screen.h"
+#include "client/duel_window.h"
 #include "client/foley.h"
 #include "client/gate.h"
 #include "client/gui.h"
@@ -155,6 +156,7 @@ int main(int argc, char* argv[]) {
   nanommo::BagWindow bag_window(content->items);
   nanommo::GuildWindow guild_window;
   nanommo::TradeWindow trade_window(content->items);
+  nanommo::DuelWindow duel_window;
   nanommo::ChatWindow chat_window;
   nanommo::TalkWindow talk_window;
   nanommo::TrainerWindow trainer_window(content->skills);
@@ -198,8 +200,9 @@ int main(int argc, char* argv[]) {
   int64_t corrected_at = 0;
   Vector3 keys{0.0f, 0.0f, 0.0f};
   bool keys_run = false;
-  // The monster the player picked, by its id.
+  // The monster the player picked, by its id, or in a duel, the player.
   uint32_t target = 0;
+  uint32_t target_player = 0;
   // Where we asked to walk to by ourselves, and for how long we have.
   std::optional<Vector3> destination;
   float walking_for = 0.0f;
@@ -228,6 +231,7 @@ int main(int argc, char* argv[]) {
       entering.reset();
       sent.Clear();
       target = 0;
+      target_player = 0;
       nearby = 0;
       // So that the land is built again, behind the loading screen.
       terrain.reset();
@@ -283,6 +287,7 @@ int main(int argc, char* argv[]) {
       sent.set_run(run);
       sent.set_attack(attack);
       sent.set_target(target);
+      sent.set_target_player(target_player);
       // The keys go once each of the server's ticks, numbered, so that it
       // applies them in order, a tick each, and says which it's applied. A
       // slow frame sends three at most, as many as the server lets wait.
@@ -335,8 +340,9 @@ int main(int argc, char* argv[]) {
         land_map.Build(*terrain, land);
         std::cout << "nanommo client: in the " << nanommo::kLands[land].name
                   << '\n';
-        // The monster we picked, and where we walked to, were the last land's.
+        // What we picked, and where we walked to, were the last land's.
         target = 0;
+        target_player = 0;
         destination.reset();
         loading.Lift();
       } else if (!arrived || new_land) {
@@ -423,6 +429,14 @@ int main(int argc, char* argv[]) {
           })) {
         target = 0;
       }
+      // And the player, while we're duelling them.
+      const nanommo::protocol::Duel& duel = connection->duel();
+      const uint32_t opponent = duel.state() == nanommo::protocol::DUEL_FIGHTING
+                                    ? duel.opponent_id()
+                                    : 0;
+      if (target_player != opponent) {
+        target_player = 0;
+      }
       renderer.set_figures(std::move(figures));
       renderer.Animate(GetFrameTime());
       // We hear from where we stand, with the camera's right to our right.
@@ -445,21 +459,23 @@ int main(int argc, char* argv[]) {
                            nanommo::Hear(at, here, right));
         }
         for (const nanommo::Figure& figure : casts.Update(renderer.figures())) {
-          soundboard->Skill(figure.to_skill, figure.target != 0,
+          soundboard->Skill(figure.to_skill,
+                            figure.target != 0 || figure.target_player != 0,
                             nanommo::Hear(figure.position, here, right));
         }
       }
-      // A click on someone to talk to opens their window, one on a monster
-      // picks it, and one on neither lets go of what we'd picked. The cursor
-      // says which a click would do.
+      // A click on someone to talk to opens their window, one on a monster,
+      // or in a duel on our opponent, picks it, and one on neither lets go of
+      // what we'd picked. The cursor says which a click would do.
       if (!ImGui::GetIO().WantCaptureMouse && !dead) {
         const Ray ray =
             GetScreenToWorldRay(GetMousePosition(), camera.camera());
         const nanommo::Figure* npc =
             nanommo::PickNpc(renderer.figures(), ray, here);
         const nanommo::Figure* monster =
-            npc == nullptr ? nanommo::PickMonster(renderer.figures(), ray)
-                           : nullptr;
+            npc == nullptr
+                ? nanommo::PickMonster(renderer.figures(), ray, opponent)
+                : nullptr;
         if (npc != nullptr) {
           pointing = nanommo::Pointing::kNpc;
         } else if (monster != nullptr) {
@@ -467,7 +483,9 @@ int main(int argc, char* argv[]) {
         }
         if (nanommo::ClickedWorld()) {
           if (npc == nullptr) {
-            target = monster != nullptr ? monster->id : 0;
+            const bool player = monster != nullptr && !monster->monster;
+            target = monster != nullptr && !player ? monster->id : 0;
+            target_player = player ? monster->id : 0;
           } else if (npc->talks) {
             talk_window.Open(npc->id, npc->name);
           } else if (!npc->quests.empty()) {
@@ -506,8 +524,9 @@ int main(int argc, char* argv[]) {
           guild_window.Toggle();
         } else if (*character_screen.mutable_visible()) {
           character_screen.Toggle();
-        } else if (target != 0) {
+        } else if (target != 0 || target_player != 0) {
           target = 0;
+          target_player = 0;
         } else {
           menu.Toggle();
         }
@@ -515,8 +534,16 @@ int main(int argc, char* argv[]) {
       if (IsKeyPressed(KEY_M) && !nanommo::Typing()) {
         map_open = !map_open;
       }
-      renderer.set_target(target);
+      renderer.set_target(target, target_player);
       renderer.set_destination(destination);
+      // A duel's flag, from its countdown on.
+      std::optional<Vector3> flag;
+      if (duel.has_flag()) {
+        const float x = duel.flag().x();
+        const float z = duel.flag().z();
+        flag = Vector3{x, terrain->Height(x, z), z};
+      }
+      renderer.set_flag(flag);
       if (IsKeyPressed(KEY_C) && !nanommo::Typing()) {
         character_screen.Toggle();
       }
@@ -566,9 +593,9 @@ int main(int argc, char* argv[]) {
           nanommo::Heading(renderer.camera()),
           nanommo::CompassMarks(renderer.figures(), land, target, destination));
       player_frame.Draw(renderer.figures(), connection->world());
-      nanommo::DrawTargetFrame(renderer.figures(), target);
-      if (const std::optional<uint32_t> skill =
-              hotbar.Build(renderer.figures(), connection->world(), target)) {
+      nanommo::DrawTargetFrame(renderer.figures(), target, target_player);
+      if (const std::optional<uint32_t> skill = hotbar.Build(
+              renderer.figures(), connection->world(), target, target_player)) {
         nanommo::protocol::Input use = sent;
         use.set_skill(*skill);
         connection->Send(use);
@@ -603,6 +630,9 @@ int main(int argc, char* argv[]) {
         } else if (const std::optional<std::string> trader =
                        nanommo::TradeName(*line)) {
           say.mutable_trade()->set_ask(*trader);
+        } else if (std::optional<nanommo::protocol::DuelAction> duel =
+                       nanommo::DuelLine(*line)) {
+          *say.mutable_duel() = *std::move(duel);
         } else {
           say.set_say(*line);
         }
@@ -664,6 +694,12 @@ int main(int argc, char* argv[]) {
               trade_window.Build(connection->trade())) {
         nanommo::protocol::Input ask = sent;
         *ask.mutable_trade() = *trade;
+        connection->Send(ask);
+      }
+      if (const std::optional<nanommo::protocol::DuelAction> answer =
+              duel_window.Build(connection->duel())) {
+        nanommo::protocol::Input ask = sent;
+        *ask.mutable_duel() = *answer;
         connection->Send(ask);
       }
       menu.BuildButtons(character_screen.mutable_visible(),

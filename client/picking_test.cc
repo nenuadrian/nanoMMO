@@ -65,6 +65,29 @@ TEST(Picking, PicksTheNearestLivingMonster) {
   EXPECT_EQ(nanommo::PickMonster(figures, ahead)->id, 2u);
 }
 
+TEST(Picking, PicksTheOpponentInADuelAsAMonster) {
+  // Two players ahead, and a monster with the further one's id, as players and
+  // monsters have ids of their own.
+  std::vector<nanommo::Figure> figures(3);
+  figures[0].id = 7;
+  figures[0].position = {0.0f, 0.0f, -4.0f};
+  figures[1].id = 8;
+  figures[1].position = {0.0f, 0.0f, -6.0f};
+  figures[2].id = 8;
+  figures[2].monster = true;
+  figures[2].to = nanommo::protocol::MOTION_DEAD;
+  const Ray ahead{.position = {0.0f, 0.5f, 0.0f},
+                  .direction = {0.0f, 0.0f, -1.0f}};
+
+  // Out of a duel, a player isn't picked, and in one, the opponent alone is.
+  EXPECT_EQ(nanommo::PickMonster(figures, ahead), nullptr);
+  ASSERT_NE(nanommo::PickMonster(figures, ahead, 8), nullptr);
+  EXPECT_EQ(nanommo::PickMonster(figures, ahead, 8), &figures[1]);
+  EXPECT_TRUE(nanommo::Picked(figures[1], 0, 8));
+  EXPECT_FALSE(nanommo::Picked(figures[2], 0, 8));
+  EXPECT_TRUE(nanommo::Picked(figures[2], 8, 0));
+}
+
 TEST(Picking, PicksOnlyNpcsNearEnoughToTalkTo) {
   const std::vector<nanommo::Figure> figures = {Npc(1, -10.0f, true)};
   const Ray ahead{.position = {0.0f, 0.5f, 0.0f},

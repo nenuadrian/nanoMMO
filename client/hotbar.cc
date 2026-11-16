@@ -17,6 +17,7 @@
 
 #include "client/icon.h"
 #include "client/input.h"
+#include "client/picking.h"
 #include "client/theme.h"
 
 namespace nanommo {
@@ -136,14 +137,14 @@ bool Hotbar::TakeRearranged() { return std::exchange(rearranged_, false); }
 
 std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
                                       const protocol::World& world,
-                                      uint32_t target) {
+                                      uint32_t target, uint32_t target_player) {
   const auto you = std::ranges::find_if(figures, &Figure::you);
   // Our level comes with our name, once a second, so the bar waits for it.
   if (you == figures.end() || you->level == 0 || slots_.empty()) {
     return std::nullopt;
   }
-  const bool picked = std::ranges::any_of(figures, [target](const Figure& f) {
-    return f.monster && f.id == target && f.to != protocol::MOTION_DEAD;
+  const bool picked = std::ranges::any_of(figures, [&](const Figure& f) {
+    return Picked(f, target, target_player) && f.to != protocol::MOTION_DEAD;
   });
   const float slot_size = Ui(kSlot);
   const float gap = Ui(kGap);

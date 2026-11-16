@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "client/picking.h"
 #include "client/theme.h"
 #include "extras/IconsFontAwesome6.h"
 
@@ -158,11 +159,12 @@ void PlayerFrame::Draw(const std::vector<Figure>& figures,
   ImGui::End();
 }
 
-void DrawTargetFrame(const std::vector<Figure>& figures, uint32_t target) {
-  const auto picked = std::ranges::find_if(figures, [target](const Figure& f) {
-    return f.monster && f.id == target;
+void DrawTargetFrame(const std::vector<Figure>& figures, uint32_t target,
+                     uint32_t target_player) {
+  const auto picked = std::ranges::find_if(figures, [&](const Figure& f) {
+    return Picked(f, target, target_player);
   });
-  if (target == 0 || picked == figures.end() || picked->name.empty()) {
+  if (picked == figures.end() || picked->name.empty()) {
     return;
   }
   const float radius = Ui(26.0f);
@@ -182,12 +184,13 @@ void DrawTargetFrame(const std::vector<Figure>& figures, uint32_t target) {
   DrawRing(draw, centre, radius);
   ImFont* text = GetFonts().text;
   const float icon = Ui(22.0f);
-  const ImVec2 icon_extent =
-      text->CalcTextSizeA(icon, FLT_MAX, 0.0f, ICON_FA_SKULL);
+  // A skull for a monster, and someone for the player you're duelling.
+  const char* glyph = picked->monster ? ICON_FA_SKULL : ICON_FA_USER;
+  const ImVec2 icon_extent = text->CalcTextSizeA(icon, FLT_MAX, 0.0f, glyph);
   DrawShadowedText(
       draw, text, icon,
       {centre.x - icon_extent.x / 2.0f, centre.y - icon_extent.y / 2.0f},
-      colors::kGoldLight, ICON_FA_SKULL);
+      colors::kGoldLight, glyph);
 
   const float inner = centre.x + radius + Ui(10.0f);
   const float right = plate_max.x - Ui(16.0f);

@@ -37,6 +37,7 @@ class LocalConnection final : public Link {
   const protocol::Quests& quests() const override { return quests_; }
   const protocol::Guild& guild() const override { return guild_; }
   const protocol::Trade& trade() const override { return trade_; }
+  const protocol::Duel& duel() const override { return duel_; }
   std::vector<protocol::Event> TakeEvents() override;
   std::optional<protocol::GuildInvite> TakeInvite() override;
 
@@ -65,6 +66,7 @@ class LocalConnection final : public Link {
   protocol::Quests quests_;
   protocol::Guild guild_;
   protocol::Trade trade_;
+  protocol::Duel duel_;
   std::vector<protocol::Event> events_;
 };
 

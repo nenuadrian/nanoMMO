@@ -1,5 +1,7 @@
 #include "client/chat_window.h"
 
+#include <string_view>
+
 #include "gtest/gtest.h"
 
 TEST(ChatWindow, SendsALineThatStartsWithSlashGToTheGuild) {
@@ -14,4 +16,16 @@ TEST(ChatWindow, AsksToTradeWithThePlayerNamedAfterSlashTrade) {
   EXPECT_EQ(nanommo::TradeName("/trade bob"), "bob");
   EXPECT_EQ(nanommo::TradeName("trade bob"), std::nullopt);
   EXPECT_EQ(nanommo::TradeName("/trader"), std::nullopt);
+}
+
+TEST(ChatWindow, AsksToDuelOrAnswersAfterSlashDuel) {
+  const auto duel = [](std::string_view typed) {
+    return nanommo::DuelLine(typed).value_or(nanommo::protocol::DuelAction());
+  };
+  EXPECT_EQ(duel("/duel bob").ask(), "bob");
+  EXPECT_TRUE(duel("/duel yes").accept());
+  EXPECT_TRUE(duel("/duel no").decline());
+  EXPECT_TRUE(duel("/duel yield").yield());
+  EXPECT_FALSE(nanommo::DuelLine("duel bob").has_value());
+  EXPECT_FALSE(nanommo::DuelLine("/duelling").has_value());
 }

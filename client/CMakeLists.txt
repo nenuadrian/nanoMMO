@@ -5,7 +5,7 @@ add_library(nanommo_client_core
   offscreen.cc postprocess.cc outline.cc
   camera.cc scene.cc input.cc glsl.cc local_connection.cc inbox.cc
   login_screen.cc nameplates.cc combat_text.cc player_frame.cc hotbar.cc
-  bag_window.cc guild_window.cc trade_window.cc round_trip.cc prediction.cc
+  bag_window.cc guild_window.cc trade_window.cc duel_window.cc round_trip.cc prediction.cc
   interpolation.cc
   character_screen.cc
   chat_window.cc talk_window.cc trainer_window.cc quest_window.cc picking.cc
@@ -108,7 +108,7 @@ add_executable(nanommo_client_tests
   login_screen_test.cc
   loading_test.cc death_screen_test.cc gate_test.cc map_test.cc
   theme_test.cc compass_test.cc predicted_bag_test.cc chat_window_test.cc
-  trade_window_test.cc inbox_test.cc
+  trade_window_test.cc duel_window_test.cc inbox_test.cc
   round_trip_test.cc prediction_test.cc interpolation_test.cc
 )
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)

@@ -105,6 +105,9 @@ void LocalConnection::Send(const protocol::Input& input) {
   if (input.has_trade()) {
     Notify("A trade takes another player, and there's nobody else offline.");
   }
+  if (input.has_duel()) {
+    Notify("A duel takes another player, and there's nobody else offline.");
+  }
 }
 
 std::vector<protocol::Event> LocalConnection::TakeEvents() {

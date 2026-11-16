@@ -31,9 +31,11 @@ class PlayerFrame {
   bool rendered_ = false;
 };
 
-/// The monster you picked, by its id, its name, level and health, at the top
-/// in the middle, under the compass, while there's one.
-void DrawTargetFrame(const std::vector<Figure>& figures, uint32_t target);
+/// The monster you picked, by its id, or in a duel, the player, by theirs:
+/// its name, level and health, at the top in the middle, under the compass,
+/// while there's one.
+void DrawTargetFrame(const std::vector<Figure>& figures, uint32_t target,
+                     uint32_t target_player = 0);
 
 }  // namespace nanommo
 

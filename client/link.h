@@ -42,6 +42,8 @@ class Link {
   virtual const protocol::Guild& guild() const = 0;
   /// Our trade, with nobody in it for none.
   virtual const protocol::Trade& trade() const = 0;
+  /// Our duel, the same.
+  virtual const protocol::Duel& duel() const = 0;
 
   /// What happened near us since the last time, oldest first, which it hands
   /// over, as each event comes once.

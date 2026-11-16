@@ -47,8 +47,10 @@ struct Figure {
   uint32_t weapon = 0;
   /// What else a player wears, by its ids in the items file.
   std::vector<uint32_t> wearing;
-  /// While a player uses a skill, the monster they picked, by its id.
+  /// While a player uses a skill, the monster they picked, by its id, or in
+  /// a duel, the player.
   uint32_t target = 0;
+  uint32_t target_player = 0;
   Vector3 position{0.0f, 0.0f, 0.0f};
   float yaw = 0.0f;
   /// How high a blow's thrown it, in metres off the ground.

@@ -3,6 +3,7 @@
 
 #include <raylib.h>
 
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -17,8 +18,15 @@ namespace nanommo {
 const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray,
                       Vector3 you);
 
-/// The nearest living monster along the ray, or nullptr if there's none.
-const Figure* PickMonster(const std::vector<Figure>& figures, const Ray& ray);
+/// The nearest living monster along the ray, or in a duel, the opponent, by
+/// their id, whom the player picks as they would a monster. Or nullptr, if
+/// there's neither.
+const Figure* PickMonster(const std::vector<Figure>& figures, const Ray& ray,
+                          uint32_t opponent = 0);
+
+/// Whether the figure is the one the player picked: the monster, by its id,
+/// or in a duel, the player, by theirs, as each has ids of their own.
+bool Picked(const Figure& figure, uint32_t target, uint32_t target_player);
 
 /// Where the ray first meets the ground, if it does within the farthest
 /// anyone sees, such as the spot under the mouse.

@@ -11,8 +11,10 @@
 #include <vector>
 
 #include "client/glsl.h"
+#include "client/picking.h"
 #include "client/scene.h"
 #include "client/sky.h"
+#include "server/duels.h"
 
 namespace nanommo {
 
@@ -200,6 +202,11 @@ constexpr float kRingOuter = 0.68f;
 constexpr Color kRing = {235, 90, 75, 220};
 // Where the player's walking to.
 constexpr Color kDestination = {255, 255, 255, 200};
+// A duel's flag, in gold, a pole a little taller than a player, and its
+// furthest ring fainter, as it's there to be seen from inside.
+constexpr Color kFlag = {255, 211, 77, 230};
+constexpr Color kFlagEdge = {255, 211, 77, 110};
+constexpr Vector3 kPole{0.12f, 2.4f, 0.12f};
 constexpr unsigned char kShadowDarkness = 82;
 
 // Nothing casts a shadow, so each figure gets a soft dark patch under it,
@@ -232,12 +239,13 @@ void DrawShadow(const Terrain& terrain, Vector3 at, float radius) {
   rlEnd();
 }
 
-// A ring at a figure's feet, which lies on a slope as a shadow does.
+// A ring at a figure's feet, which lies on a slope as a shadow does. A wide
+// one has more sides, a metre or so long, so that it follows the ground.
 void DrawRing(const Terrain& terrain, Vector3 at, float inner, float outer,
               Color color) {
-  constexpr int kSides = 32;
+  const int sides = std::max(32, static_cast<int>(outer * 2.0f * PI));
   auto corner = [&](float distance, int i) {
-    const float turn = 2.0f * PI * i / kSides;
+    const float turn = 2.0f * PI * i / sides;
     const float x = at.x + distance * std::cos(turn);
     const float z = at.z + distance * std::sin(turn);
     rlColor4ub(color.r, color.g, color.b, color.a);
@@ -245,7 +253,7 @@ void DrawRing(const Terrain& terrain, Vector3 at, float inner, float outer,
     rlVertex3f(x, terrain.Height(x, z) + 0.04f, z);
   };
   rlBegin(RL_TRIANGLES);
-  for (int i = 0; i < kSides; ++i) {
+  for (int i = 0; i < sides; ++i) {
     corner(inner, i);
     corner(outer, i + 1);
     corner(outer, i);
@@ -416,6 +424,10 @@ void Renderer::Draw() const {
     DrawModelEx(model, cube.position, {0.0f, 1.0f, 0.0f}, 0.0f, cube.size,
                 cube.color);
   }
+  if (flag_) {
+    DrawModelEx(spire_, {flag_->x, flag_->y + kPole.y / 2.0f, flag_->z},
+                {0.0f, 1.0f, 0.0f}, 0.0f, kPole, kFlag);
+  }
   for (const Figure& figure : figures_) {
     DrawFigure(figure);
   }
@@ -433,13 +445,18 @@ void Renderer::Draw() const {
     // After all the shadows, so that none of them, such as a player's
     // beside the monster, darkens the ring.
     for (const Figure& figure : figures_) {
-      if (figure.monster && figure.id == target_ && target_ != 0) {
+      if (Picked(figure, target_, target_player_)) {
         DrawRing(*terrain_, figure.position, kRingInner, kRingOuter, kRing);
       }
     }
     if (destination_) {
       DrawRing(*terrain_, *destination_, kRingInner * 0.6f, kRingOuter * 0.6f,
                kDestination);
+    }
+    if (flag_) {
+      DrawRing(*terrain_, *flag_, kRingInner, kRingOuter, kFlag);
+      DrawRing(*terrain_, *flag_, Duels::kFlagReach - 0.2f, Duels::kFlagReach,
+               kFlagEdge);
     }
     EndBlendMode();
     rlEnableDepthMask();
