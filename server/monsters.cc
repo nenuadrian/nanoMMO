@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <map>
@@ -98,7 +99,10 @@ Monster MonsterOf(const monsters::Kind& kind, float x, float z) {
           .leash = fight.leash(),
           .wander = fight.wander(),
           .skills = {kind.skills().begin(), kind.skills().end()},
-          .phases = {kind.phases().begin(), kind.phases().end()}};
+          .phases = {kind.phases().begin(), kind.phases().end()},
+          .respawn_time = kind.respawn_ms() > 0
+                              ? std::chrono::milliseconds(kind.respawn_ms())
+                              : World::kRespawnTime};
 }
 
 void SpawnMonsters(World& land, int index, const MonsterTable& table) {

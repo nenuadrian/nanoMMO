@@ -108,6 +108,7 @@ kinds {
   level: 10
   max_health: 6000
   experience: 800
+  respawn_ms: 120000
   fight {
     damage: 18
     swing_ms: 1600

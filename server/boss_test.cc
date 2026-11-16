@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <ranges>
+#include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "server/monsters.h"
@@ -24,7 +26,7 @@ void RunOneSecond(nanommo::World& world) {
 // The tests' boss: a hundred health, a slam all round it and a sweep in front
 // of it, each from a metre and a half, in three phases, from full health, from
 // 60 and from 30: the slam alone, then the sweep alone, calling up two
-// skeletons, and then both, calling up three more.
+// skeletons, and then both, calling up three more. It always drops two bones.
 nanommo::MonsterTable Monsters() {
   return *nanommo::ParseMonsters(R"pb(
     kinds {
@@ -42,6 +44,7 @@ nanommo::MonsterTable Monsters() {
         leash: 5
         wander: 1
       }
+      loot { item: 3 chance: 1 min: 2 max: 2 }
       skills {
         id: 1
         name: "Slam"
@@ -122,6 +125,17 @@ void Smite(nanommo::World& world, uint32_t player, int times = 1) {
 std::ptrdiff_t AddsOf(const nanommo::World& world, uint32_t boss) {
   return std::ranges::count(world.monsters() | std::views::values, boss,
                             &nanommo::Monster::called_by);
+}
+
+// The lines the player's heard since the last time, among everyone's.
+std::vector<std::string> Heard(nanommo::World& world, uint32_t player) {
+  std::vector<std::string> heard;
+  for (const nanommo::Notice& notice : world.TakeNotices()) {
+    if (notice.player == player) {
+      heard.push_back(notice.text);
+    }
+  }
+  return heard;
 }
 
 }  // namespace
@@ -304,4 +318,104 @@ TEST(World, TheBossesAddsFallWithItAndDontComeBack) {
   }
   EXPECT_NE(colossus.motion, nanommo::Motion::kDead);
   EXPECT_EQ(AddsOf(world, id), 0);
+}
+
+TEST(World, EveryoneWhoHelpedGetsALootRoll) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Gear(), Smite(), Monsters()));
+  world.Join(1, {.name = "alice", .x = 4.5f, .skills = {1}});
+  world.Join(2, {.name = "bob", .x = -4.5f, .skills = {1}});
+  world.Join(3, {.name = "carol", .z = 4.5f, .skills = {1}});
+  // Near it, and not hitting it.
+  world.Join(4, {.name = "dave", .z = -4.5f});
+  const uint32_t id = world.Spawn(nanommo::MonsterOf(Colossus(), 0.0f, 0.0f));
+  for (const uint32_t player : {1u, 2u, 3u}) {
+    world.Pick(player, id);
+  }
+
+  // Carol lands the last blow, and alice took the most.
+  Smite(world, 1, 4);
+  Smite(world, 2, 3);
+  Smite(world, 3, 3);
+  ASSERT_EQ(world.monsters().at(id).motion, nanommo::Motion::kDead);
+
+  // Each of them gets its experience, and two bones, as each rolls its loot.
+  for (const uint32_t player : {1u, 2u, 3u}) {
+    const nanommo::Player& helper = world.players().at(player);
+    EXPECT_EQ(helper.experience, 500u);
+    const nanommo::items::Stack* bones = helper.inventory.At(nanommo::InBag(1));
+    ASSERT_NE(bones, nullptr);
+    EXPECT_EQ(bones->item(), 3u);
+    EXPECT_EQ(bones->count(), 2u);
+  }
+  EXPECT_EQ(world.players().at(4).experience, 0u);
+  EXPECT_EQ(world.players().at(4).inventory.At(nanommo::InBag(1)), nullptr);
+}
+
+TEST(World, ALittleHelpIsntEnough) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Gear(), Smite(), Monsters()));
+  // At level 19, a smite takes a hundred.
+  world.Join(1,
+             {.name = "alice", .x = 4.5f, .experience = 17100, .skills = {1}});
+  world.Join(2, {.name = "bob", .x = -4.5f, .skills = {1}});
+  world.Join(3, {.name = "carol", .z = 4.5f, .skills = {1}});
+  nanommo::Monster tougher = nanommo::MonsterOf(Colossus(), 0.0f, 0.0f);
+  tougher.max_health = 1000;
+  const uint32_t id = world.Spawn(tougher);
+  const nanommo::Monster& colossus = world.monsters().at(id);
+  for (const uint32_t player : {1u, 2u, 3u}) {
+    world.Pick(player, id);
+  }
+
+  // Bob takes 4% of its health, carol 5%, and alice the rest.
+  Smite(world, 2, 4);
+  Smite(world, 3, 5);
+  Smite(world, 1, 10);
+  ASSERT_EQ(colossus.motion, nanommo::Motion::kDead);
+  EXPECT_EQ(colossus.threat.at(1), 910);
+  EXPECT_EQ(colossus.threat.at(2), 40);
+  EXPECT_EQ(colossus.threat.at(3), 50);
+
+  // Bob gets nothing, and carol as much as alice.
+  EXPECT_EQ(world.players().at(2).experience, 0u);
+  EXPECT_EQ(world.players().at(2).inventory.At(nanommo::InBag(1)), nullptr);
+  EXPECT_EQ(world.players().at(3).experience, 500u);
+  EXPECT_NE(world.players().at(3).inventory.At(nanommo::InBag(1)), nullptr);
+  EXPECT_EQ(world.players().at(1).experience, 17100u + 500u);
+}
+
+TEST(World, TheLandHearsTheBossFallAndRiseAgain) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Gear(), Smite(), Monsters()));
+  world.Join(1,
+             {.name = "alice", .x = 4.5f, .experience = 17100, .skills = {1}});
+  world.Join(2, {.name = "bob", .x = -4.5f});
+  nanommo::Monster colossus = nanommo::MonsterOf(Colossus(), 0.0f, 0.0f);
+  colossus.respawn_time = std::chrono::seconds(40);
+  const uint32_t id = world.Spawn(colossus);
+  world.Pick(1, id);
+
+  // Alice takes it all in one blow, and everyone hears.
+  Smite(world, 1);
+  ASSERT_EQ(world.monsters().at(id).motion, nanommo::Motion::kDead);
+  EXPECT_EQ(Heard(world, 2),
+            std::vector<std::string>{"The Colossus has fallen to alice. It "
+                                     "rises again in 40 seconds."});
+
+  // Thirty seconds before it's back, and as it is.
+  for (int second = 0; second < 10; ++second) {
+    RunOneSecond(world);
+  }
+  EXPECT_EQ(Heard(world, 2), std::vector<std::string>{
+                                 "The Colossus rises again in 30 seconds."});
+  for (int second = 0; second < 30; ++second) {
+    RunOneSecond(world);
+  }
+  EXPECT_NE(world.monsters().at(id).motion, nanommo::Motion::kDead);
+  EXPECT_EQ(Heard(world, 2),
+            std::vector<std::string>{"The Colossus has risen."});
 }

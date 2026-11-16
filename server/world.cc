@@ -1,6 +1,7 @@
 #include "server/world.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <iterator>
@@ -143,15 +144,28 @@ int MaxHealthOf(const Player& player) {
 namespace {
 
 // Adds to the player's experience, and heals them fully as they reach a new
-// level. Returns whether they did.
+// level. Returns whether they did. A boss's helpers who died in the fight get
+// their share too, and come back at full health anyway.
 bool Gain(Player& player, uint32_t experience) {
   const int level = LevelFor(player.experience).number;
   player.experience += experience;
   if (LevelFor(player.experience).number > level) {
-    player.health = MaxHealthOf(player);
+    if (player.motion != Motion::kDead) {
+      player.health = MaxHealthOf(player);
+    }
     return true;
   }
   return false;
+}
+
+// "30 seconds", "a minute" or "2 minutes".
+std::string InWords(std::chrono::nanoseconds time) {
+  const auto seconds =
+      std::chrono::duration_cast<std::chrono::seconds>(time).count();
+  if (seconds % 60 != 0) {
+    return absl::StrCat(seconds, " seconds");
+  }
+  return seconds == 60 ? "a minute" : absl::StrCat(seconds / 60, " minutes");
 }
 
 }  // namespace
@@ -1212,7 +1226,7 @@ void World::Hurt(uint32_t id, Player& player, uint32_t monster_id,
     return;
   }
   monster.motion = Motion::kDead;
-  monster.respawn = kRespawnTime;
+  monster.respawn = monster.respawn_time;
   // A boss's adds fall with it.
   for (auto& [add_id, add] : monsters_) {
     if (add.called_by == monster_id) {
@@ -1220,6 +1234,42 @@ void World::Hurt(uint32_t id, Player& player, uint32_t monster_id,
       add.motion = Motion::kDead;
     }
   }
+  if (!monster.boss()) {
+    Reward(id, player, monster);
+    return;
+  }
+  // A boss takes a crowd, so it's everyone's who took enough of its health,
+  // and not the last blow's, each with a roll of their own, and the land hears
+  // who took the most.
+  const Player* most = nullptr;
+  int taken_most = 0;
+  int helped = 0;
+  for (const auto& [helper, threat] : monster.threat) {
+    const auto found = players_.find(helper);
+    if (found == players_.end() ||
+        threat * 100 < monster.max_health * kEnoughHelp) {
+      continue;
+    }
+    Reward(helper, found->second, monster);
+    ++helped;
+    if (threat > taken_most) {
+      most = &found->second;
+      taken_most = threat;
+    }
+  }
+  std::string fallen = "has fallen";
+  if (most != nullptr) {
+    absl::StrAppend(&fallen, " to ", most->name);
+  }
+  if (helped > 1) {
+    absl::StrAppend(&fallen, " and ", helped - 1,
+                    helped == 2 ? " other" : " others");
+  }
+  Announce(monster, absl::StrCat(fallen, ". It rises again in ",
+                                 InWords(monster.respawn_time), "."));
+}
+
+void World::Reward(uint32_t id, Player& player, const Monster& monster) {
   Record(Event::Kind::kKill, id, player).monster = monster.kind;
   if (Gain(player, monster.experience)) {
     Record(Event::Kind::kLevel, id, player).level =
@@ -1422,8 +1472,18 @@ void World::Act(Monster& monster, std::chrono::nanoseconds time) {
     monster.pushed = kPushTime;
     Fly(monster, time);
     // An add doesn't come back. It goes with its boss.
-    if (monster.called_by == 0) {
-      Revive(monster, time, random_);
+    if (monster.called_by != 0) {
+      return;
+    }
+    const std::chrono::nanoseconds before = monster.respawn;
+    Revive(monster, time, random_);
+    // The land hears that a boss is about to come back, and that it has.
+    if (monster.boss() && monster.motion != Motion::kDead) {
+      Announce(monster, "has risen.");
+    } else if (monster.boss() && before > kRisesSoon &&
+               monster.respawn <= kRisesSoon) {
+      Announce(monster,
+               absl::StrCat("rises again in ", InWords(kRisesSoon), "."));
     }
     return;
   }
@@ -1488,6 +1548,17 @@ void World::CallAdds(uint32_t id, std::size_t phase) {
       called.leash = boss.leash;
       Spawn(std::move(called));
     }
+  }
+}
+
+void World::Announce(const Monster& boss, std::string_view news) {
+  const auto kind = content_->monsters.kinds.find(boss.kind);
+  if (kind == content_->monsters.kinds.end()) {
+    return;
+  }
+  const std::string line = absl::StrCat("The ", kind->second.name(), " ", news);
+  for (const auto& [id, player] : players_) {
+    notices_.push_back({.player = id, .text = line});
   }
 }
 

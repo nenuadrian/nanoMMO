@@ -116,6 +116,9 @@ message Kind {
   // A kind with phases is a boss: as its health goes down, it goes from one
   // phase to the next, and uses the skills each names.
   repeated Phase phases = 11;
+  // How long it lies dead before it comes back to life, in milliseconds.
+  // Without it, ten seconds.
+  uint32 respawn_ms = 12;
 }
 
 // A monster that always has its home in the same place, in metres from the

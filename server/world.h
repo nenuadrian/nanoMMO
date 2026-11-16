@@ -187,6 +187,9 @@ struct Monster {
   float cast_z = 0.0f;
   /// How long until each skill it's used is ready again, by its id.
   std::map<uint32_t, std::chrono::nanoseconds> cooldowns;
+  /// How long it lies dead before it comes back to life, from its kind, and
+  /// while it's dead, how long until it does.
+  std::chrono::nanoseconds respawn_time{0};
   std::chrono::nanoseconds respawn{0};
   /// A blow's push, which plays out over a few ticks: where it started, how
   /// far it goes, in metres, and how long it's been going. While it does, the
@@ -302,6 +305,13 @@ class World {
 
   /// How far from a boss its adds come, in metres.
   static constexpr float kAddsAround = 3.0f;
+
+  /// How much of a boss's health a player has to have taken, in percent, for
+  /// its experience and a roll of its loot when it dies.
+  static constexpr int kEnoughHelp = 5;
+
+  /// How long before a boss comes back to life its land hears that it will.
+  static constexpr std::chrono::seconds kRisesSoon{30};
 
   static constexpr float kTalkReach = nanommo::kTalkReach;
 
@@ -498,6 +508,9 @@ class World {
   void Hurt(uint32_t id, Player& player, int damage);
   /// Gives the player back as much of the health as they're missing.
   void Heal(uint32_t id, Player& player, int health);
+  /// The player's part in the monster's death: its experience, what it drops
+  /// for them, and a kill for their quests.
+  void Reward(uint32_t id, Player& player, const Monster& monster);
   /// What the monster the player's just killed drops, into their bag, and its
   /// gold.
   void Loot(uint32_t id, Player& player, const Monster& monster);
@@ -511,6 +524,9 @@ class World {
   /// The adds of the boss's phase, by their places among its phases, round
   /// it, unless it's died since.
   void CallAdds(uint32_t id, std::size_t phase);
+  /// A line everyone in the land hears about the boss, after its name, such as
+  /// "The Bone Colossus has risen."
+  void Announce(const Monster& boss, std::string_view news);
   void Hit(Monster& monster);
   /// A monster's blow on the player, from a swing or a skill: what they wear
   /// takes some of it, down to one, and with no health left, they die.
