@@ -7,6 +7,18 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.79.0 (2026-11-16)
+
+- `nanommo_cheat`'s `twice` plays one character on both of a world's instances, with a token for
+  each, and the second saved its bag from before a trade over the trade: three swords from two. A
+  character plays on one instance at a time now, the one that has their lease in Redis, and the
+  other turns them away. A handover hands each lease to the next instance first.
+- An instance that loses a player's lease, as one that stalls for ten seconds does, can't save them
+  any more, and drops them.
+- Each item that doesn't stack has a serial of its own, and each trade is on record, in MySQL's
+  `trades` table, with what each side gave. The saver counts the serials that more than one item
+  has, as `nanommo_duplicate_items`, and `ItemsDuplicated` fires when there are any.
+
 ## 0.78.0 (2026-11-16)
 
 - `nanommo_client --offline` plays without the servers, in a world the client runs itself with the

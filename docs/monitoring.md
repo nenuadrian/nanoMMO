@@ -6,7 +6,10 @@ Each world serves its metrics for Prometheus at http://localhost:9464/metrics: t
 how long each tick takes, how long saving the players takes in each tick, the bytes it sends, the
 messages it receives, the lines of chat, said or refused, and the stories asked for, told, refused
 or failed, with how long each one took. The bots serve theirs on
-port 9465: how old the world on a player's screen would be, by transport.
+port 9465: how old the world on a player's screen would be, by transport. The saver serves one on
+port 9466, `nanommo_duplicate_items`: the serials that more than one item in MySQL has, after its
+last flush, which is zero unless an item's been copied (see [Saving players](saving.md)).
+Prometheus finds it by its name, `saver`.
 
 `compose.yaml` starts the servers, MySQL and Redis together with Prometheus, which finds the worlds
 in Consul and scrapes each of them every two seconds, with its name as the `world` label, and
@@ -71,6 +74,11 @@ http://localhost:9090/alerts, shows each one as inactive, pending or firing:
 - `WorldDown`, when a world that was one of Prometheus's targets in the last day hasn't been up for a
   minute. A world that stops leaves Consul, and Prometheus stops scraping it, so `up == 0` would miss
   it. A world whose tick is stuck stops its heartbeat too, so Consul drops it, and `WorldDown` fires.
+- `ItemsDuplicated`, when `nanommo_duplicate_items` has been above zero for a minute: two items with
+  one serial, an item and its copy, which a dupe makes, as in
+  [decision 31](decisions/0031-a-character-is-leased-to-one-instance-at-a-time.md). A minute, as a
+  trade that the saver took half of, while it was reading a batch, is whole again at its next
+  flush, five seconds later. The trades table has who gave whom each item, by its serial.
 
 Prometheus sends the alerts to Alertmanager, at http://localhost:9093, which emails each one when it
 fires and when it resolves. The mail goes to Mailpit, a mail server for development, which keeps it,

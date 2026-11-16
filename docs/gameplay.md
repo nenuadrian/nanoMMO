@@ -198,7 +198,8 @@ Monsters drop items, straight into their killer's bag: each kind's `loot` in the
 the items it can drop, the chance of each, and how many. A skeleton drops bones more often than
 not, and now and then a potion, a leather cap, a tunic or boots, and the skeletons of the Ashlands and the
 Crypt the Ash Blade and the buckler, the Crypt's more often. What stacks drops as a stack, and what
-doesn't one at a time, each with rolls of its own, so two Ash Blades are seldom the same. A line in
+doesn't one at a time, each with rolls of its own, so two Ash Blades are seldom the same, and a
+serial that no other item has. A line in
 the chat says what the monster dropped, and what didn't fit, if the bag was full, which stays
 behind. The world keeps those lines as it steps, and the server sends them after the tick.
 
@@ -348,5 +349,6 @@ it has them:
   same rolls, and at least as many as were offered. A kill can add to a stack you've offered, and
   what it adds stays yours. If a place hasn't, nothing's given, and neither side is ready: "The
   items offered aren't all there any more."
-- Once they've traded, both players are saved, together, in one Redis transaction, before either
-  hears of it, and a player who leaves is saved as they go (see [Saving](saving.md)).
+- Once they've traded, both players are saved, together, with a record of the trade, in one Redis
+  script, before either hears of it, and a player who leaves is saved as they go (see
+  [Saving](saving.md)).

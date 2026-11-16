@@ -82,7 +82,9 @@ Instead, a world hands its players over to its next instance:
 - On `SIGTERM`, a world leaves Consul, and asks it for the world's newest instance, which is now
   the next one. If there is one, and the world has players, it hands them over: it stops ticking
   and taking new players, saves each player into Redis, where the next instance loads them from,
-  and sends each client a `Move`, with the host and port players reach the next instance at, and a
+  hands each player's lease to the next instance, which turns away a player whose lease another
+  instance has (see [One instance at a time](saving.md#one-instance-at-a-time)), and sends each
+  client a `Move`, with the host and port players reach the next instance at, and a
   token to say hello there with. Tokens are one-time, and the one each player said hello with is
   used, so the world issues one for each move, in Redis like the login server's. Then it waits up to ten seconds for its clients to leave, and
   stops.
@@ -102,7 +104,9 @@ instance, which hands them back. A world hands its players over to its newest in
 without the wait, a world could stop before the instance it hands over to has registered, and its
 players would end up at the login screen. So the world ends up where it was, on its own port, and
 the next instance is stopped, as it should be: two instances of a world that both took players would
-split them in two. Alloy gives the next instances' lines a level like the worlds', and the
+split them in two. Each lease names the instance by its port, so the world, started again on its
+own port, is a new instance with the same name, and takes the leases the next instance hands back
+as its own. Alloy gives the next instances' lines a level like the worlds', and the
 dashboard's log panels have them too.
 
 ```bash

@@ -7,8 +7,9 @@ of the skills they know with commas between them, and its key in a set, `players
 [Worlds](worlds.md)). A player whose bag's revision has moved gets `items` too, the bag's `Inventory`
 message in protobuf's bytes, with their gold in it, and their key goes into `items:unsaved` as
 well. Their quests go in `quests`, a `Quests` message in protobuf's bytes, the same the client gets. It sends all of it in
-one round trip, as one transaction, `MULTI`, the commands and `EXEC`, so that Redis keeps all of it
-or none of it (`Redis::Transaction`), and saving takes a few
+one round trip, as one Lua script, which checks the players' leases and runs the commands with
+nothing in between, so that Redis keeps all of it or none of it (`Redis::TransactionIf`, see
+[One instance at a time](#one-instance-at-a-time)), and saving takes a few
 milliseconds a tick with hundreds of players, and the server keeps up with as many players as it did
 without saving. Writing each change to MySQL instead, one statement at a time, takes the tick past
 its 50 ms at around 50 players: each save is two round trips, to prepare the statement and to run
@@ -22,6 +23,18 @@ saved as they go, as nothing saves them once they've gone
 ([decision 28](decisions/0028-a-trade-is-checked-against-the-bags-and-saved-as-one.md)). While the
 world hands its players over to its next instance, a player who leaves isn't saved, as the next
 instance has loaded them already, from what was saved as the handover began.
+
+Each item that doesn't stack, a sword or a cap, has a serial of its own, `items.Stack.serial`: 64
+random bits from `std::random_device`, which `World::Give` gives each one it makes, and a new
+player's kit gets as they join. An item saved before serials gets one the first time it's back,
+which moves the bag to its next revision, so that it's saved. Potions and bones stack, and have
+none. The serial goes with its item through moves and trades, and into its row's `state` in MySQL,
+which takes a new field with no migration. So a copy of an item can be told from it.
+
+Each trade that's done has a record: an id of its own (`RandomHex`), the two characters, and what
+each gave, as protobuf's JSON for a `TradeSide`, serials and all. It goes into a Redis stream,
+`trades`, in the same script as the trade's two bags, and the saver takes it to MySQL with them
+(see below).
 
 `nanommo_saver` takes the unsaved players out of the set every five seconds, and writes them to the
 `players` table, 500 to an `UPDATE` of the characters' rows, which the login server made (see
@@ -52,6 +65,20 @@ the player's row, with no table of their own. A hash with no quests, from before
 on none, leaves the ones MySQL has. So the `players` table, and the website's
 rankings, are at most about five seconds behind the game.
 
+In each batch, the oldest trades in the `trades` stream go first, up to 250, each with both its players,
+so that MySQL has a trade's record and both bags from after it, or none of it. The saver inserts
+each into the `trades` table, from V13, in the batch's transaction, with the time Redis took it,
+from its entry's id. The trade's id is the table's primary key, and `INSERT IGNORE` skips one that's
+there already, so a batch that MySQL committed without the saver hearing so, as when the
+connection drops, and that it tries again, records the trade once. A record leaves the stream once
+it's in MySQL. A character who's deleted leaves their trades on record.
+
+After each flush, the saver counts the serials that more than one item in `player_items` has, as
+only an item and its copy can share one, by the `serial` column, from V13, which MySQL takes from
+each row's `state`, with an index. It serves the count to Prometheus as `nanommo_duplicate_items`,
+and `ItemsDuplicated` fires once it's been above zero for a minute (see
+[Alerts](monitoring.md#alerts)).
+
 Redis appends each change to a file, its append-only file, and writes that to disk once a second, so
 a crash loses at most about a second. If the game server crashes, Redis still has its players as of
 the last tick. When a player joins, the game server reads them from Redis first, as it's newer than
@@ -62,7 +89,53 @@ MySQL, and from the `players` table if Redis doesn't have them, and their bag fr
 docker compose exec redis redis-cli HGETALL player:Ember:1
 docker compose exec redis redis-cli SCARD players:unsaved
 docker compose exec mysql mysql -unanommo -pnanommo nanommo -e 'SELECT * FROM player_items'
+docker compose exec redis redis-cli XRANGE trades - +
+docker compose exec mysql mysql -unanommo -pnanommo nanommo -e 'SELECT * FROM trades'
 docker compose logs saver
+```
+
+## One instance at a time
+
+A world runs as two instances while it hands its players over (see
+[Deploying without downtime](deployment.md#deploying-without-downtime)), and each instance knows
+only its own players, so a character could say hello to both, with a token for each. Each would load
+them, and save them as it had them, over what the other saved: `twice`, the red-team client, gave
+its sword away in a trade on one instance, and the other saved its bag from before the trade, so
+both players had the sword (see
+[What a modified client can try](networking.md#what-a-modified-client-can-try)). So a character
+plays on one instance of its world at a time, the one that has their lease:
+
+- The lease is a key in Redis, `playing:<world>:<character>`, which holds the instance's id, as
+  Consul names it, its world's and its port's, and a fencing number from the world's counter,
+  `fencing:<world>`, which is higher for each lease: `Ember-7777 42`.
+- An instance takes it as the player says hello, before it loads them, in a Lua script, which Redis
+  runs with nothing else in between: if no instance has it, it's this one's, with the next number,
+  for ten seconds (`Players::kLease`). If another has it, the player's turned away: "refused player
+  7: they're playing on Ember-7777". A refused hello takes no number.
+- Each second, the instance renews all its players' leases for another ten seconds, in one script,
+  each only while it's still the one the instance took. An instance that crashes, or stops without
+  letting go, keeps its players for ten seconds at most.
+- A player who leaves is saved, and lets go of their lease, with a script that deletes it only if
+  it's still this instance's, so that they can play on another at once.
+- In a handover, the instance saves its players, hands each lease to the next instance, with a new
+  number, in one script, and only then tells the clients where to go. The next instance takes a
+  lease that's been handed to it as its own.
+
+A lease runs out if its instance stops renewing it, as one that stalls for ten seconds does, a
+process stopped or a machine that's swapping, and then another instance can take the player, with a
+higher number, and load them. The first doesn't know until it next talks to Redis, so the leases
+fence its saves: `Players::Save` writes the players only if each one's lease is still the one its
+instance took, instance and number, which the script that writes them checks first
+(`Redis::TransactionIf`), and writes none of it if one isn't. An instance that finds a player's lease
+isn't its own any more, as it saves them or renews the leases, drops them without saving them, and
+says so: "couldn't save mordred, as their lease isn't Ember-7777 2 any more". The rest of a tick's
+save goes again without them. A trade whose save is refused drops both its players, who come back
+as Redis has them, from before it
+([decision 31](decisions/0031-a-character-is-leased-to-one-instance-at-a-time.md)).
+
+```bash
+docker compose exec redis redis-cli KEYS 'playing:*'
+docker compose exec redis redis-cli GET playing:Ember:1
 ```
 
 ## Guilds
