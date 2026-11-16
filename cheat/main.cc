@@ -31,6 +31,10 @@
 //     it to another slot and is ready too, to give the sword and keep it.
 //   run: offers its sword, and once the partner's ready, is ready too and
 //     leaves at once, to keep the sword when it comes back.
+//   twice: comes into the world's second instance too, and trades its sword
+//     on the first, which it then leaves. On the second, where it still has
+//     the sword, it puts the sword in the bag, so that instance saves its bag
+//     over the trade, to keep the sword when it comes back.
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -58,6 +62,8 @@ namespace {
 
 constexpr uint16_t kLoginPort = 7778;
 constexpr uint16_t kWorldPort = 7777;
+// The world's second instance, which takes its players over in a deploy.
+constexpr uint16_t kNextPort = 7877;
 constexpr char kWorld[] = "Ember";
 // The server's tick, on which the client sends its inputs.
 constexpr auto kTick = std::chrono::milliseconds(50);
@@ -170,7 +176,8 @@ enum class Cheat {
   kCancel,
   kTake,
   kSwap,
-  kRun
+  kRun,
+  kTwice
 };
 
 // An input that moves what's in one place to another.
@@ -223,6 +230,58 @@ std::optional<uint32_t> SlotOf(const nanommo::protocol::Inventory& inventory,
   return std::nullopt;
 }
 
+// Comes back into the world's first instance after a second, and prints how
+// many swords the player has then. Returns what main does.
+int Back(asio::ssl::context& tls, const std::string& name,
+         const std::string& password, uint32_t sword) {
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  absl::StatusOr<std::string> token = Enter(tls, name, password);
+  if (!token.ok()) {
+    std::cerr << "cheat: " << name << " couldn't come back: " << token.status()
+              << "\n";
+    return 1;
+  }
+  absl::StatusOr<std::unique_ptr<nanommo::Connection>> back =
+      nanommo::Connection::Create("localhost", kWorldPort, tls, *token, false);
+  if (!back.ok()) {
+    std::cerr << "cheat: " << back.status() << "\n";
+    return 1;
+  }
+  while ((*back)->connected() && (*back)->inventory().bag().empty()) {
+    (*back)->Poll();
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+  std::cout << "cheat: " << name << " is back, and has "
+            << Count((*back)->inventory(), sword) << std::endl;
+  return 0;
+}
+
+// The player in the world's second instance as well, once it has sent them
+// their bag, or nothing if it turned them away.
+std::unique_ptr<nanommo::Connection> Second(asio::ssl::context& tls,
+                                            const std::string& name,
+                                            const std::string& password) {
+  absl::StatusOr<std::string> token = Enter(tls, name, password);
+  if (!token.ok()) {
+    return nullptr;
+  }
+  absl::StatusOr<std::unique_ptr<nanommo::Connection>> second =
+      nanommo::Connection::Create("localhost", kNextPort, tls, *token, false);
+  if (!second.ok()) {
+    return nullptr;
+  }
+  const auto start = std::chrono::steady_clock::now();
+  while ((*second)->connected() && (*second)->inventory().worn().empty() &&
+         std::chrono::steady_clock::now() - start < std::chrono::seconds(3)) {
+    (*second)->Poll();
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+  if (!(*second)->connected() || (*second)->inventory().worn().empty()) {
+    return nullptr;
+  }
+  return *std::move(second);
+}
+
 // The trades, with the partner, who runs take. They print what they do, and
 // how many swords they have once the trade's over, or for run, once it's
 // back. Returns what main does.
@@ -240,8 +299,24 @@ int Trade(asio::ssl::context& tls, const std::string& name,
   // When swap moved the sword, if it has.
   std::optional<std::chrono::steady_clock::time_point> moved;
   bool ready = false;
+  // twice is in the second instance too, with a token of its own, once that
+  // instance has sent it its bag.
+  std::unique_ptr<nanommo::Connection> next;
+  if (cheat == Cheat::kTwice) {
+    next = Second(tls, name, password);
+    if (next == nullptr) {
+      std::cout << "cheat: the second instance turned " << name
+                << " away, as it's playing on the first" << std::endl;
+    } else {
+      std::cout << "cheat: " << name << " is in Ember a second time, on "
+                << kNextPort << std::endl;
+    }
+  }
   while (connection->connected()) {
     connection->Poll();
+    if (next != nullptr) {
+      next->Poll();
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
     const nanommo::protocol::Inventory& bag = connection->inventory();
     const auto in_hand = static_cast<uint32_t>(hand.worn());
@@ -265,7 +340,27 @@ int Trade(asio::ssl::context& tls, const std::string& name,
         }
         std::cout << "cheat: the trade's over, and " << name << " has "
                   << Count(connection->inventory(), sword) << std::endl;
-        return 0;
+        if (next == nullptr) {
+          return 0;
+        }
+        // The first instance saves the bag without the sword as we leave it.
+        // The second still has the sword in hand, and a move to the bag is a
+        // change, which it saves on its next tick.
+        connection.reset();
+        nanommo::protocol::Place free;
+        free.set_bag(FreeSlot(next->inventory()));
+        next->Send(Move(hand, free));
+        const auto put = std::chrono::steady_clock::now();
+        while (std::chrono::steady_clock::now() - put <
+               std::chrono::milliseconds(500)) {
+          next->Poll();
+          std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        std::cout << "cheat: on " << kNextPort << ", " << name
+                  << " still has its sword, and puts it in the bag"
+                  << std::endl;
+        next.reset();
+        return Back(tls, name, password, sword);
       }
       // The partner may not be in yet, so we ask again each second.
       const auto now = std::chrono::steady_clock::now();
@@ -290,7 +385,8 @@ int Trade(asio::ssl::context& tls, const std::string& name,
       }
       continue;
     }
-    // swap and run offer the sword from the bag, so it goes there first.
+    // swap, run and twice offer the sword from the bag, so it goes there
+    // first.
     if (!offered) {
       if (!stowed) {
         nanommo::protocol::Place free;
@@ -338,32 +434,18 @@ int Trade(asio::ssl::context& tls, const std::string& name,
       }
       continue;
     }
-    // run: ready, and gone before the server's next tick saves the bags.
     connection->Send(Trading(yes));
+    if (cheat == Cheat::kTwice) {
+      ready = true;
+      std::cout << "cheat: " << partner << " is ready, so " << name
+                << " is ready too" << std::endl;
+      continue;
+    }
+    // run: ready, and gone before the server's next tick saves the bags.
     connection.reset();
     std::cout << "cheat: " << partner << " is ready, so " << name
               << " is ready too, and leaves at once" << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    absl::StatusOr<std::string> token = Enter(tls, name, password);
-    if (!token.ok()) {
-      std::cerr << "cheat: " << name
-                << " couldn't come back: " << token.status() << "\n";
-      return 1;
-    }
-    absl::StatusOr<std::unique_ptr<nanommo::Connection>> back =
-        nanommo::Connection::Create("localhost", kWorldPort, tls, *token,
-                                    false);
-    if (!back.ok()) {
-      std::cerr << "cheat: " << back.status() << "\n";
-      return 1;
-    }
-    while ((*back)->connected() && (*back)->inventory().bag().empty()) {
-      (*back)->Poll();
-      std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    }
-    std::cout << "cheat: " << name << " is back, and has "
-              << Count((*back)->inventory(), sword) << std::endl;
-    return 0;
+    return Back(tls, name, password, sword);
   }
   std::cout << "cheat: the server closed the connection" << std::endl;
   return 0;
@@ -375,7 +457,8 @@ int main(int argc, char** argv) {
   const std::string usage =
       "usage: nanommo_cheat <name> <password> "
       "<walk|speed|teleport|reach|fight|rapid|swing|cancel>\n"
-      "       nanommo_cheat <name> <password> <take|swap|run> <partner>\n";
+      "       nanommo_cheat <name> <password> <take|swap|run|twice> "
+      "<partner>\n";
   if (argc != 4 && argc != 5) {
     std::cerr << usage;
     return 2;
@@ -406,12 +489,14 @@ int main(int argc, char** argv) {
     cheat = Cheat::kSwap;
   } else if (named == "run") {
     cheat = Cheat::kRun;
+  } else if (named == "twice") {
+    cheat = Cheat::kTwice;
   } else {
     std::cerr << usage;
     return 2;
   }
-  const bool trades =
-      cheat == Cheat::kTake || cheat == Cheat::kSwap || cheat == Cheat::kRun;
+  const bool trades = cheat == Cheat::kTake || cheat == Cheat::kSwap ||
+                      cheat == Cheat::kRun || cheat == Cheat::kTwice;
   // A trade needs a partner, and nothing else does.
   if (trades != (argc == 5)) {
     std::cerr << usage;
