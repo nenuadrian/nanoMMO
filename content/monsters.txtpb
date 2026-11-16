@@ -178,8 +178,16 @@ kinds {
     color: 0x4FD6FFFF
   }
   phases { health: 100 skills: [ 2, 3 ] }
-  phases { health: 60 skills: [ 2, 3, 4 ] }
-  phases { health: 30 skills: [ 1, 2, 3, 4 ] }
+  phases {
+    health: 60
+    skills: [ 2, 3, 4 ]
+    adds { kind: 1 count: 3 }
+  }
+  phases {
+    health: 30
+    skills: [ 1, 2, 3, 4 ]
+    adds { kind: 2 count: 3 }
+  }
 }
 
 spawns { kind: 1 land: "Meadows" x: -3.5 z: -3 }

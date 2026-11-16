@@ -55,8 +55,10 @@ absl::Status CheckSkill(const monsters::Kind& kind,
 }
 
 // Whether a boss's phases go down its health, from the first, at full health,
-// each lower than the last, while it's alive, and use skills it has.
-absl::Status CheckPhases(const monsters::Kind& kind) {
+// each lower than the last, while it's alive, use skills it has, and call up
+// some of kinds that there are.
+absl::Status CheckPhases(const monsters::Kind& kind,
+                         const std::map<uint32_t, monsters::Kind>& kinds) {
   for (int i = 0; i < kind.phases_size(); ++i) {
     const monsters::Phase& phase = kind.phases(i);
     const std::string name =
@@ -79,6 +81,17 @@ absl::Status CheckPhases(const monsters::Kind& kind) {
           kind.skills().end()) {
         return absl::InvalidArgumentError(
             absl::StrCat(name, " uses a skill ", skill, " it doesn't have"));
+      }
+    }
+    for (const monsters::Add& add : phase.adds()) {
+      const auto called = kinds.find(add.kind());
+      if (called == kinds.end()) {
+        return absl::InvalidArgumentError(absl::StrCat(
+            name, " calls up a kind ", add.kind(), " that isn't in the file"));
+      }
+      if (add.count() == 0) {
+        return absl::InvalidArgumentError(
+            absl::StrCat(name, " calls up no ", called->second.name(), "s"));
       }
     }
   }
@@ -126,7 +139,7 @@ absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text) {
         return checked;
       }
     }
-    if (const absl::Status checked = CheckPhases(kind); !checked.ok()) {
+    if (const absl::Status checked = CheckPhases(kind, *kinds); !checked.ok()) {
       return checked;
     }
   }

@@ -478,6 +478,20 @@ TEST(Content, RefusesPhasesThatDontAddUp) {
             "2's 60%");
   EXPECT_EQ(boss("phases { health: 100 skills: 2 }").message(),
             "the Colossus's phase 1 uses a skill 2 it doesn't have");
+
+  // It calls up some monsters, of a kind in the file.
+  const auto calls = [](std::string_view adds) {
+    return nanommo::ParseMonsters(
+               absl::StrCat("kinds { id: 1 name: \"Colossus\" phases { ",
+                            "health: 100 ", adds, " } } ",
+                            "kinds { id: 2 name: \"Skeleton\" }"))
+        .status();
+  };
+  EXPECT_TRUE(calls("adds { kind: 2 count: 2 }").ok());
+  EXPECT_EQ(calls("adds { kind: 3 count: 2 }").message(),
+            "the Colossus's phase 1 calls up a kind 3 that isn't in the file");
+  EXPECT_EQ(calls("adds { kind: 2 }").message(),
+            "the Colossus's phase 1 calls up no Skeletons");
 }
 
 TEST(Content, RefusesNpcsThatDontAddUp) {

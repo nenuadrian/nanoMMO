@@ -12,6 +12,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -159,6 +160,10 @@ struct Monster {
   /// that phase's skills alone.
   std::vector<monsters::Phase> phases;
   std::size_t phase = 0;
+  /// For an add, the boss that called it up, by its id. It doesn't come back
+  /// to life, and it goes once its boss is back in its first phase, at home
+  /// or alive again.
+  uint32_t called_by = 0;
   float home_x = 0.0f;
   float home_z = 0.0f;
   float target_x = 0.0f;
@@ -294,6 +299,9 @@ class World {
   /// How long the dead wait before they can come back. A monster comes back
   /// once it's over, and a player when they ask to.
   static constexpr std::chrono::seconds kRespawnTime{10};
+
+  /// How far from a boss its adds come, in metres.
+  static constexpr float kAddsAround = 3.0f;
 
   static constexpr float kTalkReach = nanommo::kTalkReach;
 
@@ -500,6 +508,9 @@ class World {
   /// asks for its kind, until they've killed as many as it asks.
   void Count(uint32_t id, Player& player, const Monster& monster);
   void Act(Monster& monster, std::chrono::nanoseconds time);
+  /// The adds of the boss's phase, by their places among its phases, round
+  /// it, unless it's died since.
+  void CallAdds(uint32_t id, std::size_t phase);
   void Hit(Monster& monster);
   /// A monster's blow on the player, from a swing or a skill: what they wear
   /// takes some of it, down to one, and with no health left, they die.
@@ -526,6 +537,9 @@ class World {
   std::mt19937 random_;
   std::vector<Notice> notices_;
   std::vector<Event> events_;
+  /// The bosses that have gone into a phase this step, by their ids, and the
+  /// phase, whose adds come after the players' blows.
+  std::vector<std::pair<uint32_t, std::size_t>> calls_;
   /// Between the players here, as both have to be.
   Trades trades_;
   Duels duels_;

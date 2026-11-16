@@ -78,6 +78,13 @@ message Skill {
   uint32 color = 10;
 }
 
+// Monsters a boss calls up round it as a phase starts: so many of a kind, by
+// its id.
+message Add {
+  uint32 kind = 1;
+  uint32 count = 2;
+}
+
 // A stretch of a boss's fight, from a share of its health down, with skills of
 // its own.
 message Phase {
@@ -87,6 +94,9 @@ message Phase {
   // The skills it uses in this phase, by their ids among its kind's, which it
   // tries in its kind's order.
   repeated uint32 skills = 2;
+  // They fight for it until it's dead, when they fall with it, or it goes
+  // home, when they go too.
+  repeated Add adds = 3;
 }
 
 message Kind {

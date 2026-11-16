@@ -1,5 +1,9 @@
+#include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <ranges>
 
 #include "gtest/gtest.h"
 #include "server/monsters.h"
@@ -19,7 +23,8 @@ void RunOneSecond(nanommo::World& world) {
 
 // The tests' boss: a hundred health, a slam all round it and a sweep in front
 // of it, each from a metre and a half, in three phases, from full health, from
-// 60 and from 30: the slam alone, then the sweep alone, and then both.
+// 60 and from 30: the slam alone, then the sweep alone, calling up two
+// skeletons, and then both, calling up three more.
 nanommo::MonsterTable Monsters() {
   return *nanommo::ParseMonsters(R"pb(
     kinds {
@@ -58,10 +63,31 @@ nanommo::MonsterTable Monsters() {
         range: 1.5
       }
       phases { health: 100 skills: 1 }
-      phases { health: 60 skills: 2 }
+      phases {
+        health: 60
+        skills: 2
+        adds { kind: 2 count: 2 }
+      }
       phases {
         health: 30
         skills: [ 1, 2 ]
+        adds { kind: 2 count: 3 }
+      }
+    }
+    kinds {
+      id: 2
+      name: "Skeleton"
+      level: 1
+      max_health: 50
+      experience: 50
+      fight {
+        damage: 5
+        swing_ms: 900
+        hit_ms: 650
+        reach: 1.2
+        sight: 3
+        leash: 4
+        wander: 3
       }
     }
   )pb");
@@ -90,6 +116,12 @@ void Smite(nanommo::World& world, uint32_t player, int times = 1) {
       world.Step(kTick);
     }
   }
+}
+
+// How many adds the boss has called up, alive or dead.
+std::ptrdiff_t AddsOf(const nanommo::World& world, uint32_t boss) {
+  return std::ranges::count(world.monsters() | std::views::values, boss,
+                            &nanommo::Monster::called_by);
 }
 
 }  // namespace
@@ -198,4 +230,78 @@ TEST(World, TheBossGoesHomeWhenNobodysLeft) {
   RunOneSecond(world);
   EXPECT_EQ(colossus.prey, 0u);
   EXPECT_EQ(colossus.x, 0.0f);
+}
+
+TEST(World, EachPhaseBringsItsAdds) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Sword(), Smite(), Monsters()));
+  world.Join(1, {.x = 4.5f, .skills = {1}});
+  const uint32_t id = world.Spawn(nanommo::MonsterOf(Colossus(), 0.0f, 0.0f));
+  const nanommo::Monster& colossus = world.monsters().at(id);
+  world.Pick(1, id);
+
+  // Into its second phase, it calls up two skeletons round it.
+  Smite(world, 1, 3);
+  EXPECT_EQ(AddsOf(world, id), 0);
+  Smite(world, 1);
+  ASSERT_EQ(AddsOf(world, id), 2);
+  for (const auto& [add_id, add] : world.monsters()) {
+    if (add.called_by == id) {
+      EXPECT_EQ(add.kind, 2u);
+      EXPECT_LT(std::hypot(add.x - colossus.x, add.z - colossus.z), 4.0f);
+    }
+  }
+
+  // Into its third, three more.
+  Smite(world, 1, 3);
+  EXPECT_EQ(colossus.phase, 2u);
+  EXPECT_EQ(AddsOf(world, id), 5);
+}
+
+TEST(World, TheBossesAddsGoWhenItGoesHome) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Sword(), Smite(), Monsters()));
+  world.Join(1, {.x = 4.5f, .skills = {1}});
+  const uint32_t id = world.Spawn(nanommo::MonsterOf(Colossus(), 0.0f, 0.0f));
+  const nanommo::Monster& colossus = world.monsters().at(id);
+  world.Pick(1, id);
+  Smite(world, 1, 7);
+  ASSERT_EQ(AddsOf(world, id), 5);
+
+  // Its player runs past its leash, and it goes home without them.
+  world.SetInput(1, 1.0f, 0.0f, true);
+  for (int tick = 0; tick < 100 && !colossus.evading; ++tick) {
+    world.Step(kTick);
+  }
+  ASSERT_TRUE(colossus.evading);
+  EXPECT_EQ(AddsOf(world, id), 0);
+  EXPECT_EQ(world.monsters().size(), 1u);
+}
+
+TEST(World, TheBossesAddsFallWithItAndDontComeBack) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Sword(), Smite(), Monsters()));
+  world.Join(1, {.x = 4.5f, .skills = {1}});
+  const uint32_t id = world.Spawn(nanommo::MonsterOf(Colossus(), 0.0f, 0.0f));
+  const nanommo::Monster& colossus = world.monsters().at(id);
+  world.Pick(1, id);
+
+  // They fall as it dies, and lie there while it does.
+  Smite(world, 1, 10);
+  ASSERT_EQ(colossus.motion, nanommo::Motion::kDead);
+  ASSERT_EQ(AddsOf(world, id), 5);
+  for (const auto& [add_id, add] : world.monsters()) {
+    EXPECT_EQ(add.motion, nanommo::Motion::kDead);
+  }
+
+  // They're gone once it's back, which starts without them.
+  for (int second = 0; second < nanommo::World::kRespawnTime.count();
+       ++second) {
+    RunOneSecond(world);
+  }
+  EXPECT_NE(colossus.motion, nanommo::Motion::kDead);
+  EXPECT_EQ(AddsOf(world, id), 0);
 }

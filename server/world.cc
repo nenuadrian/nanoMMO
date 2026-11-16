@@ -781,9 +781,25 @@ void World::Step(std::chrono::nanoseconds time) {
   for (auto& [id, player] : players_) {
     Act(id, player, time);
   }
+  // Called up while the blows land, adds would be hit by the blow that called
+  // them, so they come once they've all landed.
+  for (const auto& [boss, phase] : std::exchange(calls_, {})) {
+    CallAdds(boss, phase);
+  }
   for (auto& [id, monster] : monsters_) {
     Act(monster, time);
   }
+  // An add goes once its boss is back in its first phase, at home or alive
+  // again, so that the next fight starts without it.
+  std::erase_if(monsters_, [this](const auto& entry) {
+    const uint32_t boss = entry.second.called_by;
+    if (boss == 0) {
+      return false;
+    }
+    const auto found = monsters_.find(boss);
+    return found == monsters_.end() ||
+           (found->second.motion != Motion::kDead && found->second.phase == 0);
+  });
   Referee(time);
   for (const auto& [id, player] : players_) {
     history_.Record(id, clock_, {.x = player.x, .z = player.z});
@@ -1191,11 +1207,19 @@ void World::Hurt(uint32_t id, Player& player, uint32_t monster_id,
     while (monster.phase + 1 < monster.phases.size() &&
            FallenTo(monster, monster.phases[monster.phase + 1])) {
       ++monster.phase;
+      calls_.emplace_back(monster_id, monster.phase);
     }
     return;
   }
   monster.motion = Motion::kDead;
   monster.respawn = kRespawnTime;
+  // A boss's adds fall with it.
+  for (auto& [add_id, add] : monsters_) {
+    if (add.called_by == monster_id) {
+      add.health = 0;
+      add.motion = Motion::kDead;
+    }
+  }
   Record(Event::Kind::kKill, id, player).monster = monster.kind;
   if (Gain(player, monster.experience)) {
     Record(Event::Kind::kLevel, id, player).level =
@@ -1397,7 +1421,10 @@ void World::Act(Monster& monster, std::chrono::nanoseconds time) {
     // up still comes down.
     monster.pushed = kPushTime;
     Fly(monster, time);
-    Revive(monster, time, random_);
+    // An add doesn't come back. It goes with its boss.
+    if (monster.called_by == 0) {
+      Revive(monster, time, random_);
+    }
     return;
   }
   // Pushed, it goes where the blow sends it, and a swing it started goes on.
@@ -1431,6 +1458,37 @@ void World::Act(Monster& monster, std::chrono::nanoseconds time) {
     return;
   }
   Hunt(monster, players_, terrain_, time, random_);
+}
+
+void World::CallAdds(uint32_t id, std::size_t phase) {
+  const Monster& boss = monsters_.at(id);
+  if (boss.motion == Motion::kDead) {
+    return;
+  }
+  for (const monsters::Add& add : boss.phases[phase].adds()) {
+    const auto kind = content_->monsters.kinds.find(add.kind());
+    if (kind == content_->monsters.kinds.end()) {
+      continue;
+    }
+    // Round the boss, evenly spaced, or where it stands, over the sea.
+    for (uint32_t i = 0; i < add.count(); ++i) {
+      const float angle = 2.0f * std::numbers::pi_v<float> *
+                          static_cast<float>(i) /
+                          static_cast<float>(add.count());
+      float x = boss.x + kAddsAround * std::sin(angle);
+      float z = boss.z + kAddsAround * std::cos(angle);
+      if (!terrain_.Walkable(x, z)) {
+        x = boss.x;
+        z = boss.z;
+      }
+      // It fights where its boss does, for whoever it sees there.
+      Monster called = MonsterOf(kind->second, x, z);
+      called.called_by = id;
+      called.sight = boss.sight;
+      called.leash = boss.leash;
+      Spawn(std::move(called));
+    }
+  }
 }
 
 void World::Hit(Monster& monster) {
