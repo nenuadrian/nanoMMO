@@ -50,8 +50,8 @@ FetchContent_Declare(
 )
 FetchContent_Declare(
   rlimgui
-  URL https://github.com/raylib-extras/rlImGui/archive/1550009359ad975927f7f0e4a3f47e3f27123ea9.tar.gz
-  URL_HASH SHA256=7d04ff0c996a89190e1050d3c4448ad784479723c76893efea2d731bd5eb839f
+  URL https://github.com/raylib-extras/rlImGui/archive/5c17e70e98ae9f50ca94bdcad0e3b3536b46a203.tar.gz
+  URL_HASH SHA256=008e1f8012549c561ae00fce52a5b2c81e3d52604f270cd8ade9ee6d299a166d
 )
 FetchContent_MakeAvailable(raylib imgui rlimgui)
 # By default, raylib skins on the CPU. This leaves it to our vertex shader.
@@ -70,8 +70,8 @@ include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
 
 FetchContent_Declare(
   asio
-  URL https://github.com/chriskohlhoff/asio/archive/refs/tags/asio-1-38-2.tar.gz
-  URL_HASH SHA256=9f2648fa483e58a6bf848d970ee0ea650ca19ed7769dfa520ed4f7b8d27af1db
+  URL https://github.com/chriskohlhoff/asio/archive/refs/tags/asio-1-39-0.tar.gz
+  URL_HASH SHA256=cc27087fad4b6d85c6b8e4c896c57144b417cfc5a5eab9e204565f51adaec1de
 )
 FetchContent_MakeAvailable(asio)
 add_library(asio INTERFACE)
@@ -82,8 +82,8 @@ target_include_directories(asio SYSTEM INTERFACE ${asio_SOURCE_DIR}/asio/include
 set(TRACY_ON_DEMAND ON)
 FetchContent_Declare(
   tracy
-  URL https://github.com/wolfpld/tracy/archive/refs/tags/v0.14.1.tar.gz
-  URL_HASH SHA256=bf4af567e9c7524d07f3caa745fad02fb33bd5694f11910750382d1efbb251c1
+  URL https://github.com/wolfpld/tracy/archive/refs/tags/v0.15.0.tar.gz
+  URL_HASH SHA256=3d57da54aa67d7875da1e8fecd0bd5957675cef73c27dd52bffb6ab8d290a5e6
   SYSTEM
 )
 FetchContent_MakeAvailable(tracy)
@@ -135,8 +135,8 @@ if(NANOMMO_SANITIZE MATCHES "thread")
 endif()
 FetchContent_Declare(
   httplib
-  URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.64.0.tar.gz
-  URL_HASH SHA256=1ada413782af5e67e80452c39b7c90beb6fa4fc8341e18c0896bf95684b9a620
+  URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.66.0.tar.gz
+  URL_HASH SHA256=537a77cdb96d3b4ad64d0b7103971de52eac75cd4ee03a2fdb84417b0d742459
   SYSTEM
 )
 FetchContent_MakeAvailable(httplib)
