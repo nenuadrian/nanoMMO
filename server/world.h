@@ -6,6 +6,7 @@
 #include <deque>
 #include <map>
 #include <memory>
+#include <optional>
 #include <random>
 #include <set>
 #include <string>
@@ -65,6 +66,10 @@ struct Player {
   /// The monster the player picked, by its id, which their swings and skills
   /// go for, or 0 for none.
   uint32_t target = 0;
+  /// In a duel, the player they picked, by their id, in place of a monster:
+  /// their opponent, as nobody else can be. Players and monsters have ids of
+  /// their own, so it goes beside the monster.
+  uint32_t target_player = 0;
   /// The skill the player's using, by its id in the skills file, and how far
   /// into it they are.
   uint32_t skill = 0;
@@ -283,8 +288,9 @@ class World {
   void SetInput(uint32_t id, float x, float z, bool run, bool attack = false);
 
   /// The monster, by its id, that the player's swings and skills go for from
-  /// now on, or 0 for none.
-  void Pick(uint32_t id, uint32_t monster);
+  /// now on, or 0 for none. Or in a duel, their opponent, by their id, in its
+  /// place: a player who isn't is no target.
+  void Pick(uint32_t id, uint32_t monster, uint32_t player = 0);
 
   /// A dead player comes back in the middle of their land, at full health,
   /// once their wait is over.
@@ -398,13 +404,13 @@ class World {
   /// less for a shorter one.
   void Go(Player& player, float x, float z, bool run,
           std::chrono::nanoseconds time);
-  /// Runs the player towards the monster they picked, to within the reach.
+  /// Runs the player towards what they picked, to within the reach.
   void Approach(Player& player, float reach, std::chrono::nanoseconds time);
   /// Runs the player along their way, a step at a time.
   void Follow(Player& player, std::chrono::nanoseconds time);
-  /// The monster the player picked, while it's alive and within reach, or
-  /// nullptr.
-  const Monster* Target(const Player& player, float reach) const;
+  /// Where what the player picked is, while it's alive and within reach: the
+  /// monster, or in a duel, their opponent. Or nothing.
+  std::optional<Place> Target(const Player& player, float reach) const;
   void Aim(Player& player, float reach);
   /// What the skill does when this player uses it: a swing's reach, damage
   /// and timing are the weapon's in their hand.
@@ -436,6 +442,9 @@ class World {
   static bool Fly(Monster& monster, std::chrono::nanoseconds time);
   void Hurt(uint32_t id, Player& player, uint32_t monster_id, Monster& monster,
             int damage);
+  /// A blow on the player from their opponent in a duel. One that would leave
+  /// them no health leaves them one, and they've lost.
+  void Hurt(uint32_t id, Player& player, int damage);
   /// Gives the player back as much of the health as they're missing.
   void Heal(uint32_t id, Player& player, int health);
   /// What the monster the player's just killed drops, into their bag, and its

@@ -90,6 +90,10 @@ message Input {
   // Something to do about a duel with another player. Sent once, like a
   // trade's.
   DuelAction duel = 19;
+  // In a duel, the player the player picked, by their id, in place of a
+  // monster: their opponent, as nobody else can be. It comes with each input,
+  // like the monster.
+  uint32 target_player = 20;
 }
 
 // A place in a land, in metres from its middle.
@@ -132,6 +136,9 @@ message Player {
   uint32 casts = 14;
   // The name of the guild they're in, which comes with their name.
   string guild = 15;
+  // While they use a skill in a duel, the player they picked, by their id, in
+  // place of a monster.
+  uint32 target_player = 16;
 }
 
 message Monster {

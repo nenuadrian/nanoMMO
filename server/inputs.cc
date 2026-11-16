@@ -19,7 +19,7 @@ void Inputs::Take(World& land, uint32_t id, const protocol::Input& input) {
     }
   } else if (!queued_.contains(id)) {
     land.SetInput(id, input.x(), input.z(), input.run(), input.attack());
-    land.Pick(id, input.target());
+    land.Pick(id, input.target(), input.target_player());
   }
 }
 
@@ -43,7 +43,7 @@ void Inputs::Apply(const std::function<World*(uint32_t)>& land_of) {
     }
     const protocol::Input& input = queued.front();
     land->SetInput(id, input.x(), input.z(), input.run(), input.attack());
-    land->Pick(id, input.target());
+    land->Pick(id, input.target(), input.target_player());
     acked_[id] = input.sequence();
     queued.pop_front();
   }

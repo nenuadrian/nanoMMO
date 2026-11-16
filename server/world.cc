@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <numbers>
+#include <optional>
 #include <random>
 #include <set>
 #include <string>
@@ -42,18 +43,33 @@ float Distance(const Player& a, const Player& b) {
   return std::hypot(b.x - a.x, b.z - a.z);
 }
 
+// Where the unit is, a monster or a player, by its id among them, while it's
+// alive and within reach of the player, or nothing.
+template <typename Unit>
+std::optional<Place> Within(const std::map<uint32_t, Unit>& units, uint32_t id,
+                            const Player& player, float reach) {
+  const auto found = units.find(id);
+  if (found == units.end() || found->second.motion == Motion::kDead ||
+      Distance(player, found->second) > reach) {
+    return std::nullopt;
+  }
+  return Place{.x = found->second.x, .z = found->second.z};
+}
+
 // What's offered in a trade stays where it is until the trade's over, as the
 // trade takes it from there.
 constexpr std::string_view kOffered =
     "You can't, while it's offered in your trade.";
 
-// Whether the monster's within the slice in front of the player, as wide as
-// the arc, in degrees. Without one, it's all the way round.
-bool InArc(const Player& player, const Monster& monster, float arc) {
+// Whether the unit, a monster or a duel's opponent, is within the slice in
+// front of the player, as wide as the arc, in degrees. Without one, it's all
+// the way round.
+template <typename Unit>
+bool InArc(const Player& player, const Unit& unit, float arc) {
   if (arc <= 0.0f) {
     return true;
   }
-  const float toward = std::atan2(monster.x - player.x, monster.z - player.z);
+  const float toward = std::atan2(unit.x - player.x, unit.z - player.z);
   const float off =
       std::remainder(toward - player.yaw, 2.0f * std::numbers::pi_v<float>);
   return std::abs(off) <= arc / 2.0f * std::numbers::pi_v<float> / 180.0f;
@@ -157,8 +173,9 @@ World::World(uint32_t seed, Terrain terrain,
       random_(seed) {}
 
 void World::Join(uint32_t id, Player player) {
-  // The monster they picked, and the way they walked, were another land's.
+  // What they picked, and the way they walked, were another land's.
   player.target = 0;
+  player.target_player = 0;
   player.way.clear();
   // Saved somewhere that's sea now, such as on a terrain from another seed.
   if (!terrain_.Walkable(player.x, player.z)) {
@@ -573,11 +590,15 @@ void World::SetInput(uint32_t id, float x, float z, bool run, bool attack) {
   found->second.input_attack = attack;
 }
 
-void World::Pick(uint32_t id, uint32_t monster) {
+void World::Pick(uint32_t id, uint32_t monster, uint32_t player) {
   const auto found = players_.find(id);
-  if (found != players_.end()) {
-    found->second.target = monster;
+  if (found == players_.end()) {
+    return;
   }
+  // Their opponent goes in place of a monster, and anyone else is nobody.
+  const bool opponent = player != 0 && player == duels_.Opponent(id);
+  found->second.target = opponent ? 0 : monster;
+  found->second.target_player = opponent ? player : 0;
 }
 
 void World::Respawn(uint32_t id) {
@@ -810,8 +831,8 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
     const skills::Effect effect =
         skill != nullptr ? EffectOf(player, *skill) : skills::Effect();
     const bool far = OneMonster(effect) &&
-                     Target(player, kAnyDistance) != nullptr &&
-                     Target(player, effect.reach()) == nullptr;
+                     Target(player, kAnyDistance).has_value() &&
+                     !Target(player, effect.reach()).has_value();
     if (skill != nullptr && !far) {
       player.input_skill = 0;
       Start(player, *skill);
@@ -880,30 +901,30 @@ void World::Follow(Player& player, std::chrono::nanoseconds time) {
 void World::Approach(Player& player, float reach,
                      std::chrono::nanoseconds time) {
   player.steered = true;
-  const Monster* monster = Target(player, kAnyDistance);
-  const float distance = Distance(player, *monster);
+  const std::optional<Place> to = Target(player, kAnyDistance);
+  if (!to) {
+    return;
+  }
+  const float distance = std::hypot(to->x - player.x, to->z - player.z);
   const float step = kRunSpeed * std::chrono::duration<float>(time).count();
   // The last step is shorter, so that it stops within the reach.
   const float share =
       std::clamp((distance - reach * kCloseIn) / step, 0.0f, 1.0f);
-  Go(player, (monster->x - player.x) / distance * share,
-     (monster->z - player.z) / distance * share, true, time);
+  Go(player, (to->x - player.x) / distance * share,
+     (to->z - player.z) / distance * share, true, time);
 }
 
-const Monster* World::Target(const Player& player, float reach) const {
-  const auto found = monsters_.find(player.target);
-  if (found == monsters_.end() || found->second.motion == Motion::kDead ||
-      Distance(player, found->second) > reach) {
-    return nullptr;
-  }
-  return &found->second;
+std::optional<Place> World::Target(const Player& player, float reach) const {
+  return player.target_player != 0
+             ? Within(players_, player.target_player, player, reach)
+             : Within(monsters_, player.target, player, reach);
 }
 
-// Turns the player towards the monster they picked, if it's within reach.
-// Without one, they swing at the air the way they face.
+// Turns the player towards what they picked, if it's within reach. Without
+// it, they swing at the air the way they face.
 void World::Aim(Player& player, float reach) {
-  if (const Monster* monster = Target(player, reach)) {
-    player.yaw = std::atan2(monster->x - player.x, monster->z - player.z);
+  if (const std::optional<Place> at = Target(player, reach)) {
+    player.yaw = std::atan2(at->x - player.x, at->z - player.z);
   }
 }
 
@@ -916,7 +937,7 @@ const skills::Skill* World::Usable(const Player& player, uint32_t id) const {
   const skills::Effect& effect = found->second.effect();
   if (effect.weapon()
           ? player.stats.weapon == nullptr
-          : OneMonster(effect) && Target(player, kAnyDistance) == nullptr) {
+          : OneMonster(effect) && !Target(player, kAnyDistance).has_value()) {
     return nullptr;
   }
   return &found->second;
@@ -999,6 +1020,17 @@ void World::Land(uint32_t id, Player& player, const skills::Effect& effect,
       Push(player, monster, blow.push());
       Throw(monster, blow.lift());
       Hurt(id, player, monster_id, monster, damage);
+    }
+  }
+  // In a duel, their opponent too, when it's for them or all around, but a
+  // player isn't pushed or thrown, as their own keys move them.
+  if (const uint32_t other = duels_.Opponent(id); other != 0) {
+    Player& them = players_.at(other);
+    if ((effect.all() || other == player.target_player) &&
+        them.motion != Motion::kDead &&
+        Distance(player, them) <= effect.reach() &&
+        InArc(player, them, effect.arc())) {
+      Hurt(other, them, damage);
     }
   }
 }
@@ -1109,6 +1141,20 @@ void World::Hurt(uint32_t id, Player& player, uint32_t monster_id,
   }
   Loot(id, player, monster);
   Count(id, player, monster);
+}
+
+void World::Hurt(uint32_t id, Player& player, int damage) {
+  // Nobody dies in a duel: the blow that would leave them nothing leaves them
+  // one, and they've lost.
+  const int taken = std::min(damage, player.health - 1);
+  if (taken > 0) {
+    player.health -= taken;
+    Record(Event::Kind::kHurt, id, player).amount =
+        static_cast<uint32_t>(taken);
+  }
+  if (taken < damage) {
+    Lose(id);
+  }
 }
 
 void World::Heal(uint32_t id, Player& player, int health) {
@@ -1270,6 +1316,9 @@ void World::Referee(std::chrono::nanoseconds time) {
 
 void World::Lose(uint32_t id) {
   const uint32_t winner = duels_.End(id);
+  // Neither can hit the other any more.
+  players_.at(id).target_player = 0;
+  players_.at(winner).target_player = 0;
   notices_.push_back(
       {.player = id,
        .text = absl::StrCat(players_.at(winner).name, " won the duel.")});
