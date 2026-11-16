@@ -11,6 +11,11 @@
 
 namespace nanommo {
 
+/// A serial for one of an item that doesn't stack: 64 random bits from the
+/// system, so that two items share one by chance about once in 2^64 for each
+/// pair, which is never.
+uint64_t NewSerial();
+
 /// What a player carries, in a bag of kBagSlots, and wears, an item in each
 /// slot, kept as the message that's saved and sent. Each change takes it to
 /// its next revision. Items the table doesn't have, such as one taken out of
@@ -44,6 +49,11 @@ class Inventory {
   /// Wears it, if it's worn and its slot is free, and returns whether it did,
   /// as for a new player's kit.
   bool Wear(const ItemTable& table, const items::Stack& stack);
+
+  /// Gives each item that doesn't stack and has no serial, such as the kit's
+  /// or one saved before serials, a NewSerial, and moves to the next revision
+  /// if it gave any, so that they're saved.
+  void Number(const ItemTable& table);
 
   /// Moves count of what's at from to to, or all of it given zero: into an
   /// empty place, onto a stack of the same item, as many as it has room for,

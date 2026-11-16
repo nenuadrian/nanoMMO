@@ -269,6 +269,28 @@ TEST_F(PlayersTest, FlushesTheBagsThatChangedToMySQL) {
   EXPECT_TRUE(player->inventory.items().bag().empty());
 }
 
+TEST_F(PlayersTest, KeepsSerials) {
+  nanommo::Players players(*database_, *redis_);
+  // All 64 bits of it, through MySQL's JSON as well as Redis.
+  nanommo::protocol::Inventory bag = Bag(2);
+  (*bag.mutable_worn())[nanommo::items::SLOT_MAIN_HAND].set_serial(
+      0xFEDCBA9876543210);
+  ASSERT_TRUE(
+      players.Save("Ember", {{id_, {.items_revision = 2}}}, {{id_, bag}}).ok());
+  absl::StatusOr<nanommo::Player> player = players.Load("Ember", id_);
+  ASSERT_TRUE(player.ok()) << player.status();
+  EXPECT_TRUE(Same(player->inventory.items(), bag))
+      << player->inventory.items().DebugString();
+
+  ASSERT_TRUE(players.Flush().ok());
+  ASSERT_TRUE(
+      redis_->Command({"DEL", "player:Ember:" + std::to_string(id_)}).ok());
+  player = players.Load("Ember", id_);
+  ASSERT_TRUE(player.ok()) << player.status();
+  EXPECT_TRUE(Same(player->inventory.items(), bag))
+      << player->inventory.items().DebugString();
+}
+
 TEST_F(PlayersTest, FlushesMoreRowsOfBagsThanAStatementTakes) {
   // Forty players, each with a stack in every slot of the bag, and an item
   // in every slot that's worn: more rows than go in one statement.

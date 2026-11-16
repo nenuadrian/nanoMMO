@@ -176,6 +176,9 @@ void World::Join(uint32_t id, Player player) {
       }
     }
   }
+  // The kit's items get their serials here, and so do those from before
+  // serials, the first time they're back.
+  player.inventory.Number(items);
   Dress(player);
   // Zero when none was saved, as for a player from before we kept health.
   if (player.health <= 0) {
@@ -1079,13 +1082,17 @@ uint32_t World::Give(Inventory& bag, uint32_t item, uint32_t count) {
     return 0;
   }
   // What stacks goes as one stack, and what doesn't one at a time, each with
-  // rolls of its own.
-  const uint32_t each = StackSize(found->second) > 1 ? count : 1;
+  // rolls and a serial of its own.
+  const bool stacks = StackSize(found->second) > 1;
+  const uint32_t each = stacks ? count : 1;
   uint32_t fitted = 0;
   for (uint32_t made = 0; made < count; made += each) {
     items::Stack stack;
     stack.set_item(item);
     stack.set_count(each);
+    if (!stacks) {
+      stack.set_serial(NewSerial());
+    }
     for (const items::Roll& roll : found->second.rolls()) {
       items::Modifier* rolled = stack.add_rolls();
       rolled->set_stat(roll.stat());

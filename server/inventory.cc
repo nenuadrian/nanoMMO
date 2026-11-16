@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <random>
 #include <string>
 #include <utility>
 
@@ -66,6 +67,12 @@ absl::Status CheckFits(const ItemTable& table, const items::Stack& stack,
 
 }  // namespace
 
+uint64_t NewSerial() {
+  // Not from a world's own numbers, as two copies' seeds can be the same.
+  std::random_device device;
+  return uint64_t{device()} << 32 | device();
+}
+
 const items::Stack* Inventory::At(const protocol::Place& place) const {
   if (!IsPlace(place)) {
     return nullptr;
@@ -129,6 +136,21 @@ uint32_t Inventory::Add(const ItemTable& table, const items::Stack& stack) {
     Changed();
   }
   return left;
+}
+
+void Inventory::Number(const ItemTable& table) {
+  bool numbered = false;
+  for (auto* slots : {items_.mutable_bag(), items_.mutable_worn()}) {
+    for (auto& [slot, stack] : *slots) {
+      if (stack.serial() == 0 && StackSizeOf(table, stack.item()) == 1) {
+        stack.set_serial(NewSerial());
+        numbered = true;
+      }
+    }
+  }
+  if (numbered) {
+    Changed();
+  }
 }
 
 uint32_t Inventory::AddGold(uint32_t amount) {

@@ -1064,6 +1064,45 @@ TEST(World, PutsWhatAMonsterDropsInItsKillersBag) {
   EXPECT_TRUE(world.TakeNotices().empty());
 }
 
+TEST(World, EachItemHasASerialOfItsOwn) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Gear(), {}, Looted()));
+  const auto serial = [&](uint32_t id, const nanommo::protocol::Place& place) {
+    const nanommo::items::Stack* stack =
+        world.players().at(id).inventory.At(place);
+    return stack != nullptr ? stack->serial() : uint64_t{0};
+  };
+  const nanommo::protocol::Place hand =
+      nanommo::Worn(nanommo::items::SLOT_MAIN_HAND);
+  // Each new player's kit has a sword, which has a serial, and potions,
+  // which stack, and have none.
+  world.Join(1, {});
+  world.Join(2, {});
+  std::set<uint64_t> serials = {serial(1, hand), serial(2, hand)};
+  EXPECT_EQ(serial(1, nanommo::InBag(0)), 0u);
+
+  // A blade that a kill drops has one too, and its bones none.
+  Kill(world, 1);
+  EXPECT_EQ(serial(1, nanommo::InBag(1)), 0u);
+  serials.insert(serial(1, nanommo::InBag(2)));
+
+  // A sword saved before serials gets one as it's back, and the bag its next
+  // revision, so that it's saved, and keeps it through a gate.
+  const nanommo::Player before = With(1, true);
+  world.Join(3, before);
+  EXPECT_GT(world.players().at(3).inventory.revision(),
+            before.inventory.revision());
+  serials.insert(serial(3, hand));
+  const nanommo::Player through = world.players().at(3);
+  world.Leave(3);
+  world.Join(3, through);
+  EXPECT_EQ(serial(3, hand), through.inventory.At(hand)->serial());
+
+  EXPECT_EQ(serials.size(), 4u);
+  EXPECT_FALSE(serials.contains(0));
+}
+
 TEST(World, LeavesWhatDoesntFitInTheBag) {
   nanommo::World world(
       1, nanommo::Terrain(),

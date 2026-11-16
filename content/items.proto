@@ -103,6 +103,9 @@ message Stack {
   // Without one, one.
   uint32 count = 2;
   repeated Modifier rolls = 3;
+  // One of an item that doesn't stack has a serial of its own, which no other
+  // has, so that a copy of it can be told from it. Zero for one that stacks.
+  uint64 serial = 4;
 }
 
 message Items {
