@@ -297,6 +297,7 @@ int main(int argc, char* argv[]) {
         nanommo::protocol::Input numbered = sent;
         numbered.set_sequence(++sequence);
         numbered.set_seen(connection->whole());
+        numbered.set_drawn(interpolation.Drawn(GetTime()));
         connection->Send(numbered);
         round_trip.Sent(sequence, GetTime());
         // And they walk us now, as the server will when they reach it,

@@ -31,6 +31,11 @@ class Interpolation {
   /// where they were kDelay ago on the server's clock.
   protocol::World Shown(const protocol::World& newest, double now) const;
 
+  /// The time on the server's clock that we draw everyone else at, now, in
+  /// microseconds, which each input says, so that a blow on a duel opponent
+  /// is checked against where we drew them. Or 0 before any world has come.
+  int64_t Drawn(double now) const;
+
  private:
   struct Place {
     float x = 0.0f;

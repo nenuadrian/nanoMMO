@@ -1155,6 +1155,97 @@ TEST_F(ServerTest, HandingPlayersOverCallsTheirDuelOff) {
   EXPECT_TRUE(bob.duel()->opponent().empty());
 }
 
+TEST_F(ServerTest, ADuelBlowLandsWhereTheClientDrewThemUpToTheMost) {
+  // A dagger, whose blow lands a tick after it's swung, so that the test
+  // knows where bob is as it does.
+  const nanommo::Content daggers{
+      .items = *nanommo::ParseItems(R"pb(
+        starting { item: 1 }
+        items {
+          id: 1
+          weapon { reach: 1.6 swing_ms: 500 hit_ms: 50 damage: 15 }
+          equip { slot: SLOT_MAIN_HAND }
+        }
+      )pb"),
+      .skills = nanommo::testing::WithStrike({})};
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> arena =
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1, daggers,
+                              metrics_, *tokens_, *players_, *guilds_, *events_,
+                              *storyteller_);
+  ASSERT_TRUE(arena.ok()) << arena.status();
+  TestPlayer alice(io_, *client_tls_, (*arena)->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, (*arena)->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(bob_) && bob.Sees(alice_); }));
+  nanommo::protocol::Input ask;
+  ask.mutable_duel()->set_ask(names_[bob_]);
+  alice.Send(ask);
+  ASSERT_TRUE(RunUntil([&] { return bob.duel().has_value(); }));
+  nanommo::protocol::Input yes;
+  yes.mutable_duel()->set_accept(true);
+  bob.Send(yes);
+  ASSERT_TRUE(RunUntil([&] {
+    return alice.duel() &&
+           alice.duel()->state() == nanommo::protocol::DUEL_FIGHTING;
+  }));
+  // How far apart they are in alice's newest world, and whether she's using
+  // a skill in it, and how many of her blows have landed on bob.
+  const auto apart = [&] {
+    std::map<uint32_t, std::pair<float, float>> at;
+    for (const nanommo::protocol::Player& player : alice.world().players()) {
+      at[player.id()] = {player.x(), player.z()};
+    }
+    return std::hypot(at[bob_].first - at[alice_].first,
+                      at[bob_].second - at[alice_].second);
+  };
+  const auto swinging = [&] {
+    return std::ranges::any_of(
+        alice.world().players(), [&](const nanommo::protocol::Player& player) {
+          return player.id() == alice_ &&
+                 player.motion() == nanommo::protocol::MOTION_SKILL;
+        });
+  };
+  const auto landed = [&] {
+    return std::ranges::count_if(
+        alice.events(), [&](const nanommo::protocol::Event& event) {
+          return event.kind() == nanommo::protocol::EVENT_HURT &&
+                 event.player() == bob_;
+        });
+  };
+
+  // Bob runs off, west, where there's no gate, and once her newest world has
+  // him out of the dagger's reach, she swings, saying her client drew him 150
+  // milliseconds before it, when he was in reach. Her blow lands, though he's
+  // further off still.
+  nanommo::protocol::Input run;
+  run.set_x(-1.0f);
+  run.set_run(true);
+  bob.Send(run);
+  ASSERT_TRUE(RunUntil([&] { return apart() > 1.6f; }));
+  nanommo::protocol::Input swing;
+  swing.set_attack(true);
+  swing.set_target_player(bob_);
+  swing.set_sequence(1);
+  swing.set_drawn(alice.world().sent() - 150'000);
+  alice.Send(swing);
+  ASSERT_TRUE(RunUntil([&] { return landed() == 1; }));
+  nanommo::protocol::Input stop;
+  stop.set_sequence(2);
+  alice.Send(stop);
+
+  // Once that swing's over, she swings again, saying her client drew him a
+  // second before, when he was beside her. The server goes back 200
+  // milliseconds at most, when he was out of reach, so she runs after him,
+  // as fast as he runs, and her blow never comes.
+  ASSERT_TRUE(RunUntil([&] { return !swinging() && apart() > 3.0f; }));
+  swing.set_sequence(3);
+  swing.set_drawn(alice.world().sent() - 1'000'000);
+  alice.Send(swing);
+  const int64_t from = alice.world().sent();
+  ASSERT_TRUE(RunUntil([&] { return alice.world().sent() - from >= 500'000; }));
+  EXPECT_EQ(landed(), 1);
+}
+
 TEST_F(ServerTest, AppliesNumberedInputsOneATickInOrder) {
   TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
   ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));

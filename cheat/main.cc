@@ -37,6 +37,15 @@
 //     over the trade, to keep the sword when it comes back. If the second
 //     turns it away, it tries again each second, for twenty seconds, and is
 //     ready once it's in, or has given up.
+//
+// The duels are with the partner too, who says yes in their client, or runs
+// duel, which asks back:
+//
+//   duel: asks the partner to duel, and once it's on, picks them and swings,
+//     each input saying it drew them as a client does, 100 milliseconds
+//     before the newest world, to compare with.
+//   stale: the same, but saying it drew them a second before, to hit where
+//     they were rather than where they are.
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -48,6 +57,7 @@
 #include <string>
 #include <thread>
 #include <utility>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -59,6 +69,7 @@
 #include "protocol/settings.h"
 #include "protocol/tls.h"
 #include "protocol/version.h"
+#include "server/history.h"
 
 namespace {
 
@@ -72,6 +83,10 @@ constexpr char kWorld[] = "Ember";
 // The server's tick, on which the client sends its inputs.
 constexpr auto kTick = std::chrono::milliseconds(50);
 constexpr auto kEachWay = std::chrono::seconds(3);
+// How long before the newest world a client draws everyone else, which duel
+// says it drew them at, and how long before it stale says.
+constexpr auto kDrawn = std::chrono::milliseconds(100);
+constexpr auto kStale = std::chrono::milliseconds(1000);
 
 absl::StatusOr<nanommo::protocol::LoginReply> Ask(
     asio::ssl::context& tls, const nanommo::protocol::LoginRequest& request) {
@@ -132,14 +147,20 @@ absl::StatusOr<std::string> Enter(asio::ssl::context& tls,
   return reply->token();
 }
 
-// Where the world has us, once it has.
-const nanommo::protocol::Player* Us(const nanommo::protocol::World& world) {
+// The player the world has with the id, if it has them.
+const nanommo::protocol::Player* Player(const nanommo::protocol::World& world,
+                                        uint32_t id) {
   for (const nanommo::protocol::Player& player : world.players()) {
-    if (player.id() == world.you()) {
+    if (player.id() == id) {
       return &player;
     }
   }
   return nullptr;
+}
+
+// Where the world has us, once it has.
+const nanommo::protocol::Player* Us(const nanommo::protocol::World& world) {
+  return Player(world, world.you());
 }
 
 // The monster the world has with the id, if it has it.
@@ -181,7 +202,9 @@ enum class Cheat {
   kTake,
   kSwap,
   kRun,
-  kTwice
+  kTwice,
+  kDuel,
+  kStale
 };
 
 // An input that moves what's in one place to another.
@@ -465,14 +488,105 @@ int Trade(asio::ssl::context& tls, const std::string& name,
   return 0;
 }
 
+// The duels, with the partner. Once one's on, it picks them, and swings at
+// them each tick, each input saying when it drew everyone, on the server's
+// clock: kDrawn before the newest world, as a client does, or for stale,
+// kStale. It prints each blow that lands, and each second what it says, and
+// where the partner was then, by its own history of where they've been, as
+// the server keeps one. Returns what main does.
+int Duel(Cheat cheat, const std::string& partner,
+         std::unique_ptr<nanommo::Connection> connection) {
+  const std::string named = cheat == Cheat::kStale ? "stale" : "duel";
+  const auto says = cheat == Cheat::kStale ? kStale : kDrawn;
+  nanommo::History history;
+  uint32_t sequence = 0;
+  int landed = 0;
+  bool fought = false;
+  std::chrono::steady_clock::time_point asked;
+  std::chrono::steady_clock::time_point tick;
+  std::chrono::steady_clock::time_point second;
+  std::cout << std::fixed << std::setprecision(1);
+  while (connection->connected()) {
+    connection->Poll();
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    const auto now = std::chrono::steady_clock::now();
+    const nanommo::protocol::World& world = connection->world();
+    const nanommo::protocol::Duel& duel = connection->duel();
+    const std::vector<nanommo::protocol::Event> events =
+        connection->TakeEvents();
+    if (duel.state() != nanommo::protocol::DUEL_FIGHTING) {
+      if (fought) {
+        std::cout << "cheat: the duel's over, and " << landed
+                  << (landed == 1 ? " blow" : " blows") << " landed"
+                  << std::endl;
+        return 0;
+      }
+      // The partner may not be in yet, so we ask each second, and asking
+      // back a partner who asked first is a yes.
+      const bool waiting = duel.state() == nanommo::protocol::DUEL_ASKING ||
+                           duel.state() == nanommo::protocol::DUEL_COUNTDOWN;
+      if (!waiting && now - asked >= std::chrono::seconds(1)) {
+        nanommo::protocol::Input ask;
+        ask.mutable_duel()->set_ask(partner);
+        connection->Send(ask);
+        asked = now;
+      }
+      tick = now;
+      continue;
+    }
+    fought = true;
+    const uint32_t them = duel.opponent_id();
+    const nanommo::protocol::Player* us = Us(world);
+    const nanommo::protocol::Player* other = Player(world, them);
+    if (us == nullptr || other == nullptr) {
+      continue;
+    }
+    const auto sent = std::chrono::microseconds(world.sent());
+    history.Record(them, sent, {.x = other->x(), .z = other->z()});
+    // How far from us they are now, or were, as long ago as that.
+    const auto away = [&](std::chrono::milliseconds ago) {
+      const nanommo::Place then = *history.At(them, sent - ago);
+      return std::hypot(then.x - us->x(), then.z - us->z());
+    };
+    for (const nanommo::protocol::Event& event : events) {
+      if (event.kind() == nanommo::protocol::EVENT_HURT &&
+          event.player() == them) {
+        ++landed;
+        std::cout << "cheat: a blow landed on " << partner << ", for "
+                  << event.amount() << ", " << away({}) << " m away"
+                  << std::endl;
+      }
+    }
+    if (now >= tick) {
+      tick += kTick;
+      nanommo::protocol::Input input;
+      input.set_target_player(them);
+      input.set_attack(true);
+      input.set_sequence(++sequence);
+      input.set_seen(connection->whole());
+      input.set_drawn((sent - says).count());
+      connection->Send(input);
+    }
+    if (now - second >= std::chrono::seconds(1)) {
+      second = now;
+      std::cout << "cheat: " << named << " says it drew " << partner << " "
+                << says.count() << " ms ago, " << away(says)
+                << " m away then, and " << away({}) << " m away now"
+                << std::endl;
+    }
+  }
+  std::cout << "cheat: the server closed the connection" << std::endl;
+  return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
   const std::string usage =
       "usage: nanommo_cheat <name> <password> "
       "<walk|speed|teleport|reach|fight|rapid|swing|cancel>\n"
-      "       nanommo_cheat <name> <password> <take|swap|run|twice> "
-      "<partner>\n";
+      "       nanommo_cheat <name> <password> "
+      "<take|swap|run|twice|duel|stale> <partner>\n";
   if (argc != 4 && argc != 5) {
     std::cerr << usage;
     return 2;
@@ -505,14 +619,19 @@ int main(int argc, char** argv) {
     cheat = Cheat::kRun;
   } else if (named == "twice") {
     cheat = Cheat::kTwice;
+  } else if (named == "duel") {
+    cheat = Cheat::kDuel;
+  } else if (named == "stale") {
+    cheat = Cheat::kStale;
   } else {
     std::cerr << usage;
     return 2;
   }
   const bool trades = cheat == Cheat::kTake || cheat == Cheat::kSwap ||
                       cheat == Cheat::kRun || cheat == Cheat::kTwice;
-  // A trade needs a partner, and nothing else does.
-  if (trades != (argc == 5)) {
+  const bool duels = cheat == Cheat::kDuel || cheat == Cheat::kStale;
+  // A trade or a duel needs a partner, and nothing else does.
+  if ((trades || duels) != (argc == 5)) {
     std::cerr << usage;
     return 2;
   }
@@ -550,6 +669,9 @@ int main(int argc, char** argv) {
             << std::endl;
   if (trades) {
     return Trade(*tls, name, password, cheat, argv[4], *std::move(connection));
+  }
+  if (duels) {
+    return Duel(cheat, argv[4], *std::move(connection));
   }
 
   nanommo::Speedometer speed;

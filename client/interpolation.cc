@@ -1,7 +1,9 @@
 #include "client/interpolation.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <limits>
 #include <utility>
@@ -64,6 +66,13 @@ double Interpolation::Then(double now) const {
     ahead = std::min(ahead, snapshot.ahead);
   }
   return now - ahead - kDelay;
+}
+
+int64_t Interpolation::Drawn(double now) const {
+  if (snapshots_.empty()) {
+    return 0;
+  }
+  return std::llround(Then(now) * 1e6);
 }
 
 protocol::World Interpolation::Shown(const protocol::World& newest,

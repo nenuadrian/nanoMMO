@@ -36,6 +36,16 @@ TEST(Interpolation, DrawsOthersBetweenTheWorldsAMomentAgo) {
   EXPECT_FLOAT_EQ(shown.players(1).x(), 2.0f);
 }
 
+TEST(Interpolation, SaysWhenItDrawsOnTheServersClock) {
+  nanommo::Interpolation interpolation;
+  EXPECT_EQ(interpolation.Drawn(1005.0), 0);
+  interpolation.Add(At(5.00, 0.0f), 1005.03);
+  interpolation.Add(At(5.05, 1.0f), 1005.08);
+
+  // As above: at 1005.155 on our clock, it draws 5.025 on the server's.
+  EXPECT_EQ(interpolation.Drawn(1005.155), 5'025'000);
+}
+
 TEST(Interpolation, LearnsTheClocksFromTheQuickestWorld) {
   nanommo::Interpolation interpolation;
   // The second world was held up 40 ms more on the way than the others.
