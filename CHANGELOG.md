@@ -7,6 +7,17 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.81.0 (2026-11-16)
+
+- Duels: `/duel` and a name asks a player within ten metres, and `/duel yes`, or Duel on the
+  question on their screen, says yes. After a countdown of three seconds, in the middle of both
+  screens, each can pick the other, as they would a monster, and hit them with a swing or a skill,
+  and nobody else can hit either of them. The blow that would leave one no health leaves them one,
+  and they lose, and so does one who goes more than 25 metres from the flag, where the one who
+  asked stood. Nobody dies in a duel.
+- `Input`'s `duel` and `target_player`, `World`'s `duel` and `Player`'s `target_player` carry them,
+  and the client gets the duel through its `Link`, in a browser too.
+
 ## 0.80.0 (2026-11-16)
 
 - The client's page is its own, `client/web/shell.html`, in place of Emscripten's: the canvas

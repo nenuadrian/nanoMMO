@@ -352,3 +352,43 @@ it has them:
 - Once they've traded, both players are saved, together, with a record of the trade, in one Redis
   script, before either hears of it, and a player who leaves is saved as they go (see
   [Saving](saving.md)).
+
+## Duels
+
+Two players in the same land fight each other in a duel, once both have said yes to it, and
+nobody hurts another player otherwise. `/duel` and a name in the chat asks that player, whatever
+its case, within ten metres (`Duels::kReach`). They hear it as a line in the chat, and a question on
+their screen: Duel says yes, and Not now, or closing it, says no, as `/duel yes` and `/duel no` do,
+and asking back the one who asked is a yes too. An ask waits thirty seconds, and then it's gone,
+and the one who asked hears that nobody answered.
+
+- A yes puts the flag down where the one who asked stands: a gold pole, with a ring at its foot and
+  a fainter one 25 metres out (`Duels::kFlagReach`). A countdown of three seconds shows in the
+  middle of both screens, then Fight!
+- Each can pick the other then, as they would a monster: a click on them, which gives them a red
+  ring at their feet and their frame beside yours, and hit them with a swing or a skill, which runs
+  you up to them first, out of its reach, as it does to a monster. A skill that hits all around hits
+  them too. Nobody else can be picked, so nobody else hits either of them, and neither hits anyone
+  else. Monsters fight on as before.
+- The blow that would leave a duellist no health leaves them one, and they've lost: nobody dies in a
+  duel. A duellist who goes more than 25 metres from the flag, or dies, to a monster, loses too, and
+  so does one who types `/duel yield`. Both hear who won, in the chat: "alice won the duel." and
+  "You won the duel against bob."
+- Health comes back after a duel as it does after a fight with monsters, from a potion, a skill or a
+  new level, and not otherwise. So the next duel starts with what the last one left, and a loser who
+  duels again at one health loses to the first blow.
+- A player is in one duel at a time, from the ask to the end. `/duel yield` before the fight calls
+  it off, and so does either player leaving the land or the game, or the world handing its players
+  over to its next instance.
+- A blow doesn't push or throw a player, as their own keys move them, and a duel gives no
+  experience, and drops nothing.
+
+The server decides it all, as it does a trade. Both players are in the same copy of a land, so each
+world keeps its duels (`server/duels.h`). The client sends what it does in `Input`'s `duel`, once,
+and the world does it as the message comes, or says why not in a line from nobody: three at once,
+then one a second. After each tick, each player whose duel was asked for, counted down a second,
+started or ended gets it, on its own, over TCP, as `World`'s `duel`, with nobody in it once it's
+over. The player you pick comes with each input, as `Input`'s `target_player`, beside the monster's
+`target`, and the world keeps it only for your opponent in a duel that's started, in place of a
+monster: picking anyone else picks nobody. Why a duel ends at one health, and the opponent is picked
+beside the monster, is [decision 33](decisions/0033-players-fight-each-other-in-duels-that-end-at-one-health.md).

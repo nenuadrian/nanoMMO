@@ -36,7 +36,7 @@ servers or a certificate.
 | Offline, there's | Not there, as it lives on the servers |
 |---|---|
 | The Meadows, with its monsters and NPCs, and one player, Traveller | Other players, and the other lands: a gate says so in the chat |
-| Fighting, skills, levels, the bag and its gold, and the NPCs' skills and quests | The storyteller's stories, guilds, and trades, which take another player |
+| Fighting, skills, levels, the bag and its gold, and the NPCs' skills and quests | The storyteller's stories, guilds, and trades and duels, which take another player |
 | Everything the client draws and plays | Saving: a page left or closed starts again |
 
 ## Online, through the gateway

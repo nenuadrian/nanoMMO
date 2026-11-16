@@ -172,6 +172,23 @@ With forty bots on one machine (`nanommo_bot localhost localhost 40 5 1 udp`), t
 16.8 KB a second to each before, and 7.6 KB after, from `nanommo_bytes_sent_total`. Those who
 move still go whole each tick: a player walking changes where they are, and so their piece.
 
+## A duel's messages
+
+A duel ([Gameplay](gameplay.md#duels)) is the first time what one client sends hurts another
+player, so the server keeps it to the two who said yes, and checks the rest as it does a trade.
+
+| Message | Field | What |
+|---|---|---|
+| `Input` | `duel`, 19 | An ask, by name, a yes, a no or a yield, once, over TCP |
+| `Input` | `target_player`, 20 | The player picked, with each input, beside the monster's `target`. The world keeps it only for the opponent in a duel that's started, so it can't hurt anyone else |
+| `World` | `duel`, 27 | Who with, by name and id, how far it's got, the countdown's milliseconds and the flag. On its own, over TCP, to both sides, as it's asked for, at each second of the countdown, and as it starts and ends, with nobody in it once it's over |
+| `Player` | `target_player`, 16 | While they use a skill in a duel, the player it's for, so that its fx land on them on everyone's screen, as `target` does for a monster |
+
+The server hits a duellist where it has them as the blow lands, while the other's client draws them
+100 milliseconds in the past, as it does everyone else (above). So against a player who's moving, a
+blow that looked as if it missed can land, and one that looked as if it would land can miss, by as
+far as they go in that time and the trip to the server. Making up for that is for a later episode.
+
 ## What a modified client can try
 
 The client runs on the player's machine, so anything it sends can be made up. `nanommo_cheat` is
