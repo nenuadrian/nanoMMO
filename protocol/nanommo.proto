@@ -167,6 +167,8 @@ message Monster {
   // its shape coming.
   uint32 skill = 12;
   uint32 lands_in = 13;
+  // A boss's phase, from one, which its bar at the top of the screen shows.
+  uint32 phase = 14;
 }
 
 // Someone who stands in one place, and doesn't fight. Each comes once a
@@ -204,10 +206,12 @@ message Quests {
   repeated uint32 done = 3;
 }
 
-// Who hears a line: the whole world, or the guild of the one who said it.
+// Who hears a line: the whole world, or the guild of the one who said it, or
+// everyone in a land, from nobody, as when a world boss falls.
 enum Channel {
   CHANNEL_WORLD = 0;
   CHANNEL_GUILD = 1;
+  CHANNEL_LAND = 2;
 }
 
 message Chat {

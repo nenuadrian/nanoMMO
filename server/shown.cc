@@ -63,6 +63,9 @@ protocol::Monster ToProtocol(uint32_t id, const Monster& monster) {
   sent.set_health(monster.health);
   sent.set_max_health(monster.max_health);
   sent.set_height(monster.height);
+  if (monster.boss()) {
+    sent.set_phase(static_cast<uint32_t>(monster.phase) + 1);
+  }
   if (monster.motion == Motion::kSkill) {
     sent.set_skill(monster.casting.id());
     sent.set_lands_in(static_cast<uint32_t>(

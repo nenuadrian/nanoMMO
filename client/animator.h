@@ -43,6 +43,10 @@ struct Figure {
   int level = 1;
   int health = 0;
   int max_health = 0;
+  /// A boss's phase, from one, or 0 for any other monster.
+  uint32_t phase = 0;
+  /// A monster's height, in metres, from its kind's look.
+  float height = 0.0f;
   /// What a player holds, by its id in the items file.
   uint32_t weapon = 0;
   /// What else a player wears, by its ids in the items file.

@@ -105,7 +105,8 @@ class Server {
   /// when it's about what they asked, and with "try again" when it's MySQL.
   void Refuse(uint32_t id, const absl::Status& why);
   /// Sends the player a line from the server, which has no name.
-  void Notify(uint32_t id, const std::string& text);
+  void Notify(uint32_t id, const std::string& text,
+              protocol::Channel channel = protocol::CHANNEL_WORLD);
   void Receive();
   /// Each player's next numbered input, one a tick, before the world steps.
   void ApplyInputs();

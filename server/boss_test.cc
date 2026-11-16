@@ -9,6 +9,7 @@
 
 #include "gtest/gtest.h"
 #include "server/monsters.h"
+#include "server/shown.h"
 #include "server/test_content.h"
 #include "server/world.h"
 #include "terrain/terrain.h"
@@ -418,4 +419,39 @@ TEST(World, TheLandHearsTheBossFallAndRiseAgain) {
   EXPECT_NE(world.monsters().at(id).motion, nanommo::Motion::kDead);
   EXPECT_EQ(Heard(world, 2),
             std::vector<std::string>{"The Colossus has risen."});
+}
+
+TEST(World, TheClientsSeeTheBossesPhaseAndHearItsNewsApart) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Gear(), Smite(), Monsters()));
+  world.Join(1, {.name = "alice", .x = 4.5f, .skills = {1}});
+  const uint32_t id = world.Spawn(nanommo::MonsterOf(Colossus(), 0.0f, 0.0f));
+  const nanommo::Monster& colossus = world.monsters().at(id);
+  world.Pick(1, id);
+
+  // From one, for its bar, and none for a monster that isn't a boss.
+  EXPECT_EQ(nanommo::ToProtocol(id, colossus).phase(), 1u);
+  Smite(world, 1, 4);
+  EXPECT_EQ(nanommo::ToProtocol(id, colossus).phase(), 2u);
+  for (const auto& [add_id, add] : world.monsters()) {
+    if (add_id != id) {
+      EXPECT_EQ(nanommo::ToProtocol(add_id, add).phase(), 0u);
+    }
+  }
+
+  // What the land hears comes on a channel of its own.
+  world.TakeNotices();
+  Smite(world, 1, 6);
+  ASSERT_EQ(colossus.motion, nanommo::Motion::kDead);
+  bool heard = false;
+  for (const nanommo::Notice& notice : world.TakeNotices()) {
+    if (notice.text.starts_with("The Colossus has fallen")) {
+      heard = true;
+      EXPECT_EQ(notice.channel, nanommo::protocol::CHANNEL_LAND);
+    } else {
+      EXPECT_EQ(notice.channel, nanommo::protocol::CHANNEL_WORLD);
+    }
+  }
+  EXPECT_TRUE(heard);
 }

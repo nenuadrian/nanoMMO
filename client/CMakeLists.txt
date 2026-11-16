@@ -4,7 +4,7 @@ add_library(nanommo_client_core
   settings.cc gui.cc menu.cc renderer.cc
   offscreen.cc postprocess.cc outline.cc
   camera.cc scene.cc input.cc glsl.cc local_connection.cc inbox.cc
-  login_screen.cc nameplates.cc combat_text.cc player_frame.cc hotbar.cc
+  login_screen.cc nameplates.cc combat_text.cc player_frame.cc boss_bar.cc hotbar.cc
   bag_window.cc guild_window.cc trade_window.cc duel_window.cc round_trip.cc prediction.cc
   interpolation.cc
   character_screen.cc
@@ -104,7 +104,7 @@ add_executable(nanommo_client_tests
   moves_test.cc rig_test.cc fx_test.cc telegraphs_test.cc
   figures_test.cc picking_test.cc
   jukebox_test.cc sound_test.cc settings_test.cc bag_window_test.cc
-  quest_window_test.cc combat_text_test.cc nameplates_test.cc
+  quest_window_test.cc combat_text_test.cc nameplates_test.cc boss_bar_test.cc
   login_screen_test.cc
   loading_test.cc death_screen_test.cc gate_test.cc map_test.cc
   theme_test.cc compass_test.cc predicted_bag_test.cc chat_window_test.cc

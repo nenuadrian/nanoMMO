@@ -19,6 +19,7 @@
 #include "client/atmosphere.h"
 #include "client/audio.h"
 #include "client/bag_window.h"
+#include "client/boss_bar.h"
 #include "client/camera.h"
 #include "client/character_screen.h"
 #include "client/chat_window.h"
@@ -601,6 +602,10 @@ int main(int argc, char* argv[]) {
           nanommo::CompassMarks(renderer.figures(), land, target, destination));
       player_frame.Draw(renderer.figures(), connection->world());
       nanommo::DrawTargetFrame(renderer.figures(), target, target_player);
+      if (const nanommo::Figure* boss =
+              nanommo::ShownBoss(renderer.figures(), target)) {
+        nanommo::DrawBossBar(*boss, content->monsters);
+      }
       if (const std::optional<uint32_t> skill = hotbar.Build(
               renderer.figures(), connection->world(), target, target_player)) {
         nanommo::protocol::Input use = sent;

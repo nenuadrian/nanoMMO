@@ -44,8 +44,10 @@ class LocalConnection final : public Link {
  private:
   void Tick();
   void Show();
-  void Notify(const std::string& text);
-  void Say(const std::string& name, const std::string& text);
+  void Notify(const std::string& text,
+              protocol::Channel channel = protocol::CHANNEL_WORLD);
+  void Say(const std::string& name, const std::string& text,
+           protocol::Channel channel = protocol::CHANNEL_WORLD);
 
   static constexpr uint32_t kYou = 1;
   static constexpr uint32_t kSeed = 1;

@@ -130,11 +130,13 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
     Figure figure = Follow(monsters_, monster, 0, 0, seconds);
     figure.monster = true;
     figure.kind = monster.kind();
+    figure.phase = monster.phase();
     const auto kind = content_.monsters.kinds.find(monster.kind());
     if (kind != content_.monsters.kinds.end()) {
       figure.name = kind->second.name();
       const monsters::Look& look = kind->second.look();
       figure.color = look.has_tint() ? GetColor(look.tint()) : WHITE;
+      figure.height = look.height();
     }
     monsters[monster.id()] = figure;
     figures.push_back(std::move(figure));

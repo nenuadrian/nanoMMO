@@ -65,6 +65,26 @@ TEST(Picking, PicksTheNearestLivingMonster) {
   EXPECT_EQ(nanommo::PickMonster(figures, ahead)->id, 2u);
 }
 
+TEST(Picking, PicksATallMonsterAnywhereOnIt) {
+  std::vector<nanommo::Figure> figures(1);
+  figures[0].id = 1;
+  figures[0].monster = true;
+  figures[0].height = 1.6f;
+  figures[0].position = {0.0f, 0.0f, -4.0f};
+  // At the height of a boss's chest, and to one side of a skeleton.
+  const Ray chest{.position = {0.0f, 3.0f, 0.0f},
+                  .direction = {0.0f, 0.0f, -1.0f}};
+  const Ray beside{.position = {0.8f, 0.5f, 0.0f},
+                   .direction = {0.0f, 0.0f, -1.0f}};
+  EXPECT_EQ(nanommo::PickMonster(figures, chest), nullptr);
+  EXPECT_EQ(nanommo::PickMonster(figures, beside), nullptr);
+
+  // Four and a half metres tall, it's wider too.
+  figures[0].height = 4.5f;
+  EXPECT_EQ(nanommo::PickMonster(figures, chest), &figures[0]);
+  EXPECT_EQ(nanommo::PickMonster(figures, beside), &figures[0]);
+}
+
 TEST(Picking, PicksTheOpponentInADuelAsAMonster) {
   // Two players ahead, and a monster with the further one's id, as players and
   // monsters have ids of their own.

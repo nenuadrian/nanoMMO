@@ -81,6 +81,13 @@ TEST(Content, HashesWhatTheClientsRead) {
   slam.monsters.kinds.at(2).mutable_skills(0)->set_size(9.0f);
   EXPECT_NE(nanommo::ClientHash(slam), hash);
 
+  // They mark where a boss's phases start, and not what it does in them.
+  nanommo::Content boss = *nanommo::ReadContent(NANOMMO_CONTENT);
+  boss.monsters.kinds.at(4).mutable_phases(1)->add_skills(1);
+  EXPECT_EQ(nanommo::ClientHash(boss), hash);
+  boss.monsters.kinds.at(4).mutable_phases(1)->set_health(50);
+  EXPECT_NE(nanommo::ClientHash(boss), hash);
+
   // The clients work out how the people move from the rig.
   nanommo::Content rig = *nanommo::ReadContent(NANOMMO_CONTENT);
   rig.rig.mutable_walk()->set_cycle_ms(900);

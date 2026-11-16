@@ -212,6 +212,11 @@ uint64_t ClientHash(const Content& content) {
       skill.clear_range();
       *seen.add_skills() = std::move(skill);
     }
+    // A boss's bar marks where each phase starts, and what it uses in each
+    // is the server's.
+    for (const monsters::Phase& phase : kind.phases()) {
+      seen.add_phases()->set_health(phase.health());
+    }
     Add(hash, seen);
   }
   for (const auto& [id, kind] : content.npcs.kinds) {

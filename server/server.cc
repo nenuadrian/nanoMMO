@@ -825,9 +825,12 @@ void Server::Refuse(uint32_t id, const absl::Status& why) {
   Notify(id, std::string(why.message()));
 }
 
-void Server::Notify(uint32_t id, const std::string& text) {
+void Server::Notify(uint32_t id, const std::string& text,
+                    protocol::Channel channel) {
   protocol::World notice;
-  notice.add_chat()->set_text(text);
+  protocol::Chat* line = notice.add_chat();
+  line->set_text(text);
+  line->set_channel(channel);
   sessions_.at(id)->Send(Frame(notice));
 }
 
@@ -912,7 +915,7 @@ void Server::Tick() {
   copies_.Step(interval_);
   for (const Notice& notice : copies_.TakeNotices()) {
     if (sessions_.contains(notice.player)) {
-      Notify(notice.player, notice.text);
+      Notify(notice.player, notice.text, notice.channel);
     }
   }
   const std::vector<Event> happened = copies_.TakeEvents();

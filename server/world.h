@@ -233,6 +233,9 @@ struct Npc {
 struct Notice {
   uint32_t player = 0;
   std::string text;
+  /// CHANNEL_LAND for what everyone in the land hears, which the clients
+  /// show apart.
+  protocol::Channel channel = protocol::CHANNEL_WORLD;
 };
 
 /// Something a player did, or that happened to them, for the game's

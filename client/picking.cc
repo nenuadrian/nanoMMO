@@ -2,6 +2,7 @@
 
 #include <raymath.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -36,9 +37,12 @@ const Figure* Pick(const std::vector<Figure>& figures, const Ray& ray,
       continue;
     }
     const Vector3& at = figure.position;
+    // A monster taller than a person, such as a boss, is as much wider.
+    const float height = std::max(kHeight, figure.height);
+    const float half = kHalfWidth * height / kHeight;
     const RayCollision hit = GetRayCollisionBox(
-        ray, {.min = {at.x - kHalfWidth, at.y, at.z - kHalfWidth},
-              .max = {at.x + kHalfWidth, at.y + kHeight, at.z + kHalfWidth}});
+        ray, {.min = {at.x - half, at.y, at.z - half},
+              .max = {at.x + half, at.y + height, at.z + half}});
     if (hit.hit && hit.distance < nearest) {
       nearest = hit.distance;
       picked = &figure;

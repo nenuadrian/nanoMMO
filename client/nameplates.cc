@@ -56,7 +56,10 @@ ImU32 NameColor(const Figure& figure) {
 
 }  // namespace
 
-float Above(const Figure& figure) { return figure.monster ? 1.9f : 2.35f; }
+// Over a tall monster's head, such as a boss's.
+float Above(const Figure& figure) {
+  return figure.monster ? std::max(1.9f, figure.height + 0.3f) : 2.35f;
+}
 
 bool HasNameplate(const Figure& figure) {
   return !figure.name.empty() &&

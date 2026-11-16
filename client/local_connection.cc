@@ -122,7 +122,7 @@ void LocalConnection::Tick() {
   inputs_.Apply([this](uint32_t) { return &world_; });
   world_.Step(kTick);
   for (const Notice& notice : world_.TakeNotices()) {
-    Notify(notice.text);
+    Notify(notice.text, notice.channel);
   }
   const Player& you = world_.players().at(kYou);
   // What happens near us, as a world server shows it.
@@ -177,12 +177,17 @@ void LocalConnection::Show() {
   shown_ = parts_.world();
 }
 
-void LocalConnection::Notify(const std::string& text) { Say("", text); }
+void LocalConnection::Notify(const std::string& text,
+                             protocol::Channel channel) {
+  Say("", text, channel);
+}
 
-void LocalConnection::Say(const std::string& name, const std::string& text) {
+void LocalConnection::Say(const std::string& name, const std::string& text,
+                          protocol::Channel channel) {
   protocol::Chat line;
   line.set_name(name);
   line.set_text(text);
+  line.set_channel(channel);
   chat_.push_back(std::move(line));
   while (chat_.size() > kChatLines) {
     chat_.pop_front();

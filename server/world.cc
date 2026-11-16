@@ -1558,7 +1558,8 @@ void World::Announce(const Monster& boss, std::string_view news) {
   }
   const std::string line = absl::StrCat("The ", kind->second.name(), " ", news);
   for (const auto& [id, player] : players_) {
-    notices_.push_back({.player = id, .text = line});
+    notices_.push_back(
+        {.player = id, .text = line, .channel = protocol::CHANNEL_LAND});
   }
 }
 

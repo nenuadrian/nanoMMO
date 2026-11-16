@@ -25,6 +25,7 @@ constexpr float kButton = 23.0f;
 constexpr ImVec4 kName{1.0f, 0.63f, 0.29f, 1.0f};
 constexpr ImVec4 kServer{1.0f, 0.83f, 0.3f, 1.0f};
 constexpr ImVec4 kGuild{0.45f, 0.9f, 0.45f, 1.0f};
+constexpr ImVec4 kLand{1.0f, 0.95f, 0.77f, 1.0f};
 
 bool Same(const protocol::Chat& a, const protocol::Chat& b) {
   return a.name() == b.name() && a.text() == b.text();
@@ -168,6 +169,16 @@ std::optional<std::string> ChatWindow::Build(
 
   ImGui::BeginChild("Lines", {0.0f, -ImGui::GetFrameHeightWithSpacing()});
   for (const protocol::Chat& line : lines) {
+    // What everyone in the land hears, such as a boss's fall, stands out, in
+    // bold, in the light gold of a title.
+    if (line.channel() == protocol::CHANNEL_LAND) {
+      ImGui::PushFont(GetFonts().bold, 0.0f);
+      ImGui::PushStyleColor(ImGuiCol_Text, kLand);
+      ImGui::TextWrapped("%s", line.text().c_str());
+      ImGui::PopStyleColor();
+      ImGui::PopFont();
+      continue;
+    }
     // A line with no name is from the server.
     if (line.name().empty()) {
       ImGui::PushStyleColor(ImGuiCol_Text, kServer);
