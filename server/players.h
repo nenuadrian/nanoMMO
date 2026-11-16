@@ -65,9 +65,9 @@ class Players {
                                     const std::string& instance);
 
   /// Keeps the leases, by player, for another kLease, all in one round trip:
-  /// those that are still as given.
-  absl::Status Renew(const std::string& world,
-                     const std::map<uint32_t, std::string>& leases);
+  /// those that are still as given. Returns the players whose leases aren't.
+  absl::StatusOr<std::set<uint32_t>> Renew(
+      const std::string& world, const std::map<uint32_t, std::string>& leases);
 
   /// Ends the player's lease, if it's still as given, so that they can play
   /// on another instance at once. One that another instance has since stays.
@@ -84,10 +84,14 @@ class Players {
   /// Into Redis, all of them in a single round trip, and marked unsaved, with
   /// the bags of those whose bags changed, which are marked unsaved apart. It's
   /// one transaction, so Redis keeps all of it or none: the two bags a trade
-  /// changed are never saved one without the other.
-  absl::Status Save(const std::string& world,
-                    const std::map<uint32_t, Progress>& changed,
-                    const std::map<uint32_t, protocol::Inventory>& bags = {});
+  /// changed are never saved one without the other. And only while each of the
+  /// leases, by player, is as given, so that an instance that's lost a player
+  /// to another can't write over what that one saves. Returns the players
+  /// whose leases aren't, when it saved none of it.
+  absl::StatusOr<std::set<uint32_t>> Save(
+      const std::string& world, const std::map<uint32_t, Progress>& changed,
+      const std::map<uint32_t, protocol::Inventory>& bags = {},
+      const std::map<uint32_t, std::string>& leases = {});
 
   /// Takes the unsaved players of all the worlds from Redis to MySQL, a batch
   /// at a time, each in a transaction with the bags that changed, and returns

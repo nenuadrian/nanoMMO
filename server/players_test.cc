@@ -7,7 +7,9 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/numbers.h"
 #include "google/protobuf/util/message_differencer.h"
 #include "gtest/gtest.h"
 #include "protocol/nanommo.pb.h"
@@ -61,8 +63,11 @@ class PlayersTest : public ::testing::Test {
                       .ok());
       EXPECT_TRUE(
           redis_->Command({"SREM", "items:unsaved", ember, frost}).ok());
+      EXPECT_TRUE(redis_->Command({"DEL", Lease()}).ok());
     }
   }
+
+  std::string Lease() const { return "playing:Ember:" + std::to_string(id_); }
 
   std::unique_ptr<nanommo::Database> database_;
   std::unique_ptr<nanommo::Redis> redis_;
@@ -93,6 +98,13 @@ nanommo::protocol::Inventory Bag(uint32_t revision) {
 bool Same(const nanommo::protocol::Inventory& a,
           const nanommo::protocol::Inventory& b) {
   return google::protobuf::util::MessageDifferencer::Equals(a, b);
+}
+
+// A lease's fencing number, which comes after its instance.
+uint64_t Fence(const std::string& lease) {
+  uint64_t fence = 0;
+  return absl::SimpleAtoi(lease.substr(lease.rfind(' ') + 1), &fence) ? fence
+                                                                      : 0;
 }
 
 }  // namespace
@@ -372,4 +384,36 @@ TEST_F(PlayersTest, SavesGoldWithTheBag) {
   EXPECT_EQ(player->inventory.gold(), 120u);
   EXPECT_TRUE(Same(player->inventory.items(), bag))
       << player->inventory.items().DebugString();
+}
+
+TEST_F(PlayersTest, AnInstanceThatLostThePlayerCantSaveThem) {
+  nanommo::Players players(*database_, *redis_);
+  const absl::StatusOr<std::string> first =
+      players.Lease("Ember", id_, "Ember-7777");
+  ASSERT_TRUE(first.ok()) << first.status();
+  EXPECT_TRUE(absl::IsFailedPrecondition(
+      players.Lease("Ember", id_, "Ember-7877").status()));
+  const auto saved = [&](float x, const std::string& lease) {
+    return players.Save("Ember", {{id_, {.x = x}}}, {}, {{id_, lease}})
+        .value_or(std::set<uint32_t>{0});
+  };
+  EXPECT_TRUE(saved(1.0f, *first).empty());
+
+  // The first stalls for longer than a lease, which runs out, and the second
+  // takes them, with a higher fencing number.
+  ASSERT_TRUE(redis_->Command({"DEL", Lease()}).ok());
+  const absl::StatusOr<std::string> second =
+      players.Lease("Ember", id_, "Ember-7877");
+  ASSERT_TRUE(second.ok()) << second.status();
+  EXPECT_GT(Fence(*second), Fence(*first));
+
+  // The first can't save them over what the second saves, and the second can.
+  EXPECT_EQ(saved(2.0f, *first), std::set<uint32_t>{id_});
+  absl::StatusOr<nanommo::Player> player = players.Load("Ember", id_);
+  ASSERT_TRUE(player.ok()) << player.status();
+  EXPECT_EQ(player->x, 1.0f);
+  EXPECT_TRUE(saved(3.0f, *second).empty());
+  player = players.Load("Ember", id_);
+  ASSERT_TRUE(player.ok()) << player.status();
+  EXPECT_EQ(player->x, 3.0f);
 }

@@ -114,8 +114,13 @@ class Server {
   void RenewLeases();
   /// Those of the players who've changed since they were last saved, into
   /// Redis, as one: everyone once a tick, the two sides of a trade as it's
-  /// done, and a player as they leave.
-  void Save(const std::vector<uint32_t>& ids);
+  /// done, and a player as they leave. Only while this instance has their
+  /// leases: it returns the players whose leases it's lost, when it saved
+  /// none of them.
+  std::set<uint32_t> Save(const std::vector<uint32_t>& ids);
+  /// Closes the player's session without saving them, as another instance
+  /// has them, or what they have here can't be saved, and says why.
+  void Drop(uint32_t id, std::string_view why);
   /// What happened in the worlds this tick, into the events stream.
   void RecordEvents(const std::vector<Event>& happened);
   /// To each player near what happened, in their copy, after the world, so

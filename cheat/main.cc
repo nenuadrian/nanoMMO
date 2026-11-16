@@ -34,7 +34,9 @@
 //   twice: comes into the world's second instance too, and trades its sword
 //     on the first, which it then leaves. On the second, where it still has
 //     the sword, it puts the sword in the bag, so that instance saves its bag
-//     over the trade, to keep the sword when it comes back.
+//     over the trade, to keep the sword when it comes back. If the second
+//     turns it away, it tries again each second, for twenty seconds, and is
+//     ready once it's in, or has given up.
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -64,6 +66,8 @@ constexpr uint16_t kLoginPort = 7778;
 constexpr uint16_t kWorldPort = 7777;
 // The world's second instance, which takes its players over in a deploy.
 constexpr uint16_t kNextPort = 7877;
+// How long twice tries the second instance for: twice a lease's ten seconds.
+constexpr auto kKnocking = std::chrono::seconds(20);
 constexpr char kWorld[] = "Ember";
 // The server's tick, on which the client sends its inputs.
 constexpr auto kTick = std::chrono::milliseconds(50);
@@ -300,20 +304,29 @@ int Trade(asio::ssl::context& tls, const std::string& name,
   std::optional<std::chrono::steady_clock::time_point> moved;
   bool ready = false;
   // twice is in the second instance too, with a token of its own, once that
-  // instance has sent it its bag.
+  // instance has sent it its bag. One that turns it away, as the first has
+  // its lease, takes it once the lease runs out, as it does if the first
+  // stalls, so it tries again each second until then.
   std::unique_ptr<nanommo::Connection> next;
-  if (cheat == Cheat::kTwice) {
-    next = Second(tls, name, password);
-    if (next == nullptr) {
-      std::cout << "cheat: the second instance turned " << name
-                << " away, as it's playing on the first" << std::endl;
-    } else {
-      std::cout << "cheat: " << name << " is in Ember a second time, on "
-                << kNextPort << std::endl;
-    }
-  }
+  bool knocking = cheat == Cheat::kTwice;
+  const auto started = std::chrono::steady_clock::now();
+  std::chrono::steady_clock::time_point knocked;
   while (connection->connected()) {
     connection->Poll();
+    if (knocking &&
+        std::chrono::steady_clock::now() - knocked >= std::chrono::seconds(1)) {
+      knocked = std::chrono::steady_clock::now();
+      next = Second(tls, name, password);
+      if (next != nullptr) {
+        knocking = false;
+        std::cout << "cheat: " << name << " is in Ember a second time, on "
+                  << kNextPort << std::endl;
+      } else if (knocked - started >= kKnocking) {
+        knocking = false;
+        std::cout << "cheat: the second instance turned " << name
+                  << " away, as it's playing on the first" << std::endl;
+      }
+    }
     if (next != nullptr) {
       next->Poll();
     }
@@ -403,7 +416,8 @@ int Trade(asio::ssl::context& tls, const std::string& name,
       }
       continue;
     }
-    if (ready || !trade.theirs().ready()) {
+    // twice is ready once it's in the second instance, or has given up.
+    if (ready || !trade.theirs().ready() || knocking) {
       continue;
     }
     nanommo::protocol::TradeAction yes;

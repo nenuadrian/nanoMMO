@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "gtest/gtest.h"
@@ -54,4 +55,23 @@ TEST_F(RedisTest, ATransactionFailsIfACommandInItDoes) {
                    .ok());
   EXPECT_EQ(redis_->Command({"HGET", hash_, "gold"}).value_or(""), "5");
   EXPECT_EQ(redis_->Command({"PING"}).value_or(""), "PONG");
+}
+
+TEST_F(RedisTest, ATransactionIfRunsOnlyWhileTheKeysHoldTheirValues) {
+  ASSERT_TRUE(redis_->Command({"SET", text_, "mine"}).ok());
+  // The key holds another value, so none of it runs, and the key comes back.
+  absl::StatusOr<std::vector<std::string>> wrong =
+      redis_->TransactionIf({{text_, "yours"}}, {{"HSET", hash_, "gold", "5"}});
+  ASSERT_TRUE(wrong.ok()) << wrong.status();
+  EXPECT_EQ(*wrong, std::vector<std::string>{text_});
+  EXPECT_TRUE(
+      absl::IsNotFound(redis_->Command({"HGET", hash_, "gold"}).status()));
+
+  wrong = redis_->TransactionIf(
+      {{text_, "mine"}},
+      {{"HSET", hash_, "gold", "5"}, {"HSET", hash_, "silver", "2"}});
+  ASSERT_TRUE(wrong.ok()) << wrong.status();
+  EXPECT_TRUE(wrong->empty());
+  EXPECT_EQ(redis_->Command({"HGET", hash_, "gold"}).value_or(""), "5");
+  EXPECT_EQ(redis_->Command({"HGET", hash_, "silver"}).value_or(""), "2");
 }

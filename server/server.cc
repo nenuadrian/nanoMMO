@@ -499,8 +499,20 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
       // Both bags go into Redis together, as they trade, before either player
       // hears of it, so that a crash or a leave can't keep one and lose the
       // other.
-      if (traded.value_or(0) != 0) {
-        Save({id, *traded});
+      if (traded.value_or(0) == 0) {
+        break;
+      }
+      if (!Save({id, *traded}).empty()) {
+        // One of them isn't this instance's any more, and another can have
+        // them as they were before the trade, so neither keeps it: both go,
+        // unsaved, and come back with what Redis has, from before it.
+        const std::string name = land.players().at(id).name;
+        const std::string partner = land.players().at(*traded).name;
+        Drop(id,
+             absl::StrCat("their trade with ", partner, " couldn't be saved"));
+        Drop(*traded,
+             absl::StrCat("their trade with ", name, " couldn't be saved"));
+        return;
       }
       break;
     }
@@ -885,7 +897,15 @@ void Server::SaveChanged() {
       everyone.push_back(id);
     }
   }
-  Save(everyone);
+  // Those whose leases aren't this instance's any more go, and the rest are
+  // saved without them.
+  for (std::set<uint32_t> lost = Save(everyone); !lost.empty();
+       lost = Save(everyone)) {
+    for (const uint32_t id : lost) {
+      Drop(id, "their lease isn't this instance's any more");
+    }
+    std::erase_if(everyone, [&lost](uint32_t id) { return lost.contains(id); });
+  }
   metrics_.ObserveSave(std::chrono::steady_clock::now() - start);
 }
 
@@ -896,17 +916,32 @@ void Server::RenewLeases() {
   }
   renewed_ = now;
   // All of them in one round trip, as the tick waits for it.
-  const absl::Status renewed = players_.Renew(name_, leases_);
-  if (!renewed.ok()) {
-    std::cerr << "couldn't renew " << leases_.size() << " leases: " << renewed
-              << "\n";
+  const absl::StatusOr<std::set<uint32_t>> lost =
+      players_.Renew(name_, leases_);
+  if (!lost.ok()) {
+    std::cerr << "couldn't renew " << leases_.size()
+              << " leases: " << lost.status() << "\n";
+    return;
+  }
+  // Another instance can take them once their lease runs out, as it does if
+  // this one stalls, and it's that one that saves them then.
+  for (const uint32_t id : *lost) {
+    std::cout << WorldOf(id)->players().at(id).name << "'s lease isn't "
+              << leases_.at(id) << " any more" << std::endl;
+    Drop(id, "their lease isn't this instance's any more");
   }
 }
 
-void Server::Save(const std::vector<uint32_t>& ids) {
+std::set<uint32_t> Server::Save(const std::vector<uint32_t>& ids) {
   std::map<uint32_t, Progress> changed;
   std::map<uint32_t, protocol::Inventory> bags;
+  std::map<uint32_t, std::string> leases;
   for (const uint32_t id : ids) {
+    // One whose lease is gone isn't this instance's to save.
+    const auto lease = leases_.find(id);
+    if (lease == leases_.end()) {
+      continue;
+    }
     const Player& player = WorldOf(id)->players().at(id);
     const Progress progress = ProgressOf(player);
     if (progress != saved_[id]) {
@@ -915,17 +950,39 @@ void Server::Save(const std::vector<uint32_t>& ids) {
         bags[id] = player.inventory.items();
       }
       changed[id] = progress;
+      leases[id] = lease->second;
     }
   }
-  const absl::Status status = players_.Save(name_, changed, bags);
-  if (status.ok()) {
+  const absl::StatusOr<std::set<uint32_t>> lost =
+      players_.Save(name_, changed, bags, leases);
+  if (!lost.ok()) {
+    std::cerr << "couldn't save " << changed.size()
+              << " players: " << lost.status() << "\n";
+    return {};
+  }
+  for (const uint32_t id : *lost) {
+    std::cout << "couldn't save " << WorldOf(id)->players().at(id).name
+              << ", as their lease isn't " << leases.at(id) << " any more"
+              << std::endl;
+  }
+  if (lost->empty()) {
     for (const auto& [id, progress] : changed) {
       saved_[id] = progress;
     }
-  } else {
-    std::cerr << "couldn't save " << changed.size() << " players: " << status
-              << "\n";
   }
+  return *lost;
+}
+
+void Server::Drop(uint32_t id, std::string_view why) {
+  std::cout << "dropped " << WorldOf(id)->players().at(id).name
+            << " without saving them, as " << why << std::endl;
+  // So that leaving doesn't save them. A lease that's still this instance's
+  // goes, so that they can come back at once.
+  if (const auto lease = leases_.find(id); lease != leases_.end()) {
+    players_.Release(name_, id, lease->second).IgnoreError();
+    leases_.erase(lease);
+  }
+  sessions_.at(id)->Close();
 }
 
 void Server::RecordEvents(const std::vector<Event>& happened) {

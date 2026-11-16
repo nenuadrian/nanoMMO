@@ -1,9 +1,11 @@
 #include "server/redis.h"
 
 #include <cstddef>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
@@ -53,6 +55,28 @@ std::string Text(const redisReply& reply) {
   }
   return reply.str != nullptr ? std::string(reply.str, reply.len) : "";
 }
+
+// Each key in KEYS has to hold the value at its place in ARGV, or nothing
+// runs, and it returns those that don't. Past those values, ARGV has the
+// commands, each as how many words it has, and then its words.
+constexpr char kIf[] = R"lua(
+local wrong = {}
+for i, key in ipairs(KEYS) do
+  if redis.call('GET', key) ~= ARGV[i] then
+    wrong[#wrong + 1] = key
+  end
+end
+if #wrong > 0 then
+  return wrong
+end
+local i = #KEYS + 1
+while i <= #ARGV do
+  local words = tonumber(ARGV[i])
+  redis.call(unpack(ARGV, i + 1, i + words))
+  i = i + words + 1
+end
+return wrong
+)lua";
 
 }  // namespace
 
@@ -228,6 +252,28 @@ absl::Status Redis::Transaction(
     }
   }
   return absl::OkStatus();
+}
+
+absl::StatusOr<std::vector<std::string>> Redis::TransactionIf(
+    const std::map<std::string, std::string>& holding,
+    const std::vector<std::vector<std::string>>& commands) {
+  std::vector<std::string> eval = {"EVAL", kIf, absl::StrCat(holding.size())};
+  for (const auto& [key, value] : holding) {
+    eval.push_back(key);
+  }
+  for (const auto& [key, value] : holding) {
+    eval.push_back(value);
+  }
+  for (const std::vector<std::string>& words : commands) {
+    eval.push_back(absl::StrCat(words.size()));
+    eval.insert(eval.end(), words.begin(), words.end());
+  }
+  absl::StatusOr<std::vector<std::vector<std::string>>> wrong =
+      Pipeline({eval});
+  if (!wrong.ok()) {
+    return wrong.status();
+  }
+  return std::move(wrong->front());
 }
 
 }  // namespace nanommo

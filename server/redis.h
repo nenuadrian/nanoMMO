@@ -3,6 +3,7 @@
 
 #include <hiredis.h>
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -35,6 +36,15 @@ class Redis {
   /// commands in between, or none of them if it couldn't take one. Fails if
   /// any of them failed.
   absl::Status Transaction(
+      const std::vector<std::vector<std::string>>& commands);
+
+  /// Runs the commands as one, as Transaction does, but only if each of the
+  /// keys holds the value it's paired with: a Lua script checks them and runs
+  /// the commands, in a single round trip, with no one else's commands in
+  /// between. Returns the keys that don't, when it ran none of the commands.
+  /// Fails if a command failed, which doesn't undo the others.
+  absl::StatusOr<std::vector<std::string>> TransactionIf(
+      const std::map<std::string, std::string>& holding,
       const std::vector<std::vector<std::string>>& commands);
 
   /// An entry of a stream: its id, and its fields and values, one after the

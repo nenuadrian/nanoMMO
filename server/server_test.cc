@@ -445,6 +445,54 @@ TEST_F(ServerTest, AnAccountPlaysOnceAtATime) {
   EXPECT_TRUE(RunUntil([&] { return later.Sees(alice_); }));
 }
 
+TEST_F(ServerTest, AnInstanceDropsAPlayerWhoseLeaseItsLost) {
+  // Each joins with the kit: a sword in hand, and three potions.
+  const nanommo::Content gear{.items = nanommo::testing::Gear()};
+  std::vector<std::unique_ptr<nanommo::Server>> instances;
+  for (int i = 0; i < 2; ++i) {
+    absl::StatusOr<std::unique_ptr<nanommo::Server>> instance =
+        nanommo::Server::Create(io_, 0, *server_tls_,
+                                std::chrono::milliseconds(50), world_, 1, gear,
+                                metrics_, *tokens_, *players_, *guilds_,
+                                *events_, *storyteller_);
+    ASSERT_TRUE(instance.ok()) << instance.status();
+    instances.push_back(*std::move(instance));
+  }
+  nanommo::Server& first = *instances[0];
+  nanommo::Server& second = *instances[1];
+  TestPlayer alice(io_, *client_tls_, first.port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.bag().revision() > 0; }));
+
+  // The first stalls for longer than a lease, which runs out, and the second
+  // takes her, with a higher fencing number.
+  ASSERT_TRUE(redis_->Command({"DEL", LeaseKey(alice_)}).ok());
+  TestPlayer again(io_, *client_tls_, second.port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return again.bag().revision() > 0; }));
+  EXPECT_EQ(LeasedTo(alice_), Instance(second));
+
+  // On the first, she puts her sword in her bag, which it can't save over
+  // what the second saves, so it drops her.
+  nanommo::protocol::Input stow;
+  nanommo::protocol::ItemMove* sword = stow.mutable_item()->mutable_move();
+  *sword->mutable_from() = nanommo::Worn(nanommo::items::SLOT_MAIN_HAND);
+  *sword->mutable_to() = nanommo::InBag(1);
+  alice.Send(stow);
+  ASSERT_TRUE(RunUntil([&] { return alice.closed(); }));
+  EXPECT_EQ(first.players(), 0);
+  EXPECT_EQ(second.players(), 1);
+  EXPECT_EQ(LeasedTo(alice_), Instance(second));
+
+  // Redis has her sword in her hand, as the second has it.
+  const absl::StatusOr<std::vector<std::vector<std::string>>> kept =
+      redis_->Pipeline(
+          {{"HGET", absl::StrCat("player:", world_, ":", alice_), "items"}});
+  ASSERT_TRUE(kept.ok()) << kept.status();
+  nanommo::protocol::Inventory saved;
+  ASSERT_TRUE(saved.ParseFromString(kept->front().front()));
+  EXPECT_TRUE(saved.worn().contains(nanommo::items::SLOT_MAIN_HAND));
+  EXPECT_FALSE(saved.bag().contains(1));
+}
+
 TEST_F(ServerTest, KeepsAPlayerInADungeonOutsideIt) {
   // Alice left the game standing in the Meadows' gate to the Crypt.
   constexpr int kCrypt = 2;

@@ -73,14 +73,17 @@ return lease
 )lua";
 
 // Each lease in KEYS that's still the same in ARGV, past the first, runs for
-// another ARGV[1] milliseconds.
+// another ARGV[1] milliseconds. Returns those that aren't.
 constexpr char kRenew[] = R"lua(
+local lost = {}
 for i, key in ipairs(KEYS) do
   if redis.call('GET', key) == ARGV[i + 1] then
     redis.call('PEXPIRE', key, ARGV[1])
+  else
+    lost[#lost + 1] = key
   end
 end
-return 0
+return lost
 )lua";
 
 // Deletes the lease in KEYS[1] if it's still ARGV[1].
@@ -311,10 +314,10 @@ absl::StatusOr<std::string> Players::Lease(const std::string& world,
   return lease;
 }
 
-absl::Status Players::Renew(const std::string& world,
-                            const std::map<uint32_t, std::string>& leases) {
+absl::StatusOr<std::set<uint32_t>> Players::Renew(
+    const std::string& world, const std::map<uint32_t, std::string>& leases) {
   if (leases.empty()) {
-    return absl::OkStatus();
+    return std::set<uint32_t>();
   }
   std::vector<std::string> eval = {"EVAL", kRenew, absl::StrCat(leases.size())};
   for (const auto& [id, lease] : leases) {
@@ -324,7 +327,12 @@ absl::Status Players::Renew(const std::string& world,
   for (const auto& [id, lease] : leases) {
     eval.push_back(lease);
   }
-  return redis_.Command(eval).status();
+  const absl::StatusOr<std::vector<std::vector<std::string>>> lost =
+      redis_.Pipeline({eval});
+  if (!lost.ok()) {
+    return lost.status();
+  }
+  return Leased(lost->front());
 }
 
 absl::Status Players::Release(const std::string& world, uint32_t id,
@@ -353,11 +361,12 @@ absl::StatusOr<std::set<uint32_t>> Players::Pass(
   return Leased(passed->front());
 }
 
-absl::Status Players::Save(
+absl::StatusOr<std::set<uint32_t>> Players::Save(
     const std::string& world, const std::map<uint32_t, Progress>& changed,
-    const std::map<uint32_t, protocol::Inventory>& bags) {
+    const std::map<uint32_t, protocol::Inventory>& bags,
+    const std::map<uint32_t, std::string>& leases) {
   if (changed.empty()) {
-    return absl::OkStatus();
+    return std::set<uint32_t>();
   }
   std::vector<std::vector<std::string>> commands;
   std::vector<std::string> unsaved = {"SADD", kUnsaved};
@@ -388,7 +397,18 @@ absl::Status Players::Save(
   if (items_unsaved.size() > 2) {
     commands.push_back(items_unsaved);
   }
-  return redis_.Transaction(commands);
+  // Another instance that's taken a player has saved them since, and its
+  // saves are the ones to keep.
+  std::map<std::string, std::string> holding;
+  for (const auto& [id, lease] : leases) {
+    holding[LeaseKey(world, id)] = lease;
+  }
+  const absl::StatusOr<std::vector<std::string>> lost =
+      redis_.TransactionIf(holding, commands);
+  if (!lost.ok()) {
+    return lost.status();
+  }
+  return Leased(*lost);
 }
 
 absl::StatusOr<int> Players::Flush() {
