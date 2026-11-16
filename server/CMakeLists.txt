@@ -15,10 +15,10 @@ target_link_libraries(nanommo_walking PUBLIC nanommo_terrain)
 target_compile_options(nanommo_walking PRIVATE -ffp-contract=off)
 
 # The world's rules: its players, monsters and NPCs, their levels and skills,
-# their trades and duels, and who's near whom. They need no database or
-# network, so the client can run them too.
+# their trades and duels, where its players have been, and who's near whom.
+# They need no database or network, so the client can run them too.
 add_library(nanommo_world
-  world.cc trades.cc duels.cc monsters.cc npcs.cc levels.cc interest.cc inputs.cc shown.cc
+  world.cc trades.cc duels.cc history.cc monsters.cc npcs.cc levels.cc interest.cc inputs.cc shown.cc
 )
 target_include_directories(nanommo_world PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_world PUBLIC
@@ -61,7 +61,7 @@ add_executable(nanommo_recorder recorder_main.cc)
 target_link_libraries(nanommo_recorder PRIVATE nanommo_server_core)
 
 add_executable(nanommo_server_tests
-  tick_test.cc inventory_test.cc walking_test.cc world_test.cc trades_test.cc duels_test.cc copies_test.cc monsters_test.cc interest_test.cc
+  tick_test.cc inventory_test.cc walking_test.cc world_test.cc trades_test.cc duels_test.cc history_test.cc copies_test.cc monsters_test.cc interest_test.cc
   levels_test.cc inputs_test.cc shown_test.cc metrics_test.cc password_test.cc
   database_test.cc accounts_test.cc guilds_test.cc players_test.cc redis_test.cc tokens_test.cc
   login_server_test.cc consul_test.cc token_bucket_test.cc stories_test.cc

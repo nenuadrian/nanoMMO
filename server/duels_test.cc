@@ -53,6 +53,19 @@ void StartDuel(nanommo::World& world) {
   world.TakeNotices();
 }
 
+// Alice swings her sword at bob, a metre away, and 0.65 seconds in, he runs
+// off. Her blow comes at 0.9 seconds, as he's 1.78 metres from her, past the
+// sword's 1.6. Three ticks before, 150 milliseconds, he was 1.47 metres away.
+void SwingAsBobRunsOff(nanommo::World& world) {
+  world.Pick(1, 0, 2);
+  world.SetInput(1, 0.0f, 0.0f, false, true);
+  world.Step(kTick);
+  world.SetInput(1, 0.0f, 0.0f, false);
+  Wait(world, std::chrono::milliseconds(600));
+  world.SetInput(2, 1.0f, 0.0f, true);
+  Wait(world, std::chrono::milliseconds(300));
+}
+
 }  // namespace
 
 TEST(Duels, AChallengeWaitsForAYes) {
@@ -259,4 +272,18 @@ TEST(Duels, ADuelEndsAtOneHealthAndNobodyDies) {
   EXPECT_EQ(world.players().at(1).target_player, 0u);
   Wait(world, std::chrono::seconds(4));
   EXPECT_EQ(bob.health, 1);
+}
+
+TEST(Duels, ASwingAtWhereTheyWereMissesWithoutCompensation) {
+  nanommo::World world(1, nanommo::Terrain(), Swords());
+  world.Join(1, {.name = "alice"});
+  world.Join(2, {.name = "bob", .x = 1.0f});
+  StartDuel(world);
+
+  // Alice's client draws bob 100 milliseconds in the past, and with a round
+  // trip of 50 to the server on top, the latest she's seen of him as her blow
+  // lands is where he was 150 milliseconds before: in reach. The server
+  // checks where he is now, and it misses.
+  SwingAsBobRunsOff(world);
+  EXPECT_EQ(world.players().at(2).health, 100);
 }

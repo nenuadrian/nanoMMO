@@ -220,6 +220,7 @@ void World::Leave(uint32_t id) {
                                              " has gone, so the duel's off.")});
   }
   players_.erase(id);
+  history_.Leave(id);
 }
 
 absl::Status World::MoveItem(uint32_t id, const protocol::Place& from,
@@ -757,6 +758,9 @@ absl::Status World::TurnIn(uint32_t id, uint32_t npc, uint32_t quest) {
 
 void World::Step(std::chrono::nanoseconds time) {
   ZoneScoped;
+  // The time this step takes the world to, as the worlds sent after it will
+  // show it.
+  clock_ += time;
   for (auto& [id, player] : players_) {
     Act(id, player, time);
   }
@@ -764,6 +768,9 @@ void World::Step(std::chrono::nanoseconds time) {
     Act(monster, time);
   }
   Referee(time);
+  for (const auto& [id, player] : players_) {
+    history_.Record(id, clock_, {.x = player.x, .z = player.z});
+  }
 }
 
 void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {

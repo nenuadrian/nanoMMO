@@ -18,6 +18,7 @@
 #include "content/content.h"
 #include "protocol/nanommo.pb.h"
 #include "server/duels.h"
+#include "server/history.h"
 #include "server/inventory.h"
 #include "server/trades.h"
 #include "server/walking.h"
@@ -484,6 +485,10 @@ class World {
   /// Between the players here, as both have to be.
   Trades trades_;
   Duels duels_;
+  /// How long the world's run, a step at a time, which its history goes by.
+  std::chrono::nanoseconds clock_{0};
+  /// Where each player here has been, after each step, for the last second.
+  History history_;
 };
 
 }  // namespace nanommo
