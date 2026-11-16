@@ -48,18 +48,22 @@ the world uses the skill the skills file names as its `attack`, or the next in i
 key had gone down.
 
 A monster goes for the nearest living player within its kind's sight, three metres for a skeleton, if that player is within
-its leash of the monster's home, four metres. A monster that's hurt goes for whoever hurt it last
-instead, seen or not, while they're within its leash, so that a kick that knocks it out of sight
-doesn't make it forget them. The content's checks keep each fixed home further than that from the middle of the
-island, so the middle, where players start and come back, is safe. A monster runs at them at the
+its leash of the monster's home, four metres. The content's checks keep each fixed home further than that from the middle of the
+island, so the middle, where players start and come back, is safe. A monster that's hurt goes for
+whoever's hurt it most instead, seen or not, while they're within its leash, so that a kick that
+knocks it out of sight doesn't make it forget them: each keeps a threat table, of the health each
+player's blows have taken from it (`Monster.threat`), and on a tie it keeps to the one it's
+fighting. A monster runs at them at the
 players' running speed, and swings once it's within 1.2 metres. The skeleton's swing takes 0.9 seconds, its attack animation, and hits for five,
 0.65 seconds in, less the armour you wear, down to one. An Ash Skeleton, in the Ashlands, is level two, and hits for eight. Run, or die, and it gives up and wanders back. Ash and Crypt Skeletons have a skill each too (see [Monsters' skills](#monsters-skills)).
 
 A monster with no health left dies, and whoever killed it gets its experience, fifty for a skeleton, and ninety for an Ash Skeleton,
-and what it drops, into their bag (see [Items](#items)).
+and what it drops, into their bag (see [Items](#items)). A boss's death is shared (see
+[The world boss](#the-world-boss)).
 Going up a level fills your health, to the new level's most. A player with no health left dies. The
-dead play their death animation and lie there for ten seconds (`World::kRespawnTime`). Then a
-monster comes back where it spawned, at full health. A player can come back once the wait is over,
+dead play their death animation and lie there for ten seconds (`World::kRespawnTime`), or a
+monster as long as its kind's `respawn_ms`. Then a monster comes back where it spawned, at full
+health. A player can come back once the wait is over,
 and stays down until they ask to: the world refuses before then. While you're dead, the world
 darkens, red comes in from the sides, and under "You died" a button counts down the seconds the
 server says you have left to Respawn, which brings you back in the middle of your land, at full health. The screen goes
@@ -90,7 +94,8 @@ still in it. The plain skeleton only swings, so that new players learn that firs
 | Crypt Skeleton | Bone Sweep | A cone 90 degrees wide, four metres out in front of it | 1.5 s | 35 | 8 s | 2.5 metres |
 
 - A monster uses a skill in place of a swing, once it's ready and the player it's fighting is
-  within the skill's range: the first of its kind's skills that is, in the monsters file's order.
+  within the skill's range: the first of its kind's skills that is, in the monsters file's order,
+  and for a boss, the first its phase uses.
   It stands where it is, facing the player, while the shape shows, and then the skill lands on each
   living player in the shape, less the armour they wear, down to one, as a swing does. Then it
   fights on. Its cooldown starts as it starts, and runs down whatever the monster does.
@@ -113,7 +118,66 @@ still in it. The plain skeleton only swings, so that new players learn that firs
   health, a thinner bar fills with it, with the skill's name. Both go once it lands, or the monster
   dies.
 - The game's bots run out of a shape they're in, straight away from the monster, to a metre past
-  its end (`StepOut`, in `bot/wander.h`), and then think again.
+  its end, or out of a cone by its side, where that's nearer, as it is in a narrow one (`StepOut`,
+  in `bot/wander.h`), and then think again.
+
+## The world boss
+
+The Bone Colossus stands in the Meadows, 45 metres from the middle, on open ground past the gate
+to the Ashlands, at 8, -44, with room round it for a crowd: the skeleton, four and a half metres
+tall, in the colour of old bone. It's level 10, with 6000 health, and swings for 18 from three
+metres, every 1.6 seconds. It sees players eight metres off, and its leash is twenty metres, five
+times a skeleton's, so that a crowd has room round it to fight, and to step out of its skills. A
+kind with `phases` in the monsters file is a boss (see [Content](content.md)).
+
+It fights in three phases, by its health, each with skills of its own, which it tries in the
+monsters file's order, the Bone Storm first:
+
+| Phase | Its health | Its skills | It calls up |
+|---|---|---|---|
+| 1 | 100% to 60% | Colossal Slam, Grave Sweep | |
+| 2 | 60% to 30% | and Bone Lance | 3 Skeletons |
+| 3 | 30% down | and Bone Storm | 3 Ash Skeletons |
+
+| Skill | Shape | Shows for | Damage | Cooldown | Starts within |
+|---|---|---|---|---|---|
+| Bone Storm | A circle nine metres round it | 3.5 s | 60 | 18 s | 9 metres |
+| Colossal Slam | A circle five metres round it | 2 s | 40 | 9 s | 3 metres |
+| Grave Sweep | A cone 120 degrees wide, seven metres out in front of it | 1.8 s | 35 | 7 s | 4 metres |
+| Bone Lance | A cone 30 degrees wide, fourteen metres out in front of it | 2.2 s | 50 | 12 s | 14 metres |
+
+- A blow that takes it past a phase's share of its health takes it into that phase, and one that
+  takes it past two, into the second (`World::Hurt`).
+- It goes for whoever's taken the most of its health, wherever they stand within its leash, as
+  every monster does now, and not for whoever hit it last: in a crowd, a boss that turned to each
+  new blow would face nobody for long
+  ([decision 36](decisions/0036-a-boss-fights-who-hurt-it-most-and-shares-its-death.md)).
+- Once nobody who's hurt it is alive and within its leash, it goes home to start again: back at
+  full health and in its first phase, it runs there, and nothing hurts it on its way, so that
+  nobody wears it down from past its leash, and a fight that's lost leaves it as it was for the
+  next.
+- As each phase starts, its adds come round it, three metres out (`World::kAddsAround`), once the
+  blows of that tick have landed, so that the blow that called them doesn't hit them too. An add
+  fights where its boss does, for whoever it sees there, as far as the boss sees and goes. It
+  doesn't come back to life: it falls with its boss, and goes once the boss is back in its first
+  phase, at home or alive again.
+- Its death is everyone's who took at least 5% of its health (`World::kEnoughHelp`), 300 of the
+  Colossus's 6000, whoever landed the last blow: each gets its 800 experience, a roll of its loot
+  of their own, into their bag, and a kill for their quests, those who died in the fight too. A
+  player who took less gets nothing.
+- Everyone in its land hears it fall, in a line from nobody, which the chat shows in bold, in a
+  title's light gold (`CHANNEL_LAND`): "The Bone Colossus has fallen to alice and 7 others. It rises
+  again in 2 minutes.", naming whoever took the most. It lies dead for two minutes, its kind's
+  `respawn_ms`, and thirty seconds before it's back (`World::kRisesSoon`) the land hears "The Bone
+  Colossus rises again in 30 seconds.", and then "The Bone Colossus has risen."
+- While you've picked it, or it's within thirty metres of you (`kBossBarReach`), its bar is across
+  the top of the screen, under the target's frame (`client/boss_bar.h`): its name, its health, a
+  mark where each phase after the first starts, and the phase it's in, which each world sends as
+  `Monster.phase`. Its name is over its head, and a click anywhere on it picks it: a monster's box
+  for the mouse is as tall as its kind, and as much wider.
+- The game's bots go for a boss within sixty metres of them (`kJoinTheFight`, in `bot/quests.h`),
+  as the Colossus is of the middle of the Meadows, before anything else, and back to it after each
+  skill they run out of, and after dying, so the bots that fill a world take it on together.
 
 ## Skills
 

@@ -7,6 +7,34 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.84.0 (2026-11-16)
+
+- A world boss: the Bone Colossus, in the Meadows at 8, -44, four and a half metres tall, level
+  10, with 6000 health and a leash of twenty metres. A kind of monster with `phases` in the
+  monsters file is a boss, and each phase starts as its health falls to a share of its most, with
+  skills of its own and adds it calls up. The Colossus slams and sweeps from full health, throws a
+  Bone Lance too from 60%, calling up three Skeletons, and a Bone Storm from 30%, calling up three
+  Ash Skeletons. The content refuses phases that don't go down its health from 100%, a skill the
+  kind doesn't have, and adds of a kind that isn't there, or none.
+- Each monster keeps a threat table, of the health each player's blows have taken, and goes for
+  whoever's taken the most, not whoever hit it last. A boss that nobody who's hurt it is left
+  within its leash of goes home, back at full health and in its first phase, and can't be hurt on
+  its way. Its adds go then, and fall with it as it dies.
+- A boss's death is everyone's who took at least 5% of its health: each gets its experience, a
+  roll of its loot and a kill for their quests. Its land hears that it's fallen, and to whom,
+  thirty seconds before it's back, and as it is, on a channel of their own, `CHANNEL_LAND`, which
+  the chat shows in bold. A kind's `respawn_ms` is how long it lies dead, and the Colossus's is two
+  minutes.
+- A bar across the top of the screen follows the boss you've picked, or one within thirty metres
+  of you: its name, its health, a mark where each phase starts, and the phase it's in, which each
+  world sends as `Monster.phase`. The content's hash takes in where the phases start. A tall
+  monster's name is over its head, and a click anywhere on it picks it.
+- The bots go for a boss within sixty metres of them before anything else, and run out of a
+  narrow cone by its side. A bot swings at a monster from six metres, which the server runs it in
+  from, and thinks again from where it is once it's out of a skill, so that it keeps at a big
+  monster that moves. A boss stands its ground: a blow doesn't push or throw it, so a crowd can't
+  shove it out of its leash.
+
 ## 0.83.0 (2026-11-16)
 
 - Monsters' skills: big blows a monster telegraphs, in the monsters file as each kind's `skills`,

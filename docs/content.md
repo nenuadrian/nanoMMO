@@ -8,8 +8,9 @@ format, each with its schema next to it, in `figures.proto`, `items.proto`, `mon
 hair, and the rig is the skeleton they're built on, and how it stands, idles, walks, runs and dies
 (see [Characters](graphics.md#characters)). There are eleven items: the sword, a health potion, a bone, a leather
 cap and tunic, the Ashlands' blade and buckler, the clothes a new player starts in, a linen shirt,
-cloth trousers and plain shoes, and leather boots, three kinds of monster, the skeleton, the Ash
-Skeleton and the Crypt Skeleton, the last two with a skill each, six kinds of NPC, three quests (see [Quests](gameplay.md#quests)) and four
+cloth trousers and plain shoes, and leather boots, four kinds of monster, the skeleton, the Ash
+Skeleton and the Crypt Skeleton, the last two with a skill each, and a boss, the Bone Colossus,
+with four (see [The world boss](gameplay.md#the-world-boss)), six kinds of NPC, three quests (see [Quests](gameplay.md#quests)) and four
 skills (see [Skills](gameplay.md#skills)).
 
 - An item, or a kind of monster or NPC, has an id and a name, and parts that each side reads what it
@@ -26,6 +27,12 @@ skills (see [Skills](gameplay.md#skills)).
   shows before the skill lands, and `color` its colour, which the clients draw, while its `damage`,
   its `cooldown_ms`, from when it starts, and its `range`, how near the player the monster fights
   has to be for it to start, are the server's.
+- A kind with `phases` is a boss. Each phase has the `health` it starts at, in percent of the
+  boss's most, the first at 100, its `skills`, by their ids among its kind's, which the boss uses
+  in that phase alone, in the kind's order, and its `adds`, so many monsters of a `kind`, by its
+  id, which come round the boss as the phase starts. A kind's `respawn_ms` is how long it lies dead,
+  ten seconds without one. Where each phase starts is the clients' too, as a boss's bar marks it,
+  while its skills, its adds and the respawn are the server's.
 - An item is the parts it has, and no type: `stack` says how many go in a slot of a bag, `equip`
   where it's worn and what it adds, as `modifiers` of `STAT_DAMAGE`, `STAT_HEALTH` or
   `STAT_ARMOUR`, `use` what using one does and how often, and `rolls` the modifiers each one gets
@@ -50,7 +57,9 @@ skills (see [Skills](gameplay.md#skills)).
   each skill has a level and lands before it's over, each starting skill is in the file, each
   monster's skill has an id of its own among its kind's, a size, an arc if it's a cone, a range of
   more than nothing and no more than its size, so that whoever it starts on is in it, a telegraph of
-  half a second at least (`kShortestTelegraph`), and a cooldown no shorter than that, and each
+  half a second at least (`kShortestTelegraph`), and a cooldown no shorter than that, each boss's
+  first phase starts at 100%, each phase after it below the one before and above nothing, uses
+  skills its kind has, and calls up some of a kind in the file, and each
   drop has a chance from nothing to one, and goes from fewer to more, as a monster's gold goes from
   less to more, each kind of NPC has a skin, and each quest has a giver, asks for some kills, and
   gives some of each of its prizes. Once every
@@ -76,7 +85,7 @@ skills (see [Skills](gameplay.md#skills)).
 Each side reads its own copy, so a client and a world have to agree on what the client reads. Each
 world works out its `ClientHash`, a 64-bit FNV-1a of the ids, names and looks, what the bag shows of
 each item, which is all of it but its weapon, the skills' levels and cooldowns, the monsters'
-skills but for their damage, cooldowns and ranges, what each trainer teaches, and all of each quest, serialized deterministically, registers it with Consul, and the login server
+skills but for their damage, cooldowns and ranges, where each boss's phases start, what each trainer teaches, and all of each quest, serialized deterministically, registers it with Consul, and the login server
 lists it with the world. The fights and the skills' effects stay out of it, so that changing a
 sword's damage or a skeleton's leash needs no new client.
 A client lists a world with other content than its own as such, and doesn't log in to it. The servers
