@@ -1,0 +1,63 @@
+<!doctype html>
+<!--
+  The game's own page, in place of Emscripten's: the canvas fills the window, and
+  the page can't scroll, so a Space, an arrow or a Page Down has nothing to move,
+  and reaches the game alone. Emscripten puts the client's script where SCRIPT is.
+  A gateway to the servers goes in the address: ?gateway=ws://localhost:8090.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>nanoMMO</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      canvas {
+        display: block;
+        outline: none;
+      }
+      #status {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #b8a797;
+        font: 16px system-ui, -apple-system, sans-serif;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+    <div id="status">Loading…</div>
+    <script>
+      var statusLine = document.getElementById('status');
+      var Module = {
+        canvas: document.getElementById('canvas'),
+        print: function (text) {
+          console.log(text);
+        },
+        printErr: function (text) {
+          console.warn(text);
+        },
+        setStatus: function (text) {
+          statusLine.textContent = text;
+          statusLine.hidden = !text;
+        },
+        monitorRunDependencies: function (left) {
+          if (!left) Module.setStatus('');
+        },
+      };
+      window.addEventListener('error', function () {
+        Module.setStatus('The game stopped: the browser console says why.');
+      });
+    </script>
+    {{{ SCRIPT }}}
+  </body>
+</html>

@@ -81,7 +81,11 @@ if(EMSCRIPTEN)
     -sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
     -sASYNCIFY -sASYNCIFY_STACK_SIZE=65536
     -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1048576 ${preloads}
+    --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html
   )
+  # The page around the canvas is the game's own (web/shell.html).
+  set_property(TARGET nanommo_client APPEND PROPERTY
+    LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html)
   # The sound player, the benchmark and the tests run on this machine.
   return()
 endif()
