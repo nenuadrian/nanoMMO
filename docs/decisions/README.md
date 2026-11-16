@@ -79,3 +79,4 @@ one commit could undo, or that the code makes plain, needs none.
 | [0032](0032-the-browser-reaches-the-servers-through-a-gateway.md) | A browser reaches the servers through a WebSocket gateway | Accepted | 80 |
 | [0033](0033-players-fight-each-other-in-duels-that-end-at-one-health.md) | Players fight each other in duels, which end at one health | Accepted | 81 |
 | [0034](0034-duel-blows-are-checked-where-the-attacker-saw-the-target.md) | Duel blows are checked where the attacker saw the target, up to 200 milliseconds back | Accepted | 82 |
+| [0035](0035-a-monsters-skill-lands-where-it-was-aimed.md) | A monster's skill lands where it was aimed, after a telegraph players can step out of | Accepted | 83 |

@@ -53,7 +53,7 @@ instead, seen or not, while they're within its leash, so that a kick that knocks
 doesn't make it forget them. The content's checks keep each fixed home further than that from the middle of the
 island, so the middle, where players start and come back, is safe. A monster runs at them at the
 players' running speed, and swings once it's within 1.2 metres. The skeleton's swing takes 0.9 seconds, its attack animation, and hits for five,
-0.65 seconds in, less the armour you wear, down to one. An Ash Skeleton, in the Ashlands, is level two, and hits for eight. Run, or die, and it gives up and wanders back.
+0.65 seconds in, less the armour you wear, down to one. An Ash Skeleton, in the Ashlands, is level two, and hits for eight. Run, or die, and it gives up and wanders back. Ash and Crypt Skeletons have a skill each too (see [Monsters' skills](#monsters-skills)).
 
 A monster with no health left dies, and whoever killed it gets its experience, fifty for a skeleton, and ninety for an Ash Skeleton,
 and what it drops, into their bag (see [Items](#items)).
@@ -76,6 +76,44 @@ health at level one, and twenty more for each level after it, and what they wear
 Experience and health are saved with where you are (see [Saving players](saving.md)), so you
 come back with the health you left with. If you leave dead, you come back as the respawn would bring
 you back, in the middle at full health. A player saved before health was kept joins at full health.
+
+### Monsters' skills
+
+The Ash Skeleton and the Crypt Skeleton have a skill each, a big blow they telegraph: its shape
+shows on the ground first, and fills, for long enough to step out of, and then it lands on whoever's
+still in it. The plain skeleton only swings, so that new players learn that first. Each kind's
+`skills` are in the monsters file (see [Content](content.md)).
+
+| Monster | Skill | Shape | Shows for | Damage | Cooldown | Starts within |
+|---|---|---|---|---|---|---|
+| Ash Skeleton | Ground Slam | A circle three metres round it | 2 s | 30 | 10 s | 1.5 metres |
+| Crypt Skeleton | Bone Sweep | A cone 90 degrees wide, four metres out in front of it | 1.5 s | 35 | 8 s | 2.5 metres |
+
+- A monster uses a skill in place of a swing, once it's ready and the player it's fighting is
+  within the skill's range: the first of its kind's skills that is, in the monsters file's order.
+  It stands where it is, facing the player, while the shape shows, and then the skill lands on each
+  living player in the shape, less the armour they wear, down to one, as a swing does. Then it
+  fights on. Its cooldown starts as it starts, and runs down whatever the monster does.
+- The shape stays where and how the monster aimed it as it started (`World::LandSkill`, and
+  `InShape` in `content/monsters.h`), so a player who steps out is out, wherever the monster goes. A
+  push doesn't stop a skill, or move its shape, so a kick that knocks the monster away doesn't save
+  whoever stays where they were. A throw calls it off, as it does a swing.
+- Your own swing or skill holds you where you are until it's over, Strike for 1.1 seconds, so let
+  go of Space as a shape shows, and step out as your swing ends.
+- The world checks the shape against where each player is on the server as it lands. Your keys take
+  half a round trip to get there, and your screen hears that it's landed half a round trip after it
+  has, so you have to be out a round trip before the fill ends on your screen
+  ([decision 35](decisions/0035-a-monsters-skill-lands-where-it-was-aimed.md)).
+- While a monster's using a skill, the world sends which, by its id among its kind's, and how long
+  until it lands, in milliseconds, as `Monster.skill` and `Monster.lands_in`, so it's sent again
+  each tick, as a monster that moves is.
+- The client draws the shape on the ground where the monster stood as it started, the way it faced
+  (`client/telegraphs.h`), in the skill's colour: faint all over, with its edges strong, and filling
+  from the monster out until it lands, counting down by itself between worlds. Under the monster's
+  health, a thinner bar fills with it, with the skill's name. Both go once it lands, or the monster
+  dies.
+- The game's bots run out of a shape they're in, straight away from the monster, to a metre past
+  its end (`StepOut`, in `bot/wander.h`), and then think again.
 
 ## Skills
 

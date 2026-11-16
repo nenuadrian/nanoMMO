@@ -7,6 +7,21 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.83.0 (2026-11-16)
+
+- Monsters' skills: big blows a monster telegraphs, in the monsters file as each kind's `skills`,
+  a `CIRCLE` round it or a `CONE` in front of it, which shows on the ground for its
+  `telegraph_ms`, and then lands on whoever's still in it, where it was aimed as it started. The
+  Ash Skeleton's Ground Slam is a circle of three metres, for 30, after two seconds, and the Crypt
+  Skeleton's Bone Sweep a cone 90 degrees wide and four metres long, for 35, after a second and a
+  half. The content refuses a telegraph shorter than half a second, and a cooldown shorter than
+  it.
+- `Monster`'s `skill` and `lands_in` say which skill a monster's using, and how long until it
+  lands, and the client draws its shape filling on the ground, in its colour, with a bar under the
+  monster's health and the skill's name. The monsters' skills' shapes are in the content's hash.
+- The shadows and the rings on the ground are sent to the GPU before the depth mask's back on.
+- The bots run out of a monster's skill on its way.
+
 ## 0.82.0 (2026-11-16)
 
 - Lag compensation for duels: a blow on a duel opponent is checked against where the attacker's
