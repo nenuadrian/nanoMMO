@@ -25,6 +25,14 @@ struct WorldRegistration {
   int64_t started = 0;
 };
 
+/// A world instance as players reach it, and as the servers do.
+struct WorldInstance {
+  std::string public_host;
+  uint16_t port = 0;
+  /// Its own address, on Consul's network.
+  std::string address;
+};
+
 /// A world runs as two instances for a moment, while one hands its players
 /// over to the other, so each instance registers under a name of its own, its
 /// world's and its port's.
@@ -49,6 +57,11 @@ class Consul {
   /// The worlds that pass their health checks, by name, with the host and
   /// port players reach them at: each world's newest instance.
   absl::StatusOr<std::vector<protocol::WorldListing>> Worlds() const;
+
+  /// Each world instance that passes its health check, by the host and port
+  /// players reach it at, with its own address on Consul's network: what the
+  /// gateway may connect a page to, and where.
+  absl::StatusOr<std::vector<WorldInstance>> Instances() const;
 
  private:
   absl::StatusOr<std::string> OwnAddress() const;

@@ -121,6 +121,7 @@ jobs:
         run: |
           docker build --target server .
           docker build --target login .
+          docker build --target gateway .
           docker build --target saver .
           docker build --target certificates .
           docker build --target profile .

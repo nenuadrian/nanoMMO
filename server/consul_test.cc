@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -54,4 +55,44 @@ TEST(ConsulTest, ListsEachWorldsNewestInstanceUntilItDeregisters) {
   const absl::StatusOr<std::vector<WorldListing>> left = consul.Worlds();
   ASSERT_TRUE(left.ok()) << left.status();
   EXPECT_EQ(std::ranges::find(*left, name, &WorldListing::name), left->end());
+}
+
+TEST(ConsulTest, ListsEachInstanceWithItsOwnAddress) {
+  const char* host = std::getenv("NANOMMO_CONSUL_HOST");
+  if (host == nullptr) {
+    GTEST_SKIP() << "set NANOMMO_CONSUL_HOST to test against Consul";
+  }
+  nanommo::Consul consul(host);
+  const nanommo::WorldRegistration world = {
+      .name = nanommo::testing::TestName(),
+      .public_host = "example.test",
+      .port = 7020,
+      .metrics_port = 9020,
+      .players = 0,
+      .content = 0,
+      .started = 100};
+  ASSERT_TRUE(consul.Register(world).ok());
+  const auto listed = [&consul] {
+    const absl::StatusOr<std::vector<nanommo::WorldInstance>> instances =
+        consul.Instances();
+    EXPECT_TRUE(instances.ok()) << instances.status();
+    if (!instances.ok()) {
+      return std::optional<std::string>();
+    }
+    for (const nanommo::WorldInstance& instance : *instances) {
+      if (instance.public_host == "example.test" && instance.port == 7020) {
+        return std::optional<std::string>(instance.address);
+      }
+    }
+    return std::optional<std::string>();
+  };
+
+  // Its own address is the one Consul sees it at, not the public one.
+  const std::optional<std::string> address = listed();
+  ASSERT_TRUE(address.has_value());
+  EXPECT_FALSE(address->empty());
+  EXPECT_NE(*address, "example.test");
+
+  ASSERT_TRUE(consul.Deregister(nanommo::InstanceId(world)).ok());
+  EXPECT_FALSE(listed().has_value());
 }

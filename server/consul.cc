@@ -147,6 +147,32 @@ absl::StatusOr<std::vector<protocol::WorldListing>> Consul::Worlds() const {
   return worlds;
 }
 
+absl::StatusOr<std::vector<WorldInstance>> Consul::Instances() const {
+  const absl::StatusOr<std::string> body =
+      Get(absl::StrCat("/v1/health/service/", kService, "?passing"));
+  if (!body.ok()) {
+    return body.status();
+  }
+  const nlohmann::json entries = nlohmann::json::parse(*body, nullptr, false);
+  if (!entries.is_array()) {
+    return absl::DataLossError("Consul's list of worlds isn't a list");
+  }
+  std::vector<WorldInstance> instances;
+  for (const nlohmann::json& entry : entries) {
+    const auto* host =
+        Find<std::string>(entry, "/Service/TaggedAddresses/wan/Address");
+    const auto* port =
+        Find<uint64_t>(entry, "/Service/TaggedAddresses/wan/Port");
+    const auto* address = Find<std::string>(entry, "/Service/Address");
+    if (host && port && address && *port != 0 && *port <= 65535) {
+      instances.push_back({.public_host = *host,
+                           .port = static_cast<uint16_t>(*port),
+                           .address = *address});
+    }
+  }
+  return instances;
+}
+
 // The address Consul sees us at, which is the one the kernel picks to send to
 // it from. Connecting a UDP socket sends nothing.
 absl::StatusOr<std::string> Consul::OwnAddress() const {

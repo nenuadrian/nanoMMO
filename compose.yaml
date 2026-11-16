@@ -108,6 +108,27 @@ services:
       redis:
         condition: service_healthy
 
+  # A browser's page reaches the login server and the worlds through it, over
+  # WebSocket, as a page can't open a socket: ws://localhost:8090 from a page
+  # on this machine, and wss:// behind a reverse proxy in a deployment.
+  gateway:
+    build:
+      context: .
+      target: gateway
+    environment:
+      NANOMMO_LOGIN_HOST: login
+      NANOMMO_CONSUL_HOST: consul
+      NANOMMO_TLS_CA: /tls/ca.crt
+    volumes:
+      - ./tls:/tls:ro
+    ports:
+      - "8090:8090"
+    depends_on:
+      consul:
+        condition: service_healthy
+      certificates:
+        condition: service_completed_successfully
+
   server:
     build:
       context: .

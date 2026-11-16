@@ -70,7 +70,7 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
  && cmake --build --preset tidy \
  && ccache --show-stats \
  && run-clang-tidy -quiet -p build-tidy \
-      '^/src/(server|bot|client|protocol|content|terrain|fuzz)/(?!.*_test\.cc)'
+      '^/src/(server|gateway|bot|client|protocol|content|terrain|fuzz)/(?!.*_test\.cc)'
 
 FROM clang AS coverage
 WORKDIR /src
@@ -99,6 +99,13 @@ COPY --from=test /src/build/bin/nanommo_login /usr/local/bin/
 USER ubuntu
 EXPOSE 7778
 ENTRYPOINT ["nanommo_login"]
+
+# Between browsers' pages and the servers: WebSocket in, TLS out.
+FROM runtime AS gateway
+COPY --from=test /src/build/bin/nanommo_gateway /usr/local/bin/
+USER ubuntu
+EXPOSE 8090
+ENTRYPOINT ["nanommo_gateway"]
 
 FROM runtime AS saver
 COPY --from=test /src/build/bin/nanommo_saver /usr/local/bin/
@@ -171,6 +178,6 @@ RUN pip install --no-cache-dir clang-format==18.1.3 cpplint==2.0.2
 # one, so the folder is named after the project: NANOMMO_SERVER_TICK_H_.
 WORKDIR /nanommo
 COPY . .
-RUN find server bot client cheat protocol content terrain fuzz cinema -name '*.cc' -o -name '*.h' \
+RUN find server gateway bot client cheat protocol content terrain fuzz cinema -name '*.cc' -o -name '*.h' \
  | xargs clang-format --dry-run --Werror \
- && cpplint --root=.. --recursive --quiet server bot client cheat protocol content terrain fuzz cinema
+ && cpplint --root=.. --recursive --quiet server gateway bot client cheat protocol content terrain fuzz cinema

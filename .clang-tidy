@@ -20,4 +20,4 @@ CheckOptions:
   performance-no-automatic-move.AllowedTypes: '::absl::Status'
   bugprone-unused-return-value.CheckedReturnTypes: '::std::expected'
 WarningsAsErrors: '*'
-HeaderFilterRegex: '/(server|bot|client|protocol|content|terrain|fuzz)/[a-z_]+\.h$'
+HeaderFilterRegex: '/(server|gateway|bot|client|protocol|content|terrain|fuzz)/[a-z_]+\.h$'
