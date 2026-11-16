@@ -14,3 +14,9 @@ groups:
         for: 1m
         annotations:
           summary: "{{ $labels.world }} is down, or gone from Prometheus's targets"
+
+      - alert: ItemsDuplicated
+        expr: max(nanommo_duplicate_items) > 0
+        for: 1m
+        annotations:
+          summary: "Serials that more than one item has, as an item and its copy do: {{ $value }}"

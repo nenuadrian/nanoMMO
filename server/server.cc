@@ -493,6 +493,8 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
       done = land.OfferToTrade(id, action.offer());
       break;
     case protocol::TradeAction::kReady: {
+      // What each side offers, for the trade's record, should this complete it.
+      const protocol::Trade offers = land.TradeOf(id);
       const absl::StatusOr<uint32_t> traded =
           land.ReadyToTrade(id, action.ready(), action.revision());
       done = traded.status();
@@ -502,7 +504,12 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
       if (traded.value_or(0) == 0) {
         break;
       }
-      if (!Save({id, *traded}).empty()) {
+      const Traded record{.id = RandomHex(),
+                          .player = id,
+                          .player_gave = offers.yours(),
+                          .partner = *traded,
+                          .partner_gave = offers.theirs()};
+      if (!Save({id, *traded}, record).empty()) {
         // One of them isn't this instance's any more, and another can have
         // them as they were before the trade, so neither keeps it: both go,
         // unsaved, and come back with what Redis has, from before it.
@@ -932,7 +939,8 @@ void Server::RenewLeases() {
   }
 }
 
-std::set<uint32_t> Server::Save(const std::vector<uint32_t>& ids) {
+std::set<uint32_t> Server::Save(const std::vector<uint32_t>& ids,
+                                const std::optional<Traded>& traded) {
   std::map<uint32_t, Progress> changed;
   std::map<uint32_t, protocol::Inventory> bags;
   std::map<uint32_t, std::string> leases;
@@ -954,7 +962,7 @@ std::set<uint32_t> Server::Save(const std::vector<uint32_t>& ids) {
     }
   }
   const absl::StatusOr<std::set<uint32_t>> lost =
-      players_.Save(name_, changed, bags, leases);
+      players_.Save(name_, changed, bags, leases, traded);
   if (!lost.ok()) {
     std::cerr << "couldn't save " << changed.size()
               << " players: " << lost.status() << "\n";

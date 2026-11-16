@@ -1,7 +1,9 @@
 #include "server/players.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -24,6 +26,8 @@ namespace {
 constexpr char kUnsaved[] = "players:unsaved";
 // The players whose bags changed, which are in kUnsaved too.
 constexpr char kItemsUnsaved[] = "items:unsaved";
+// The trades that aren't in MySQL yet, oldest first.
+constexpr char kTrades[] = "trades";
 
 std::string Key(const std::string& world, uint32_t id) {
   return absl::StrCat("player:", world, ":", id);
@@ -144,6 +148,24 @@ std::string StateOf(const items::Stack& stack) {
     return "";
   }
   return json;
+}
+
+// What one side gave in a trade, as protobuf's JSON, which MySQL keeps.
+std::string GaveOf(protocol::TradeSide side) {
+  side.clear_ready();
+  std::string json;
+  google::protobuf::util::MessageToJsonString(side, &json).IgnoreError();
+  return json;
+}
+
+// The value of a stream entry's field, or nothing if it hasn't the field.
+std::string FieldOf(const Redis::Entry& entry, std::string_view name) {
+  for (std::size_t i = 0; i + 1 < entry.fields.size(); i += 2) {
+    if (entry.fields[i] == name) {
+      return entry.fields[i + 1];
+    }
+  }
+  return "";
 }
 
 // A player's quests as one message, which Redis keeps the bytes of, and
@@ -364,8 +386,9 @@ absl::StatusOr<std::set<uint32_t>> Players::Pass(
 absl::StatusOr<std::set<uint32_t>> Players::Save(
     const std::string& world, const std::map<uint32_t, Progress>& changed,
     const std::map<uint32_t, protocol::Inventory>& bags,
-    const std::map<uint32_t, std::string>& leases) {
-  if (changed.empty()) {
+    const std::map<uint32_t, std::string>& leases,
+    const std::optional<Traded>& traded) {
+  if (changed.empty() && !traded) {
     return std::set<uint32_t>();
   }
   std::vector<std::vector<std::string>> commands;
@@ -397,6 +420,15 @@ absl::StatusOr<std::set<uint32_t>> Players::Save(
   if (items_unsaved.size() > 2) {
     commands.push_back(items_unsaved);
   }
+  // The trade's record goes with its bags, so the saver takes them to MySQL
+  // together.
+  if (traded) {
+    commands.push_back({"XADD", kTrades, "*", "id", traded->id, "world", world,
+                        "player", absl::StrCat(traded->player), "player_gave",
+                        GaveOf(traded->player_gave), "partner",
+                        absl::StrCat(traded->partner), "partner_gave",
+                        GaveOf(traded->partner_gave)});
+  }
   // Another instance that's taken a player has saved them since, and its
   // saves are the ones to keep.
   std::map<std::string, std::string> holding;
@@ -412,27 +444,74 @@ absl::StatusOr<std::set<uint32_t>> Players::Save(
 }
 
 absl::StatusOr<int> Players::Flush() {
-  // As many as are unsaved now: whoever changes meanwhile waits for next time.
-  const absl::StatusOr<std::string> count = redis_.Command({"SCARD", kUnsaved});
+  // As many as are unsaved now, and as many trades: whoever changes meanwhile
+  // waits for next time.
+  const absl::StatusOr<std::vector<std::vector<std::string>>> counts =
+      redis_.Pipeline({{"SCARD", kUnsaved}, {"XLEN", kTrades}});
   int left = 0;
-  if (!count.ok() || !absl::SimpleAtoi(*count, &left)) {
+  int trades_left = 0;
+  if (!counts.ok() || !absl::SimpleAtoi(counts->at(0).at(0), &left) ||
+      !absl::SimpleAtoi(counts->at(1).at(0), &trades_left)) {
     return absl::UnavailableError("couldn't count the unsaved players");
   }
   int saved = 0;
-  while (left > 0) {
-    // SPOP takes them out of the set, so one who changes after this is marked
-    // unsaved again, and goes in a later batch.
-    const absl::StatusOr<std::vector<std::vector<std::string>>> popped =
-        redis_.Pipeline(
-            {{"SPOP", kUnsaved, absl::StrCat(std::min(left, kBatch))}});
-    if (!popped.ok()) {
-      return popped.status();
+  while (left > 0 || trades_left > 0) {
+    // The oldest trades go first, each with both its players, so that MySQL
+    // has a trade's record and both bags from after it, or none of it.
+    std::vector<Redis::Entry> trades;
+    if (trades_left > 0) {
+      absl::StatusOr<std::vector<Redis::Entry>> oldest = redis_.Read(
+          {"XREAD", "COUNT", absl::StrCat(std::min(trades_left, kBatch / 2)),
+           "STREAMS", kTrades, "0-0"});
+      if (!oldest.ok()) {
+        return oldest.status();
+      }
+      trades = *std::move(oldest);
+      trades_left =
+          trades.empty() ? 0 : trades_left - static_cast<int>(trades.size());
     }
-    const std::vector<std::string>& keys = popped->front();
+    std::vector<std::string> keys;
+    const auto take = [&keys](const std::string& key) {
+      if (std::ranges::find(keys, key) == keys.end()) {
+        keys.push_back(key);
+      }
+    };
+    for (const Redis::Entry& trade : trades) {
+      for (const char* side : {"player", "partner"}) {
+        uint32_t id = 0;
+        if (absl::SimpleAtoi(FieldOf(trade, side), &id)) {
+          take(Key(FieldOf(trade, "world"), id));
+        }
+      }
+    }
+    // They're in this batch, so they come out of the set.
+    if (!keys.empty()) {
+      std::vector<std::string> taken = {"SREM", kUnsaved};
+      taken.insert(taken.end(), keys.begin(), keys.end());
+      const absl::StatusOr<std::string> removed = redis_.Command(taken);
+      if (!removed.ok()) {
+        return removed.status();
+      }
+    }
+    // SPOP takes the rest out of the set, so one who changes after this is
+    // marked unsaved again, and goes in a later batch.
+    const int room = std::min(left, kBatch - static_cast<int>(keys.size()));
+    if (room > 0) {
+      const absl::StatusOr<std::vector<std::vector<std::string>>> popped =
+          redis_.Pipeline({{"SPOP", kUnsaved, absl::StrCat(room)}});
+      if (!popped.ok()) {
+        return popped.status();
+      }
+      for (const std::string& key : popped->front()) {
+        take(key);
+      }
+      left = popped->front().empty()
+                 ? 0
+                 : left - static_cast<int>(popped->front().size());
+    }
     if (keys.empty()) {
       break;
     }
-    left -= static_cast<int>(keys.size());
 
     // Each player's mark for their bag comes off before their hash is read,
     // so that a bag that changes in between is marked again, for next time.
@@ -530,7 +609,25 @@ absl::StatusOr<int> Players::Flush() {
         skill_values.insert(skill_values.end(), {player, std::string(skill)});
       }
     }
-    if (rows == 0) {
+    // Each trade's record, from the millisecond Redis took it, by its entry's
+    // id. IGNORE skips one that's in MySQL already, from a batch that MySQL
+    // committed without the saver hearing so, which it tries again.
+    std::string trades_sql =
+        "INSERT IGNORE INTO trades (id, world, player, player_gave, partner, "
+        "partner_gave, traded_at) VALUES ";
+    std::vector<std::string> trade_values;
+    std::vector<std::string> recorded = {"XDEL", kTrades};
+    for (const Redis::Entry& trade : trades) {
+      absl::StrAppend(&trades_sql, trade_values.empty() ? "" : ", ",
+                      "(?, ?, ?, ?, ?, ?, FROM_UNIXTIME(? / 1000))");
+      for (const char* field : {"id", "world", "player", "player_gave",
+                                "partner", "partner_gave"}) {
+        trade_values.push_back(FieldOf(trade, field));
+      }
+      trade_values.push_back(trade.id.substr(0, trade.id.find('-')));
+      recorded.push_back(trade.id);
+    }
+    if (rows == 0 && trades.empty()) {
       continue;
     }
     absl::StrAppend(
@@ -549,7 +646,8 @@ absl::StatusOr<int> Players::Flush() {
     // A bag's rows can't go without the rows that take their place, or a
     // failure between the two would empty it, so the batch is a transaction.
     const absl::Status written = database_.Transaction([&] {
-      absl::StatusOr<Result> result = database_.Run(sql, values);
+      absl::StatusOr<Result> result =
+          rows > 0 ? database_.Run(sql, values) : Result();
       // A skill once learned stays learned, so each flush inserts each skill
       // a player knows, and IGNORE skips the ones MySQL has already, and those
       // of a player whose row it refused.
@@ -576,6 +674,9 @@ absl::StatusOr<int> Players::Flush() {
         result = database_.Run(items_sql, {item_values.begin() + first,
                                            item_values.begin() + last});
       }
+      if (result.ok() && !trade_values.empty()) {
+        result = database_.Run(trades_sql, trade_values);
+      }
       return result.status();
     });
     if (!written.ok()) {
@@ -591,9 +692,30 @@ absl::StatusOr<int> Players::Flush() {
       redis_.Pipeline(marks).IgnoreError();
       return written;
     }
+    // Should this fail, the next flush inserts them again, which IGNORE skips.
+    if (!trades.empty()) {
+      redis_.Command(recorded).IgnoreError();
+    }
     saved += rows;
   }
   return saved;
+}
+
+absl::StatusOr<int> Players::Duplicates() {
+  // By player_items' serial, from V13, which MySQL takes from each row's
+  // state, and indexes.
+  const absl::StatusOr<Result> counted = database_.Run(
+      "SELECT COUNT(*) FROM (SELECT serial FROM player_items "
+      "WHERE serial IS NOT NULL GROUP BY serial HAVING COUNT(*) > 1) AS twice");
+  if (!counted.ok()) {
+    return counted.status();
+  }
+  int duplicates = 0;
+  if (counted->rows.empty() ||
+      !absl::SimpleAtoi(counted->rows.front().front(), &duplicates)) {
+    return absl::InternalError("a count of duplicates that isn't a number");
+  }
+  return duplicates;
 }
 
 }  // namespace nanommo

@@ -1,7 +1,9 @@
 #include <chrono>
 #include <csignal>
+#include <cstdint>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/status/statusor.h"
@@ -9,6 +11,9 @@
 #include "asio/io_context.hpp"
 #include "asio/signal_set.hpp"
 #include "asio/steady_timer.hpp"
+#include "prometheus/exposer.h"
+#include "prometheus/gauge.h"
+#include "prometheus/registry.h"
 #include "protocol/settings.h"
 #include "server/database.h"
 #include "server/players.h"
@@ -17,8 +22,9 @@
 namespace {
 
 constexpr std::chrono::seconds kInterval(5);
+constexpr uint16_t kMetricsPort = 9466;
 
-void Flush(nanommo::Players& players) {
+void Flush(nanommo::Players& players, prometheus::Gauge& duplicates) {
   const auto start = std::chrono::steady_clock::now();
   const absl::StatusOr<int> saved = players.Flush();
   if (!saved.ok()) {
@@ -29,6 +35,14 @@ void Flush(nanommo::Players& players) {
                      absl::FromChrono(std::chrono::steady_clock::now() - start))
               << std::endl;
   }
+  // Two items with one serial are an item and its copy, which the alerts
+  // watch for.
+  const absl::StatusOr<int> twice = players.Duplicates();
+  if (!twice.ok()) {
+    std::cerr << "nanommo saver: " << twice.status() << "\n";
+    return;
+  }
+  duplicates.Set(*twice);
 }
 
 }  // namespace
@@ -55,6 +69,16 @@ int main() {
   std::cout << "nanommo saver: saving to MySQL every "
             << absl::FormatDuration(absl::FromChrono(kInterval)) << std::endl;
 
+  auto registry = std::make_shared<prometheus::Registry>();
+  prometheus::Gauge& duplicates =
+      prometheus::BuildGauge()
+          .Name("nanommo_duplicate_items")
+          .Help("Serials that more than one item in MySQL has")
+          .Register(*registry)
+          .Add({});
+  prometheus::Exposer exposer("0.0.0.0:" + std::to_string(kMetricsPort));
+  exposer.RegisterCollectable(registry);
+
   asio::io_context io;
   asio::steady_timer timer(io, kInterval);
   // self is the lambda, which waits on the timer again, with its return type
@@ -63,7 +87,7 @@ int main() {
     if (error) {
       return;
     }
-    Flush(players);
+    Flush(players, duplicates);
     timer.expires_at(timer.expiry() + kInterval);
     timer.async_wait(self);
   };
@@ -72,7 +96,7 @@ int main() {
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });
   io.run();
-  Flush(players);
+  Flush(players, duplicates);
   std::cout << "nanommo saver: saved what was left, and stopped" << std::endl;
   return 0;
 }

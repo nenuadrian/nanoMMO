@@ -12,12 +12,14 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "asio/buffer.hpp"
 #include "asio/ip/address.hpp"
@@ -255,6 +257,10 @@ class ServerTest : public ::testing::Test {
     }
     if (redis_) {
       EXPECT_TRUE(redis_->Command({"DEL", "fencing:" + world_}).ok());
+      // And recorded their trades, for the saver.
+      for (const nanommo::Redis::Entry& trade : Trades()) {
+        EXPECT_TRUE(redis_->Command({"XDEL", "trades", trade.id}).ok());
+      }
     }
     // Their characters go with them, and their memberships with those, but
     // not the guilds.
@@ -301,6 +307,20 @@ class ServerTest : public ::testing::Test {
     const std::string lease =
         redis_->Command({"GET", LeaseKey(id)}).value_or("");
     return lease.substr(0, lease.rfind(' '));
+  }
+
+  // The records of this world's trades, which the server leaves for the
+  // saver.
+  std::vector<nanommo::Redis::Entry> Trades() {
+    std::vector<nanommo::Redis::Entry> ours;
+    for (nanommo::Redis::Entry& trade :
+         redis_->Read({"XREAD", "COUNT", "1000", "STREAMS", "trades", "0-0"})
+             .value_or(std::vector<nanommo::Redis::Entry>())) {
+      if (std::ranges::find(trade.fields, world_) != trade.fields.end()) {
+        ours.push_back(std::move(trade));
+      }
+    }
+    return ours;
   }
 
   // An instance of this world, as its leases name it.
@@ -968,6 +988,8 @@ TEST_F(ServerTest, ATradeAndALeaveLeaveOneSword) {
   };
   ASSERT_TRUE(RunUntil(
       [&] { return swords(alice.bag()) == 1 && swords(bob.bag()) == 1; }));
+  const uint64_t serial =
+      alice.bag().worn().at(nanommo::items::SLOT_MAIN_HAND).serial();
 
   // Alice puts her sword in her bag, and they open a trade.
   nanommo::protocol::Input stow;
@@ -999,6 +1021,18 @@ TEST_F(ServerTest, ATradeAndALeaveLeaveOneSword) {
   alice.SendAndLeave(ready);
   ASSERT_TRUE(RunUntil(
       [&] { return (*market)->players() == 1 && swords(bob.bag()) == 2; }));
+  // The trade's on record, with her sword's serial, as she gave it.
+  const std::vector<nanommo::Redis::Entry> trades = Trades();
+  ASSERT_EQ(trades.size(), 1u);
+  const std::vector<std::string>& fields = trades.front().fields;
+  const auto field = [&fields](std::string_view name) {
+    const auto found = std::ranges::find(fields, name);
+    return found != fields.end() && found + 1 != fields.end() ? *(found + 1)
+                                                              : "";
+  };
+  EXPECT_EQ(field("player"), absl::StrCat(alice_));
+  EXPECT_EQ(field("partner"), absl::StrCat(bob_));
+  EXPECT_TRUE(absl::StrContains(field("player_gave"), absl::StrCat(serial)));
 
   // Bob has her sword, and she comes back without it.
   TestPlayer back(io_, *client_tls_, (*market)->port(), Token(alice_));

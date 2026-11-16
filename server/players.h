@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -37,6 +38,16 @@ struct Progress {
   std::set<uint32_t> quests_done;
 
   bool operator==(const Progress&) const = default;
+};
+
+/// A trade that's done, for the record: an id of its own, and each side, with
+/// what they gave, serials and all.
+struct Traded {
+  std::string id;
+  uint32_t player = 0;
+  protocol::TradeSide player_gave;
+  uint32_t partner = 0;
+  protocol::TradeSide partner_gave;
 };
 
 class Players {
@@ -87,16 +98,24 @@ class Players {
   /// changed are never saved one without the other. And only while each of the
   /// leases, by player, is as given, so that an instance that's lost a player
   /// to another can't write over what that one saves. Returns the players
-  /// whose leases aren't, when it saved none of it.
+  /// whose leases aren't, when it saved none of it. A trade's record goes into
+  /// the trades stream with its two bags, for the saver to take to MySQL with
+  /// them.
   absl::StatusOr<std::set<uint32_t>> Save(
       const std::string& world, const std::map<uint32_t, Progress>& changed,
       const std::map<uint32_t, protocol::Inventory>& bags = {},
-      const std::map<uint32_t, std::string>& leases = {});
+      const std::map<uint32_t, std::string>& leases = {},
+      const std::optional<Traded>& traded = std::nullopt);
 
   /// Takes the unsaved players of all the worlds from Redis to MySQL, a batch
   /// at a time, each in a transaction with the bags that changed, and returns
-  /// how many it saved.
+  /// how many it saved. The trades that are waiting go first, each in a batch
+  /// with both its players, into the trades table.
   absl::StatusOr<int> Flush();
+
+  /// The serials that more than one item in MySQL has, as only a copy of an
+  /// item can have another's.
+  absl::StatusOr<int> Duplicates();
 
  private:
   Database& database_;

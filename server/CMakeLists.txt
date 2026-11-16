@@ -55,7 +55,7 @@ add_executable(nanommo_login login_main.cc)
 target_link_libraries(nanommo_login PRIVATE nanommo_server_core)
 
 add_executable(nanommo_saver saver_main.cc)
-target_link_libraries(nanommo_saver PRIVATE nanommo_server_core absl::time)
+target_link_libraries(nanommo_saver PRIVATE nanommo_server_core absl::time prometheus-cpp::pull)
 
 add_executable(nanommo_recorder recorder_main.cc)
 target_link_libraries(nanommo_recorder PRIVATE nanommo_server_core)

@@ -16,7 +16,8 @@ namespace {
 constexpr char kPrefix[] = "token:";
 constexpr char kSessionPrefix[] = "session:";
 
-// 32 random bytes, in hex.
+}  // namespace
+
 std::string RandomHex() {
   std::array<unsigned char, 32> bytes;
   randombytes_buf(bytes.data(), bytes.size());
@@ -24,8 +25,6 @@ std::string RandomHex() {
   sodium_bin2hex(hex.data(), hex.size(), bytes.data(), bytes.size());
   return hex.data();
 }
-
-}  // namespace
 
 Tokens::Tokens(Redis& redis) : redis_(redis) {
   ABSL_CHECK(sodium_init() >= 0) << "couldn't initialise libsodium";

@@ -10,6 +10,10 @@
 
 namespace nanommo {
 
+/// 32 random bytes, in hex, which nobody can guess or make again: a token, a
+/// session, or a trade's id. Tokens initialises libsodium, which it needs.
+std::string RandomHex();
+
 class Tokens {
  public:
   static constexpr std::chrono::seconds kLifetime{30};

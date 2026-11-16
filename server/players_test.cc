@@ -15,6 +15,7 @@
 #include "protocol/nanommo.pb.h"
 #include "server/accounts.h"
 #include "server/characters.h"
+#include "server/inventory.h"
 #include "server/test_services.h"
 
 namespace {
@@ -438,4 +439,76 @@ TEST_F(PlayersTest, AnInstanceThatLostThePlayerCantSaveThem) {
   player = players.Load("Ember", id_);
   ASSERT_TRUE(player.ok()) << player.status();
   EXPECT_EQ(player->x, 3.0f);
+}
+
+TEST_F(PlayersTest, AFlushTriedTwiceRecordsATradeOnce) {
+  nanommo::Players players(*database_, *redis_);
+  // A second character in Ember, to whom the first gives their blade.
+  const absl::StatusOr<uint32_t> other =
+      nanommo::Characters(*database_).Create(account_, "Ember", name_ + "b");
+  ASSERT_TRUE(other.ok()) << other.status();
+  nanommo::protocol::Inventory giver = Bag(3);
+  nanommo::items::Stack& blade =
+      giver.mutable_worn()->at(nanommo::items::SLOT_MAIN_HAND);
+  blade.set_serial(7);
+  nanommo::protocol::Inventory taker;
+  taker.set_revision(2);
+  (*taker.mutable_bag())[0] = blade;
+  nanommo::Traded trade{.id = name_, .player = id_, .partner = *other};
+  (*trade.player_gave.mutable_bag())[0] = blade;
+  giver.mutable_worn()->erase(nanommo::items::SLOT_MAIN_HAND);
+  const auto save = [&] {
+    return players.Save(
+        "Ember",
+        {{id_, {.items_revision = 3}}, {*other, {.items_revision = 2}}},
+        {{id_, giver}, {*other, taker}}, {}, trade);
+  };
+
+  // The batch goes into MySQL, which commits it. Should the saver not hear
+  // so, as when the connection drops, the trade's still in the stream, and
+  // its players unsaved, as another save of it leaves them, and it tries the
+  // batch again.
+  ASSERT_TRUE(save().ok());
+  ASSERT_TRUE(players.Flush().ok());
+  ASSERT_TRUE(save().ok());
+  ASSERT_TRUE(players.Flush().ok());
+  const absl::StatusOr<nanommo::Result> recorded = database_->Run(
+      "SELECT player, partner, player_gave->>'$.bag.\"0\".serial' "
+      "FROM trades WHERE id = ?",
+      {name_});
+  ASSERT_TRUE(recorded.ok()) << recorded.status();
+  EXPECT_EQ(recorded->rows,
+            (std::vector<std::vector<std::string>>{
+                {std::to_string(id_), std::to_string(*other), "7"}}));
+  // And the blade with both bags, in the partner's.
+  const absl::StatusOr<nanommo::Result> blades = database_->Run(
+      "SELECT player FROM player_items WHERE serial = 7 AND player IN (?, ?)",
+      {std::to_string(id_), std::to_string(*other)});
+  ASSERT_TRUE(blades.ok()) << blades.status();
+  EXPECT_EQ(blades->rows,
+            (std::vector<std::vector<std::string>>{{std::to_string(*other)}}));
+
+  const std::string key = "player:Ember:" + std::to_string(*other);
+  EXPECT_TRUE(redis_->Command({"DEL", key}).ok());
+  EXPECT_TRUE(database_->Run("DELETE FROM trades WHERE id = ?", {name_}).ok());
+}
+
+TEST_F(PlayersTest, CountsTheSerialsHeldTwice) {
+  nanommo::Players players(*database_, *redis_);
+  const absl::StatusOr<int> before = players.Duplicates();
+  ASSERT_TRUE(before.ok()) << before.status();
+
+  // The same blade, by its serial, in the account's characters in Ember and
+  // in Frost.
+  nanommo::protocol::Inventory bag = Bag(2);
+  bag.mutable_worn()
+      ->at(nanommo::items::SLOT_MAIN_HAND)
+      .set_serial(nanommo::NewSerial());
+  ASSERT_TRUE(
+      players.Save("Ember", {{id_, {.items_revision = 2}}}, {{id_, bag}}).ok());
+  ASSERT_TRUE(
+      players.Save("Frost", {{frost_, {.items_revision = 2}}}, {{frost_, bag}})
+          .ok());
+  ASSERT_TRUE(players.Flush().ok());
+  EXPECT_EQ(players.Duplicates().value_or(0), *before + 1);
 }

@@ -33,3 +33,18 @@ tests:
           - exp_labels: { world: Frost }
             exp_annotations:
               summary: "Frost is down, or gone from Prometheus's targets"
+
+  - name: A sword is held twice
+    interval: 5s
+    input_series:
+      - series: 'nanommo_duplicate_items{job="nanommo-saver", instance="saver:9466"}'
+        values: '0x12 1x36'
+    alert_rule_test:
+      - eval_time: 1m30s
+        alertname: ItemsDuplicated
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: ItemsDuplicated
+        exp_alerts:
+          - exp_annotations:
+              summary: "Serials that more than one item has, as an item and its copy do: 1"

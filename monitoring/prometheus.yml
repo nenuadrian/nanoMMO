@@ -30,3 +30,7 @@ scrape_configs:
         type: A
         port: 9465
         refresh_interval: 5s
+
+  - job_name: nanommo-saver
+    static_configs:
+      - targets: [saver:9466]
