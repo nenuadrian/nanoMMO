@@ -81,7 +81,7 @@ constexpr float kSetOff = 0.5f;
 int main(int argc, char* argv[]) {
   std::cout << "nanommo client: version " << nanommo::kVersion << '\n';
   // Offline, the world is the client's own: with --offline, and in a
-  // browser, which can't reach the servers.
+  // browser opened without a gateway to the servers.
   const bool offline = !nanommo::CanReachServers() ||
                        (argc > 1 && std::string_view(argv[1]) == "--offline");
   std::unique_ptr<nanommo::Servers> servers;

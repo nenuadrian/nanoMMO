@@ -29,9 +29,10 @@ target_link_libraries(nanommo_client_core PUBLIC
   nanommo_world asio
   absl::memory absl::status absl::statusor absl::strings
 )
-# The servers are over sockets, which a browser doesn't give us.
+# The servers are over sockets on a computer, and through the gateway over a
+# WebSocket in a browser, which gives a page no sockets.
 if(EMSCRIPTEN)
-  target_sources(nanommo_client_core PRIVATE servers_web.cc)
+  target_sources(nanommo_client_core PRIVATE servers_web.cc websocket_link.cc)
 else()
   target_sources(nanommo_client_core PRIVATE connection.cc servers.cc)
 endif()
@@ -79,7 +80,7 @@ if(EMSCRIPTEN)
   endforeach()
   target_link_options(nanommo_client PRIVATE
     -sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-    -sASYNCIFY -sASYNCIFY_STACK_SIZE=65536
+    -sASYNCIFY -sASYNCIFY_STACK_SIZE=65536 -lwebsocket.js
     -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1048576 ${preloads}
     --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html
   )
