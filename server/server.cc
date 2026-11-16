@@ -66,6 +66,11 @@ constexpr std::size_t kMostRemembered = 20;
 constexpr int kGuildBurst = 3;
 constexpr std::chrono::seconds kGuildRefill{1};
 
+// An ask for a duel is a line in another player's chat, so a player can ask
+// or answer three times at once, and then once a second, as for a guild.
+constexpr int kDuelBurst = 3;
+constexpr std::chrono::seconds kDuelRefill{1};
+
 // A lease lasts ten seconds, so renewing each second keeps it through a few
 // renewals that fail.
 constexpr std::chrono::seconds kRenewEvery{1};
@@ -224,6 +229,9 @@ void Server::Accept() {
           if (input.has_trade()) {
             Trade(*id, input.trade());
           }
+          if (input.has_duel()) {
+            Duel(*id, input.duel());
+          }
         }
       };
       const auto on_close = [this, id] {
@@ -296,6 +304,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   story_limits_.emplace(*id, TokenBucket(kStoryBurst, kStoryRefill));
   item_limits_.emplace(*id, TokenBucket(kItemBurst, kItemRefill));
   guild_limits_.emplace(*id, TokenBucket(kGuildBurst, kGuildRefill));
+  duel_limits_.emplace(*id, TokenBucket(kDuelBurst, kDuelRefill));
   udp_tokens_[hello.token()] = *id;
   std::cout << player->name << " joined, as player " << *id << ", with lease "
             << *lease << std::endl;
@@ -326,6 +335,7 @@ void Server::Leave(uint32_t id) {
   story_limits_.erase(id);
   item_limits_.erase(id);
   guild_limits_.erase(id);
+  duel_limits_.erase(id);
   inputs_.Leave(id);
   history_.erase(id);
   seen_.erase(id);
@@ -527,6 +537,38 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
       land.CancelTrade(id);
       break;
     case protocol::TradeAction::ACTION_NOT_SET:
+      return;
+  }
+  if (!done.ok()) {
+    Notify(id, std::string(done.message()));
+  }
+}
+
+void Server::Duel(uint32_t id, const protocol::DuelAction& action) {
+  // The next instance has none of this one's duels.
+  if (handing_over_) {
+    return;
+  }
+  if (!duel_limits_.at(id).Take(std::chrono::steady_clock::now())) {
+    Notify(id, "You're asking for duels too fast.");
+    return;
+  }
+  World& land = *WorldOf(id);
+  absl::Status done;
+  switch (action.action_case()) {
+    case protocol::DuelAction::kAsk:
+      done = land.AskToDuel(id, action.ask());
+      break;
+    case protocol::DuelAction::kAccept:
+      done = land.AnswerDuel(id, true);
+      break;
+    case protocol::DuelAction::kDecline:
+      done = land.AnswerDuel(id, false);
+      break;
+    case protocol::DuelAction::kYield:
+      done = land.Yield(id);
+      break;
+    case protocol::DuelAction::ACTION_NOT_SET:
       return;
   }
   if (!done.ok()) {
@@ -813,6 +855,17 @@ int Server::HandOver(const std::string& host, uint16_t port) {
   std::error_code ignored;
   acceptor_.close(ignored);
   SaveChanged();
+  // The next instance has none of this one's duels, so each is off, and both
+  // sides hear so before they're told to go.
+  const std::string off =
+      "The duel's off, as the world moves to its next instance.";
+  for (const auto& [id, session] : sessions_) {
+    if (const uint32_t other = WorldOf(id)->CallOffDuel(id); other != 0) {
+      Notify(id, off);
+      Notify(other, off);
+    }
+  }
+  SendDuels();
   // The next instance turns away a player whose lease this one has, so their
   // leases go to it first, with newer fencing numbers. It's named as in
   // Consul, by its world and its port.
@@ -883,6 +936,7 @@ void Server::Tick() {
   SendQuests();
   SendGuilds();
   SendTrades();
+  SendDuels();
   metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
   TracyPlot("players", static_cast<int64_t>(players()));
   FrameMark;
@@ -1304,6 +1358,23 @@ void Server::SendTrades() {
     }
     protocol::World news;
     *news.mutable_trade() = land->TradeOf(id);
+    std::string frame = Frame(news);
+    metrics_.AddBytesSent(frame.size());
+    session->second->Send(std::move(frame));
+  }
+}
+
+void Server::SendDuels() {
+  // Like a trade, on its own, over TCP, to each side, and with nobody in it
+  // once it's over.
+  for (const uint32_t id : copies_.TakeDuelNews()) {
+    const auto session = sessions_.find(id);
+    const World* land = WorldOf(id);
+    if (session == sessions_.end() || land == nullptr) {
+      continue;
+    }
+    protocol::World news;
+    *news.mutable_duel() = land->DuelOf(id);
     std::string frame = Frame(news);
     metrics_.AddBytesSent(frame.size());
     session->second->Send(std::move(frame));

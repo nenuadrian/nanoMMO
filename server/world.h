@@ -369,6 +369,10 @@ class World {
   /// it's started, calls it off.
   absl::Status Yield(uint32_t id);
 
+  /// Ends the player's duel, however far it's got, with nobody winning, as
+  /// when the world hands its players over. Returns who it was with, or 0.
+  uint32_t CallOffDuel(uint32_t id);
+
   /// The player's duel, as their client gets it: who with, how far it's got,
   /// and its flag, or nobody, once it's over.
   protocol::Duel DuelOf(uint32_t id) const;

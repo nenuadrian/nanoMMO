@@ -85,6 +85,7 @@ class Server {
   void TurnIn(uint32_t id, const protocol::Quest& quest);
   void Item(uint32_t id, const protocol::ItemAction& action);
   void Trade(uint32_t id, const protocol::TradeAction& action);
+  void Duel(uint32_t id, const protocol::DuelAction& action);
   void Guild(uint32_t id, const protocol::GuildAction& action);
   void Found(uint32_t id, const std::string& name);
   /// Asks the player of that name in, if they're playing in this world.
@@ -148,6 +149,8 @@ class Server {
   void SendGuilds();
   /// To each player whose trade opened, changed or ended this tick.
   void SendTrades();
+  /// To each player whose duel was asked for, counted down, started or ended.
+  void SendDuels();
   /// The guild's roster from MySQL, with who's playing here, and their level
   /// as it is now.
   std::vector<protocol::GuildMember> Roster(uint32_t guild);
@@ -188,6 +191,7 @@ class Server {
   std::map<uint32_t, TokenBucket> story_limits_;
   std::map<uint32_t, TokenBucket> item_limits_;
   std::map<uint32_t, TokenBucket> guild_limits_;
+  std::map<uint32_t, TokenBucket> duel_limits_;
   /// The guild of each player here who's in one.
   std::map<uint32_t, Membership> members_;
   /// The players whose guild we've to send them.

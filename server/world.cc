@@ -486,6 +486,8 @@ absl::Status World::Yield(uint32_t id) {
   return absl::OkStatus();
 }
 
+uint32_t World::CallOffDuel(uint32_t id) { return duels_.End(id); }
+
 protocol::Duel World::DuelOf(uint32_t id) const {
   protocol::Duel shown;
   const Duels::Duel* duel = duels_.Of(id);

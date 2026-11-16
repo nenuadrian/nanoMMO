@@ -71,6 +71,10 @@ class Copies {
   /// since the last time.
   std::set<uint32_t> TakeTradeNews();
 
+  /// The players whose duel, in any of them, has been asked for, counted
+  /// down, started or ended since the last time.
+  std::set<uint32_t> TakeDuelNews();
+
   /// In all the copies.
   int players() const;
 

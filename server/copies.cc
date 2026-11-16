@@ -77,6 +77,14 @@ std::set<uint32_t> Copies::TakeTradeNews() {
   return news;
 }
 
+std::set<uint32_t> Copies::TakeDuelNews() {
+  std::set<uint32_t> news;
+  for (auto& [id, copy] : copies_) {
+    news.merge(copy.world.TakeDuelNews());
+  }
+  return news;
+}
+
 int Copies::players() const {
   int count = 0;
   for (const auto& [id, copy] : copies_) {

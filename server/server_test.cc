@@ -95,6 +95,9 @@ class TestPlayer {
     return trade_;
   }
 
+  /// The player's duel, as the server last sent it, once it has.
+  const std::optional<nanommo::protocol::Duel>& duel() const { return duel_; }
+
   /// What the server told the player, which nobody said.
   const std::vector<std::string>& notices() const { return notices_; }
 
@@ -176,6 +179,8 @@ class TestPlayer {
               quests_ = world.quests();
             } else if (world.has_trade()) {
               trade_ = world.trade();
+            } else if (world.has_duel()) {
+              duel_ = world.duel();
             } else if (!world.events().empty()) {
               events_.insert(events_.end(), world.events().begin(),
                              world.events().end());
@@ -205,6 +210,7 @@ class TestPlayer {
   std::optional<nanommo::protocol::Guild> guild_;
   std::optional<nanommo::protocol::GuildInvite> invite_;
   std::optional<nanommo::protocol::Trade> trade_;
+  std::optional<nanommo::protocol::Duel> duel_;
   std::vector<std::string> notices_;
   std::vector<nanommo::protocol::Chat> heard_;
   std::vector<nanommo::protocol::Event> events_;
@@ -1038,6 +1044,115 @@ TEST_F(ServerTest, ATradeAndALeaveLeaveOneSword) {
   TestPlayer back(io_, *client_tls_, (*market)->port(), Token(alice_));
   ASSERT_TRUE(RunUntil([&] { return back.bag().revision() > 0; }));
   EXPECT_EQ(swords(back.bag()) + swords(bob.bag()), 2);
+}
+
+TEST_F(ServerTest, TwoPlayersDuel) {
+  // Each joins with a sword in hand, which Space swings.
+  const nanommo::Content swords{.items = nanommo::testing::Sword(),
+                                .skills = nanommo::testing::WithStrike({})};
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> arena =
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1, swords,
+                              metrics_, *tokens_, *players_, *guilds_, *events_,
+                              *storyteller_);
+  ASSERT_TRUE(arena.ok()) << arena.status();
+  TestPlayer alice(io_, *client_tls_, (*arena)->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, (*arena)->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(bob_) && bob.Sees(alice_); }));
+  const auto in = [](const TestPlayer& player,
+                     nanommo::protocol::DuelState state) {
+    return player.duel() && player.duel()->state() == state;
+  };
+
+  // Alice asks bob, by his name, and he says yes.
+  nanommo::protocol::Input ask;
+  ask.mutable_duel()->set_ask(names_[bob_]);
+  alice.Send(ask);
+  ASSERT_TRUE(RunUntil([&] {
+    return in(alice, nanommo::protocol::DUEL_ASKING) &&
+           in(bob, nanommo::protocol::DUEL_ASKED);
+  }));
+  EXPECT_EQ(bob.duel()->opponent(), names_[alice_]);
+  EXPECT_EQ(bob.notices().back(),
+            absl::StrCat(names_[alice_],
+                         " asks you to duel. Type /duel yes to say yes."));
+  nanommo::protocol::Input yes;
+  yes.mutable_duel()->set_accept(true);
+  bob.Send(yes);
+
+  // Both hear it count down, and start.
+  ASSERT_TRUE(
+      RunUntil([&] { return in(alice, nanommo::protocol::DUEL_COUNTDOWN); }));
+  EXPECT_LE(alice.duel()->countdown(), 3000u);
+  ASSERT_TRUE(RunUntil([&] {
+    return in(alice, nanommo::protocol::DUEL_FIGHTING) &&
+           in(bob, nanommo::protocol::DUEL_FIGHTING);
+  }));
+  EXPECT_EQ(alice.duel()->opponent_id(), bob_);
+
+  // She picks him and swings, and he sees her blow land on him.
+  nanommo::protocol::Input swing;
+  swing.set_attack(true);
+  swing.set_target_player(bob_);
+  alice.Send(swing);
+  ASSERT_TRUE(RunUntil([&] {
+    return std::ranges::any_of(
+        bob.events(), [&](const nanommo::protocol::Event& event) {
+          return event.kind() == nanommo::protocol::EVENT_HURT &&
+                 event.player() == bob_ && event.amount() == 15u;
+        });
+  }));
+
+  // He yields, and she's won it.
+  nanommo::protocol::Input yield;
+  yield.mutable_duel()->set_yield(true);
+  bob.Send(yield);
+  ASSERT_TRUE(RunUntil([&] {
+    return in(alice, nanommo::protocol::DUEL_NONE) &&
+           in(bob, nanommo::protocol::DUEL_NONE) && !alice.notices().empty() &&
+           alice.notices().back() ==
+               absl::StrCat("You won the duel against ", names_[bob_], ".");
+  }));
+  EXPECT_EQ(bob.notices().back(),
+            absl::StrCat(names_[alice_], " won the duel."));
+
+  // She asks again, and leaves, which calls it off.
+  alice.Send(ask);
+  ASSERT_TRUE(RunUntil([&] { return in(bob, nanommo::protocol::DUEL_ASKED); }));
+  alice.Leave();
+  EXPECT_TRUE(RunUntil([&] {
+    return in(bob, nanommo::protocol::DUEL_NONE) &&
+           bob.notices().back() ==
+               absl::StrCat(names_[alice_], " has gone, so the duel's off.");
+  }));
+}
+
+TEST_F(ServerTest, HandingPlayersOverCallsTheirDuelOff) {
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> next =
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1,
+                              content_, metrics_, *tokens_, *players_, *guilds_,
+                              *events_, *storyteller_);
+  ASSERT_TRUE(next.ok()) << next.status();
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, server_->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(bob_) && bob.Sees(alice_); }));
+  nanommo::protocol::Input ask;
+  ask.mutable_duel()->set_ask(names_[bob_]);
+  alice.Send(ask);
+  ASSERT_TRUE(RunUntil([&] { return bob.duel().has_value(); }));
+
+  // The next instance has none of this one's duels, so both hear it's off
+  // before they're told to move.
+  EXPECT_EQ(server_->HandOver("localhost", (*next)->port()), 2);
+  ASSERT_TRUE(RunUntil(
+      [&] { return alice.world().has_move() && bob.world().has_move(); }));
+  const std::string off =
+      "The duel's off, as the world moves to its next instance.";
+  EXPECT_EQ(alice.notices().back(), off);
+  EXPECT_EQ(bob.notices().back(), off);
+  EXPECT_TRUE(alice.duel()->opponent().empty());
+  EXPECT_TRUE(bob.duel()->opponent().empty());
 }
 
 TEST_F(ServerTest, AppliesNumberedInputsOneATickInOrder) {
