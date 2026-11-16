@@ -150,6 +150,10 @@ struct Monster {
   float sight = 0.0f;
   float leash = 0.0f;
   float wander = 0.0f;
+  /// Its kind's skills, which it uses in place of a swing, each as soon as
+  /// it's ready and the player it's fighting is within its range, the first
+  /// first.
+  std::vector<monsters::Skill> skills;
   float home_x = 0.0f;
   float home_z = 0.0f;
   float target_x = 0.0f;
@@ -160,6 +164,15 @@ struct Monster {
   /// within its leash.
   uint32_t attacker = 0;
   std::chrono::nanoseconds swing{0};
+  /// While its motion is a skill's: the skill, how far into it it is, and
+  /// where it stood as it started. The shape stays where it was aimed, the
+  /// way the monster faced, so that players can step out of it.
+  monsters::Skill casting;
+  std::chrono::nanoseconds cast{0};
+  float cast_x = 0.0f;
+  float cast_z = 0.0f;
+  /// How long until each skill it's used is ready again, by its id.
+  std::map<uint32_t, std::chrono::nanoseconds> cooldowns;
   std::chrono::nanoseconds respawn{0};
   /// A blow's push, which plays out over a few ticks: where it started, how
   /// far it goes, in metres, and how long it's been going. While it does, the
@@ -476,6 +489,12 @@ class World {
   void Count(uint32_t id, Player& player, const Monster& monster);
   void Act(Monster& monster, std::chrono::nanoseconds time);
   void Hit(Monster& monster);
+  /// A monster's blow on the player, from a swing or a skill: what they wear
+  /// takes some of it, down to one, and with no health left, they die.
+  void Hit(uint32_t id, Player& player, const Monster& monster, int blow);
+  /// The monster's skill, once its shape has shown for long enough: on each
+  /// living player in the shape where it was aimed, where they stand now.
+  void LandSkill(const Monster& monster);
   /// An event of the kind, for the player, by their id, where they are.
   Event& Record(Event::Kind kind, uint32_t id, const Player& player);
   /// After everyone's acted: the duels' asks and countdowns run down, and a

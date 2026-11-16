@@ -16,6 +16,7 @@
 #include "server/events.h"
 #include "server/levels.h"
 #include "server/monsters.h"
+#include "server/shown.h"
 #include "server/test_content.h"
 #include "terrain/terrain.h"
 
@@ -786,6 +787,190 @@ TEST(World, MonstersKillPlayersWhoComeBackInTheMiddleWhenTheyAsk) {
   EXPECT_NE(player.motion, nanommo::Motion::kDead);
   EXPECT_EQ(player.x, 0.0f);
   EXPECT_EQ(player.health, 100);
+}
+
+namespace {
+
+// The tests' skeleton, with a slam all round it, three metres out, which it
+// starts once the player it's fighting is within a metre and a half. It shows
+// for two seconds, hits for 30, and cools down for ten. As a cone, it's a
+// sweep 90 degrees wide, in front of it.
+nanommo::monsters::Kind Slammer(
+    nanommo::monsters::Shape shape = nanommo::monsters::CIRCLE) {
+  nanommo::monsters::Kind kind = nanommo::testing::Skeleton();
+  nanommo::monsters::Skill& slam = *kind.add_skills();
+  slam.set_id(1);
+  slam.set_name("Slam");
+  slam.set_shape(shape);
+  slam.set_size(3.0f);
+  slam.set_arc(90.0f);
+  slam.set_telegraph_ms(2000);
+  slam.set_damage(30);
+  slam.set_cooldown_ms(10000);
+  slam.set_range(1.5f);
+  return kind;
+}
+
+// Steps the world on until the monster's skill has landed.
+void UntilItLands(nanommo::World& world, uint32_t monster) {
+  while (world.monsters().at(monster).motion == nanommo::Motion::kSkill) {
+    world.Step(kTick);
+  }
+}
+
+// A player a metre from the slammer, who walks off the way the slam started,
+// for as long, and stops: their health once it's landed.
+int AfterTheSlam(std::chrono::milliseconds walking) {
+  nanommo::World world;
+  world.Join(1, {.x = 1.0f});
+  const uint32_t slammer =
+      world.Spawn(nanommo::MonsterOf(Slammer(), 0.0f, 0.0f));
+  world.Step(kTick);
+  world.SetInput(1, 1.0f, 0.0f, false);
+  for (auto walked = std::chrono::milliseconds::zero(); walked < walking;
+       walked += kTick) {
+    world.Step(kTick);
+  }
+  world.SetInput(1, 0.0f, 0.0f, false);
+  UntilItLands(world, slammer);
+  return world.players().at(1).health;
+}
+
+}  // namespace
+
+TEST(World, AMonsterTelegraphsItsSkillBeforeItLands) {
+  nanommo::World world;
+  // Out of reach of its swing, and in range of its slam.
+  world.Join(1, {.x = 1.4f});
+  const uint32_t id = world.Spawn(nanommo::MonsterOf(Slammer(), 0.0f, 0.0f));
+  const nanommo::Monster& monster = world.monsters().at(id);
+
+  world.Step(kTick);
+  EXPECT_EQ(monster.motion, nanommo::Motion::kSkill);
+  EXPECT_EQ(monster.casting.id(), 1u);
+  EXPECT_EQ(nanommo::ToProtocol(id, monster).skill(), 1u);
+  EXPECT_EQ(nanommo::ToProtocol(id, monster).lands_in(), 2000u);
+
+  // It stands where it is while its shape shows, and the clients count down.
+  RunOneSecond(world);
+  EXPECT_EQ(nanommo::ToProtocol(id, monster).lands_in(), 1000u);
+  for (int tick = 1; tick < 20; ++tick) {
+    world.Step(kTick);
+  }
+  EXPECT_EQ(monster.motion, nanommo::Motion::kSkill);
+  EXPECT_EQ(monster.x, 0.0f);
+  EXPECT_EQ(world.players().at(1).health, 100);
+
+  // Then it lands, on the player who stayed in it.
+  world.Step(kTick);
+  EXPECT_NE(monster.motion, nanommo::Motion::kSkill);
+  EXPECT_EQ(nanommo::ToProtocol(id, monster).skill(), 0u);
+  EXPECT_EQ(world.players().at(1).health, 100 - 30);
+}
+
+TEST(World, StepOutOfTheCircleAndItMisses) {
+  // A second and a half's walk takes them 2.7 metres further off, out of the
+  // three round it.
+  EXPECT_EQ(AfterTheSlam(std::chrono::milliseconds(1500)), 100);
+}
+
+TEST(World, StayInTheCircleAndItHits) {
+  EXPECT_EQ(AfterTheSlam(std::chrono::milliseconds(0)), 100 - 30);
+  // Half a second's walk isn't far enough.
+  EXPECT_EQ(AfterTheSlam(std::chrono::milliseconds(500)), 100 - 30);
+}
+
+TEST(World, TheConeHitsWhoIsInFrontAndNotBehind) {
+  nanommo::World world;
+  // It goes for the nearest, so it faces along z.
+  world.Join(1, {.z = 1.0f});
+  world.Join(2, {.z = -1.2f});
+  world.Join(3, {.x = 1.5f});
+  const uint32_t sweeper = world.Spawn(
+      nanommo::MonsterOf(Slammer(nanommo::monsters::CONE), 0.0f, 0.0f));
+
+  world.Step(kTick);
+  UntilItLands(world, sweeper);
+  EXPECT_EQ(world.players().at(1).health, 100 - 30);
+  EXPECT_EQ(world.players().at(2).health, 100);
+  EXPECT_EQ(world.players().at(3).health, 100);
+}
+
+TEST(World, ASkillLandsWhereItWasAimed) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Sword(),
+                                              nanommo::testing::Kick()));
+  world.Join(1, {.x = 1.0f, .experience = 100, .skills = {1}});
+  const uint32_t slammer =
+      world.Spawn(nanommo::MonsterOf(Slammer(), 0.0f, 0.0f));
+  world.Step(kTick);
+
+  // A kick knocks it three metres back, further from the player than its
+  // shape reaches, but the shape stays where it was.
+  world.Pick(1, slammer);
+  world.UseSkill(1, 1);
+  RunOneSecond(world);
+  EXPECT_FLOAT_EQ(world.monsters().at(slammer).x, -3.0f);
+  UntilItLands(world, slammer);
+  EXPECT_EQ(world.players().at(1).health, 120 - 30);
+}
+
+TEST(World, ThrowingAMonsterUpCallsOffItsSkill) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Sword(),
+                             *nanommo::ParseSkills(R"pb(
+                               skills {
+                                 id: 1
+                                 name: "Launch"
+                                 level: 1
+                                 effect {
+                                   cast_ms: 600
+                                   reach: 2
+                                   damage: 1
+                                   blows { at_ms: 100 lift: 1.5 }
+                                 }
+                               }
+                             )pb")));
+  world.Join(1, {.x = 1.0f, .skills = {1}});
+  const uint32_t slammer =
+      world.Spawn(nanommo::MonsterOf(Slammer(), 0.0f, 0.0f));
+  world.Step(kTick);
+
+  // A blow that throws it up calls the slam off, as it would a swing, and
+  // the slam cools down all the same.
+  world.Pick(1, slammer);
+  world.UseSkill(1, 1);
+  for (int tick = 0; tick < 3; ++tick) {
+    world.Step(kTick);
+  }
+  const nanommo::Monster& monster = world.monsters().at(slammer);
+  EXPECT_GT(monster.height, 0.0f);
+  EXPECT_NE(monster.motion, nanommo::Motion::kSkill);
+  EXPECT_TRUE(monster.cooldowns.contains(1));
+}
+
+TEST(World, ASkillWaitsForItsCooldown) {
+  nanommo::World world;
+  world.Join(1, {.x = 1.0f});
+  const uint32_t slammer =
+      world.Spawn(nanommo::MonsterOf(Slammer(), 0.0f, 0.0f));
+
+  // The ticks each slam started on. It swings between them.
+  std::vector<int> slams;
+  bool slamming = false;
+  for (int tick = 0; tick < 12 * 20; ++tick) {
+    world.Step(kTick);
+    const bool now =
+        world.monsters().at(slammer).motion == nanommo::Motion::kSkill;
+    if (now && !slamming) {
+      slams.push_back(tick);
+    }
+    slamming = now;
+  }
+  ASSERT_EQ(slams.size(), 2u);
+  EXPECT_GE((slams[1] - slams[0]) * kTick, std::chrono::seconds(10));
+  EXPECT_GT(world.players().at(1).health, 0);
 }
 
 namespace {

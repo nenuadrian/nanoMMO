@@ -63,6 +63,14 @@ protocol::Monster ToProtocol(uint32_t id, const Monster& monster) {
   sent.set_health(monster.health);
   sent.set_max_health(monster.max_health);
   sent.set_height(monster.height);
+  if (monster.motion == Motion::kSkill) {
+    sent.set_skill(monster.casting.id());
+    sent.set_lands_in(static_cast<uint32_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::milliseconds(monster.casting.telegraph_ms()) -
+            monster.cast)
+            .count()));
+  }
   return sent;
 }
 

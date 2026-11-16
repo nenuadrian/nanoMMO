@@ -1138,8 +1138,8 @@ void World::Throw(Monster& monster, float lift) {
   } else {
     return;
   }
-  // Thrown, it drops the swing it was in the middle of.
-  if (monster.motion == Motion::kAttack) {
+  // Thrown, it drops the swing or the skill it was in the middle of.
+  if (monster.motion == Motion::kAttack || monster.motion == Motion::kSkill) {
     monster.motion = Motion::kIdle;
   }
 }
@@ -1375,6 +1375,8 @@ void World::Lose(uint32_t id) {
 }
 
 void World::Act(Monster& monster, std::chrono::nanoseconds time) {
+  // As a player's, its cooldowns run down whatever it's doing.
+  RunDown(monster.cooldowns, time);
   if (monster.motion == Motion::kDead) {
     // A push the killing blow started ends with the monster, but one thrown
     // up still comes down.
@@ -1399,6 +1401,16 @@ void World::Act(Monster& monster, std::chrono::nanoseconds time) {
     }
     monster.motion = Motion::kIdle;
   }
+  // A push doesn't stop a skill either, and it lands where it was aimed.
+  if (monster.motion == Motion::kSkill) {
+    monster.cast += time;
+    if (monster.cast <
+        std::chrono::milliseconds(monster.casting.telegraph_ms())) {
+      return;
+    }
+    LandSkill(monster);
+    monster.motion = Motion::kIdle;
+  }
   if (pushed) {
     monster.motion = Motion::kIdle;
     return;
@@ -1416,10 +1428,14 @@ void World::Hit(Monster& monster) {
       Distance(player, monster) > monster.reach) {
     return;
   }
+  Hit(found->first, player, monster, monster.damage);
+}
+
+void World::Hit(uint32_t id, Player& player, const Monster& monster, int blow) {
   // What the player wears takes the blow, down to one.
-  const int damage = std::max(monster.damage - player.stats.armour, 1);
+  const int damage = std::max(blow - player.stats.armour, 1);
   player.health = std::max(player.health - damage, 0);
-  Event& hurt = Record(Event::Kind::kHurt, found->first, player);
+  Event& hurt = Record(Event::Kind::kHurt, id, player);
   hurt.monster = monster.kind;
   hurt.amount = static_cast<uint32_t>(damage);
   if (player.health > 0) {
@@ -1428,7 +1444,18 @@ void World::Hit(Monster& monster) {
   player.motion = Motion::kDead;
   player.respawn = kRespawnTime;
   player.way.clear();
-  Record(Event::Kind::kDeath, found->first, player).monster = monster.kind;
+  Record(Event::Kind::kDeath, id, player).monster = monster.kind;
+}
+
+void World::LandSkill(const Monster& monster) {
+  const Place aimed{.x = monster.cast_x, .z = monster.cast_z};
+  for (auto& [id, player] : players_) {
+    if (player.motion != Motion::kDead &&
+        InShape(monster.casting, aimed, monster.yaw,
+                {.x = player.x, .z = player.z})) {
+      Hit(id, player, monster, static_cast<int>(monster.casting.damage()));
+    }
+  }
 }
 
 }  // namespace nanommo

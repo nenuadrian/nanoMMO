@@ -162,6 +162,11 @@ message Monster {
   uint32 kind = 10;
   // How high a blow's thrown it, in metres, while it's in the air.
   float height = 11;
+  // While its motion is a skill's, which of its kind's skills, by its id among
+  // them, and how long until it lands, in milliseconds, so that everyone sees
+  // its shape coming.
+  uint32 skill = 12;
+  uint32 lands_in = 13;
 }
 
 // Someone who stands in one place, and doesn't fight. Each comes once a

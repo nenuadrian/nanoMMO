@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <map>
+#include <numbers>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -118,6 +119,22 @@ absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text) {
     }
   }
   return table;
+}
+
+bool InShape(const monsters::Skill& skill, Place from, float yaw, Place place) {
+  const float dx = place.x - from.x;
+  const float dz = place.z - from.z;
+  if (std::hypot(dx, dz) > skill.size()) {
+    return false;
+  }
+  if (skill.shape() != monsters::CONE) {
+    return true;
+  }
+  // As a player's slice is: half the arc to either side of the way it faced.
+  const float off = std::remainder(std::atan2(dx, dz) - yaw,
+                                   2.0f * std::numbers::pi_v<float>);
+  return std::abs(off) <=
+         skill.arc() / 2.0f * std::numbers::pi_v<float> / 180.0f;
 }
 
 }  // namespace nanommo

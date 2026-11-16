@@ -9,6 +9,7 @@
 
 #include "absl/status/statusor.h"
 #include "content/monsters.pb.h"
+#include "terrain/lands.h"
 
 namespace nanommo {
 
@@ -32,6 +33,11 @@ inline constexpr std::chrono::milliseconds kShortestTelegraph{500};
 /// land that isn't there, or a spawn whose leash reaches the middle of its
 /// land.
 absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text);
+
+/// Whether the place is in the skill's shape, aimed from where the monster
+/// stood, the way it faced, as a yaw: what it lands on, and what a player
+/// steps out of.
+bool InShape(const monsters::Skill& skill, Place from, float yaw, Place place);
 
 }  // namespace nanommo
 
