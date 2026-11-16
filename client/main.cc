@@ -56,6 +56,7 @@
 #include "client/soundboard.h"
 #include "client/soundscape.h"
 #include "client/talk_window.h"
+#include "client/telegraphs.h"
 #include "client/trade_window.h"
 #include "client/trainer_window.h"
 #include "client/window.h"
@@ -169,6 +170,7 @@ int main(int argc, char* argv[]) {
   nanommo::Renderer renderer(*content);
   nanommo::PostProcess post;
   nanommo::Animator animator(*content);
+  nanommo::Telegraphs telegraphs(content->monsters);
   nanommo::CombatText combat_text;
   nanommo::Loading loading;
   nanommo::DeathScreen death_screen;
@@ -545,6 +547,9 @@ int main(int argc, char* argv[]) {
         flag = Vector3{x, terrain->Height(x, z), z};
       }
       renderer.set_flag(flag);
+      // The monsters' skills on their way, each where it was aimed.
+      telegraphs.Update(world, GetFrameTime());
+      renderer.set_telegraphs(telegraphs.shown());
       if (IsKeyPressed(KEY_C) && !nanommo::Typing()) {
         character_screen.Toggle();
       }
@@ -581,7 +586,8 @@ int main(int argc, char* argv[]) {
     }
     gui.Begin(settings.ui.scale);
     if (in_world) {
-      nanommo::DrawNameplates(renderer.figures(), renderer.camera());
+      nanommo::DrawNameplates(renderer.figures(), renderer.camera(),
+                              telegraphs.shown());
       nanommo::DrawCombatText(combat_text, renderer.figures(),
                               renderer.camera());
       // Over the nameplates, and under the windows.

@@ -203,6 +203,15 @@ uint64_t ClientHash(const Content& content) {
     seen.set_id(id);
     seen.set_name(kind.name());
     *seen.mutable_look() = kind.look();
+    // They draw its skills' shapes, filling for as long as each shows, and
+    // say their names, but how hard each hits, how often, and from how near
+    // it starts are the server's.
+    for (monsters::Skill skill : kind.skills()) {
+      skill.clear_damage();
+      skill.clear_cooldown_ms();
+      skill.clear_range();
+      *seen.add_skills() = std::move(skill);
+    }
     Add(hash, seen);
   }
   for (const auto& [id, kind] : content.npcs.kinds) {

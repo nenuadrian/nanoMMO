@@ -3,9 +3,12 @@
 
 #include <raylib.h>
 
+#include <cstdint>
+#include <map>
 #include <vector>
 
 #include "client/animator.h"
+#include "client/telegraphs.h"
 
 namespace nanommo {
 
@@ -17,7 +20,11 @@ float Above(const Figure& figure);
 /// nothing left to fight.
 bool HasNameplate(const Figure& figure);
 
-void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera);
+/// Over each figure, its name, and its level and health, but for an NPC's.
+/// Under a monster's health, its skill on its way, if it has one: a bar that
+/// fills as its shape does, in its colour, and its name.
+void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
+                    const std::map<uint32_t, Telegraph>& telegraphs = {});
 
 }  // namespace nanommo
 

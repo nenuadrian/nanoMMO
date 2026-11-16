@@ -74,6 +74,13 @@ TEST(Content, HashesWhatTheClientsRead) {
   quests.quests.at(1).set_experience(1000);
   EXPECT_NE(nanommo::ClientHash(quests), hash);
 
+  // They draw a monster's skill's shape, and not what it does.
+  nanommo::Content slam = *nanommo::ReadContent(NANOMMO_CONTENT);
+  slam.monsters.kinds.at(2).mutable_skills(0)->set_damage(1000);
+  EXPECT_EQ(nanommo::ClientHash(slam), hash);
+  slam.monsters.kinds.at(2).mutable_skills(0)->set_size(9.0f);
+  EXPECT_NE(nanommo::ClientHash(slam), hash);
+
   // The clients work out how the people move from the rig.
   nanommo::Content rig = *nanommo::ReadContent(NANOMMO_CONTENT);
   rig.rig.mutable_walk()->set_cycle_ms(900);

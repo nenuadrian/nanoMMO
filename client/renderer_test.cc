@@ -5,6 +5,7 @@
 #include "absl/status/statusor.h"
 #include "client/atmosphere.h"
 #include "client/offscreen.h"
+#include "client/telegraphs.h"
 #include "client/window.h"
 #include "gtest/gtest.h"
 #include "terrain/terrain.h"
@@ -91,4 +92,42 @@ TEST(Renderer, RendersAPreviewIntoATexture) {
   target.RenderPreview(renderer, {}, camera);
 
   EXPECT_NE(target.ReadPixel(32, 32), target.ReadPixel(0, 0));
+}
+
+TEST(Renderer, DrawsAMonstersSkillOnTheGroundTheWayItWasAimed) {
+  const absl::StatusOr<std::unique_ptr<nanommo::Window>> window =
+      nanommo::Window::Create("test", 64, 64,
+                              nanommo::Window::Visibility::kHidden);
+  ASSERT_TRUE(window.ok());
+  nanommo::Offscreen target(64, 64);
+  nanommo::Renderer renderer;
+  const nanommo::Terrain terrain(1);
+  renderer.set_terrain(terrain, nanommo::kMeadows);
+  // High over the middle of the land, looking down, with z up the screen, and
+  // a metre and a half about five pixels.
+  const float ground = terrain.Height(0.0f, 0.0f);
+  renderer.set_camera({.position = {0.0f, ground + 20.0f, 0.0f},
+                       .target = {0.0f, ground, 0.0f},
+                       .up = {0.0f, 0.0f, 1.0f},
+                       .fovy = 50.0f,
+                       .projection = CAMERA_PERSPECTIVE});
+  target.Render(renderer);
+  const nanommo::Pixel ahead = target.ReadPixel(32, 27);
+  const nanommo::Pixel beside = target.ReadPixel(37, 32);
+  const nanommo::Pixel behind = target.ReadPixel(32, 37);
+
+  // A cone along z, in white, half filled.
+  nanommo::Telegraph sweep{.left = 1.0f};
+  sweep.skill.set_shape(nanommo::monsters::CONE);
+  sweep.skill.set_size(4.0f);
+  sweep.skill.set_arc(90.0f);
+  sweep.skill.set_telegraph_ms(2000);
+  sweep.skill.set_color(0xFFFFFFFF);
+  renderer.set_telegraphs({{1, sweep}});
+  target.Render(renderer);
+
+  const nanommo::Pixel lit = target.ReadPixel(32, 27);
+  EXPECT_GT(lit.r + lit.g + lit.b, ahead.r + ahead.g + ahead.b + 30);
+  EXPECT_EQ(target.ReadPixel(37, 32), beside);
+  EXPECT_EQ(target.ReadPixel(32, 37), behind);
 }

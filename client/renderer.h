@@ -22,6 +22,7 @@
 #include "client/reactions.h"
 #include "client/sea.h"
 #include "client/sky.h"
+#include "client/telegraphs.h"
 #include "client/trees.h"
 #include "content/content.h"
 #include "terrain/terrain.h"
@@ -113,6 +114,12 @@ class Renderer {
   /// foot, and a ring as far out as the duellists can go.
   void set_flag(std::optional<Vector3> flag) { flag_ = flag; }
 
+  /// The monsters' skills on their way, each a shape on the ground that fills
+  /// until it lands.
+  void set_telegraphs(std::map<uint32_t, Telegraph> telegraphs) {
+    telegraphs_ = std::move(telegraphs);
+  }
+
   /// How far the fog has lifted, as Loading::clear says: from 0, where it
   /// hides all but what's nearest, to 1, the atmosphere's own.
   void set_clear(float clear) { clear_ = clear; }
@@ -131,6 +138,7 @@ class Renderer {
   uint32_t target_player_ = 0;
   std::optional<Vector3> destination_;
   std::optional<Vector3> flag_;
+  std::map<uint32_t, Telegraph> telegraphs_;
   float clear_ = 1.0f;
   /// The seconds Animate has moved the world on by, which the sea's waves and
   /// the clouds go by.

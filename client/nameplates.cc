@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -26,6 +28,11 @@ constexpr ImU32 kPlayerHealth = IM_COL32(90, 200, 90, 255);
 constexpr ImU32 kMonsterHealth = IM_COL32(220, 70, 60, 255);
 
 constexpr ImVec2 kBar{64.0f, 6.0f};
+// A monster's skill on its way: a thinner bar, a little under its health, and
+// the skill's name, smaller than the monster's.
+constexpr float kCastBar = 4.0f;
+constexpr float kCastGap = 3.0f;
+constexpr float kCastScale = 0.85f;
 
 // Further than this, in metres, figures fade into the fog, and their
 // nameplates would float over the hills in front of them.
@@ -56,8 +63,8 @@ bool HasNameplate(const Figure& figure) {
          !(figure.monster && figure.to == protocol::MOTION_DEAD);
 }
 
-void DrawNameplates(const std::vector<Figure>& figures,
-                    const Camera3D& camera) {
+void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
+                    const std::map<uint32_t, Telegraph>& telegraphs) {
   ImDrawList* draw = ImGui::GetBackgroundDrawList();
   ImFont* font = ImGui::GetFont();
   const float font_size = ImGui::GetFontSize() * 1.4f;
@@ -104,6 +111,24 @@ void DrawNameplates(const std::vector<Figure>& figures,
     draw->AddRectFilled(bar_min, bar_max, kShadow);
     draw->AddRectFilled(bar_min, {bar_min.x + kBar.x * share, bar_max.y},
                         figure.monster ? kMonsterHealth : kPlayerHealth);
+    // A monster's skill on its way goes under its health, filling as its
+    // shape does.
+    if (const auto cast = telegraphs.find(figure.id);
+        figure.monster && cast != telegraphs.end()) {
+      const Telegraph& telegraph = cast->second;
+      const Color color = GetColor(telegraph.skill.color());
+      const ImVec2 cast_min{bar_min.x, bar_max.y + kCastGap};
+      const ImVec2 cast_max{bar_max.x, cast_min.y + kCastBar};
+      draw->AddRectFilled(cast_min, cast_max, kShadow);
+      draw->AddRectFilled(
+          cast_min, {cast_min.x + kBar.x * telegraph.Filled(), cast_max.y},
+          IM_COL32(color.r, color.g, color.b, 255));
+      const float cast_size = font_size * kCastScale;
+      const ImVec2 extent = font->CalcTextSizeA(cast_size, FLT_MAX, 0.0f,
+                                                telegraph.skill.name().c_str());
+      DrawShadowedText(draw, cast_size, {at.x - extent.x / 2, cast_max.y + 1},
+                       IM_COL32_WHITE, telegraph.skill.name());
+    }
 
     const std::string level = std::to_string(figure.level) + " ";
     const float level_width =

@@ -207,6 +207,15 @@ constexpr Color kDestination = {255, 255, 255, 200};
 constexpr Color kFlag = {255, 211, 77, 230};
 constexpr Color kFlagEdge = {255, 211, 77, 110};
 constexpr Vector3 kPole{0.12f, 2.4f, 0.12f};
+// A monster's skill on its way, in the skill's colour: its whole shape faint,
+// as much as has filled stronger, and its edge, to step out past, strongest.
+constexpr float kTelegraphShape = 0.18f;
+constexpr float kTelegraphFill = 0.4f;
+constexpr float kTelegraphEdge = 0.85f;
+// In metres: the edge's width, and the widest band a shape is drawn in, so
+// that it lies on the ground.
+constexpr float kTelegraphRim = 0.12f;
+constexpr float kBand = 0.5f;
 constexpr unsigned char kShadowDarkness = 82;
 
 // Nothing casts a shadow, so each figure gets a soft dark patch under it,
@@ -239,13 +248,17 @@ void DrawShadow(const Terrain& terrain, Vector3 at, float radius) {
   rlEnd();
 }
 
-// A ring at a figure's feet, which lies on a slope as a shadow does. A wide
-// one has more sides, a metre or so long, so that it follows the ground.
+// A ring at a figure's feet, which lies on a slope as a shadow does, or a
+// slice of one, as wide as the arc, in radians, about the way the yaw faces.
+// A wide one has more sides, a metre or so long, so that it follows the
+// ground.
 void DrawRing(const Terrain& terrain, Vector3 at, float inner, float outer,
-              Color color) {
-  const int sides = std::max(32, static_cast<int>(outer * 2.0f * PI));
+              Color color, float yaw = 0.0f, float arc = 2.0f * PI) {
+  const int sides = std::max(32, static_cast<int>(outer * arc));
+  // The yaw goes round from z towards x, and the turns from x towards z.
+  const float first = PI / 2.0f - yaw - arc / 2.0f;
   auto corner = [&](float distance, int i) {
-    const float turn = 2.0f * PI * i / sides;
+    const float turn = first + arc * i / sides;
     const float x = at.x + distance * std::cos(turn);
     const float z = at.z + distance * std::sin(turn);
     rlColor4ub(color.r, color.g, color.b, color.a);
@@ -262,6 +275,40 @@ void DrawRing(const Terrain& terrain, Vector3 at, float inner, float outer,
     corner(outer, i + 1);
   }
   rlEnd();
+}
+
+// The shape of a monster's skill on its way: all of it faint, as much as has
+// filled stronger, and its edges strongest.
+void DrawTelegraph(const Terrain& terrain, const Telegraph& telegraph) {
+  const monsters::Skill& skill = telegraph.skill;
+  const Color color = GetColor(skill.color());
+  const Vector3 at{telegraph.at.x, 0.0f, telegraph.at.z};
+  // From the monster out, in bands, each a slice of a ring, so that a wide
+  // shape lies on the ground too.
+  const auto slice = [&](float inner, float outer, float alpha, float yaw,
+                         float arc) {
+    const int bands = static_cast<int>(std::ceil((outer - inner) / kBand));
+    for (int band = 0; band < bands; ++band) {
+      const float from = inner + static_cast<float>(band) * kBand;
+      DrawRing(terrain, at, from, std::min(from + kBand, outer),
+               Fade(color, alpha), yaw, arc);
+    }
+  };
+  const float arc =
+      skill.shape() == monsters::CONE ? skill.arc() * DEG2RAD : 2.0f * PI;
+  const float size = skill.size();
+  slice(0.0f, size, kTelegraphShape, telegraph.yaw, arc);
+  slice(0.0f, size * telegraph.Filled(), kTelegraphFill, telegraph.yaw, arc);
+  slice(size - kTelegraphRim, size, kTelegraphEdge, telegraph.yaw, arc);
+  // A cone's sides are edges too, each a slice as narrow as the rim at the
+  // end.
+  if (skill.shape() == monsters::CONE) {
+    const float side = kTelegraphRim / size;
+    for (const float way : {-1.0f, 1.0f}) {
+      slice(0.0f, size, kTelegraphEdge,
+            telegraph.yaw + way * (arc - side) / 2.0f, side);
+    }
+  }
 }
 
 // The fog as far as it's lifted: from all of it within a couple of metres, to
@@ -442,6 +489,9 @@ void Renderer::Draw() const {
     for (const Figure& figure : figures_) {
       DrawShadow(*terrain_, figure.position, kShadowRadius);
     }
+    for (const auto& [monster, telegraph] : telegraphs_) {
+      DrawTelegraph(*terrain_, telegraph);
+    }
     // After all the shadows, so that none of them, such as a player's
     // beside the monster, darkens the ring.
     for (const Figure& figure : figures_) {
@@ -458,6 +508,10 @@ void Renderer::Draw() const {
       DrawRing(*terrain_, *flag_, Duels::kFlagReach - 0.2f, Duels::kFlagReach,
                kFlagEdge);
     }
+    // raylib batches these, and alpha is its blend already, so ending it
+    // doesn't send them. They go now, while the depth mask's off, or a
+    // telegraph's fill would fight the shape under it for each pixel.
+    rlDrawRenderBatchActive();
     EndBlendMode();
     rlEnableDepthMask();
   }
