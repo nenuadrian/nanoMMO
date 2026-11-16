@@ -43,6 +43,10 @@ float Distance(const Player& a, const Player& b) {
   return std::hypot(b.x - a.x, b.z - a.z);
 }
 
+float Distance(const Player& player, Place place) {
+  return std::hypot(place.x - player.x, place.z - player.z);
+}
+
 // Where the unit is, a monster or a player, by its id among them, while it's
 // alive and within reach of the player, or nothing.
 template <typename Unit>
@@ -604,6 +608,13 @@ void World::Pick(uint32_t id, uint32_t monster, uint32_t player) {
   found->second.target_player = opponent ? player : 0;
 }
 
+void World::SetBehind(uint32_t id, std::chrono::nanoseconds behind) {
+  const auto found = players_.find(id);
+  if (found != players_.end()) {
+    found->second.behind = behind;
+  }
+}
+
 void World::Respawn(uint32_t id) {
   const auto found = players_.find(id);
   if (found == players_.end()) {
@@ -924,9 +935,30 @@ void World::Approach(Player& player, float reach,
 }
 
 std::optional<Place> World::Target(const Player& player, float reach) const {
-  return player.target_player != 0
-             ? Within(players_, player.target_player, player, reach)
-             : Within(monsters_, player.target, player, reach);
+  if (player.target_player == 0) {
+    return Within(monsters_, player.target, player, reach);
+  }
+  // A duel opponent is where the player saw them, as for their blows, so
+  // that's what they aim at, and run up to.
+  if (!Within(players_, player.target_player, player, kAnyDistance)) {
+    return std::nullopt;
+  }
+  const Place seen = Seen(player, player.target_player);
+  if (Distance(player, seen) > reach) {
+    return std::nullopt;
+  }
+  return seen;
+}
+
+Place World::Seen(const Player& player, uint32_t other) const {
+  if (player.behind > std::chrono::nanoseconds::zero()) {
+    if (const std::optional<Place> then =
+            history_.At(other, clock_ - player.behind)) {
+      return *then;
+    }
+  }
+  const Player& them = players_.at(other);
+  return {.x = them.x, .z = them.z};
 }
 
 // Turns the player towards what they picked, if it's within reach. Without
@@ -1032,13 +1064,19 @@ void World::Land(uint32_t id, Player& player, const skills::Effect& effect,
     }
   }
   // In a duel, their opponent too, when it's for them or all around, but a
-  // player isn't pushed or thrown, as their own keys move them.
+  // player isn't pushed or thrown, as their own keys move them. A player can
+  // run from a blow as fast as the one who swung, so it's checked against
+  // where the player's client drew them, a moment in the past. A monster's hit
+  // where it is, above, as it's pushed and thrown from there: it stands still
+  // to swing, and comes to whoever hurt it, so where a client drew it a moment
+  // ago is near enough.
   if (const uint32_t other = duels_.Opponent(id); other != 0) {
     Player& them = players_.at(other);
+    const Place seen = Seen(player, other);
     if ((effect.all() || other == player.target_player) &&
         them.motion != Motion::kDead &&
-        Distance(player, them) <= effect.reach() &&
-        InArc(player, them, effect.arc())) {
+        Distance(player, seen) <= effect.reach() &&
+        InArc(player, seen, effect.arc())) {
       Hurt(other, them, damage);
     }
   }

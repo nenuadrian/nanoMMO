@@ -1,14 +1,32 @@
 #include "server/inputs.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <deque>
 #include <functional>
 #include <optional>
 
 #include "absl/status/status.h"
+#include "protocol/clock.h"
 
 namespace nanommo {
+
+namespace {
+
+// How far behind our clock now the input says its client drew everyone else,
+// up to the most we believe, or nothing for one that doesn't say, as a bot's.
+std::chrono::nanoseconds Behind(const protocol::Input& input) {
+  if (input.drawn() == 0) {
+    return std::chrono::nanoseconds::zero();
+  }
+  const int64_t now = NowMicros();
+  const int64_t most = std::chrono::microseconds(Inputs::kMostRewind).count();
+  const int64_t drawn = std::clamp(input.drawn(), now - most, now);
+  return std::chrono::microseconds(now - drawn);
+}
+
+}  // namespace
 
 void Inputs::Take(World& land, uint32_t id, const protocol::Input& input) {
   if (input.sequence() != 0) {
@@ -44,6 +62,7 @@ void Inputs::Apply(const std::function<World*(uint32_t)>& land_of) {
     const protocol::Input& input = queued.front();
     land->SetInput(id, input.x(), input.z(), input.run(), input.attack());
     land->Pick(id, input.target(), input.target_player());
+    land->SetBehind(id, Behind(input));
     acked_[id] = input.sequence();
     queued.pop_front();
   }

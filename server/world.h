@@ -71,6 +71,9 @@ struct Player {
   /// their opponent, as nobody else can be. Players and monsters have ids of
   /// their own, so it goes beside the monster.
   uint32_t target_player = 0;
+  /// How far in the past their client draws everyone else, which their blows
+  /// on a duel opponent are checked at.
+  std::chrono::nanoseconds behind{0};
   /// The skill the player's using, by its id in the skills file, and how far
   /// into it they are.
   uint32_t skill = 0;
@@ -293,6 +296,11 @@ class World {
   /// place: a player who isn't is no target.
   void Pick(uint32_t id, uint32_t monster, uint32_t player = 0);
 
+  /// The player's client draws everyone else this long ago, so their blows
+  /// on a duel opponent are checked against where the opponent was then.
+  /// Inputs believes Inputs::kMostRewind of what a client says, at most.
+  void SetBehind(uint32_t id, std::chrono::nanoseconds behind);
+
   /// A dead player comes back in the middle of their land, at full health,
   /// once their wait is over.
   void Respawn(uint32_t id);
@@ -414,8 +422,13 @@ class World {
   /// Runs the player along their way, a step at a time.
   void Follow(Player& player, std::chrono::nanoseconds time);
   /// Where what the player picked is, while it's alive and within reach: the
-  /// monster, or in a duel, their opponent. Or nothing.
+  /// monster, or in a duel, their opponent, where the player saw them. Or
+  /// nothing.
   std::optional<Place> Target(const Player& player, float reach) const;
+  /// Where the player's client drew the other player, as far behind as it
+  /// draws everyone, from the history: or where they are, for one that's not
+  /// behind.
+  Place Seen(const Player& player, uint32_t other) const;
   void Aim(Player& player, float reach);
   /// What the skill does when this player uses it: a swing's reach, damage
   /// and timing are the weapon's in their hand.

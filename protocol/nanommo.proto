@@ -94,6 +94,10 @@ message Input {
   // monster: their opponent, as nobody else can be. It comes with each input,
   // like the monster.
   uint32 target_player = 20;
+  // The moment on the server's clock, in microseconds, that the client drew
+  // everyone else at as it sent this, a moment in the past: a blow on a duel
+  // opponent is checked against where they were then.
+  int64 drawn = 21;
 }
 
 // A place in a land, in metres from its middle.

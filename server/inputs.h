@@ -1,6 +1,7 @@
 #ifndef NANOMMO_SERVER_INPUTS_H_
 #define NANOMMO_SERVER_INPUTS_H_
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -38,6 +39,15 @@ class Inputs {
   /// for long.
   static constexpr std::size_t kMostSteady = 2;
   static constexpr int kSteadyTicks = 20;
+
+  /// A numbered input says when, on our clock, its client drew everyone else,
+  /// and its player's blows on a duel opponent are checked against where the
+  /// opponent was then. A client draws them 100 milliseconds before the newest
+  /// world it has, and the world's way to it and the input's way back are a
+  /// round trip more, so this is enough for a round trip of up to 100. A time
+  /// further back is taken as this, so that a client can't hit its opponent
+  /// wherever they once were, and a time ahead of ours as now.
+  static constexpr std::chrono::milliseconds kMostRewind{200};
 
   /// The input's keys: a numbered one's wait for their tick, and others are
   /// set at once, unless the player numbers theirs, when one that isn't is a

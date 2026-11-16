@@ -287,3 +287,18 @@ TEST(Duels, ASwingAtWhereTheyWereMissesWithoutCompensation) {
   SwingAsBobRunsOff(world);
   EXPECT_EQ(world.players().at(2).health, 100);
 }
+
+TEST(Duels, AHitOnWhereTheyWereLands) {
+  nanommo::World world(1, nanommo::Terrain(), Swords());
+  world.Join(1, {.name = "alice"});
+  world.Join(2, {.name = "bob", .x = 1.0f});
+  StartDuel(world);
+
+  // Alice's inputs say her client draws everyone 150 milliseconds behind,
+  // so her blow is checked against where bob was then, and lands. He's hit
+  // where he's run to: the history's only looked at.
+  world.SetBehind(1, std::chrono::milliseconds(150));
+  SwingAsBobRunsOff(world);
+  EXPECT_EQ(world.players().at(2).health, 100 - 15);
+  EXPECT_GT(world.players().at(2).x, 1.6f);
+}
