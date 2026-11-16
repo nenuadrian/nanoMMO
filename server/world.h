@@ -165,9 +165,13 @@ struct Monster {
   float target_z = 0.0f;
   std::chrono::nanoseconds rest{0};
   uint32_t prey = 0;
-  /// The player who hurt it last, whom it goes for, seen or not, while they're
-  /// within its leash.
-  uint32_t attacker = 0;
+  /// Its threat table: how much each player who's hurt it has, by their id.
+  /// It goes for whoever's hurt it most, seen or not, while they're within its
+  /// leash.
+  std::map<uint32_t, int> threat;
+  /// Whether a boss is on its way home, once nobody it was fighting is left,
+  /// to start again.
+  bool evading = false;
   std::chrono::nanoseconds swing{0};
   /// While its motion is a skill's: the skill, how far into it it is, and
   /// where it stood as it started. The shape stays where it was aimed, the

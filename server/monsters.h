@@ -37,11 +37,14 @@ std::chrono::nanoseconds RandomRest(std::mt19937& random);
 void Wander(Monster& monster, const Terrain& terrain,
             std::chrono::nanoseconds time, std::mt19937& random);
 
-/// The player the monster goes for: the one who hurt it last, seen or not, or
-/// else the nearest it can see, either way within its leash of its home.
+/// The player the monster goes for: the one who's hurt it most, seen or not,
+/// or else the nearest it can see, either way within its leash of its home.
 uint32_t Spot(const Monster& monster,
               const std::map<uint32_t, Player>& players);
 
+/// Goes for the player Spot finds, and once nobody who's hurt the monster is
+/// left within its leash, forgets them. A boss goes home then, at full health
+/// and in its first phase, and nothing hurts it on its way.
 void Hunt(Monster& monster, const std::map<uint32_t, Player>& players,
           const Terrain& terrain, std::chrono::nanoseconds time,
           std::mt19937& random);

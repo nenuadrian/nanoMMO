@@ -53,6 +53,33 @@ bool Uses(const Monster& monster, uint32_t skill) {
   return std::ranges::find(skills, skill) != skills.end();
 }
 
+// Runs a boss home, at the players' running speed. Once it's there, or
+// something's in its way, it's home, so that a tree can't keep it from
+// starting again, and it rests.
+void GoHome(Monster& monster, const Terrain& terrain,
+            std::chrono::nanoseconds time, std::mt19937& random) {
+  const float dx = monster.home_x - monster.x;
+  const float dz = monster.home_z - monster.z;
+  const float distance = std::hypot(dx, dz);
+  const float step =
+      World::kRunSpeed * std::chrono::duration<float>(time).count();
+  const float x = monster.x;
+  const float z = monster.z;
+  if (distance > step) {
+    Walk(terrain, monster.x, monster.z, x + dx / distance * step,
+         z + dz / distance * step);
+    monster.yaw = std::atan2(dx, dz);
+    monster.motion = Motion::kRun;
+  }
+  if (distance <= step || (monster.x == x && monster.z == z)) {
+    monster.x = monster.home_x;
+    monster.z = monster.home_z;
+    monster.evading = false;
+    monster.motion = Motion::kIdle;
+    monster.rest = RandomRest(random);
+  }
+}
+
 }  // namespace
 
 Monster MonsterOf(const monsters::Kind& kind, float x, float z) {
@@ -162,20 +189,31 @@ void Wander(Monster& monster, const Terrain& terrain,
 
 uint32_t Spot(const Monster& monster,
               const std::map<uint32_t, Player>& players) {
-  const auto attacker = players.find(monster.attacker);
-  if (attacker != players.end() && attacker->second.motion != Motion::kDead &&
-      std::hypot(attacker->second.x - monster.home_x,
-                 attacker->second.z - monster.home_z) <= monster.leash) {
-    return monster.attacker;
+  const auto in_leash = [&monster](const Player& player) {
+    return player.motion != Motion::kDead &&
+           std::hypot(player.x - monster.home_x, player.z - monster.home_z) <=
+               monster.leash;
+  };
+  // Seen or not, so that a kick that knocks it out of sight doesn't make it
+  // forget them. On a tie, it keeps to the one it's fighting.
+  uint32_t hated = 0;
+  int most = 0;
+  for (const auto& [id, threat] : monster.threat) {
+    const auto player = players.find(id);
+    if (player != players.end() && in_leash(player->second) &&
+        (threat > most || (threat == most && id == monster.prey))) {
+      hated = id;
+      most = threat;
+    }
+  }
+  if (hated != 0) {
+    return hated;
   }
   uint32_t nearest = 0;
   float closest = monster.sight;
   for (const auto& [id, player] : players) {
     const float away = std::hypot(player.x - monster.x, player.z - monster.z);
-    const float from_home =
-        std::hypot(player.x - monster.home_x, player.z - monster.home_z);
-    if (player.motion != Motion::kDead && away <= closest &&
-        from_home <= monster.leash) {
+    if (in_leash(player) && away <= closest) {
       nearest = id;
       closest = away;
     }
@@ -186,10 +224,24 @@ uint32_t Spot(const Monster& monster,
 void Hunt(Monster& monster, const std::map<uint32_t, Player>& players,
           const Terrain& terrain, std::chrono::nanoseconds time,
           std::mt19937& random) {
+  if (monster.evading) {
+    GoHome(monster, terrain, time, random);
+    return;
+  }
   monster.prey = Spot(monster, players);
-  // Once its attacker dies, leaves or gets past its leash, it forgets them.
-  if (monster.prey != monster.attacker) {
-    monster.attacker = 0;
+  // Once everyone who's hurt it has died, left or got past its leash, it
+  // forgets them. A boss goes home to start again, healed, so that a fight
+  // that's lost doesn't leave it weaker for the next.
+  if (!monster.threat.empty() && !monster.threat.contains(monster.prey)) {
+    monster.threat.clear();
+    if (monster.boss()) {
+      monster.evading = true;
+      monster.health = monster.max_health;
+      monster.phase = 0;
+      monster.prey = 0;
+      GoHome(monster, terrain, time, random);
+      return;
+    }
   }
   if (monster.prey == 0) {
     if (monster.motion == Motion::kRun) {
@@ -245,7 +297,7 @@ void Revive(Monster& monster, std::chrono::nanoseconds time,
   monster.health = monster.max_health;
   monster.phase = 0;
   monster.motion = Motion::kIdle;
-  monster.attacker = 0;
+  monster.threat.clear();
   monster.rest = RandomRest(random);
 }
 

@@ -1059,9 +1059,11 @@ void World::Land(uint32_t id, Player& player, const skills::Effect& effect,
       static_cast<int>(std::lround(
           pace * static_cast<float>(ExtraDamage(level) + player.stats.damage)));
   const int damage = total / blows + (index == blows - 1 ? total % blows : 0);
+  // A boss on its way home can't be hurt, so that nobody wears it down from
+  // past its leash.
   for (auto& [monster_id, monster] : monsters_) {
     if ((effect.all() || monster_id == player.target) &&
-        monster.motion != Motion::kDead &&
+        monster.motion != Motion::kDead && !monster.evading &&
         Distance(player, monster) <= effect.reach() &&
         InArc(player, monster, effect.arc())) {
       Push(player, monster, blow.push());
@@ -1176,8 +1178,10 @@ bool World::Fly(Monster& monster, std::chrono::nanoseconds time) {
 
 void World::Hurt(uint32_t id, Player& player, uint32_t monster_id,
                  Monster& monster, int damage) {
-  monster.attacker = id;
-  monster.health = std::max(monster.health - damage, 0);
+  // What the blow takes is the player's threat, which the monster goes by.
+  const int taken = std::min(damage, monster.health);
+  monster.threat[id] += taken;
+  monster.health -= taken;
   Event& hit = Record(Event::Kind::kHit, id, player);
   hit.monster = monster.kind;
   hit.monster_id = monster_id;

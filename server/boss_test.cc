@@ -133,3 +133,69 @@ TEST(World, TheBossChangesPhaseAtItsHealth) {
   EXPECT_EQ(colossus.health, 100);
   EXPECT_EQ(colossus.phase, 0u);
 }
+
+TEST(World, TheBossFightsWhoHurtItMost) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Sword(), Smite()));
+  // Either side of it, out of its sight, and within its leash.
+  world.Join(1, {.x = 4.5f, .skills = {1}});
+  world.Join(2, {.x = -4.5f, .skills = {1}});
+  const uint32_t id = world.Spawn(nanommo::MonsterOf(Colossus(), 0.0f, 0.0f));
+  const nanommo::Monster& colossus = world.monsters().at(id);
+  world.Pick(1, id);
+  world.Pick(2, id);
+
+  // The second hurt it last, and the first most, so it goes for the first.
+  Smite(world, 1, 2);
+  Smite(world, 2);
+  EXPECT_EQ(colossus.prey, 1u);
+  EXPECT_GT(colossus.x, 0.0f);
+
+  // Until the second has hurt it more.
+  Smite(world, 2, 2);
+  EXPECT_EQ(colossus.threat.at(1), 20);
+  EXPECT_EQ(colossus.threat.at(2), 30);
+  EXPECT_EQ(colossus.prey, 2u);
+}
+
+TEST(World, TheBossGoesHomeWhenNobodysLeft) {
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      nanommo::testing::With(nanommo::testing::Sword(), Smite()));
+  world.Join(1, {.x = 4.5f, .skills = {1}});
+  const uint32_t id = world.Spawn(nanommo::MonsterOf(Colossus(), 0.0f, 0.0f));
+  const nanommo::Monster& colossus = world.monsters().at(id);
+  world.Pick(1, id);
+
+  // Hurt into its second phase, it comes for them.
+  Smite(world, 1, 5);
+  EXPECT_EQ(colossus.phase, 1u);
+  EXPECT_GT(colossus.x, 0.0f);
+
+  // They run past its leash, and it goes home, back at full health, in its
+  // first phase, and it's forgotten them.
+  world.SetInput(1, 1.0f, 0.0f, true);
+  for (int tick = 0; tick < 100 && !colossus.evading; ++tick) {
+    world.Step(kTick);
+  }
+  ASSERT_TRUE(colossus.evading);
+  EXPECT_EQ(colossus.health, 100);
+  EXPECT_EQ(colossus.phase, 0u);
+  EXPECT_TRUE(colossus.threat.empty());
+
+  // Nothing hurts it on its way.
+  Smite(world, 1);
+  EXPECT_EQ(colossus.health, 100);
+
+  // Once it's home, it stays there, as they're still past its leash.
+  for (int tick = 0; tick < 100 && colossus.evading; ++tick) {
+    world.Step(kTick);
+  }
+  EXPECT_FALSE(colossus.evading);
+  EXPECT_EQ(colossus.x, 0.0f);
+  EXPECT_EQ(colossus.z, 0.0f);
+  RunOneSecond(world);
+  EXPECT_EQ(colossus.prey, 0u);
+  EXPECT_EQ(colossus.x, 0.0f);
+}
