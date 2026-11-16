@@ -6,6 +6,7 @@
 #include <optional>
 #include <random>
 
+#include "content/monsters.h"
 #include "protocol/nanommo.pb.h"
 #include "terrain/lands.h"
 
@@ -36,6 +37,17 @@ Trip RandomTrip(std::mt19937& random, const Place& gate);
 /// Running towards the end of the trip, from x and z, or nothing once the bot
 /// is there, or has stopped getting closer.
 std::optional<protocol::Input> Travel(Trip& trip, float x, float z);
+
+/// How far past the edge of a monster's skill on its way a bot keeps, in
+/// metres, so that it doesn't step back in as the skill lands.
+inline constexpr float kClear = 1.0f;
+
+/// Running straight away from a monster whose skill is on its way, while the
+/// bot at x and z is in its shape, or within kClear of its end, as players
+/// learn to. Or nothing, while it's clear of them all.
+std::optional<protocol::Input> StepOut(const MonsterTable& table,
+                                       const protocol::World& world, float x,
+                                       float z);
 
 }  // namespace nanommo
 

@@ -1,5 +1,6 @@
 #include "bot/wander.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <numbers>
@@ -74,6 +75,40 @@ std::optional<protocol::Input> Travel(Trip& trip, float x, float z) {
   input.set_z(dz / distance);
   input.set_run(true);
   return input;
+}
+
+std::optional<protocol::Input> StepOut(const MonsterTable& table,
+                                       const protocol::World& world, float x,
+                                       float z) {
+  for (const protocol::Monster& monster : world.monsters()) {
+    const auto kind = table.kinds.find(monster.kind());
+    if (monster.motion() != protocol::MOTION_SKILL ||
+        kind == table.kinds.end()) {
+      continue;
+    }
+    const auto skill = std::ranges::find(kind->second.skills(), monster.skill(),
+                                         &monsters::Skill::id);
+    if (skill == kind->second.skills().end()) {
+      continue;
+    }
+    monsters::Skill clear = *skill;
+    clear.set_size(skill->size() + kClear);
+    if (!InShape(clear, {.x = monster.x(), .z = monster.z()}, monster.yaw(),
+                 {.x = x, .z = z})) {
+      continue;
+    }
+    // Away from the monster: out of a circle, and out of the far end of a
+    // cone, which is further than its side, but there's time.
+    const float dx = x - monster.x();
+    const float dz = z - monster.z();
+    const float away = std::hypot(dx, dz);
+    protocol::Input input;
+    input.set_x(away > 0.0f ? dx / away : 1.0f);
+    input.set_z(away > 0.0f ? dz / away : 0.0f);
+    input.set_run(true);
+    return input;
+  }
+  return std::nullopt;
 }
 
 }  // namespace nanommo

@@ -238,6 +238,20 @@ void Bot::Receive(std::string_view bytes) {
     }
   }
   skills_ = {world.skills().begin(), world.skills().end()};
+  // In a monster's skill on its way, the bot runs out of it, as players learn
+  // to, and doesn't think of anything else until it's clear.
+  if (const std::optional<protocol::Input> out =
+          dead_ ? std::nullopt
+                : StepOut(content_.monsters, parts_.world(), x_, z_)) {
+    if (!stepping_out_) {
+      hunting_ = 0;
+      Send(*out);
+    }
+    stepping_out_ = true;
+    WanderIn(kRethink);
+  } else {
+    stepping_out_ = false;
+  }
   // Through a gate: the trip was for the land we left.
   if (world.land() != land_ && world.land() < kLands.size()) {
     land_ = world.land();

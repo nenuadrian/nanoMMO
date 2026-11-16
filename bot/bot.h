@@ -104,6 +104,8 @@ class Bot {
   /// Whether the bot's dead, and if so, whether its wait is over.
   bool dead_ = false;
   bool can_respawn_ = false;
+  /// Whether it's running out of a monster's skill on its way.
+  bool stepping_out_ = false;
   protocol::Inventory bag_;
   /// When it last drank something, which it does once its cooldown's over.
   std::chrono::steady_clock::time_point drank_;

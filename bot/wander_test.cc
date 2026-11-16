@@ -76,3 +76,41 @@ TEST(Wander, GoesIntoTheGateOnATripInFive) {
   EXPECT_GT(through, 150);
   EXPECT_LT(through, 250);
 }
+
+TEST(Wander, StepsOutOfAMonstersSkillOnItsWay) {
+  const nanommo::MonsterTable table = *nanommo::ParseMonsters(R"pb(
+    kinds {
+      id: 2
+      skills {
+        id: 1
+        name: "Ground Slam"
+        size: 3
+        range: 1.5
+        telegraph_ms: 2000
+        cooldown_ms: 10000
+      }
+    }
+  )pb");
+  nanommo::protocol::World world;
+  nanommo::protocol::Monster* skeleton = world.add_monsters();
+  skeleton->set_kind(2);
+  skeleton->set_x(10.0f);
+  skeleton->set_motion(nanommo::protocol::MOTION_SKILL);
+  skeleton->set_skill(1);
+
+  // A metre to its left, the bot runs left, out of the three metres round it.
+  const std::optional<nanommo::protocol::Input> out =
+      nanommo::StepOut(table, world, 9.0f, 0.0f);
+  ASSERT_TRUE(out.has_value());
+  EXPECT_FLOAT_EQ(out->x(), -1.0f);
+  EXPECT_FLOAT_EQ(out->z(), 0.0f);
+  EXPECT_TRUE(out->run());
+  EXPECT_FALSE(out->attack());
+  // Just out, it goes on for a metre more, and then it's clear.
+  EXPECT_TRUE(nanommo::StepOut(table, world, 6.5f, 0.0f).has_value());
+  EXPECT_FALSE(nanommo::StepOut(table, world, 5.5f, 0.0f).has_value());
+
+  // Once it's landed, there's nothing to step out of.
+  skeleton->set_motion(nanommo::protocol::MOTION_ATTACK);
+  EXPECT_FALSE(nanommo::StepOut(table, world, 9.0f, 0.0f).has_value());
+}
