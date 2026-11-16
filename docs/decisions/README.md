@@ -76,3 +76,4 @@ one commit could undo, or that the code makes plain, needs none.
 | [0029](0029-the-client-in-a-browser-with-emscripten.md) | The client in a browser, with Emscripten and WebGL 2 | Accepted | 76 |
 | [0030](0030-offline-the-client-runs-the-worlds-rules.md) | Offline, the client runs the world's rules itself | Accepted | 78 |
 | [0031](0031-a-character-is-leased-to-one-instance-at-a-time.md) | A character is leased to one instance at a time | Accepted | 79 |
+| [0032](0032-the-browser-reaches-the-servers-through-a-gateway.md) | A browser reaches the servers through a WebSocket gateway | Accepted | 80 |

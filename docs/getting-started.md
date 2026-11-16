@@ -96,6 +96,7 @@ Then, in another terminal:
 | The storyteller's stories | `docker compose up -d --build storyteller`: [The storyteller](npcs.md#the-storyteller) |
 | A second world | `NANOMMO_WORLD=Frost NANOMMO_METRICS_PORT=9465 ./build/bin/nanommo_server 7787`: [Worlds](worlds.md) |
 | Ten bots, playing | `./build/bin/nanommo_bot localhost localhost 10 10`: [Monitoring](monitoring.md) |
+| Playing in a browser, online | `./build/bin/nanommo_gateway`, on port 8090, and the web build: [The client in a browser](web.md#online-through-the-gateway) |
 
 ## 5. Play
 

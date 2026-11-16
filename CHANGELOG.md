@@ -7,6 +7,19 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.80.0 (2026-11-16)
+
+- The client's page is its own, `client/web/shell.html`, in place of Emscripten's: the canvas
+  fills the window, and the page can't scroll, so Space, which scrolled Emscripten's page, reaches
+  the game.
+- `nanommo_gateway` takes browsers' pages' WebSockets on port 8090 and connects each to the login
+  server (`/login`) or to a world Consul lists (`/world/<host>/<port>`) over TLS, carrying the
+  game's messages as they are. It asks Consul for the worlds on a thread of its own, and logs each
+  page's connection. Compose runs it, and CI builds its image.
+- A page opened with `?gateway=ws://localhost:8090` logs in and plays online, with the world over
+  the WebSocket; opened without, it plays offline. `Inbox` files a world server's messages for
+  `Connection` and `WebSocketLink` alike.
+
 ## 0.79.0 (2026-11-16)
 
 - `nanommo_cheat`'s `twice` plays one character on both of a world's instances, with a token for
