@@ -1,6 +1,7 @@
 #ifndef NANOMMO_SERVER_PLAYERS_H_
 #define NANOMMO_SERVER_PLAYERS_H_
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -43,6 +44,8 @@ class Players {
   static constexpr int kBatch = 500;
   /// The most rows of the bags that go in one statement.
   static constexpr std::size_t kItemRows = 1000;
+  /// How long a lease on a player lasts, unless its instance renews it.
+  static constexpr std::chrono::milliseconds kLease{10000};
 
   Players(Database& database, Redis& redis)
       : database_(database), redis_(redis) {}
@@ -51,6 +54,32 @@ class Players {
   /// on top, as that's newer. A NotFound error says there's no such character
   /// in this world.
   absl::StatusOr<Player> Load(const std::string& world, uint32_t id);
+
+  /// Leases the character in the world to the instance, so that no other
+  /// instance plays them until it's released or runs out, and returns the
+  /// lease as Redis has it: the instance's id, and a fencing number, higher
+  /// than any lease's before it. A lease handed to the instance in a handover
+  /// is its already. FailedPrecondition, naming the instance, when another
+  /// instance has it.
+  absl::StatusOr<std::string> Lease(const std::string& world, uint32_t id,
+                                    const std::string& instance);
+
+  /// Keeps the leases, by player, for another kLease, all in one round trip:
+  /// those that are still as given.
+  absl::Status Renew(const std::string& world,
+                     const std::map<uint32_t, std::string>& leases);
+
+  /// Ends the player's lease, if it's still as given, so that they can play
+  /// on another instance at once. One that another instance has since stays.
+  absl::Status Release(const std::string& world, uint32_t id,
+                       const std::string& lease);
+
+  /// Hands each of the leases, by player, that's still as given, to the next
+  /// instance, with a new fencing number, all in one round trip. Returns the
+  /// players whose leases it handed over.
+  absl::StatusOr<std::set<uint32_t>> Pass(
+      const std::string& world, const std::map<uint32_t, std::string>& leases,
+      const std::string& next);
 
   /// Into Redis, all of them in a single round trip, and marked unsaved, with
   /// the bags of those whose bags changed, which are marked unsaved apart. It's

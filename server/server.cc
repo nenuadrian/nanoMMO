@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -25,6 +26,7 @@
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
 #include "protocol/parts.h"
+#include "server/consul.h"
 #include "server/inputs.h"
 #include "server/interest.h"
 #include "server/levels.h"
@@ -63,6 +65,10 @@ constexpr std::size_t kMostRemembered = 20;
 // player gets three at once, and then one a second.
 constexpr int kGuildBurst = 3;
 constexpr std::chrono::seconds kGuildRefill{1};
+
+// A lease lasts ten seconds, so renewing each second keeps it through a few
+// renewals that fail.
+constexpr std::chrono::seconds kRenewEvery{1};
 
 Progress ProgressOf(const Player& player) {
   Progress progress{.x = player.x,
@@ -147,6 +153,7 @@ absl::Status Server::Start(uint16_t port) {
   if (!bound.ok()) {
     return bound;
   }
+  instance_ = InstanceId({.name = name_, .port = this->port()});
   // One socket sends all the datagrams, so it gets more room for those on
   // their way out than the two hundred kilobytes Linux gives by default.
   std::error_code ignored;
@@ -242,10 +249,26 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
     session.Close();
     return 0;
   }
+  // A character plays on one instance of its world at a time, which has their
+  // lease while they do, so that the others turn them away.
+  const absl::StatusOr<std::string> lease =
+      players_.Lease(name_, *id, instance_);
+  if (!lease.ok()) {
+    if (absl::IsFailedPrecondition(lease.status())) {
+      std::cout << "refused player " << *id << ": " << lease.status().message()
+                << std::endl;
+    } else {
+      std::cerr << "couldn't lease player " << *id << ": " << lease.status()
+                << "\n";
+    }
+    session.Close();
+    return 0;
+  }
   const absl::StatusOr<Player> player = players_.Load(name_, *id);
   if (!player.ok()) {
     std::cerr << "couldn't load player " << *id << ": " << player.status()
               << "\n";
+    players_.Release(name_, *id, *lease).IgnoreError();
     session.Close();
     return 0;
   }
@@ -267,13 +290,15 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   // gets them in their first world.
   broadcasts_ = 0;
   saved_[*id] = ProgressOf(*player);
+  leases_[*id] = *lease;
   sessions_[*id] = session.shared_from_this();
   chat_limits_.emplace(*id, TokenBucket(kChatBurst, kChatRefill));
   story_limits_.emplace(*id, TokenBucket(kStoryBurst, kStoryRefill));
   item_limits_.emplace(*id, TokenBucket(kItemBurst, kItemRefill));
   guild_limits_.emplace(*id, TokenBucket(kGuildBurst, kGuildRefill));
   udp_tokens_[hello.token()] = *id;
-  std::cout << player->name << " joined, as player " << *id << std::endl;
+  std::cout << player->name << " joined, as player " << *id << ", with lease "
+            << *lease << std::endl;
   return *id;
 }
 
@@ -284,6 +309,15 @@ void Server::Leave(uint32_t id) {
   // the handover began, which this mustn't write over.
   if (!handing_over_) {
     Save({id});
+  }
+  // So that another instance can take them at once, not once it runs out.
+  if (const auto lease = leases_.find(id); lease != leases_.end()) {
+    const absl::Status released = players_.Release(name_, id, lease->second);
+    if (!released.ok()) {
+      std::cerr << "couldn't release player " << id << "'s lease: " << released
+                << "\n";
+    }
+    leases_.erase(lease);
   }
   copies_.Leave(id);
   saved_.erase(id);
@@ -760,8 +794,24 @@ int Server::HandOver(const std::string& host, uint16_t port) {
   std::error_code ignored;
   acceptor_.close(ignored);
   SaveChanged();
+  // The next instance turns away a player whose lease this one has, so their
+  // leases go to it first, with newer fencing numbers. It's named as in
+  // Consul, by its world and its port.
+  const absl::StatusOr<std::set<uint32_t>> passed =
+      players_.Pass(name_, leases_, InstanceId({.name = name_, .port = port}));
+  if (!passed.ok()) {
+    std::cerr << "couldn't hand the leases over: " << passed.status() << "\n";
+    return 0;
+  }
   int told = 0;
   for (const auto& [id, session] : sessions_) {
+    if (!passed->contains(id)) {
+      std::cerr << "couldn't hand player " << id
+                << " over: their lease isn't this instance's\n";
+      continue;
+    }
+    // It's the next instance's now, which leaving here leaves alone.
+    leases_.erase(id);
     // Tokens are one-time, and the player's own is used, so each move gets a
     // token of its own.
     const absl::StatusOr<std::string> token = tokens_.Issue(id);
@@ -806,6 +856,7 @@ void Server::Tick() {
     metrics_.SetCopies(kLands[land].name, copies_of[land]);
   }
   SaveChanged();
+  RenewLeases();
   Broadcast();
   ShowEvents(happened);
   SendChat();
@@ -836,6 +887,20 @@ void Server::SaveChanged() {
   }
   Save(everyone);
   metrics_.ObserveSave(std::chrono::steady_clock::now() - start);
+}
+
+void Server::RenewLeases() {
+  const auto now = std::chrono::steady_clock::now();
+  if (now - renewed_ < kRenewEvery) {
+    return;
+  }
+  renewed_ = now;
+  // All of them in one round trip, as the tick waits for it.
+  const absl::Status renewed = players_.Renew(name_, leases_);
+  if (!renewed.ok()) {
+    std::cerr << "couldn't renew " << leases_.size() << " leases: " << renewed
+              << "\n";
+  }
 }
 
 void Server::Save(const std::vector<uint32_t>& ids) {

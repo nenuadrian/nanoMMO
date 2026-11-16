@@ -55,8 +55,9 @@ class Server {
   int players() const;
 
   /// Hands the players over to the world's next instance, at the host and port
-  /// players reach it at: saves them, stops ticking and taking players, and
-  /// tells each client where to go. Returns how many it told.
+  /// players reach it at: saves them, stops ticking and taking players, hands
+  /// their leases to it, and tells each client where to go. Returns how many
+  /// it told.
   int HandOver(const std::string& host, uint16_t port);
 
   /// The port it listens on, over TCP and UDP. Given port zero, Create has the
@@ -109,6 +110,8 @@ class Server {
   void Tick();
   /// Everyone who's changed since they were last saved, once a tick.
   void SaveChanged();
+  /// Keeps this instance's leases on its players, once a second.
+  void RenewLeases();
   /// Those of the players who've changed since they were last saved, into
   /// Redis, as one: everyone once a tick, the two sides of a trade as it's
   /// done, and a player as they leave.
@@ -152,6 +155,9 @@ class Server {
   asio::steady_timer timer_;
   std::chrono::nanoseconds interval_;
   std::string name_;
+  /// The instance's id, its world's and its port's, as Consul has it, which
+  /// its leases on its players name.
+  std::string instance_;
   uint32_t seed_;
   Copies copies_;
   Metrics& metrics_;
@@ -164,6 +170,9 @@ class Server {
   std::map<std::string, uint32_t> udp_tokens_;
   std::map<uint32_t, asio::ip::udp::endpoint> udp_clients_;
   std::map<uint32_t, Progress> saved_;
+  /// The lease this instance has on each of its players, as Redis has it.
+  std::map<uint32_t, std::string> leases_;
+  std::chrono::steady_clock::time_point renewed_;
   int broadcasts_ = 0;
   bool handing_over_ = false;
   /// What the players said since the last tick.

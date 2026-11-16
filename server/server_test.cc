@@ -243,13 +243,18 @@ class ServerTest : public ::testing::Test {
   void TearDown() override {
     for (const uint32_t id : characters_) {
       const std::string key = absl::StrCat("player:", world_, ":", id);
-      // The server saved the player in Redis, for the saver to take to MySQL.
+      // The server saved the player in Redis, for the saver to take to MySQL,
+      // and leased them there.
       EXPECT_TRUE(redis_
                       ->Pipeline({{"DEL", key},
                                   {"SREM", "players:unsaved", key},
                                   {"SREM", "items:unsaved", key},
-                                  {"DEL", absl::StrCat("guild_invite:", id)}})
+                                  {"DEL", absl::StrCat("guild_invite:", id)},
+                                  {"DEL", LeaseKey(id)}})
                       .ok());
+    }
+    if (redis_) {
+      EXPECT_TRUE(redis_->Command({"DEL", "fencing:" + world_}).ok());
     }
     // Their characters go with them, and their memberships with those, but
     // not the guilds.
@@ -285,6 +290,22 @@ class ServerTest : public ::testing::Test {
     const absl::StatusOr<std::string> token = tokens_->Issue(account);
     EXPECT_TRUE(token.ok()) << token.status();
     return token.value_or("");
+  }
+
+  std::string LeaseKey(uint32_t id) const {
+    return absl::StrCat("playing:", world_, ":", id);
+  }
+
+  // The instance whose lease the player is on, if any is.
+  std::string LeasedTo(uint32_t id) {
+    const std::string lease =
+        redis_->Command({"GET", LeaseKey(id)}).value_or("");
+    return lease.substr(0, lease.rfind(' '));
+  }
+
+  // An instance of this world, as its leases name it.
+  std::string Instance(const nanommo::Server& server) const {
+    return absl::StrCat(world_, "-", server.port());
   }
 
   // Runs the server and the players until done says so, for five seconds at
@@ -352,18 +373,62 @@ TEST_F(ServerTest, HandsItsPlayersOverToTheNextInstance) {
   TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
   ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
 
+  EXPECT_EQ(LeasedTo(alice_), Instance(*server_));
+
+  // Her lease goes to the next instance before she's told to move there.
   EXPECT_EQ(server_->HandOver("localhost", (*next)->port()), 1);
+  EXPECT_EQ(LeasedTo(alice_), Instance(**next));
   ASSERT_TRUE(RunUntil([&] { return alice.world().has_move(); }));
   const nanommo::protocol::Move move = alice.world().move();
   EXPECT_EQ(move.port(), (*next)->port());
 
   // With the move's token, alice plays on in the next instance, and the one
-  // before has nobody left once she leaves it.
+  // before has nobody left once she leaves it, and leaves her lease alone.
   TestPlayer moved(io_, *client_tls_, static_cast<uint16_t>(move.port()),
                    move.token());
   EXPECT_TRUE(RunUntil([&] { return moved.Sees(alice_); }));
   alice.Leave();
   EXPECT_TRUE(RunUntil([&] { return server_->players() == 0; }));
+  EXPECT_EQ(LeasedTo(alice_), Instance(**next));
+}
+
+TEST_F(ServerTest, ACharacterPlaysOnOneInstanceAtATime) {
+  // The world's second instance, which shares its Redis.
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> second =
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1,
+                              content_, metrics_, *tokens_, *players_, *guilds_,
+                              *events_, *storyteller_);
+  ASSERT_TRUE(second.ok()) << second.status();
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
+
+  // With a token of her own, she can't play on the second as well, as the
+  // first has her lease.
+  TestPlayer again(io_, *client_tls_, (*second)->port(), Token(alice_));
+  EXPECT_TRUE(RunUntil([&] { return again.closed(); }));
+  EXPECT_EQ((*second)->players(), 0);
+  EXPECT_EQ(server_->players(), 1);
+  EXPECT_EQ(LeasedTo(alice_), Instance(*server_));
+}
+
+TEST_F(ServerTest, ACharacterPlaysOnAnotherInstanceOnceItLeavesTheFirst) {
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> second =
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1,
+                              content_, metrics_, *tokens_, *players_, *guilds_,
+                              *events_, *storyteller_);
+  ASSERT_TRUE(second.ok()) << second.status();
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.Sees(alice_); }));
+  alice.Leave();
+  ASSERT_TRUE(RunUntil([&] { return server_->players() == 0; }));
+
+  // Her lease went as she left, so the second takes her at once, and not ten
+  // seconds later, once it would have run out.
+  TestPlayer later(io_, *client_tls_, (*second)->port(), Token(alice_));
+  EXPECT_TRUE(RunUntil([&] { return later.Sees(alice_); }));
+  EXPECT_EQ(LeasedTo(alice_), Instance(**second));
 }
 
 TEST_F(ServerTest, AnAccountPlaysOnceAtATime) {

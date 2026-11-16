@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <map>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -27,6 +28,83 @@ constexpr char kItemsUnsaved[] = "items:unsaved";
 std::string Key(const std::string& world, uint32_t id) {
   return absl::StrCat("player:", world, ":", id);
 }
+
+// The lease on a player, which names the instance of the world that plays
+// them.
+std::string LeaseKey(const std::string& world, uint32_t id) {
+  return absl::StrCat("playing:", world, ":", id);
+}
+
+// The world's counter, which each lease takes its fencing number from.
+std::string FencingKey(const std::string& world) {
+  return absl::StrCat("fencing:", world);
+}
+
+// The players whose leases these are, by their keys.
+std::set<uint32_t> Leased(const std::vector<std::string>& keys) {
+  std::set<uint32_t> players;
+  for (const std::string& key : keys) {
+    uint32_t id = 0;
+    if (absl::SimpleAtoi(std::string_view(key).substr(key.rfind(':') + 1),
+                         &id)) {
+      players.insert(id);
+    }
+  }
+  return players;
+}
+
+// Each script runs in Redis as one, with nothing else in between, so a lease
+// can't change between reading it and writing it.
+//
+// Takes the lease in KEYS[1] for the instance in ARGV[1], for ARGV[2]
+// milliseconds, with the next number from the counter in KEYS[2], unless
+// another instance has it, so that a hello it turns away uses up no number.
+// One handed to this instance is its already, and runs for as long again.
+// Returns the lease as it is then.
+constexpr char kTake[] = R"lua(
+local lease = redis.call('GET', KEYS[1])
+if not lease then
+  lease = ARGV[1] .. ' ' .. redis.call('INCR', KEYS[2])
+  redis.call('SET', KEYS[1], lease, 'PX', ARGV[2])
+elseif string.sub(lease, 1, #ARGV[1] + 1) == ARGV[1] .. ' ' then
+  redis.call('PEXPIRE', KEYS[1], ARGV[2])
+end
+return lease
+)lua";
+
+// Each lease in KEYS that's still the same in ARGV, past the first, runs for
+// another ARGV[1] milliseconds.
+constexpr char kRenew[] = R"lua(
+for i, key in ipairs(KEYS) do
+  if redis.call('GET', key) == ARGV[i + 1] then
+    redis.call('PEXPIRE', key, ARGV[1])
+  end
+end
+return 0
+)lua";
+
+// Deletes the lease in KEYS[1] if it's still ARGV[1].
+constexpr char kRelease[] = R"lua(
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0
+)lua";
+
+// Hands each lease in KEYS, past the counter in KEYS[1], that's still the
+// same in ARGV, past the first two, to the instance in ARGV[1], with the next
+// number from the counter, for ARGV[2] milliseconds. Returns those it handed.
+constexpr char kPass[] = R"lua(
+local passed = {}
+for i = 2, #KEYS do
+  if redis.call('GET', KEYS[i]) == ARGV[i + 1] then
+    local lease = ARGV[1] .. ' ' .. redis.call('INCR', KEYS[1])
+    redis.call('SET', KEYS[i], lease, 'PX', ARGV[2])
+    passed[#passed + 1] = KEYS[i]
+  end
+end
+return passed
+)lua";
 
 // In words, as lands are, so that the rows read well: "bag 0" to "bag 23", or
 // the slot that's worn, such as "main hand".
@@ -212,6 +290,67 @@ absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
     player.skills.insert(id);
   }
   return player;
+}
+
+absl::StatusOr<std::string> Players::Lease(const std::string& world,
+                                           uint32_t id,
+                                           const std::string& instance) {
+  absl::StatusOr<std::string> lease = redis_.Command(
+      {"EVAL", kTake, "2", LeaseKey(world, id), FencingKey(world), instance,
+       absl::StrCat(kLease.count())});
+  if (!lease.ok()) {
+    return lease.status();
+  }
+  // The instance that has it comes before its number.
+  const std::string_view holder =
+      std::string_view(*lease).substr(0, lease->rfind(' '));
+  if (holder != instance) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("they're playing on ", holder));
+  }
+  return lease;
+}
+
+absl::Status Players::Renew(const std::string& world,
+                            const std::map<uint32_t, std::string>& leases) {
+  if (leases.empty()) {
+    return absl::OkStatus();
+  }
+  std::vector<std::string> eval = {"EVAL", kRenew, absl::StrCat(leases.size())};
+  for (const auto& [id, lease] : leases) {
+    eval.push_back(LeaseKey(world, id));
+  }
+  eval.push_back(absl::StrCat(kLease.count()));
+  for (const auto& [id, lease] : leases) {
+    eval.push_back(lease);
+  }
+  return redis_.Command(eval).status();
+}
+
+absl::Status Players::Release(const std::string& world, uint32_t id,
+                              const std::string& lease) {
+  return redis_.Command({"EVAL", kRelease, "1", LeaseKey(world, id), lease})
+      .status();
+}
+
+absl::StatusOr<std::set<uint32_t>> Players::Pass(
+    const std::string& world, const std::map<uint32_t, std::string>& leases,
+    const std::string& next) {
+  std::vector<std::string> eval = {
+      "EVAL", kPass, absl::StrCat(leases.size() + 1), FencingKey(world)};
+  for (const auto& [id, lease] : leases) {
+    eval.push_back(LeaseKey(world, id));
+  }
+  eval.insert(eval.end(), {next, absl::StrCat(kLease.count())});
+  for (const auto& [id, lease] : leases) {
+    eval.push_back(lease);
+  }
+  const absl::StatusOr<std::vector<std::vector<std::string>>> passed =
+      redis_.Pipeline({eval});
+  if (!passed.ok()) {
+    return passed.status();
+  }
+  return Leased(passed->front());
 }
 
 absl::Status Players::Save(
