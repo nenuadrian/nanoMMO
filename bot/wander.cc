@@ -98,13 +98,30 @@ std::optional<protocol::Input> StepOut(const MonsterTable& table,
       continue;
     }
     // Away from the monster: out of a circle, and out of the far end of a
-    // cone, which is further than its side, but there's time.
+    // cone, unless its nearer side is nearer, as a narrow one's is.
     const float dx = x - monster.x();
     const float dz = z - monster.z();
     const float away = std::hypot(dx, dz);
+    float out_x = away > 0.0f ? dx / away : 1.0f;
+    float out_z = away > 0.0f ? dz / away : 0.0f;
+    if (skill->shape() == monsters::CONE && skill->arc() < 180.0f) {
+      // Along the way it's aimed, and across it, to the side the bot's on.
+      const float ahead_x = std::sin(monster.yaw());
+      const float ahead_z = std::cos(monster.yaw());
+      const float along = dx * ahead_x + dz * ahead_z;
+      const float across = dx * ahead_z - dz * ahead_x;
+      const float half =
+          skill->arc() / 2.0f * std::numbers::pi_v<float> / 180.0f;
+      const float to_side = along * std::tan(half) - std::abs(across);
+      if (to_side < skill->size() - away) {
+        const float side = across >= 0.0f ? 1.0f : -1.0f;
+        out_x = side * ahead_z;
+        out_z = -side * ahead_x;
+      }
+    }
     protocol::Input input;
-    input.set_x(away > 0.0f ? dx / away : 1.0f);
-    input.set_z(away > 0.0f ? dz / away : 0.0f);
+    input.set_x(out_x);
+    input.set_z(out_z);
     input.set_run(true);
     return input;
   }

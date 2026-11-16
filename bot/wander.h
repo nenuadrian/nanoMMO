@@ -42,9 +42,10 @@ std::optional<protocol::Input> Travel(Trip& trip, float x, float z);
 /// metres, so that it doesn't step back in as the skill lands.
 inline constexpr float kClear = 1.0f;
 
-/// Running straight away from a monster whose skill is on its way, while the
-/// bot at x and z is in its shape, or within kClear of its end, as players
-/// learn to. Or nothing, while it's clear of them all.
+/// Running out of the shape of a monster's skill on its way, while the bot at
+/// x and z is in it, or within kClear of its end, as players learn to:
+/// straight away from the monster, or out of a cone's side, where that's
+/// nearer, as it is in a narrow one. Or nothing, while it's clear of them all.
 std::optional<protocol::Input> StepOut(const MonsterTable& table,
                                        const protocol::World& world, float x,
                                        float z);

@@ -114,3 +114,50 @@ TEST(Wander, StepsOutOfAMonstersSkillOnItsWay) {
   skeleton->set_motion(nanommo::protocol::MOTION_ATTACK);
   EXPECT_FALSE(nanommo::StepOut(table, world, 9.0f, 0.0f).has_value());
 }
+
+TEST(Wander, StepsOutOfTheNearerSideOfANarrowCone) {
+  const nanommo::MonsterTable table = *nanommo::ParseMonsters(R"pb(
+    kinds {
+      id: 4
+      skills {
+        id: 1
+        name: "Bone Lance"
+        shape: CONE
+        size: 14
+        arc: 30
+        range: 14
+        telegraph_ms: 2200
+        cooldown_ms: 12000
+      }
+      skills {
+        id: 2
+        name: "Grave Sweep"
+        shape: CONE
+        size: 7
+        arc: 120
+        range: 4
+        telegraph_ms: 1800
+        cooldown_ms: 7000
+      }
+    }
+  )pb");
+  nanommo::protocol::World world;
+  nanommo::protocol::Monster* colossus = world.add_monsters();
+  colossus->set_kind(4);
+  colossus->set_motion(nanommo::protocol::MOTION_SKILL);
+  colossus->set_skill(1);
+
+  // In front of it, a little off to the side x goes, the bot runs that way,
+  // out of the lance's side, and not fourteen metres to its end.
+  std::optional<nanommo::protocol::Input> out =
+      nanommo::StepOut(table, world, 0.2f, 2.0f);
+  ASSERT_TRUE(out.has_value());
+  EXPECT_FLOAT_EQ(out->x(), 1.0f);
+  EXPECT_NEAR(out->z(), 0.0f, 1e-6f);
+
+  // Near the end of a wide sweep, it runs on out of the end.
+  colossus->set_skill(2);
+  out = nanommo::StepOut(table, world, 0.2f, 6.5f);
+  ASSERT_TRUE(out.has_value());
+  EXPECT_GT(out->z(), 0.99f);
+}

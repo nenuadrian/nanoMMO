@@ -1096,8 +1096,12 @@ void World::Land(uint32_t id, Player& player, const skills::Effect& effect,
         monster.motion != Motion::kDead && !monster.evading &&
         Distance(player, monster) <= effect.reach() &&
         InArc(player, monster, effect.arc())) {
-      Push(player, monster, blow.push());
-      Throw(monster, blow.lift());
+      // A boss stands its ground: a crowd's blows would shove it about, and
+      // out of its own leash.
+      if (!monster.boss()) {
+        Push(player, monster, blow.push());
+        Throw(monster, blow.lift());
+      }
       Hurt(id, player, monster_id, monster, damage);
     }
   }

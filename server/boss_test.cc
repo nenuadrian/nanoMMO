@@ -421,6 +421,46 @@ TEST(World, TheLandHearsTheBossFallAndRiseAgain) {
             std::vector<std::string>{"The Colossus has risen."});
 }
 
+TEST(World, ABossStandsItsGroundWhereAnotherMonsterIsPushed) {
+  nanommo::World world(1, nanommo::Terrain(),
+                       nanommo::testing::With(nanommo::testing::Gear(),
+                                              *nanommo::ParseSkills(R"pb(
+                                                skills {
+                                                  id: 1
+                                                  name: "Shove"
+                                                  level: 1
+                                                  effect {
+                                                    cast_ms: 400
+                                                    reach: 5
+                                                    damage: 10
+                                                    all: true
+                                                    blows { at_ms: 100 push: 1 }
+                                                  }
+                                                }
+                                              )pb"),
+                                              Monsters()));
+  world.Join(1, {.name = "alice", .skills = {1}});
+  // Both within reach of her, so they stand and swing rather than walk.
+  const uint32_t colossus =
+      world.Spawn(nanommo::MonsterOf(Colossus(), 0.0f, 1.0f));
+  const uint32_t skeleton =
+      world.Spawn(nanommo::MonsterOf(Monsters().kinds.at(2), 1.0f, 0.0f));
+
+  // The blow lands 100 ms in, on both, and its push plays out over the next
+  // ticks: the skeleton goes a metre further away, and the boss stays put.
+  world.UseSkill(1, 1);
+  for (int tick = 0; tick < 6; ++tick) {
+    world.Step(kTick);
+  }
+  const nanommo::Monster& boss = world.monsters().at(colossus);
+  const nanommo::Monster& pushed = world.monsters().at(skeleton);
+  EXPECT_LT(boss.health, boss.max_health);
+  EXPECT_LT(pushed.health, pushed.max_health);
+  EXPECT_FLOAT_EQ(boss.x, 0.0f);
+  EXPECT_FLOAT_EQ(boss.z, 1.0f);
+  EXPECT_NEAR(pushed.x, 2.0f, 1e-3f);
+}
+
 TEST(World, TheClientsSeeTheBossesPhaseAndHearItsNewsApart) {
   nanommo::World world(
       1, nanommo::Terrain(),

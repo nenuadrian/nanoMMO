@@ -50,6 +50,34 @@ TEST(Quests, TakesAQuestFromItsGiver) {
   EXPECT_FLOAT_EQ(errand->x, 10.0f);
 }
 
+TEST(Quests, GoesForABossNearItFirst) {
+  nanommo::protocol::Quests quests;
+  (*quests.mutable_on())[kBones] = 1;
+  nanommo::protocol::World seen = Seen();
+  nanommo::protocol::Monster* colossus = seen.add_monsters();
+  colossus->set_id(9);
+  colossus->set_kind(4);
+  colossus->set_phase(1);
+  colossus->set_z(-50.0f);
+
+  // Before its quest, as players flock to one.
+  std::optional<Errand> errand =
+      nanommo::NextErrand(Content(), quests, seen, 0.0f, 0.0f);
+  ASSERT_TRUE(errand);
+  EXPECT_EQ(errand->kind, Errand::Kind::kHunt);
+  EXPECT_EQ(errand->monster, 9u);
+  EXPECT_FLOAT_EQ(errand->z, -50.0f);
+
+  // Not once it's dead, nor from too far.
+  colossus->set_motion(nanommo::protocol::MOTION_DEAD);
+  EXPECT_EQ(nanommo::NextErrand(Content(), quests, seen, 0.0f, 0.0f)->monster,
+            3u);
+  colossus->set_motion(nanommo::protocol::MOTION_IDLE);
+  colossus->set_z(-nanommo::kJoinTheFight - 1.0f);
+  EXPECT_EQ(nanommo::NextErrand(Content(), quests, seen, 0.0f, 0.0f)->monster,
+            3u);
+}
+
 TEST(Quests, HuntsTheNearestMonsterItsQuestAsksFor) {
   nanommo::protocol::Quests quests;
   (*quests.mutable_on())[kBones] = 1;

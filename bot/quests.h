@@ -23,10 +23,15 @@ struct Errand {
   protocol::Quest quest;
 };
 
-/// What a bot does next for its quests, from what it sees: turns in a quest
-/// it's done, if its giver's here, or goes after the nearest monster a quest
-/// it's on asks for, or takes a quest it hasn't done from an NPC here who
-/// gives it. Nothing, if none of them is here.
+/// How near a living boss has to be for a bot to join its fight, in metres:
+/// from the middle of its land, the Bone Colossus is.
+inline constexpr float kJoinTheFight = 60.0f;
+
+/// What a bot does next, from what it sees: goes after the nearest boss within
+/// kJoinTheFight, as players flock to one, or else, for its quests, turns in
+/// a quest it's done, if its giver's here, or goes after the nearest monster a
+/// quest it's on asks for, or takes a quest it hasn't done from an NPC here
+/// who gives it. Nothing, if none of them is here.
 std::optional<Errand> NextErrand(const Content& content,
                                  const protocol::Quests& quests,
                                  const protocol::World& seen, float x, float z);

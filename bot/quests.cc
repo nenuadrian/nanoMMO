@@ -32,7 +32,22 @@ std::optional<Errand> NextErrand(const Content& content,
                                  const protocol::World& seen, float x,
                                  float z) {
   std::optional<Errand> hunt;
-  float nearest = std::numeric_limits<float>::infinity();
+  float nearest = kJoinTheFight;
+  for (const protocol::Monster& monster : seen.monsters()) {
+    const float distance = std::hypot(monster.x() - x, monster.z() - z);
+    if (monster.phase() != 0 && monster.motion() != protocol::MOTION_DEAD &&
+        distance <= nearest) {
+      nearest = distance;
+      hunt = Errand{.kind = Errand::Kind::kHunt,
+                    .x = monster.x(),
+                    .z = monster.z(),
+                    .monster = monster.id()};
+    }
+  }
+  if (hunt) {
+    return hunt;
+  }
+  nearest = std::numeric_limits<float>::infinity();
   for (const auto& [id, killed] : quests.on()) {
     const auto quest = content.quests.find(id);
     if (quest == content.quests.end()) {

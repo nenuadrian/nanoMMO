@@ -53,9 +53,11 @@ constexpr double kUseASkill = 0.25;
 // A potion's cooldown, so that a bot doesn't ask for one the server refuses.
 constexpr std::chrono::seconds kDrinkEvery{10};
 
-// How close a bot gets for an errand, in metres: well within a sword's reach
-// of a monster, and the four metres an NPC hears you from.
-constexpr float kSwing = 1.2f;
+// How close a bot gets for an errand, in metres. For a monster, near enough to
+// swing at it: the server runs it in the rest of the way, as it does a player
+// who clicks one, so a big monster that moves, like a boss, still gets hit.
+// For an NPC, within the four metres it hears you from.
+constexpr float kSwing = 6.0f;
 constexpr float kTalk = 3.0f;
 
 // How soon a bot thinks again once the monster it hunts is dead: soon, but
@@ -239,12 +241,16 @@ void Bot::Receive(std::string_view bytes) {
   }
   skills_ = {world.skills().begin(), world.skills().end()};
   // In a monster's skill on its way, the bot runs out of it, as players learn
-  // to, and doesn't think of anything else until it's clear.
+  // to, and doesn't think of anything else until it's clear. Then it thinks
+  // again from where it is: the trip it was on counted on getting closer, and
+  // a boss's skills come one after another.
   if (const std::optional<protocol::Input> out =
           dead_ ? std::nullopt
                 : StepOut(content_.monsters, parts_.world(), x_, z_)) {
     if (!stepping_out_) {
       hunting_ = 0;
+      trip_.reset();
+      errand_.reset();
       Send(*out);
     }
     stepping_out_ = true;
