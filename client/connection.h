@@ -16,10 +16,10 @@
 #include "asio/ip/udp.hpp"
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
+#include "client/inbox.h"
 #include "client/link.h"
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
-#include "protocol/parts.h"
 #include "protocol/tls.h"
 
 namespace nanommo {
@@ -38,16 +38,26 @@ class Connection final : public Link {
   void Poll() override;
   void Send(const protocol::Input& input) override;
   bool connected() const override { return connected_; }
-  const protocol::World& world() const override { return world_; }
-  const std::deque<protocol::Chat>& chat() const override { return chat_; }
-  int64_t whole() const override { return parts_.whole(); }
-  const std::optional<protocol::Move>& move() const override { return move_; }
-  const protocol::Inventory& inventory() const override { return inventory_; }
-  const protocol::Quests& quests() const override { return quests_; }
-  const protocol::Guild& guild() const override { return guild_; }
-  const protocol::Trade& trade() const override { return trade_; }
-  std::vector<protocol::Event> TakeEvents() override;
-  std::optional<protocol::GuildInvite> TakeInvite() override;
+  const protocol::World& world() const override { return inbox_.world(); }
+  const std::deque<protocol::Chat>& chat() const override {
+    return inbox_.chat();
+  }
+  int64_t whole() const override { return inbox_.whole(); }
+  const std::optional<protocol::Move>& move() const override {
+    return inbox_.move();
+  }
+  const protocol::Inventory& inventory() const override {
+    return inbox_.inventory();
+  }
+  const protocol::Quests& quests() const override { return inbox_.quests(); }
+  const protocol::Guild& guild() const override { return inbox_.guild(); }
+  const protocol::Trade& trade() const override { return inbox_.trade(); }
+  std::vector<protocol::Event> TakeEvents() override {
+    return inbox_.TakeEvents();
+  }
+  std::optional<protocol::GuildInvite> TakeInvite() override {
+    return inbox_.TakeInvite();
+  }
 
  private:
   Connection(asio::ssl::context& tls, const std::string& token);
@@ -57,9 +67,6 @@ class Connection final : public Link {
   void Read();
   void HelloOverUdp();
   void ReceiveOverUdp();
-  void Receive(const protocol::World& world);
-  void See(const protocol::World& events);
-  void Hear(const protocol::World& chat);
 
   asio::io_context io_;
   TlsStream stream_;
@@ -69,16 +76,7 @@ class Connection final : public Link {
   std::array<char, 4096> buffer_;
   std::array<char, 2048> datagram_;
   FrameReader reader_;
-  Parts parts_;
-  protocol::World world_;
-  std::deque<protocol::Chat> chat_;
-  std::optional<protocol::Move> move_;
-  protocol::Inventory inventory_;
-  protocol::Quests quests_;
-  protocol::Guild guild_;
-  protocol::Trade trade_;
-  std::optional<protocol::GuildInvite> invite_;
-  std::vector<protocol::Event> events_;
+  Inbox inbox_;
   bool udp_worlds_ = false;
   bool connected_ = true;
 };

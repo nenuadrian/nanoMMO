@@ -16,12 +16,6 @@
 
 namespace nanommo {
 
-namespace {
-
-constexpr std::size_t kChatLines = 100;
-
-}  // namespace
-
 absl::StatusOr<std::unique_ptr<Connection>> Connection::Create(
     const std::string& host, uint16_t port, asio::ssl::context& tls,
     const std::string& token, bool udp) {
@@ -105,32 +99,9 @@ void Connection::Read() {
                             }
                             reader_.Append({buffer_.data(), size});
                             while (const auto message = reader_.Next()) {
-                              protocol::World world;
-                              if (!world.ParseFromString(*message)) {
+                              if (!inbox_.Take(*message).ok()) {
                                 connected_ = false;
                                 return;
-                              }
-                              // Chat, moves, our bag, our quests, our
-                              // guild, our trade and the events come on
-                              // their own, with nothing of the world in them.
-                              if (world.has_move()) {
-                                move_ = world.move();
-                              } else if (world.has_inventory()) {
-                                inventory_ = world.inventory();
-                              } else if (world.has_quests()) {
-                                quests_ = world.quests();
-                              } else if (world.has_guild()) {
-                                guild_ = world.guild();
-                              } else if (world.has_trade()) {
-                                trade_ = world.trade();
-                              } else if (world.has_invite()) {
-                                invite_ = world.invite();
-                              } else if (!world.events().empty()) {
-                                See(world);
-                              } else if (world.chat().empty()) {
-                                Receive(world);
-                              } else {
-                                Hear(world);
                               }
                             }
                             if (!reader_.status().ok()) {
@@ -164,34 +135,10 @@ void Connection::ReceiveOverUdp() {
         if (!error &&
             part.ParseFromArray(datagram_.data(), static_cast<int>(size))) {
           udp_worlds_ = true;
-          Receive(part);
+          inbox_.Add(part);
         }
         ReceiveOverUdp();
       });
-}
-
-std::vector<protocol::Event> Connection::TakeEvents() {
-  return std::exchange(events_, {});
-}
-
-std::optional<protocol::GuildInvite> Connection::TakeInvite() {
-  return std::exchange(invite_, std::nullopt);
-}
-
-void Connection::Receive(const protocol::World& world) {
-  parts_.Add(world);
-  world_ = parts_.world();
-}
-
-void Connection::See(const protocol::World& events) {
-  events_.insert(events_.end(), events.events().begin(), events.events().end());
-}
-
-void Connection::Hear(const protocol::World& chat) {
-  chat_.insert(chat_.end(), chat.chat().begin(), chat.chat().end());
-  while (chat_.size() > kChatLines) {
-    chat_.pop_front();
-  }
 }
 
 }  // namespace nanommo
