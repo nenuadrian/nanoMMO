@@ -52,6 +52,17 @@ kinds {
   loot { item: 6 chance: 0.1 }
   loot { item: 7 chance: 0.1 }
   gold { min: 3 max: 9 }
+  skills {
+    id: 1
+    name: "Ground Slam"
+    shape: CIRCLE
+    size: 3
+    telegraph_ms: 2000
+    damage: 30
+    cooldown_ms: 10000
+    range: 1.5
+    color: 0xFF6A2AFF
+  }
 }
 kinds {
   id: 3
@@ -78,6 +89,18 @@ kinds {
   loot { item: 6 chance: 0.25 }
   loot { item: 7 chance: 0.25 }
   gold { min: 6 max: 14 }
+  skills {
+    id: 1
+    name: "Bone Sweep"
+    shape: CONE
+    size: 4
+    arc: 90
+    telegraph_ms: 1500
+    damage: 35
+    cooldown_ms: 8000
+    range: 2.5
+    color: 0xB48CFFFF
+  }
 }
 
 spawns { kind: 1 land: "Meadows" x: -3.5 z: -3 }

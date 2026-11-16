@@ -1,8 +1,10 @@
 #include "content/monsters.h"
 
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <map>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -11,6 +13,46 @@
 #include "content/text.h"
 
 namespace nanommo {
+
+namespace {
+
+// Whether players can see the skill coming and step out of it: it has a
+// shape, the player it's fighting is in it as it starts, it shows for long
+// enough, and it can't start again before it's landed.
+absl::Status CheckSkill(const monsters::Kind& kind,
+                        const monsters::Skill& skill) {
+  const std::string name =
+      absl::StrCat("the ", kind.name(), "'s ", skill.name());
+  if (skill.size() <= 0.0f) {
+    return absl::InvalidArgumentError(absl::StrCat(name, " has no size"));
+  }
+  if (skill.shape() == monsters::CONE && skill.arc() <= 0.0f) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(name, " is a cone without an arc"));
+  }
+  if (skill.range() <= 0.0f) {
+    return absl::InvalidArgumentError(absl::StrCat(name, " has no range"));
+  }
+  if (skill.range() > skill.size()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(name, " starts from ", skill.range(),
+                     " metres, outside its ", skill.size()));
+  }
+  if (std::chrono::milliseconds(skill.telegraph_ms()) < kShortestTelegraph) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(name, " shows for ", skill.telegraph_ms(),
+                     " ms, too short to step out of: it needs ",
+                     kShortestTelegraph.count(), " at least"));
+  }
+  if (skill.cooldown_ms() < skill.telegraph_ms()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(name, " cools down in ", skill.cooldown_ms(),
+                     " ms, before it lands, at ", skill.telegraph_ms()));
+  }
+  return absl::OkStatus();
+}
+
+}  // namespace
 
 absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text) {
   monsters::Monsters file;
@@ -40,6 +82,16 @@ absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text) {
       return absl::InvalidArgumentError(
           absl::StrCat("the ", kind.name(), " drops from ", kind.gold().min(),
                        " to ", kind.gold().max(), " gold"));
+    }
+    // The clients hear which skill a monster's using by its id, as they do
+    // its kind.
+    if (const absl::Status ids = ById(kind.skills()).status(); !ids.ok()) {
+      return ids;
+    }
+    for (const monsters::Skill& skill : kind.skills()) {
+      if (const absl::Status checked = CheckSkill(kind, skill); !checked.ok()) {
+        return checked;
+      }
     }
   }
   MonsterTable table{.kinds = *std::move(kinds),

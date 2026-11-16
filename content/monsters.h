@@ -1,6 +1,7 @@
 #ifndef NANOMMO_CONTENT_MONSTERS_H_
 #define NANOMMO_CONTENT_MONSTERS_H_
 
+#include <chrono>
 #include <cstdint>
 #include <map>
 #include <string_view>
@@ -18,11 +19,18 @@ struct MonsterTable {
   std::vector<monsters::Camps> camps;
 };
 
+/// The shortest a monster's skill shows before it lands: long enough to see
+/// it coming, and step out.
+inline constexpr std::chrono::milliseconds kShortestTelegraph{500};
+
 /// The monsters in text format, or what's wrong with them: a field
 /// monsters.proto doesn't have, a kind with no id or with another's, loot
 /// with a chance of nothing or more than one, or from more to fewer, gold
-/// from more to less, a spawn or camps of a kind or in a land that isn't
-/// there, or a spawn whose leash reaches the middle of its land.
+/// from more to less, a skill with no id or with another's, with no size, a
+/// range past its size, a telegraph shorter than kShortestTelegraph, or a
+/// cooldown shorter than its telegraph, a spawn or camps of a kind or in a
+/// land that isn't there, or a spawn whose leash reaches the middle of its
+/// land.
 absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text);
 
 }  // namespace nanommo

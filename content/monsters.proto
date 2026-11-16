@@ -46,6 +46,38 @@ message Gold {
   uint32 max = 2;
 }
 
+// Where a monster's skill lands, around it or in front of it.
+enum Shape {
+  // All the way round the monster, out to the size.
+  CIRCLE = 0;
+  // A slice in front of it, as wide as the arc, out to the size.
+  CONE = 1;
+}
+
+// A big blow a monster telegraphs: the shape it lands on shows on the ground
+// first, for long enough to step out of, and it hits whoever's still in it.
+message Skill {
+  // From one, among its kind's skills.
+  uint32 id = 1;
+  string name = 2;
+  Shape shape = 3;
+  // In metres, how far the shape goes out from the monster.
+  float size = 4;
+  // In degrees, how wide a cone is.
+  float arc = 5;
+  // How long the shape shows before the skill lands, while the monster stands
+  // still.
+  uint32 telegraph_ms = 6;
+  uint32 damage = 7;
+  // How long until it can use it again, from when it starts.
+  uint32 cooldown_ms = 8;
+  // It starts the skill once the player it's fighting is this near, in
+  // metres.
+  float range = 9;
+  // The shape's colour, as 0xRRGGBBAA.
+  uint32 color = 10;
+}
+
 message Kind {
   // From one, and a kind keeps its id for good.
   uint32 id = 1;
@@ -58,6 +90,8 @@ message Kind {
   Look look = 7;
   repeated Drop loot = 8;
   Gold gold = 9;
+  // It uses each of them in place of a swing once it's ready, the first first.
+  repeated Skill skills = 10;
 }
 
 // A monster that always has its home in the same place, in metres from the

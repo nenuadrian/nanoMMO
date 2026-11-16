@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
@@ -368,6 +369,64 @@ TEST(Content, RefusesLootThatDoesntAddUp) {
   drop->set_chance(0.5f);
   EXPECT_EQ(nanommo::CheckContent(content).message(),
             "the Skeleton drops an item 99 that isn't in the items file");
+}
+
+TEST(Content, ReadsTheMonstersSkills) {
+  const nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  // The plain skeleton only swings, so that new players learn that first.
+  EXPECT_TRUE(content.monsters.kinds.at(1).skills().empty());
+
+  const nanommo::monsters::Skill& slam = content.monsters.kinds.at(2).skills(0);
+  EXPECT_EQ(slam.name(), "Ground Slam");
+  EXPECT_EQ(slam.shape(), nanommo::monsters::CIRCLE);
+  EXPECT_GT(slam.damage(), content.monsters.kinds.at(2).fight().damage());
+  const nanommo::monsters::Skill& sweep =
+      content.monsters.kinds.at(3).skills(0);
+  EXPECT_EQ(sweep.name(), "Bone Sweep");
+  EXPECT_EQ(sweep.shape(), nanommo::monsters::CONE);
+  EXPECT_GT(sweep.arc(), 0.0f);
+}
+
+TEST(Content, RefusesMonsterSkillsThatDontAddUp) {
+  const auto slam = [](std::string_view skill) {
+    return nanommo::ParseMonsters(
+               absl::StrCat("kinds { id: 1 name: \"Ash Skeleton\" skills { ",
+                            "id: 1 name: \"Slam\" ", skill, " } }"))
+        .status();
+  };
+  // Seen for half a second, from a metre and a half, in a circle of three.
+  EXPECT_TRUE(
+      slam("size: 3 range: 1.5 telegraph_ms: 500 cooldown_ms: 500").ok());
+  EXPECT_EQ(slam("range: 1.5 telegraph_ms: 500 cooldown_ms: 500").message(),
+            "the Ash Skeleton's Slam has no size");
+  EXPECT_EQ(
+      slam("shape: CONE size: 3 range: 1.5 telegraph_ms: 500 cooldown_ms: 500")
+          .message(),
+      "the Ash Skeleton's Slam is a cone without an arc");
+  EXPECT_TRUE(slam("shape: CONE size: 3 arc: 90 range: 1.5 telegraph_ms: 500 "
+                   "cooldown_ms: 500")
+                  .ok());
+  EXPECT_EQ(slam("size: 3 telegraph_ms: 500 cooldown_ms: 500").message(),
+            "the Ash Skeleton's Slam has no range");
+  EXPECT_EQ(
+      slam("size: 3 range: 4 telegraph_ms: 500 cooldown_ms: 500").message(),
+      "the Ash Skeleton's Slam starts from 4 metres, outside its 3");
+  EXPECT_EQ(
+      slam("size: 3 range: 1.5 telegraph_ms: 499 cooldown_ms: 500").message(),
+      "the Ash Skeleton's Slam shows for 499 ms, too short to step out "
+      "of: it needs 500 at least");
+  EXPECT_EQ(
+      slam("size: 3 range: 1.5 telegraph_ms: 2000 cooldown_ms: 1999").message(),
+      "the Ash Skeleton's Slam cools down in 1999 ms, before it lands, "
+      "at 2000");
+
+  // Each has an id of its own among its kind's.
+  EXPECT_EQ(nanommo::ParseMonsters(
+                "kinds { id: 1 skills { name: \"Slam\" size: 3 range: 1.5 "
+                "telegraph_ms: 500 cooldown_ms: 500 } }")
+                .status()
+                .message(),
+            "the Slam has no id");
 }
 
 TEST(Content, RefusesNpcsThatDontAddUp) {
