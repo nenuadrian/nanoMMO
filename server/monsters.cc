@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <numbers>
 #include <utility>
@@ -42,6 +43,16 @@ void PickTarget(Monster& monster, const Terrain& terrain,
                                 -terrain.edge(), terrain.edge());
 }
 
+// Whether the monster uses the skill, by its id, now: a boss, only if its
+// phase does.
+bool Uses(const Monster& monster, uint32_t skill) {
+  if (!monster.boss()) {
+    return true;
+  }
+  const auto& skills = monster.phases[monster.phase].skills();
+  return std::ranges::find(skills, skill) != skills.end();
+}
+
 }  // namespace
 
 Monster MonsterOf(const monsters::Kind& kind, float x, float z) {
@@ -59,7 +70,8 @@ Monster MonsterOf(const monsters::Kind& kind, float x, float z) {
           .sight = fight.sight(),
           .leash = fight.leash(),
           .wander = fight.wander(),
-          .skills = {kind.skills().begin(), kind.skills().end()}};
+          .skills = {kind.skills().begin(), kind.skills().end()},
+          .phases = {kind.phases().begin(), kind.phases().end()}};
 }
 
 void SpawnMonsters(World& land, int index, const MonsterTable& table) {
@@ -194,9 +206,11 @@ void Hunt(Monster& monster, const std::map<uint32_t, Player>& players,
   const float distance = std::hypot(dx, dz);
   monster.yaw = std::atan2(dx, dz);
   // A skill that's ready goes in place of a swing: the monster stands where
-  // it is, facing the player, while the skill's shape shows.
+  // it is, facing the player, while the skill's shape shows. A boss uses its
+  // phase's.
   for (const monsters::Skill& skill : monster.skills) {
-    if (distance <= skill.range() && !monster.cooldowns.contains(skill.id())) {
+    if (Uses(monster, skill.id()) && distance <= skill.range() &&
+        !monster.cooldowns.contains(skill.id())) {
       monster.motion = Motion::kSkill;
       monster.casting = skill;
       monster.cast = std::chrono::nanoseconds::zero();
@@ -229,6 +243,7 @@ void Revive(Monster& monster, std::chrono::nanoseconds time,
   monster.x = monster.home_x;
   monster.z = monster.home_z;
   monster.health = monster.max_health;
+  monster.phase = 0;
   monster.motion = Motion::kIdle;
   monster.attacker = 0;
   monster.rest = RandomRest(random);

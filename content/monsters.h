@@ -29,9 +29,10 @@ inline constexpr std::chrono::milliseconds kShortestTelegraph{500};
 /// with a chance of nothing or more than one, or from more to fewer, gold
 /// from more to less, a skill with no id or with another's, with no size, a
 /// range past its size, a telegraph shorter than kShortestTelegraph, or a
-/// cooldown shorter than its telegraph, a spawn or camps of a kind or in a
-/// land that isn't there, or a spawn whose leash reaches the middle of its
-/// land.
+/// cooldown shorter than its telegraph, a boss whose first phase isn't from
+/// full health, or whose phases don't go down its health, or use a skill it
+/// doesn't have, a spawn or camps of a kind or in a land that isn't there, or
+/// a spawn whose leash reaches the middle of its land.
 absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text);
 
 /// Whether the place is in the skill's shape, aimed from where the monster

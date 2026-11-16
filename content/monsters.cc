@@ -1,5 +1,6 @@
 #include "content/monsters.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -53,6 +54,37 @@ absl::Status CheckSkill(const monsters::Kind& kind,
   return absl::OkStatus();
 }
 
+// Whether a boss's phases go down its health, from the first, at full health,
+// each lower than the last, while it's alive, and use skills it has.
+absl::Status CheckPhases(const monsters::Kind& kind) {
+  for (int i = 0; i < kind.phases_size(); ++i) {
+    const monsters::Phase& phase = kind.phases(i);
+    const std::string name =
+        absl::StrCat("the ", kind.name(), "'s phase ", i + 1);
+    if (i == 0 && phase.health() != 100) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          name, " starts at ", phase.health(), "% of its health, not at 100%"));
+    }
+    if (i > 0 && phase.health() == 0) {
+      return absl::InvalidArgumentError(
+          absl::StrCat(name, " starts at 0%, when it's dead"));
+    }
+    if (i > 0 && phase.health() >= kind.phases(i - 1).health()) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          name, " starts at ", phase.health(), "%, which isn't below phase ", i,
+          "'s ", kind.phases(i - 1).health(), "%"));
+    }
+    for (const uint32_t skill : phase.skills()) {
+      if (std::ranges::find(kind.skills(), skill, &monsters::Skill::id) ==
+          kind.skills().end()) {
+        return absl::InvalidArgumentError(
+            absl::StrCat(name, " uses a skill ", skill, " it doesn't have"));
+      }
+    }
+  }
+  return absl::OkStatus();
+}
+
 }  // namespace
 
 absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text) {
@@ -93,6 +125,9 @@ absl::StatusOr<MonsterTable> ParseMonsters(std::string_view text) {
       if (const absl::Status checked = CheckSkill(kind, skill); !checked.ok()) {
         return checked;
       }
+    }
+    if (const absl::Status checked = CheckPhases(kind); !checked.ok()) {
+      return checked;
     }
   }
   MonsterTable table{.kinds = *std::move(kinds),

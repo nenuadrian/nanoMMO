@@ -78,6 +78,17 @@ message Skill {
   uint32 color = 10;
 }
 
+// A stretch of a boss's fight, from a share of its health down, with skills of
+// its own.
+message Phase {
+  // In percent of its most health: it's in this phase from there down to the
+  // next phase's. The first is from 100.
+  uint32 health = 1;
+  // The skills it uses in this phase, by their ids among its kind's, which it
+  // tries in its kind's order.
+  repeated uint32 skills = 2;
+}
+
 message Kind {
   // From one, and a kind keeps its id for good.
   uint32 id = 1;
@@ -92,6 +103,9 @@ message Kind {
   Gold gold = 9;
   // It uses each of them in place of a swing once it's ready, the first first.
   repeated Skill skills = 10;
+  // A kind with phases is a boss: as its health goes down, it goes from one
+  // phase to the next, and uses the skills each names.
+  repeated Phase phases = 11;
 }
 
 // A monster that always has its home in the same place, in metres from the

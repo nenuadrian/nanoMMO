@@ -436,6 +436,50 @@ TEST(Content, RefusesMonsterSkillsThatDontAddUp) {
             "the Slam has no id");
 }
 
+TEST(Content, ReadsTheBoss) {
+  const nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  const nanommo::monsters::Kind& colossus = content.monsters.kinds.at(4);
+  EXPECT_EQ(colossus.name(), "Bone Colossus");
+  // Its phases go down its health, each with more of its skills than the
+  // last.
+  ASSERT_EQ(colossus.phases_size(), 3);
+  EXPECT_EQ(colossus.phases(0).health(), 100u);
+  for (int i = 1; i < colossus.phases_size(); ++i) {
+    EXPECT_LT(colossus.phases(i).health(), colossus.phases(i - 1).health());
+    EXPECT_GT(colossus.phases(i).skills_size(),
+              colossus.phases(i - 1).skills_size());
+  }
+  // It has one home, in the Meadows.
+  EXPECT_EQ(std::ranges::count(content.monsters.spawns, 4u,
+                               &nanommo::monsters::Spawn::kind),
+            1);
+}
+
+TEST(Content, RefusesPhasesThatDontAddUp) {
+  const auto boss = [](std::string_view phases) {
+    return nanommo::ParseMonsters(
+               absl::StrCat("kinds { id: 1 name: \"Colossus\" skills { id: 1 ",
+                            "name: \"Slam\" size: 3 range: 1.5 telegraph_ms: ",
+                            "500 cooldown_ms: 500 } ", phases, " }"))
+        .status();
+  };
+  // From full health, to 60%, each with the slam.
+  EXPECT_TRUE(boss("phases { health: 100 skills: 1 } "
+                   "phases { health: 60 skills: 1 }")
+                  .ok());
+  EXPECT_EQ(boss("phases { health: 90 }").message(),
+            "the Colossus's phase 1 starts at 90% of its health, not at 100%");
+  EXPECT_EQ(boss("phases { health: 100 } phases { health: 0 }").message(),
+            "the Colossus's phase 2 starts at 0%, when it's dead");
+  EXPECT_EQ(boss("phases { health: 100 } phases { health: 60 } "
+                 "phases { health: 60 }")
+                .message(),
+            "the Colossus's phase 3 starts at 60%, which isn't below phase "
+            "2's 60%");
+  EXPECT_EQ(boss("phases { health: 100 skills: 2 }").message(),
+            "the Colossus's phase 1 uses a skill 2 it doesn't have");
+}
+
 TEST(Content, RefusesNpcsThatDontAddUp) {
   EXPECT_TRUE(nanommo::ParseNpcs("kinds { id: 1 look { skin: 0xF1C49CFF } } "
                                  "spawns { kind: 1 land: \"Meadows\" }")

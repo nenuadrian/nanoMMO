@@ -79,6 +79,12 @@ bool InArc(const Player& player, const Unit& unit, float arc) {
   return std::abs(off) <= arc / 2.0f * std::numbers::pi_v<float> / 180.0f;
 }
 
+// Whether the monster's health has fallen to the phase's share of its most.
+bool FallenTo(const Monster& monster, const monsters::Phase& phase) {
+  return monster.health * 100 <=
+         monster.max_health * static_cast<int>(phase.health());
+}
+
 void RunDown(std::map<uint32_t, std::chrono::nanoseconds>& cooldowns,
              std::chrono::nanoseconds time) {
   for (auto it = cooldowns.begin(); it != cooldowns.end();) {
@@ -1177,6 +1183,11 @@ void World::Hurt(uint32_t id, Player& player, uint32_t monster_id,
   hit.monster_id = monster_id;
   hit.amount = static_cast<uint32_t>(damage);
   if (monster.health > 0) {
+    // A boss goes into each phase its health has fallen to, in turn.
+    while (monster.phase + 1 < monster.phases.size() &&
+           FallenTo(monster, monster.phases[monster.phase + 1])) {
+      ++monster.phase;
+    }
     return;
   }
   monster.motion = Motion::kDead;

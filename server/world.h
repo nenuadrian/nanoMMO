@@ -2,6 +2,7 @@
 #define NANOMMO_SERVER_WORLD_H_
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -154,6 +155,10 @@ struct Monster {
   /// it's ready and the player it's fighting is within its range, the first
   /// first.
   std::vector<monsters::Skill> skills;
+  /// A boss's phases, and the one it's in, by its place among them. It uses
+  /// that phase's skills alone.
+  std::vector<monsters::Phase> phases;
+  std::size_t phase = 0;
   float home_x = 0.0f;
   float home_z = 0.0f;
   float target_x = 0.0f;
@@ -191,6 +196,9 @@ struct Monster {
   /// it's down, how long until it can be thrown again.
   std::chrono::nanoseconds in_air{0};
   std::chrono::nanoseconds steady{0};
+
+  /// A monster with phases is a boss.
+  bool boss() const { return !phases.empty(); }
 };
 
 /// Someone who stands in one place, such as a guard. NPCs don't move or fight,
