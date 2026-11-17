@@ -2,6 +2,9 @@
 # key or a pace are the film's seconds; times in a cast, a leg or a charge are
 # the game's.
 
+# The trailer's look: bands of light and outlines, like a cartoon.
+cel_shading: true
+
 # ---- The world --------------------------------------------------------------
 
 # Down from a low sun through the clouds to the Meadows.

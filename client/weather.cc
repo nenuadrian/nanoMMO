@@ -256,7 +256,7 @@ void Weather::Update(float seconds, const protocol::Sky& sky, bool on,
   }
   // Somewhere off in the storm, most often ahead of us, where we'd see it,
   // from the clouds to the ground, in a jagged line with a fork off it.
-  const uint32_t h = Hash(++bolts_struck_);
+  const uint32_t h = Hash(seed_, ++bolts_struck_);
   const Vector3 ahead = Vector3Subtract(camera.target, camera.position);
   const float wide = Unit(Hash(h, 3)) < 0.7f ? 0.7f : 2.4f;
   const float turn = std::atan2(ahead.z, ahead.x) + wide * (Unit(h) - 0.5f);

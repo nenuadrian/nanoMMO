@@ -155,9 +155,17 @@ absl::StatusOr<Film> ReadFilm(const std::string& path) {
       return absl::InvalidArgumentError(
           absl::StrCat(shot.id(), ": no land called ", shot.land()));
     }
-    if (shot.camera().empty() && !shot.has_orbit()) {
+    if (shot.camera().empty() && !shot.has_orbit() && !shot.has_shoulder()) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          shot.id(), ": no camera keys, no orbit and no shoulder"));
+    }
+    if (shot.has_shoulder() &&
+        std::ranges::none_of(shot.players(), [&](const Player& p) {
+          return p.id() == shot.shoulder().player();
+        })) {
       return absl::InvalidArgumentError(
-          absl::StrCat(shot.id(), ": no camera keys and no orbit"));
+          absl::StrCat(shot.id(), ": no player ", shot.shoulder().player(),
+                       " for the camera to look over"));
     }
   }
   return film;
@@ -207,9 +215,47 @@ Vector3 Place(const Point& point, const Terrain& terrain) {
   return {point.x(), base + point.up(), point.z()};
 }
 
+namespace {
+
+// The shoulder camera's player, as the shot places them, or none.
+const Player* Watcher(const Shot& shot) {
+  for (const Player& player : shot.players()) {
+    if (player.id() == shot.shoulder().player()) {
+      return &player;
+    }
+  }
+  return nullptr;
+}
+
+Camera3D OverShoulder(const Shot& shot, float share, bool tall,
+                      const Terrain& terrain) {
+  const Shoulder& shoulder = shot.shoulder();
+  const Player* watcher = Watcher(shot);
+  const Vector3 feet =
+      watcher != nullptr ? Place(watcher->at(), terrain) : Vector3{};
+  const Vector3 look = Place(shoulder.look(), terrain);
+  const Vector3 forward =
+      Vector3Normalize({look.x - feet.x, 0.0f, look.z - feet.z});
+  // To their right, as they face what they watch.
+  const Vector3 right = {-forward.z, 0.0f, forward.x};
+  const float back = Lerp(shoulder.back(), shoulder.back_end(), share);
+  const Vector3 eye = {feet.x - forward.x * back + right.x * shoulder.side(),
+                       feet.y + shoulder.up(),
+                       feet.z - forward.z * back + right.z * shoulder.side()};
+  const float fov = tall && shoulder.tall_fov() > 0.0f ? shoulder.tall_fov()
+                    : shoulder.fov() > 0.0f            ? shoulder.fov()
+                                                       : kFov;
+  return Lens(eye, look, fov);
+}
+
+}  // namespace
+
 Camera3D CameraAt(const Shot& shot, float seconds, bool tall,
                   const Terrain& terrain) {
   const float share = Eased(seconds / shot.seconds(), shot.ease());
+  if (shot.has_shoulder()) {
+    return OverShoulder(shot, share, tall, terrain);
+  }
   if (tall && !shot.tall().empty()) {
     return Along(shot.tall(), seconds, shot.ease(), terrain);
   }
@@ -469,6 +515,12 @@ protocol::World Stage::At(float game) {
     };
     if (spot.motion == protocol::MOTION_IDLE && who.face() != 0) {
       facing(who.face());
+    }
+    // Whom the camera watches over, watching what it looks at.
+    if (spot.motion == protocol::MOTION_IDLE && shot_.has_shoulder() &&
+        shot_.shoulder().player() == who.id()) {
+      const Point& look = shot_.shoulder().look();
+      spot.yaw = std::atan2(look.x() - spot.at.x, look.z() - spot.at.y);
     }
     // The last skill they started, while it lasts.
     uint32_t casts = 0;

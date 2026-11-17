@@ -6,17 +6,21 @@
 //   nanommo_cinema <film.txtpb> <out dir> [shots=a,b] [size=1920x1080]
 //                  [fps=30] [tall=0|1] [still=seconds] [cel=0|1]
 //   nanommo_cinema scout <land> <radius>
+//   nanommo_cinema peaks|shores <land>
 #include <raylib.h>
 #include <raymath.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -27,7 +31,9 @@
 #include "cinema/film.h"
 #include "client/animator.h"
 #include "client/atmosphere.h"
+#include "client/audio.h"
 #include "client/characters.h"
+#include "client/daylight.h"
 #include "client/foley.h"
 #include "client/gate.h"
 #include "client/graphics.h"
@@ -48,7 +54,9 @@ struct Options {
   int height = 1080;
   float fps = 30.0f;
   bool tall = false;
-  bool cel = true;
+  /// Cel shading's bands and outlines: as the film says, unless cel= says
+  /// otherwise.
+  std::optional<bool> cel;
   /// A single frame, at this second of each shot, as a picture: -1 for none.
   float still = -1.0f;
 };
@@ -101,11 +109,14 @@ void WriteWave(const std::string& path, const std::vector<float>& left,
   }
 }
 
-// The shot's sounds, mixed into two channels as long as the shot.
+// The shot's sounds, mixed over what's playing all along, the music, into two
+// channels as long as the shot.
 void Mix(const std::vector<Sound>& sounds, float seconds,
+         std::vector<float> left, std::vector<float> right,
          const std::string& path) {
   const size_t length = static_cast<size_t>(seconds * nanommo::kRate);
-  std::vector<float> left(length, 0.0f), right(length, 0.0f);
+  left.resize(length, 0.0f);
+  right.resize(length, 0.0f);
   for (const Sound& sound : sounds) {
     const float rate = Rate(sound.speed);
     const float gain = sound.level * sound.heard.volume;
@@ -130,40 +141,116 @@ void Mix(const std::vector<Sound>& sounds, float seconds,
   WriteWave(path, left, right);
 }
 
+// The game's own music, as loud as the shot says, from where in the track it
+// says, fading in and, at the end of the shot, out.
+void AddMusic(const Shot& shot, std::vector<float>& left,
+              std::vector<float>& right) {
+  Wave wave = LoadWave((nanommo::MusicFolder() + "/background.mp3").c_str());
+  if (!IsWaveValid(wave)) {
+    std::cerr << "nanommo_cinema: no music in " << nanommo::MusicFolder()
+              << '\n';
+    return;
+  }
+  WaveFormat(&wave, nanommo::kRate, 32, 2);
+  float* samples = LoadWaveSamples(wave);
+  const size_t length = static_cast<size_t>(shot.seconds() * nanommo::kRate);
+  left.resize(length, 0.0f);
+  right.resize(length, 0.0f);
+  const size_t start = static_cast<size_t>(shot.music_from() * nanommo::kRate);
+  const float in = 2.0f * nanommo::kRate;
+  const float out = 3.0f * nanommo::kRate;
+  for (size_t i = 0; i < length && start + i < wave.frameCount; ++i) {
+    const float fade = std::min({1.0f, static_cast<float>(i) / in,
+                                 static_cast<float>(length - i) / out});
+    const float gain = shot.music() * fade;
+    left[i] += gain * samples[2 * (start + i)];
+    right[i] += gain * samples[2 * (start + i) + 1];
+  }
+  UnloadWaveSamples(samples);
+  UnloadWave(wave);
+}
+
 int Shoot(const Shot& shot, const nanommo::Content& content,
           const Options& options) {
   const auto started = std::chrono::steady_clock::now();
   const int land = nanommo::cinema::LandOf(shot);
   const nanommo::Terrain terrain = nanommo::cinema::TerrainOf(land);
+  // main() settles it from the film, where cel= didn't.
+  const bool cel = options.cel.value_or(false);
   nanommo::Renderer renderer(content);
-  renderer.set_cel_shading(options.cel);
+  renderer.set_cel_shading(cel);
   renderer.set_terrain(terrain, land);
   renderer.set_cubes(nanommo::GateCubes(terrain, land));
-  nanommo::Atmosphere* sky = renderer.mutable_atmosphere();
-  if (shot.sky().fog_near() > 0.0f) {
-    sky->fog_near = shot.sky().fog_near();
-  }
-  if (shot.sky().fog_far() > 0.0f) {
-    sky->fog_far = shot.sky().fog_far();
-  }
-  if (shot.sky().has_sun()) {
-    const auto& sun = shot.sky().sun();
-    sky->sun = {sun.x(), sun.y(), sun.z()};
-  }
-  if (shot.sky().light() > 0.0f) {
-    for (float& c : sky->sunlight) {
-      c *= shot.sky().light();
+  // The shot's own fog, sun, light and clouds, over the time of day and the
+  // weather, each frame.
+  renderer.set_adjust([&shot](nanommo::Atmosphere& sky) {
+    if (shot.sky().fog_near() > 0.0f) {
+      sky.fog_near = shot.sky().fog_near();
     }
-    for (float& c : sky->ambient) {
-      c *= shot.sky().light();
+    if (shot.sky().fog_far() > 0.0f) {
+      sky.fog_far = shot.sky().fog_far();
     }
+    if (shot.sky().has_sun()) {
+      const auto& sun = shot.sky().sun();
+      sky.sun = {sun.x(), sun.y(), sun.z()};
+    }
+    if (shot.sky().light() > 0.0f) {
+      for (float& c : sky.sunlight) {
+        c *= shot.sky().light();
+      }
+      for (float& c : sky.ambient) {
+        c *= shot.sky().light();
+      }
+    }
+    if (shot.sky().has_cloudiness()) {
+      sky.cloudiness = shot.sky().cloudiness();
+    }
+  });
+  // The time of day and the weather, as the server would send them, if the
+  // shot has either: the day goes on as fast as the shot says, and the
+  // weather comes or goes.
+  const bool skied = shot.sky().has_day() || !shot.sky().weather().empty();
+  nanommo::protocol::Weather weather = nanommo::protocol::WEATHER_CLEAR;
+  if (!shot.sky().weather().empty() &&
+      !nanommo::protocol::Weather_Parse("WEATHER_" + shot.sky().weather(),
+                                        &weather)) {
+    std::cerr << "nanommo_cinema: no weather called " << shot.sky().weather()
+              << '\n';
+    return 1;
   }
-  if (shot.sky().has_cloudiness()) {
-    sky->cloudiness = shot.sky().cloudiness();
+  const auto sky_at = [&](float now) {
+    nanommo::protocol::Sky sky;
+    const float day = shot.sky().has_day() ? shot.sky().day() : 0.5f;
+    sky.set_day(std::fmod(day + shot.sky().days() * now, 1.0f));
+    sky.set_weather(weather);
+    const float share = std::clamp(now / shot.seconds(), 0.0f, 1.0f);
+    sky.set_strength(
+        shot.sky().has_strength_to()
+            ? Lerp(shot.sky().strength(), shot.sky().strength_to(), share)
+            : shot.sky().strength());
+    const bool gale = weather == nanommo::protocol::WEATHER_STORM ||
+                      weather == nanommo::protocol::WEATHER_FIRE;
+    sky.set_wind_x(shot.sky().has_wind_x() ? shot.sky().wind_x()
+                   : gale                  ? 5.0f
+                                           : 1.2f);
+    sky.set_wind_z(shot.sky().has_wind_z() ? shot.sky().wind_z()
+                   : gale                  ? 2.0f
+                                           : 0.5f);
+    return sky;
+  };
+  const nanommo::Showing showing = {.day_night = shot.sky().has_day(),
+                                    .weather = true};
+  // Its lightning strikes where it did the last time the shot was filmed.
+  const uint32_t shot_seed =
+      static_cast<uint32_t>(std::hash<std::string>()(shot.id()));
+  renderer.weather().set_seed(shot_seed);
+  if (shot.sky().has_wetness()) {
+    renderer.weather().set_wetness(shot.sky().wetness());
   }
+  std::vector<float> bed_left, bed_right;
   nanommo::Animator animator(content);
   nanommo::PostProcess post;
-  const nanommo::GraphicsSettings graphics{.cel_shading = options.cel};
+  const nanommo::GraphicsSettings graphics{.cel_shading = cel};
   const RenderTexture2D picture =
       LoadRenderTexture(options.width, options.height);
 
@@ -207,10 +294,13 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
       figure.position.y = terrain.Height(figure.position.x, figure.position.z);
     }
     renderer.set_figures(std::move(figures));
-    renderer.Animate(moved);
     const Camera3D camera =
         nanommo::cinema::CameraAt(shot, now, options.tall, terrain);
     renderer.set_camera(camera);
+    if (skied) {
+      renderer.set_sky(sky_at(now), showing);
+    }
+    renderer.Animate(moved);
 
     // What the game would play now, heard where the camera looks, with the
     // camera's right to the right.
@@ -285,7 +375,11 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
   UnloadRenderTexture(picture);
   if (video != nullptr) {
     pclose(video);
-    Mix(sounds, shot.seconds(), name + ".wav");
+    if (shot.music() > 0.0f) {
+      AddMusic(shot, bed_left, bed_right);
+    }
+    Mix(sounds, shot.seconds(), std::move(bed_left), std::move(bed_right),
+        name + ".wav");
     const std::string mux =
         absl::StrCat("ffmpeg -loglevel error -y -i ", name, ".video.mp4 -i ",
                      name, ".wav -c:v copy -c:a aac -b:a 256k -shortest ", name,
@@ -301,6 +395,61 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
   std::cout << shot.id() << ": " << frames << " frames, " << shot.seconds()
             << " s of film, " << clock.game() - shot.from()
             << " s of game, drawn in " << took << " s\n";
+  return 0;
+}
+
+// The highest places in a land, or the shore's, a dozen of them apart, for
+// someone to stand and look out from.
+int Heights(const std::string& name, bool shore) {
+  if (!nanommo::IsLand(name)) {
+    std::cerr << "nanommo_cinema: no land called " << name << '\n';
+    return 2;
+  }
+  const int land = nanommo::LandNamed(name);
+  const nanommo::Terrain terrain = nanommo::cinema::TerrainOf(land);
+  struct Place {
+    float x, z, height;
+  };
+  std::vector<Place> places;
+  const float edge = terrain.half_size() - 4.0f;
+  for (float x = -edge; x <= edge; x += 2.0f) {
+    for (float z = -edge; z <= edge; z += 2.0f) {
+      const float height = terrain.Height(x, z);
+      if (!terrain.Walkable(x, z)) {
+        continue;
+      }
+      // On the shore: dry, with the sea a few steps out on some side.
+      const bool by_sea =
+          height > 0.4f && height < 2.5f &&
+          std::ranges::any_of(
+              std::array<std::pair<float, float>, 4>{
+                  {{6.0f, 0.0f}, {-6.0f, 0.0f}, {0.0f, 6.0f}, {0.0f, -6.0f}}},
+              [&](const auto& d) {
+                return terrain.Height(x + d.first, z + d.second) < -0.3f;
+              });
+      if (!shore || by_sea) {
+        places.push_back({x, z, height});
+      }
+    }
+  }
+  std::ranges::sort(places, [](const Place& a, const Place& b) {
+    return a.height > b.height;
+  });
+  std::vector<Place> kept;
+  for (const Place& place : places) {
+    if (std::ranges::none_of(kept, [&](const Place& k) {
+          return std::hypot(k.x - place.x, k.z - place.z) < 25.0f;
+        })) {
+      kept.push_back(place);
+    }
+    if (kept.size() == 12) {
+      break;
+    }
+  }
+  for (const Place& place : kept) {
+    std::cout << name << " x " << place.x << " z " << place.z << " height "
+              << place.height << '\n';
+  }
   return 0;
 }
 
@@ -365,6 +514,10 @@ int main(int argc, char** argv) {
   if (argc == 4 && std::string(argv[1]) == "scout") {
     return Scout(argv[2], std::strtof(argv[3], nullptr));
   }
+  if (argc == 3 &&
+      (std::string(argv[1]) == "peaks" || std::string(argv[1]) == "shores")) {
+    return Heights(argv[2], std::string(argv[1]) == "shores");
+  }
   if (argc < 3) {
     std::cerr
         << "usage: nanommo_cinema <film.txtpb> <out dir> [key=value ...]\n"
@@ -413,6 +566,9 @@ int main(int argc, char** argv) {
   if (!film.ok()) {
     std::cerr << "nanommo_cinema: " << film.status().message() << '\n';
     return 1;
+  }
+  if (!options.cel) {
+    options.cel = film->cel_shading();
   }
   // The window only gives us a GL context: the frames are drawn into render
   // textures of the film's size, whatever the screen's.

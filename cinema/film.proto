@@ -138,6 +138,45 @@ message Sky {
   // More of the sun's and the sky's light on everything, or less: 1 as the
   // land has it.
   float light = 5;
+  // The time of day the shot starts at, as the server sends it: 0 midnight,
+  // 0.25 sunrise, 0.5 noon, 0.75 sunset. Unset, with no weather either, the
+  // land has its own look, with the sun where `sun` puts it.
+  optional float day = 6;
+  // How fast the day goes by, in days a second of the film: 1/60 is a whole
+  // day in a minute.
+  float days = 7;
+  // The weather, by its name without WEATHER_: RAIN, STORM, MIST, ASH, FIRE.
+  string weather = 8;
+  // How much of it as the shot starts, and as it ends, if it comes or goes
+  // in the shot.
+  float strength = 9;
+  optional float strength_to = 10;
+  // How wet the ground is at the start, rather than as wet as the weather
+  // makes it: still wet after rain, say.
+  optional float wetness = 11;
+  // Where the wind blows, in metres a second: unset, a light breeze, or a
+  // gale in a storm.
+  optional float wind_x = 12;
+  optional float wind_z = 13;
+}
+
+// The camera behind a player, over their shoulder, looking past them at
+// something far off, for a player who stands and watches. It drifts in
+// towards them as the shot goes on.
+message Shoulder {
+  // The player, by their id in the shot, who turns to face what we look at.
+  uint32 player = 1;
+  // What the camera looks at.
+  Point look = 2;
+  // In metres: behind them as the shot starts and as it ends, above the
+  // ground at their feet, and to their right, or their left if less than 0.
+  float back = 3;
+  float back_end = 4;
+  float up = 5;
+  float side = 6;
+  // In degrees, top to bottom, and for a tall picture.
+  float fov = 7;
+  float tall_fov = 8;
 }
 
 message Shot {
@@ -162,8 +201,18 @@ message Shot {
   repeated Monster monsters = 12;
   Sky sky = 13;
   repeated Pack packs = 14;
+  Shoulder shoulder = 15;
+  // The game's music under the shot: how loud, from 0, none, to 1, as loud
+  // as the game plays it at full, and how far into the track it starts, in
+  // seconds.
+  float music = 16;
+  float music_from = 17;
 }
 
 message Film {
   repeated Shot shots = 1;
+  // Cel shading's bands and outlines, as a player can turn them on in the
+  // settings. A film looks as the game does as it starts, without them,
+  // unless it says so, as the trailer does.
+  bool cel_shading = 2;
 }

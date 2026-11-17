@@ -28,6 +28,14 @@ class Weather {
   /// lands, which says what falls there.
   void set_land(const Terrain& terrain, int land);
 
+  /// Where the lightning strikes and how often comes from this, so that a
+  /// film's bolts strike where they did the last time.
+  void set_seed(uint32_t seed) { seed_ = seed; }
+
+  /// As soaked as this to start with, rather than as wet as the weather
+  /// would make it: for a film that starts after the rain.
+  void set_wetness(float wetness) { wetness_ = wetness; }
+
   /// Moves on by the seconds, under the sky, around the camera. Off, nothing
   /// falls, and the ground dries.
   void Update(float seconds, const protocol::Sky& sky, bool on,
@@ -59,6 +67,7 @@ class Weather {
   Shader shader_;
   std::optional<Terrain> terrain_;
   int land_ = 0;
+  uint32_t seed_ = 1;
   protocol::Sky sky_;
   bool on_ = true;
   /// The seconds the weather's moved on by, which everything falls by.

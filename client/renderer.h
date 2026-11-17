@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -51,9 +52,6 @@ class Renderer {
     atmosphere_.sky = background;
   }
 
-  /// For a film, which sets a sky of its own, without the server's.
-  Atmosphere* mutable_atmosphere() { return &atmosphere_; }
-
   /// The time of day and the weather, as the server sent them, and which of
   /// them the player wants to see. Until the first, the land has its own
   /// look all the time.
@@ -61,6 +59,19 @@ class Renderer {
     sky_ = sky;
     showing_ = showing;
   }
+
+  /// Changes the atmosphere each frame, after the time of day and the
+  /// weather: a film's own fog, sun or light.
+  void set_adjust(std::function<void(Atmosphere&)> adjust) {
+    adjust_ = std::move(adjust);
+  }
+
+  /// The atmosphere as the last frame drew it.
+  const Atmosphere& atmosphere() const { return atmosphere_; }
+
+  /// What falls from the sky, and the lightning, whose bolts the thunder
+  /// follows.
+  Weather& weather() { return *weather_; }
 
   const Camera3D& camera() const { return camera_; }
   void set_camera(const Camera3D& camera) { camera_ = camera; }
@@ -140,6 +151,7 @@ class Renderer {
   int land_ = 0;
   std::optional<protocol::Sky> sky_;
   Showing showing_;
+  std::function<void(Atmosphere&)> adjust_;
   Camera3D camera_ = GameCamera();
   std::vector<Cube> cubes_;
   std::vector<Figure> figures_;

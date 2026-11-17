@@ -1,0 +1,167 @@
+# Quiet shots of the world under its sky: someone stands with their back to
+# us, and we look over their shoulder at what they're watching, as the camera
+# drifts in. The sound is the game's own: the weather, the time of day, and
+# its music under them. Times are the film's seconds.
+
+# ---- The Meadows ------------------------------------------------------------
+
+# The sun going down over the sea, in a light rain.
+shots {
+  id: "rain-at-sunset"
+  land: "Meadows"
+  seconds: 50
+  sky { day: 0.733 days: 0.0002 weather: "RAIN" strength: 0.55 }
+  players { id: 1 name: "arthur" at { x: -150 z: 55 } level: 12 weapon: 1 wearing: [8, 9, 10] }
+  shoulder { player: 1 look { x: -420 z: 150 up: 14 } back: 3.2 back_end: 2.4 up: 2.1 side: 0.7 fov: 50 tall_fov: 64 }
+  music: 0.35
+  music_from: 0
+}
+
+# A storm coming in off the sea at dusk: lightning, and the thunder after it.
+shots {
+  id: "storm-over-the-sea"
+  land: "Meadows"
+  seconds: 50
+  sky { day: 0.775 weather: "STORM" strength: 0.95 }
+  players { id: 2 name: "elaine" at { x: -190 z: -12 } level: 11 weapon: 1 wearing: [8, 9, 10] }
+  shoulder { player: 2 look { x: -460 z: 70 up: 20 } back: 3.4 back_end: 2.6 up: 2.0 side: -0.7 fov: 52 tall_fov: 66 }
+  music: 0.3
+  music_from: 8
+}
+
+# After dusk, the fireflies over the meadow, and the crickets.
+shots {
+  id: "fireflies"
+  land: "Meadows"
+  seconds: 50
+  sky { day: 0.84 }
+  players { id: 3 name: "gawain" at { x: -1 z: 9 } level: 12 weapon: 6 wearing: [4, 5, 11] }
+  shoulder { player: 3 look { x: 60 z: 40 up: 2 } back: 3.0 back_end: 2.3 up: 1.9 side: 0.7 fov: 52 tall_fov: 66 }
+  music: 0.35
+  music_from: 16
+}
+
+# The sun coming up out of the sea, on the east coast.
+shots {
+  id: "sunrise-over-the-sea"
+  land: "Meadows"
+  seconds: 50
+  sky { day: 0.258 days: 0.0004 }
+  players { id: 5 name: "percival" at { x: 152 z: 100 } level: 12 weapon: 1 wearing: [8, 9, 10] }
+  shoulder { player: 5 look { x: 422 z: 195 up: 12 } back: 3.2 back_end: 2.4 up: 2.0 side: 0.7 fov: 50 tall_fov: 64 }
+  music: 0.35
+  music_from: 24
+}
+
+# Up on the mountain, where the rain falls as snow (a spare: a grey day).
+shots {
+  id: "snow-above-the-rain"
+  land: "Meadows"
+  seconds: 50
+  sky { day: 0.42 weather: "RAIN" strength: 0.85 }
+  players { id: 6 name: "nimue" at { x: -74 z: -132 } level: 14 weapon: 6 wearing: [4, 5, 11] }
+  shoulder { player: 6 look { x: 60 z: 0 up: -10 } back: 3.4 back_end: 2.6 up: 2.2 side: 0.7 fov: 52 tall_fov: 66 }
+  music: 0.3
+  music_from: 24
+}
+
+# The morning's mist, lifting as the sun gets up.
+shots {
+  id: "morning-mist"
+  land: "Meadows"
+  seconds: 50
+  sky { day: 0.3 days: 0.0004 weather: "MIST" strength: 0.85 strength_to: 0.3 }
+  players { id: 1 name: "arthur" at { x: -1 z: 9 } level: 12 weapon: 1 wearing: [8, 9, 10] }
+  shoulder { player: 1 look { x: 220 z: 80 up: 12 } back: 3.2 back_end: 2.4 up: 2.0 side: 0.7 fov: 52 tall_fov: 66 }
+  music: 0.35
+  music_from: 32
+}
+
+# The rain dying away, and the sun on the wet grass.
+shots {
+  id: "when-the-rain-stops"
+  land: "Meadows"
+  seconds: 50
+  sky { day: 0.6 weather: "RAIN" strength: 0.8 strength_to: 0 wetness: 1 }
+  players { id: 3 name: "gawain" at { x: 13 z: 7 } level: 12 weapon: 6 wearing: [4, 5, 11] }
+  shoulder { player: 3 look { x: -200 z: 60 up: 10 } back: 3.2 back_end: 2.4 up: 2.0 side: 0.7 fov: 52 tall_fov: 66 }
+  music: 0.35
+  music_from: 39
+}
+
+# A whole day in a minute, from before dawn to the stars.
+shots {
+  id: "a-whole-day"
+  land: "Meadows"
+  seconds: 60
+  sky { day: 0.2 days: 0.016667 }
+  players { id: 1 name: "arthur" at { x: -150 z: 55 } level: 12 weapon: 1 wearing: [8, 9, 10] }
+  shoulder { player: 1 look { x: -420 z: 150 up: 30 } back: 3.4 back_end: 3.0 up: 2.1 side: 0.7 fov: 56 tall_fov: 70 }
+  music: 0.35
+  music_from: 4
+}
+
+# Two of them, side by side, watching the rain come in at sunset.
+shots {
+  id: "watching-the-rain-together"
+  land: "Meadows"
+  seconds: 50
+  sky { day: 0.738 weather: "RAIN" strength: 0.7 }
+  players { id: 1 name: "arthur" at { x: -150 z: 55 } level: 12 weapon: 1 wearing: [8, 9, 10] }
+  players { id: 2 name: "elaine" at { x: -150.4 z: 53.8 } yaw: -70 level: 11 weapon: 1 wearing: [8, 9, 10] }
+  shoulder { player: 1 look { x: -420 z: 150 up: 14 } back: 3.8 back_end: 3.0 up: 2.2 side: 0.65 fov: 50 tall_fov: 66 }
+  music: 0.35
+  music_from: 12
+}
+
+# Low over the water, the rain falling into the sea.
+shots {
+  id: "rain-on-the-sea"
+  land: "Meadows"
+  seconds: 50
+  sky { day: 0.7 weather: "RAIN" strength: 0.75 }
+  players { id: 2 name: "elaine" at { x: -190 z: -12 } level: 11 weapon: 1 wearing: [8, 9, 10] }
+  shoulder { player: 2 look { x: -330 z: 20 up: 2 sea: true } back: 3.0 back_end: 2.4 up: 1.4 side: -0.8 fov: 54 tall_fov: 68 }
+  music: 0.3
+  music_from: 20
+}
+
+# ---- The Ashlands -----------------------------------------------------------
+
+# Fire falling from the sky into the lava.
+shots {
+  id: "fire-rain"
+  land: "Ashlands"
+  seconds: 50
+  sky { day: 0.55 weather: "FIRE" strength: 0.9 }
+  players { id: 4 name: "morgan" at { x: 46 z: -84 } level: 13 weapon: 6 wearing: [4, 5, 11] }
+  shoulder { player: 4 look { x: -30 z: -92 up: 3 sea: true } back: 3.4 back_end: 2.6 up: 2.3 side: 0.8 fov: 50 tall_fov: 64 }
+  music: 0.3
+  music_from: 28
+}
+
+# Ash falling at night, over the glowing lava.
+shots {
+  id: "ash-at-night"
+  land: "Ashlands"
+  seconds: 50
+  sky { day: 0.9 weather: "ASH" strength: 0.8 }
+  players { id: 5 name: "percival" at { x: -182 z: -8 } level: 12 weapon: 1 wearing: [8, 9, 10] }
+  shoulder { player: 5 look { x: -450 z: 40 up: -8 } back: 3.2 back_end: 2.4 up: 2.0 side: 0.7 fov: 52 tall_fov: 66 }
+  music: 0.3
+  music_from: 36
+}
+
+# ---- The Crypt --------------------------------------------------------------
+
+# Wisps over the glowing water, in the Crypt's endless night.
+shots {
+  id: "crypt-at-night"
+  land: "Crypt"
+  seconds: 50
+  sky { weather: "MIST" strength: 0.35 }
+  players { id: 2 name: "elaine" at { x: -42 z: -166 } level: 11 weapon: 1 wearing: [8, 9, 10] }
+  shoulder { player: 2 look { x: -200 z: -300 up: 3 } back: 3.2 back_end: 2.4 up: 2.0 side: 0.7 fov: 52 tall_fov: 66 }
+  music: 0.3
+  music_from: 2
+}
