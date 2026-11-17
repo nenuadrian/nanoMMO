@@ -193,6 +193,30 @@ void Overcast(Atmosphere& a, protocol::Weather weather, float w) {
       a.stars *= 1.0f - w;
       break;
     }
+    case protocol::WEATHER_ASH: {
+      const Rgb ash = Scale({1.12f, 1.0f, 0.95f}, bright * 0.9f);
+      a.sky = Mix(a.sky, ash, 0.6f * w);
+      a.zenith = Mix(a.zenith, Scale(ash, 0.6f), 0.6f * w);
+      a.fog_far = Mix(a.fog_far, a.fog_far * 0.6f, w);
+      a.sunlight = Scale(a.sunlight, 1.0f - 0.4f * w);
+      a.clouds = Mix(a.clouds, Scale({0.3f, 0.29f, 0.28f}, bright * 2.0f), w);
+      a.cloudiness = Mix(a.cloudiness, 1.0f, w);
+      a.disc = Scale(a.disc, 1.0f - 0.6f * w);
+      a.stars *= 1.0f - w;
+      break;
+    }
+    case protocol::WEATHER_FIRE: {
+      // The fire lights the smoke from below, whatever the time.
+      a.sky = Mix(a.sky, {0.55f, 0.17f, 0.07f}, 0.55f * w);
+      a.zenith = Mix(a.zenith, {0.2f, 0.05f, 0.03f}, 0.6f * w);
+      a.sunlight = Mix(a.sunlight, {0.9f, 0.4f, 0.2f}, 0.4f * w);
+      a.ambient = Mix(a.ambient, {0.36f, 0.18f, 0.12f}, 0.5f * w);
+      a.clouds = Mix(a.clouds, {0.34f, 0.1f, 0.05f}, w);
+      a.cloudiness = Mix(a.cloudiness, 1.0f, w);
+      a.fog_far = Mix(a.fog_far, a.fog_far * 0.7f, w);
+      a.stars *= 1.0f - w;
+      break;
+    }
     default:
       break;
   }

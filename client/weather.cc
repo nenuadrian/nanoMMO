@@ -69,19 +69,47 @@ struct Fall {
   float height;
   /// In metres a second.
   float speed;
+  /// How far a flake sways from side to side as it falls, in metres.
+  float sway;
   uint32_t salt;
 };
 
-constexpr Fall kRain = {
-    .count = 3200, .box = 38.0f, .height = 20.0f, .speed = 10.0f, .salt = 11};
+constexpr Fall kRain = {.count = 3200,
+                        .box = 38.0f,
+                        .height = 20.0f,
+                        .speed = 10.0f,
+                        .sway = 0.0f,
+                        .salt = 11};
+constexpr Fall kSnow = {.count = 1800,
+                        .box = 38.0f,
+                        .height = 18.0f,
+                        .speed = 1.4f,
+                        .sway = 0.35f,
+                        .salt = 23};
+constexpr Fall kEmbers = {.count = 900,
+                          .box = 64.0f,
+                          .height = 45.0f,
+                          .speed = 8.0f,
+                          .sway = 0.0f,
+                          .salt = 37};
+constexpr Fall kAsh = {.count = 1700,
+                       .box = 40.0f,
+                       .height = 20.0f,
+                       .speed = 1.1f,
+                       .sway = 0.5f,
+                       .salt = 41};
 
-// In metres in front of the camera: the middle of what falls.
+// In metres in front of the camera: the middle of what falls and glows.
 constexpr float kAhead = 12.0f;
 
-// A drop's splash lasts this long, in seconds.
+// Up from here, rain falls as snow, where the ground is white too.
+constexpr float kSnowLine = 19.0f;
+// A drop's splash, or an ember's sparks, last this long, in seconds.
 constexpr float kSplash = 0.3f;
+constexpr float kSparks = 0.45f;
 
 constexpr int kMeadowsLand = 0;
+constexpr int kAshlandsLand = 1;
 
 uint32_t Hash(uint32_t x) {
   x ^= x >> 16;
@@ -134,10 +162,13 @@ Spot Falling(const Fall& fall, int i, float clock, Vector3 middle, Vector2 wind,
     return Vector3{x, std::max(terrain.Height(x, z), Terrain::kSeaLevel), z};
   };
   const Vector3 lands = landing(k);
-  // Blown by the wind on its way down.
   const float left = (1.0f - age) * period;
-  return {.at = {lands.x - wind.x * left, lands.y + (1.0f - age) * fall.height,
-                 lands.z - wind.y * left},
+  const float phase = Unit(Hash(h, 3)) * 40.0f;
+  const float sway = fall.sway * std::sin(clock * 1.3f + phase);
+  const float sway_z = fall.sway * std::cos(clock * 1.1f + phase);
+  return {.at = {lands.x - wind.x * left + sway,
+                 lands.y + (1.0f - age) * fall.height,
+                 lands.z - wind.y * left + sway_z},
           .landed = landing(k - 1.0f),
           .since = age * period,
           .lands = lands};
@@ -186,6 +217,43 @@ float AwayFromTheEye(Vector3 at, Vector3 eye) {
 Color Faded(Color color, float by) {
   color.a = static_cast<unsigned char>(static_cast<float>(color.a) * by);
   return color;
+}
+
+// A round glow facing the eye: full in the middle, and nothing at its edge,
+// as a firefly's light is, rather than a square of it. One that's nearly at
+// the eye fades away, rather than fill the picture.
+void Glow(Vector3 at, float radius, Vector3 eye, Vector3 right, Vector3 up,
+          Color color, float glow) {
+  const float near =
+      std::clamp((Vector3Distance(at, eye) - 1.2f) / 1.8f, 0.0f, 1.0f);
+  if (near <= 0.0f) {
+    return;
+  }
+  glow *= near;
+  constexpr int kSides = 8;
+  const Color edge = {color.r, color.g, color.b, 0};
+  for (int i = 0; i < kSides; ++i) {
+    const auto rim = [&](int k) {
+      const float turn = 2.0f * PI * static_cast<float>(k) / kSides;
+      return Vector3Add(at,
+                        Vector3Add(Vector3Scale(right, radius * std::cos(turn)),
+                                   Vector3Scale(up, radius * std::sin(turn))));
+    };
+    Corner(at, color, glow);
+    Corner(rim(i), edge, glow);
+    Corner(rim(i + 1), edge, glow);
+  }
+}
+
+// A square facing the eye, with its sides along the camera's right and up.
+void Facing(Vector3 at, float half, Vector3 right, Vector3 up, Color color,
+            float glow) {
+  const Vector3 r = Vector3Scale(right, half);
+  const Vector3 u = Vector3Scale(up, half);
+  Quad({Vector3Add(Vector3Add(at, r), u), Vector3Add(Vector3Subtract(at, r), u),
+        Vector3Subtract(Vector3Subtract(at, r), u),
+        Vector3Subtract(Vector3Add(at, r), u)},
+       color, glow);
 }
 
 // A ring lying on the ground or the water, from inner to outer.
@@ -321,21 +389,25 @@ void Weather::Draw(const Camera3D& camera, const Atmosphere& atmosphere) const {
   rlDisableDepthMask();
   BeginShaderMode(shader_);
   BeginBlendMode(BLEND_ALPHA);
+  SetFloat(shader_, "added", 0.0f);
   // What falls fills a box a little in front of the camera, where we'd see
   // it, however far off it looks.
   const Vector3 ahead = Vector3Subtract(camera.target, camera.position);
   const Vector3 level = Vector3Normalize({ahead.x, 0.0f, ahead.z});
   const Vector3 middle =
       Vector3Add(camera.position, Vector3Scale(level, kAhead));
-  SetFloat(shader_, "added", 0.0f);
   rlBegin(RL_TRIANGLES);
   DrawFalling(camera, atmosphere, middle);
   rlEnd();
   EndBlendMode();
-  // The lightning's added onto what's behind it, and seen through the fog
-  // and the rain, however far off.
   BeginBlendMode(BLEND_ADDITIVE);
   SetFloat(shader_, "added", 1.0f);
+  // What burns is added onto what's behind it, so it glows.
+  rlBegin(RL_TRIANGLES);
+  DrawGlows(camera, middle);
+  rlEnd();
+  // The lightning's seen through the fog and the rain, however far off.
+  rlDrawRenderBatchActive();
   SetFloat(shader_, "fogNear", 1e5f);
   SetFloat(shader_, "fogFar", 2e5f);
   rlBegin(RL_TRIANGLES);
@@ -352,6 +424,11 @@ void Weather::DrawFalling(const Camera3D& camera, const Atmosphere& atmosphere,
   const Terrain& terrain = *terrain_;
   const Vector2 wind = {sky_.wind_x(), sky_.wind_z()};
   const float strength = std::clamp(sky_.strength(), 0.0f, 1.0f);
+  const Vector3 forward =
+      Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+  const Vector3 right =
+      Vector3Normalize(Vector3CrossProduct(forward, camera.up));
+  const Vector3 up = Vector3CrossProduct(right, forward);
   // Lit as much as the sky and the land around it are.
   std::array<float, 3> lit;
   for (int c = 0; c < 3; ++c) {
@@ -370,18 +447,96 @@ void Weather::DrawFalling(const Camera3D& camera, const Atmosphere& atmosphere,
     const Vector3 down = Vector3Normalize({wind.x, -kRain.speed, wind.y});
     for (int i = 0; i < drops; ++i) {
       const Spot spot = Falling(kRain, i, clock_, middle, wind, terrain);
+      if (spot.lands.y > kSnowLine) {
+        continue;
+      }
       const Vector3 tail = Vector3Subtract(spot.at, Vector3Scale(down, 0.7f));
       const Color seen = Faded(drop, AwayFromTheEye(spot.at, camera.position));
       Streak(spot.at, tail, 0.03f, camera.position, seen,
              {seen.r, seen.g, seen.b, 0}, 1.0f);
       // Where it landed a moment ago, a ring that spreads and fades, wider on
       // the water.
-      if (spot.since < kSplash) {
+      if (spot.since < kSplash && spot.landed.y <= kSnowLine) {
         const float t = spot.since / kSplash;
         const bool water = spot.landed.y <= Terrain::kSeaLevel + 0.001f;
         const float r = (water ? 0.08f : 0.04f) + (water ? 0.32f : 0.16f) * t;
         Ring(spot.landed, r * 0.75f, r,
              tinted({1.1f, 1.15f, 1.25f}, (water ? 0.5f : 0.32f) * (1.0f - t)));
+      }
+    }
+    const int flakes = static_cast<int>(kSnow.count * strength);
+    const Color flake = tinted({1.5f, 1.5f, 1.6f}, 0.92f);
+    for (int i = 0; i < flakes; ++i) {
+      const Spot spot =
+          Falling(kSnow, i, clock_, middle, Vector2Scale(wind, 0.6f), terrain);
+      if (spot.lands.y <= kSnowLine) {
+        continue;
+      }
+      Facing(spot.at, 0.022f, right, up,
+             Faded(flake, AwayFromTheEye(spot.at, camera.position)), 1.0f);
+    }
+  }
+
+  if (land_ == kAshlandsLand) {
+    const float ash = sky_.weather() == protocol::WEATHER_ASH ? strength
+                      : sky_.weather() == protocol::WEATHER_FIRE
+                          ? 0.45f * strength
+                          : 0.0f;
+    const Color flake = tinted({0.5f, 0.47f, 0.45f}, 0.88f);
+    const int flakes = static_cast<int>(kAsh.count * ash);
+    for (int i = 0; i < flakes; ++i) {
+      const Spot spot =
+          Falling(kAsh, i, clock_, middle, Vector2Scale(wind, 0.8f), terrain);
+      // Tumbling: bigger and smaller as it turns.
+      const float turn = 0.6f + 0.4f * std::sin(clock_ * 2.7f + i * 1.7f);
+      Facing(spot.at, 0.045f * turn, right, up,
+             Faded(flake, AwayFromTheEye(spot.at, camera.position)), 1.0f);
+    }
+  }
+}
+
+void Weather::DrawGlows(const Camera3D& camera, Vector3 middle) const {
+  const Terrain& terrain = *terrain_;
+  const Vector3 forward =
+      Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+  const Vector3 right =
+      Vector3Normalize(Vector3CrossProduct(forward, camera.up));
+  const Vector3 up = Vector3CrossProduct(right, forward);
+  const float strength = std::clamp(sky_.strength(), 0.0f, 1.0f);
+  const Vector2 wind = {sky_.wind_x(), sky_.wind_z()};
+
+  if (land_ == kAshlandsLand) {
+    // Fire falling from the sky in a firestorm.
+    if (sky_.weather() == protocol::WEATHER_FIRE) {
+      const int embers = static_cast<int>(kEmbers.count * strength);
+      const Vector3 down = Vector3Normalize({wind.x, -kEmbers.speed, wind.y});
+      for (int i = 0; i < embers; ++i) {
+        const Spot spot = Falling(kEmbers, i, clock_, middle, wind, terrain);
+        const Vector3 tail = Vector3Subtract(spot.at, Vector3Scale(down, 1.3f));
+        const float away = AwayFromTheEye(spot.at, camera.position);
+        Streak(spot.at, tail, 0.09f, camera.position,
+               Faded({255, 205, 120, 255}, away), {255, 80, 15, 0}, 4.5f);
+        // Where it landed, sparks fly out and fall, and on the lava, a ring
+        // of light spreads.
+        if (spot.since < kSparks) {
+          const float t = spot.since;
+          const uint32_t h = Hash(static_cast<uint32_t>(i), 977u);
+          if (spot.landed.y <= Terrain::kSeaLevel + 0.001f) {
+            const float r = 0.15f + 0.9f * t / kSparks;
+            Ring(spot.landed, r * 0.6f, r,
+                 {255, 140, 40,
+                  static_cast<unsigned char>(200 * (1.0f - t / kSparks))},
+                 2.5f);
+          }
+          for (int s = 0; s < 4; ++s) {
+            const float a = 2.0f * PI * (s + Unit(Hash(h, s))) / 4.0f;
+            const Vector3 at = {spot.landed.x + std::cos(a) * 2.2f * t,
+                                spot.landed.y + 2.6f * t - 6.0f * t * t + 0.05f,
+                                spot.landed.z + std::sin(a) * 2.2f * t};
+            Glow(at, 0.045f, camera.position, right, up, {255, 170, 60, 255},
+                 4.0f * (1.0f - t / kSparks));
+          }
+        }
       }
     }
   }

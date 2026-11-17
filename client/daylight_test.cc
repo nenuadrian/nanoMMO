@@ -10,6 +10,7 @@
 namespace {
 
 constexpr int kMeadowsLand = 0;
+constexpr int kAshlandsLand = 1;
 constexpr int kCryptLand = 2;
 
 nanommo::protocol::Sky At(
@@ -81,6 +82,18 @@ TEST(Daylight, GreysAndDarkensTheSkyInTheRain) {
   const nanommo::Atmosphere gone = nanommo::AtmosphereUnder(
       kMeadowsLand, At(0.5f, nanommo::protocol::WEATHER_RAIN, 0.0f), {});
   EXPECT_EQ(gone.sky, dry.sky);
+}
+
+TEST(Daylight, LightsTheSmokeRedFromBelowInAFirestorm) {
+  const nanommo::Atmosphere night =
+      nanommo::AtmosphereUnder(kAshlandsLand, At(0.0f), {});
+  const nanommo::Atmosphere fire = nanommo::AtmosphereUnder(
+      kAshlandsLand, At(0.0f, nanommo::protocol::WEATHER_FIRE, 1.0f), {});
+  // Brighter than the night, whatever the time, and red.
+  EXPECT_GT(Brightness(fire.sky), Brightness(night.sky));
+  EXPECT_GT(fire.sky[0], 2.0f * fire.sky[1]);
+  EXPECT_FLOAT_EQ(fire.cloudiness, 1.0f);
+  EXPECT_FLOAT_EQ(fire.stars, 0.0f);
 }
 
 TEST(Daylight, ShowsTheLandsOwnLookWithDayAndNightTurnedOff) {

@@ -14,8 +14,9 @@
 namespace nanommo {
 
 /// What the sky lets fall, and the lightning, drawn around the camera from the
-/// sky the server sent. Each drop is worked out from the clock alone, where it
-/// is in its fall, so nothing is kept for any of them between frames.
+/// sky the server sent. Each drop, flake and ember is worked out from the clock
+/// alone, where it is in its fall, so nothing is kept for any of them between
+/// frames.
 class Weather {
  public:
   Weather();
@@ -61,6 +62,7 @@ class Weather {
 
   void DrawFalling(const Camera3D& camera, const Atmosphere& atmosphere,
                    Vector3 middle) const;
+  void DrawGlows(const Camera3D& camera, Vector3 middle) const;
   void DrawStrike(const Camera3D& camera) const;
   float StrikeLight() const;
 
