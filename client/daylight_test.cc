@@ -36,7 +36,7 @@ TEST(Daylight, RisesInTheEastAndSetsInTheWest) {
 
 TEST(Daylight, KeepsTheLandsOwnLookAtNoon) {
   const nanommo::Atmosphere noon =
-      nanommo::AtmosphereUnder(kMeadowsLand, At(0.5f));
+      nanommo::AtmosphereUnder(kMeadowsLand, At(0.5f), {});
   EXPECT_EQ(noon.sky, nanommo::kMeadows.atmosphere.sky);
   EXPECT_EQ(noon.ambient, nanommo::kMeadows.atmosphere.ambient);
   EXPECT_FLOAT_EQ(noon.stars, 0.0f);
@@ -46,9 +46,9 @@ TEST(Daylight, KeepsTheLandsOwnLookAtNoon) {
 
 TEST(Daylight, IsDarkerAtNightWithTheMoonUpAndTheStarsOut) {
   const nanommo::Atmosphere night =
-      nanommo::AtmosphereUnder(kMeadowsLand, At(0.0f));
+      nanommo::AtmosphereUnder(kMeadowsLand, At(0.0f), {});
   const nanommo::Atmosphere noon =
-      nanommo::AtmosphereUnder(kMeadowsLand, At(0.5f));
+      nanommo::AtmosphereUnder(kMeadowsLand, At(0.5f), {});
   EXPECT_LT(Brightness(night.sky), Brightness(noon.sky));
   EXPECT_LT(Brightness(night.ambient), Brightness(noon.ambient));
   EXPECT_LT(Brightness(night.sunlight), Brightness(noon.sunlight));
@@ -57,11 +57,19 @@ TEST(Daylight, IsDarkerAtNightWithTheMoonUpAndTheStarsOut) {
   EXPECT_GT(night.sun[1], 0.9f);
 }
 
+TEST(Daylight, ShowsTheLandsOwnLookWithDayAndNightTurnedOff) {
+  const nanommo::Atmosphere off =
+      nanommo::AtmosphereUnder(kMeadowsLand, At(0.0f), {.day_night = false});
+  EXPECT_EQ(off.sky, nanommo::kMeadows.atmosphere.sky);
+  EXPECT_EQ(off.sun, nanommo::kMeadows.atmosphere.sun);
+  EXPECT_EQ(off.sunlight, nanommo::kMeadows.atmosphere.sunlight);
+}
+
 TEST(Daylight, KeepsTheCryptsNightAllDay) {
   const nanommo::Atmosphere noon =
-      nanommo::AtmosphereUnder(kCryptLand, At(0.5f));
+      nanommo::AtmosphereUnder(kCryptLand, At(0.5f), {});
   const nanommo::Atmosphere midnight =
-      nanommo::AtmosphereUnder(kCryptLand, At(0.0f));
+      nanommo::AtmosphereUnder(kCryptLand, At(0.0f), {});
   EXPECT_EQ(noon.sky, midnight.sky);
   EXPECT_EQ(noon.sun, nanommo::kCrypt.atmosphere.sun);
   EXPECT_GT(noon.stars, 0.0f);

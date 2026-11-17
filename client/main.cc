@@ -442,8 +442,9 @@ int main(int argc, char* argv[]) {
         target_player = 0;
       }
       renderer.set_figures(std::move(figures));
-      // The light follows the time of day the server sent.
-      renderer.set_sky(world.sky());
+      // The light follows the time of day the server sent, if the player
+      // wants it to.
+      renderer.set_sky(world.sky(), {.day_night = settings.graphics.day_night});
       renderer.Animate(GetFrameTime());
       // We hear from where we stand, with the camera's right to our right.
       if (soundboard) {
@@ -720,8 +721,7 @@ int main(int argc, char* argv[]) {
                         bag_window.mutable_visible(),
                         guild_window.mutable_visible(), &map_open);
       bool reset_hotbar = false;
-      switch (menu.Build(settings, *renderer.mutable_atmosphere(),
-                         nanommo::kLooks[land].atmosphere, &reset_hotbar)) {
+      switch (menu.Build(settings, &reset_hotbar)) {
         case nanommo::Menu::Choice::kLogOut:
           connection.reset();
           break;

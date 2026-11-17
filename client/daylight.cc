@@ -158,13 +158,14 @@ std::array<float, 3> SunAt(float day) {
   return Normalized({std::cos(turn), std::sin(turn), 0.35f});
 }
 
-Atmosphere AtmosphereUnder(int land, const protocol::Sky& sky) {
+Atmosphere AtmosphereUnder(int land, const protocol::Sky& sky,
+                           const Showing& showing) {
   const std::size_t at = static_cast<std::size_t>(land) % kLooks.size();
   Atmosphere a = kLooks[at].atmosphere;
   const bool turns = !kLands[at].dungeon;
   if (!turns) {
     a.stars = kCryptStars;
-  } else {
+  } else if (showing.day_night) {
     const Times& times = at == 1 ? kAshlandsTimes : kMeadowsTimes;
     a = Through(kLooks[at].atmosphere, times, sky.day());
     // The sun while it's up, and the moon, across from it, while it's down.

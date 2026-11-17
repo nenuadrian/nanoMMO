@@ -15,6 +15,7 @@ message Graphics {
   optional bool bloom = 1;
   optional bool cel_shading = 2;
   optional bool antialias = 3;
+  optional bool day_night = 4;
 }
 
 // How the interface looks and is laid out.

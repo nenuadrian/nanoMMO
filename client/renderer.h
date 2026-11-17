@@ -50,12 +50,16 @@ class Renderer {
     atmosphere_.sky = background;
   }
 
-  /// For the settings window, which edits the atmosphere in place.
+  /// For a film, which sets a sky of its own, without the server's.
   Atmosphere* mutable_atmosphere() { return &atmosphere_; }
 
-  /// The sky the server sent, whose time of day the light follows. Until
-  /// the first, the land has its own look all the time.
-  void set_sky(const protocol::Sky& sky) { sky_ = sky; }
+  /// The sky the server sent, whose time of day the light follows, if the
+  /// player wants to see it. Until the first, the land has its own look all
+  /// the time.
+  void set_sky(const protocol::Sky& sky, const Showing& showing) {
+    sky_ = sky;
+    showing_ = showing;
+  }
 
   const Camera3D& camera() const { return camera_; }
   void set_camera(const Camera3D& camera) { camera_ = camera; }
@@ -133,6 +137,7 @@ class Renderer {
   Atmosphere atmosphere_ = kMeadows.atmosphere;
   int land_ = 0;
   std::optional<protocol::Sky> sky_;
+  Showing showing_;
   Camera3D camera_ = GameCamera();
   std::vector<Cube> cubes_;
   std::vector<Figure> figures_;

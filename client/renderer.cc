@@ -426,7 +426,7 @@ void Renderer::Animate(float seconds) {
   clock_ += seconds;
   // The light for the time of day the server sent.
   if (sky_) {
-    atmosphere_ = AtmosphereUnder(land_, *sky_);
+    atmosphere_ = AtmosphereUnder(land_, *sky_, showing_);
   }
 }
 

@@ -12,6 +12,9 @@ struct GraphicsSettings {
   bool cel_shading = false;
   /// Smooths the world's edges, with FXAA.
   bool antialias = true;
+  /// The sun across the sky and the night after it. Off, it's always the
+  /// land's day.
+  bool day_night = true;
 
   bool operator==(const GraphicsSettings&) const = default;
 };

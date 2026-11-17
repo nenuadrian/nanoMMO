@@ -19,7 +19,10 @@ TEST(Settings, KeepsThemBetweenRuns) {
   const std::string path = TestPath("kept.txtpb");
   const nanommo::Settings settings = {
       .sound = {.master = 0.5f, .music = 0.25f, .muted = true},
-      .graphics = {.bloom = false, .cel_shading = true, .antialias = false},
+      .graphics = {.bloom = false,
+                   .cel_shading = true,
+                   .antialias = false,
+                   .day_night = false},
       .ui = {.scale = 1.25f, .minimap_turns = true, .hotbar = {3, 1, 2}}};
   ASSERT_TRUE(nanommo::SaveSettings(path, settings).ok());
 

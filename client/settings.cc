@@ -79,6 +79,9 @@ absl::StatusOr<Settings> LoadSettings(const std::string& path) {
   if (graphics.has_antialias()) {
     loaded.graphics.antialias = graphics.antialias();
   }
+  if (graphics.has_day_night()) {
+    loaded.graphics.day_night = graphics.day_night();
+  }
   const settings::Interface& ui = file.ui();
   if (ui.has_scale() && !std::isnan(ui.scale())) {
     loaded.ui.scale = std::clamp(ui.scale(), 0.5f, 2.0f);
@@ -99,6 +102,7 @@ absl::Status SaveSettings(const std::string& path, const Settings& player) {
   file.mutable_graphics()->set_bloom(player.graphics.bloom);
   file.mutable_graphics()->set_cel_shading(player.graphics.cel_shading);
   file.mutable_graphics()->set_antialias(player.graphics.antialias);
+  file.mutable_graphics()->set_day_night(player.graphics.day_night);
   file.mutable_ui()->set_scale(player.ui.scale);
   file.mutable_ui()->set_minimap_turns(player.ui.minimap_turns);
   for (const uint32_t skill : player.ui.hotbar) {
