@@ -61,6 +61,7 @@ class Parts {
   uint32_t respawn_ = 0;
   uint32_t acked_ = 0;
   bool steered_ = false;
+  protocol::Sky sky_;
   std::map<uint32_t, uint32_t> cooldowns_;
   std::vector<uint32_t> skills_;
   int64_t sent_ = 0;

@@ -33,6 +33,7 @@
 #include "server/listen.h"
 #include "server/shown.h"
 #include "server/stories.h"
+#include "server/weather.h"
 #include "terrain/lands.h"
 #include "tracy/Tracy.hpp"
 
@@ -1154,6 +1155,8 @@ void Server::BroadcastCopy(const Copy& copy, bool full) {
     }
   }
   const int64_t sent = NowMicros();
+  // The same for everyone in the land, from the wall clock.
+  const protocol::Sky sky = SkyAt(copy.land, UnixMs());
   for (const auto& [cell, view] :
        Views(land.players(), land.monsters(), copy.npc_cells)) {
     for (const uint32_t id : view.here) {
@@ -1171,9 +1174,10 @@ void Server::BroadcastCopy(const Copy& copy, bool full) {
           pieces.push_back(npcs.at(npc));
         }
       }
-      const protocol::World you =
+      protocol::World you =
           YouIn(id, land.players().at(id), seed_ + kLands[copy.land].seed,
                 copy.land, inputs_.acked(id));
+      *you.mutable_sky() = sky;
       std::string own = you.SerializeAsString();
       const auto udp = udp_clients_.find(id);
       if (udp != udp_clients_.end()) {

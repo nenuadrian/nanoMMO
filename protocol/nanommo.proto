@@ -298,6 +298,34 @@ message World {
   // Your duel, which comes the same way, as it's asked for, counts down,
   // starts and ends.
   Duel duel = 27;
+  // The sky over your land, in every datagram, as it's so small.
+  Sky sky = 28;
+}
+
+// What's falling, or hanging in the air. Each land has its own: rain and
+// storms over the Meadows, ash and fire over the Ashlands, mist in the Crypt.
+enum Weather {
+  WEATHER_CLEAR = 0;
+  WEATHER_CLOUDY = 1;
+  WEATHER_RAIN = 2;
+  WEATHER_STORM = 3;
+  WEATHER_MIST = 4;
+  WEATHER_ASH = 5;
+  WEATHER_FIRE = 6;
+}
+
+// The time of day and the weather, which the server works out from the clock,
+// so that everyone in a land sees the same sky.
+message Sky {
+  // How far through the day: 0 is midnight, 0.25 sunrise, 0.5 noon and 0.75
+  // sunset.
+  float day = 1;
+  Weather weather = 2;
+  // How much of it, from 0 to 1, which rises as it comes and falls as it goes.
+  float strength = 3;
+  // Which way the wind blows, and how hard, in metres a second.
+  float wind_x = 4;
+  float wind_z = 5;
 }
 
 // To the login server: log in with a name and password, or make an account,

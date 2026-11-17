@@ -167,6 +167,24 @@ TEST(Parts, TakesYourWaitToComeBackFromTheNewestWorld) {
   EXPECT_EQ(assembled.world().respawn(), 0u);
 }
 
+TEST(Parts, TakesTheSkyFromTheNewestWorld) {
+  nanommo::protocol::World first = MakeWorld(1, 1);
+  first.mutable_sky()->set_day(0.5f);
+  first.mutable_sky()->set_weather(nanommo::protocol::WEATHER_RAIN);
+  first.mutable_sky()->set_strength(0.8f);
+  nanommo::Parts assembled;
+  assembled.Add(first);
+  EXPECT_FLOAT_EQ(assembled.world().sky().day(), 0.5f);
+  EXPECT_EQ(assembled.world().sky().weather(), nanommo::protocol::WEATHER_RAIN);
+
+  nanommo::protocol::World second = MakeWorld(1, 2);
+  second.mutable_sky()->set_day(0.51f);
+  assembled.Add(second);
+  EXPECT_FLOAT_EQ(assembled.world().sky().day(), 0.51f);
+  EXPECT_EQ(assembled.world().sky().weather(),
+            nanommo::protocol::WEATHER_CLEAR);
+}
+
 TEST(Parts, KeepsNpcsBetweenTheWorldsThatSendThemUntilTheyAreGone) {
   constexpr int64_t kSecond = 1'000'000;
   nanommo::protocol::World full = MakeWorld(1, kSecond);

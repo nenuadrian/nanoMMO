@@ -15,6 +15,7 @@
 #include "server/monsters.h"
 #include "server/npcs.h"
 #include "server/shown.h"
+#include "server/weather.h"
 #include "terrain/lands.h"
 #include "terrain/terrain.h"
 
@@ -173,6 +174,8 @@ void LocalConnection::Show() {
   world.MergeFrom(YouIn(kYou, world_.players().at(kYou),
                         kSeed + kLands[kLand].seed, kLand,
                         inputs_.acked(kYou)));
+  // The sky the servers would give the land now.
+  *world.mutable_sky() = SkyAt(kLand, UnixMs());
   parts_.Add(world);
   shown_ = parts_.world();
 }
