@@ -299,7 +299,7 @@ a big red one low in the Ashlands' smoke, and a pale moon over the Crypt.
   land's clouds are its own and the same each time. The wind blows them along at two and a half
   metres a second, through a square 900 metres wide around the camera: one that leaves it comes back
   in on the other side, after fading into the horizon. `cloudiness` says how many of a land's forty
-  are out.
+  are out, which the time of day and the weather change (see [The weather](#the-weather)).
 - Each face is lit by the sun from its own slope, worked out in the shader from how the position
   changes across the pixel, so the clouds are as faceted as everything else. A face smaller than a
   pixel has no slope to speak of, and is lit as if it faced up, as normalizing nothing gives NaN,
@@ -309,6 +309,49 @@ a big red one low in the Ashlands' smoke, and a pale moon over the Crypt.
   some of the sun's light away where it passes through one.
 - The sea's waves and the clouds go by the renderer's own clock, which `Animate` moves on, rather
   than the window's, so that a film can run it slower (see [Cinema](cinema.md)).
+
+## Day and night
+
+The server sends the time of day with each world (`World.sky`, see
+[decision 0037](decisions/0037-the-server-owns-the-sky.md)): 0 is midnight, 0.25 sunrise, 0.5 noon
+and 0.75 sunset, and a day takes 40 minutes. `AtmosphereUnder` (`client/daylight.h`) works out the
+land's atmosphere for it each frame.
+
+- A land's own look is its day. The Meadows and the Ashlands have a dawn, a dusk and a night as
+  well (`kMeadowsTimes`, `kAshlandsTimes`), and the look goes from night to dawn to day between
+  0.18 and 0.33, and from day to dusk to night between 0.67 and 0.82: every colour, the fog, the
+  sun's disc, the clouds' colour and how many are out.
+- The sun rises in the east, passes overhead a little to the south, and sets in the west
+  (`SunAt`). While it's down, the moon lights the land from across the sky from it, with the
+  night's pale disc. Each one's light fades out as it reaches the horizon, so the moment the light
+  comes from the other side is never seen.
+- At night the stars come out on the sky's ball: the sky is cut into cells as seen looking up, a
+  few of them have a star, bright enough to bloom, and each twinkles in its own time. Weather that
+  covers the sky covers them.
+- The Crypt has no days: its night with its moon stays, and its stars are out when the mist lets
+  them.
+- Day and night, in the Graphics settings, turns it off: it's the land's day all the time.
+
+## The weather
+
+The server sends the weather too: what it is, how strong, from 0 to 1 as it comes and goes, and
+the wind. The atmosphere goes greyer, darker and nearer under rain, darker still in a storm, and
+pale and close in mist, with the clouds out and the sun dimmed. What falls from the sky is
+`Weather` (`client/weather.h`), which the renderer draws after the sea.
+
+- Each drop is worked out from the clock alone: its place in its fall, from the top of a box around
+  the camera to the ground under it, and where it lands each time round, from a hash of its number
+  and the round. Nothing is kept between frames, and the box follows the camera by wrapping round,
+  as the clouds do.
+- Rain falls at 10 metres a second as streaks, slanted by the wind, and each drop leaves a ring
+  where it lands, wider on the water.
+- The rain soaks the ground over a minute or so, and the sun dries it over three: the world's
+  shader darkens what faces up as it's wet, and the sun shines off it, where it comes back to the
+  eye.
+- A storm throws lightning, more often the stronger it is, mostly ahead of the camera, where it's
+  seen: a jagged line from the clouds to the ground with a fork off it, bright enough to bloom, that
+  flickers, and a flash that lights the sky and everything under it.
+- Weather, in the Graphics settings, turns it off: the sky's always clear.
 
 ## Post-processing
 

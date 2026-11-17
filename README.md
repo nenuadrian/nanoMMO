@@ -84,7 +84,7 @@ How each part of the game works is in `docs/`, a page each, which the
   quests, chat, guilds, trading and duels.
 - [Content](docs/content.md): the items, monsters, NPCs, quests and skills, as data the servers, the client and the bots read.
 - [NPCs](docs/npcs.md): who stands where, and the storyteller, which tells stories with mvGPT.
-- [Graphics and sound](docs/graphics.md): the characters, the interface, the map, the sky, the music, the sound effects, made from numbers, and the post-processing: bloom, cel shading and anti-aliasing.
+- [Graphics and sound](docs/graphics.md): the characters, the interface, the map, the sky, day and night, the weather, the music, the sound effects, made from numbers, and the post-processing: bloom, cel shading and anti-aliasing.
 - [Cinema](docs/cinema.md): filming the game frame by frame, in slow motion, with a stage of players and monsters, for the trailer.
 - [The island](docs/island.md): the ground, the trees and the sea, made from a seed, and drawing them fast.
 - [Worlds and lands](docs/worlds.md): the game servers, which Consul lists, and each world's lands and dungeons.

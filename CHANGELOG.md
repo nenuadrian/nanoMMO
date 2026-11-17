@@ -7,6 +7,18 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.85.0 (2026-11-17)
+
+- Day and night: the server sends each land's time of day with each world, `World.sky`, worked out
+  from the wall clock, and a day takes 40 minutes. The sun rises in the east and sets in the west,
+  the moon lights the night, and the stars come out. The Crypt's night stays.
+- Weather: the server sends each land's weather too, in spells of 6 to 15 minutes, by each land's
+  odds: rain, storms, cloud and morning mist in the Meadows, ash and fire in the Ashlands, and mist
+  in the Crypt. The client greys the sky under the rain and the cloud, and pulls the fog in under
+  the mist. Rain falls and splashes, and wets the ground, which the sun dries, and storms throw
+  lightning that lights up the sky.
+- The settings' Sky page is gone. Graphics has Weather and Day and night, to turn either off.
+
 ## 0.84.0 (2026-11-16)
 
 - A world boss: the Bone Colossus, in the Meadows at 8, -44, four and a half metres tall, level

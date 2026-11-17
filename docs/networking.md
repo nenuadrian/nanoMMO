@@ -222,6 +222,15 @@ milliseconds, and duels only, is
 To see it, put a delay on the server's packets with the `netem` service, start a duel, and have
 the other player run out of reach as a blow comes.
 
+## The sky
+
+Each player's own part of the world carries the sky over their land, `World`'s `sky` (28): the
+time of day, the weather, how strong it is, and the wind ([Graphics](graphics.md#day-and-night),
+[decision 0037](decisions/0037-the-server-owns-the-sky.md)). The server works it out from the wall
+clock (`server/weather.h`), so it's nothing to keep, and it's about 25 bytes, so it goes in every
+world, and a client that loses one has it again a twentieth of a second later. `Parts` keeps the
+newest world's.
+
 ## What a modified client can try
 
 The client runs on the player's machine, so anything it sends can be made up. `nanommo_cheat` is
