@@ -3,14 +3,17 @@
 `nanommo_cinema` films the game: shots of the lands, drawn through the client's own renderer a frame
 at a time rather than as fast as the screen goes, so each frame takes as long as it needs, at any
 size, and the game's clock can run slower than the film's. Each shot goes into a video with the
-game's sounds. The trailer is made with it.
+game's sounds. The trailer is made with it, and the quiet shots of the weather.
 
 ```sh
 ./build/bin/nanommo_cinema cinema/trailer.txtpb out
 ./build/bin/nanommo_cinema cinema/trailer.txtpb out shots=earthsplitter size=3840x2160
 ./build/bin/nanommo_cinema cinema/trailer.txtpb out shots=earthsplitter tall=1   # 1080x1920
 ./build/bin/nanommo_cinema cinema/trailer.txtpb out still=2.5                    # one frame, as a PNG
+./build/bin/nanommo_cinema cinema/weather.txtpb out cel=1                        # with cel shading
 ./build/bin/nanommo_cinema scout Meadows 9                                       # open ground
+./build/bin/nanommo_cinema peaks Meadows                                         # high places
+./build/bin/nanommo_cinema shores Ashlands                                       # by the sea
 ```
 
 It needs ffmpeg on the path, which takes the frames as raw pixels on its input and adds the sound.
@@ -24,6 +27,22 @@ the camera is, what it looks at and its lens, which it passes through on a smoot
 ground under a point, or above the sea with `sea`, which keeps a camera flying over hills level.
 `tall` and `tall_orbit` give a short's vertical frame a camera of its own, and `sky` changes the
 land's sky for the shot: the fog, where the sun is, how cloudy, and how much light.
+
+A film looks as the game does when it starts, without cel shading, unless the film turns it on
+(`cel_shading: true`), as the trailer does for its cartoon look, or `cel=1` or `cel=0` says
+otherwise on the command line.
+
+- A `sky` can have a time of day and weather, as the server sends them (see
+  [Day and night](graphics.md#day-and-night)): `day`, with `days` to let the day go by, a day a
+  minute at 1/60, and `weather` by its name, RAIN or FIRE, with its `strength`, and `strength_to`
+  for weather that comes or goes in the shot. `wetness` starts the ground wet, after the rain. The
+  fog, sun, light and clouds the shot sets go over them, each frame. The lightning strikes where it
+  did the last time the shot was filmed, from the shot's name.
+- `shoulder` is a camera behind a player, over their shoulder, at a height above their feet and to
+  their side, looking past them at something far off, and drifting in from `back` to `back_end`.
+  The player turns to face what it looks at. `nanommo_cinema peaks <land>` and `shores <land>` list
+  the highest places and the places by the sea, a dozen apart, for someone to stand and look out
+  from. `cinema/weather.txtpb` has the weather's shots.
 
 ## Slow motion
 
@@ -48,3 +67,8 @@ water within the radius, to stage a fight on.
 Each shot's sound is mixed as it's filmed, from what the client would play: each cast's sound and
 each foot put down, heard from where the camera looks, as the game hears from where you stand. A
 sound made while the game is slowed plays slower and lower, by less than the picture slows.
+
+A shot with a time of day or weather has the [weather's sounds](graphics.md#the-weathers-sounds)
+under the rest, as the client would play them where the camera looks, with each bolt's thunder
+after it, and `music` lays the game's own music under it all, as loud as that, from `music_from`
+seconds into the track, fading in and out with the shot.

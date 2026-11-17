@@ -81,6 +81,7 @@ certificate, such as Caddy's or Let's Encrypt's, takes `wss://` on 443 and passe
 | A texture read back | In its own format | As RGBA bytes, the only way WebGL 2 reads pixels (`FBO_READ_TEXTURE_AS_RGBA`) |
 | The bones' matrices | Transposed by OpenGL, with its flag | Transposed on the CPU, by our patch to raylib, as raylib 6.2 does for one matrix there but not for an array |
 | The music | The licensed track in `assets/music`, when it's there | Left out, as its licence doesn't let us hand out the file |
+| The weather's recordings | The rain, the fire, the gust and the teleport in `assets/sounds`, when they're there | Left out, for the same reason: the weather's sounds are made from numbers, as they are anywhere without the files |
 
 The protocol's login and TLS code, the servers, the bots and the tools aren't in the web build.
 

@@ -7,6 +7,22 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.86.0 (2026-11-17)
+
+- Snow falls above 19 metres in the Meadows, where the ground is white. Ash tumbles over the
+  Ashlands, and in a firestorm, embers fall, burst into sparks where they land, and spread rings of
+  light on the lava, while the fire lights the smoke red.
+- Fireflies over the Meadows' grass at night, wisps in the Crypt, and sparks rising off the
+  Ashlands' lava.
+- The weather and the time of day have sounds of their own, made as the game starts: rain, on the
+  ground and on the water, wind, fire, lava, crickets, birds, owls, drips, and thunder that comes
+  as long after its flash as sound takes to come that far. Where there are recordings in
+  `assets/sounds/`, the rain, the fire and gusts of wind are real, and going through a gate
+  sounds like a teleport.
+- `nanommo_cinema` films the time of day and the weather, over a player's shoulder, with the game's
+  sound and music under the shot, lists a land's peaks and shores, and draws as the game does unless
+  a film asks for cel shading.
+
 ## 0.85.0 (2026-11-17)
 
 - Day and night: the server sends each land's time of day with each world, `World.sky`, worked out

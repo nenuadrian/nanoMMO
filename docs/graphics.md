@@ -268,7 +268,9 @@ starts, in about a third of a second, so there are no files for them in the repo
   thumps. The fx's colour sets the
   pitch, from 110 hertz for red to 440 for blue, so frost rings higher than fire, and ice shards ring
   like glass where earth knocks.
-- Going through a gate, a sound rises two octaves as the loading screen covers the world. Coming out,
+- Going through a gate, a sound rises two octaves as the loading screen covers the world, or, where
+  there's a recording of a teleport in `assets/sounds/`, that plays, as loud as the sound it
+  replaces at its loudest. Coming out,
   and entering the world, the land's chord is struck like a glockenspiel's bars: C major in the
   Meadows, A minor in the Ashlands, and a diminished chord in the Crypt.
 - `client/soundboard.h` makes eight takes of each step and three of each skill, and plays a take at a time on
@@ -335,23 +337,57 @@ land's atmosphere for it each frame.
 ## The weather
 
 The server sends the weather too: what it is, how strong, from 0 to 1 as it comes and goes, and
-the wind. The atmosphere goes greyer, darker and nearer under rain, darker still in a storm, and
-pale and close in mist, with the clouds out and the sun dimmed. What falls from the sky is
-`Weather` (`client/weather.h`), which the renderer draws after the sea.
+the wind. The atmosphere goes greyer, darker and nearer under rain, darker still in a storm, pale
+and close in mist, brown under ash, and red under fire, with the clouds out and the sun dimmed.
+What falls and what glows is `Weather` (`client/weather.h`), which the renderer draws after the sea.
 
-- Each drop is worked out from the clock alone: its place in its fall, from the top of a box around
-  the camera to the ground under it, and where it lands each time round, from a hash of its number
-  and the round. Nothing is kept between frames, and the box follows the camera by wrapping round,
-  as the clouds do.
+- Each drop, flake and ember is worked out from the clock alone: its place in its fall, from the
+  top of a box around the camera to the ground under it, and where it lands each time round, from
+  a hash of its number and the round. Nothing is kept between frames, and a box of them follows the
+  camera by wrapping round, as the clouds do.
 - Rain falls at 10 metres a second as streaks, slanted by the wind, and each drop leaves a ring
-  where it lands, wider on the water.
+  where it lands, wider on the water. Above 19 metres, where the ground is white, it falls as snow,
+  slowly, swaying.
 - The rain soaks the ground over a minute or so, and the sun dries it over three: the world's
   shader darkens what faces up as it's wet, and the sun shines off it, where it comes back to the
   eye.
 - A storm throws lightning, more often the stronger it is, mostly ahead of the camera, where it's
   seen: a jagged line from the clouds to the ground with a fork off it, bright enough to bloom, that
   flickers, and a flash that lights the sky and everything under it.
-- Weather, in the Graphics settings, turns it off: the sky's always clear.
+- The Ashlands get ash, grey flakes that tumble as they fall, and fire, embers with trails that
+  burst into sparks where they land, and spread a ring of light on the lava.
+- What glows is drawn as round lights, full in the middle and fading to nothing at the edge, added
+  onto what's behind them: fireflies over the Meadows' grass from dusk to dawn, unless it's
+  raining, blinking each in its own time; pale wisps drifting in the Crypt; and sparks rising off
+  the Ashlands' lava, more of them at night. Each is in a cell of the ground around the camera, by a
+  hash of the cell, so they stay where they are as the camera moves.
+- Weather, in the Graphics settings, turns it off, and its sounds: the sky's always clear.
+
+## The weather's sounds
+
+`Ambience` (`client/ambience.h`) is the weather and the time of day as sound, made from numbers as
+the game starts, like the [sound effects](#sound-effects), and played on a raylib audio stream that
+the game fills a twentieth of a second at a time, so that it goes on without a gap.
+
+- Loops of eight seconds, each made a little longer and folded so that its end leads into its
+  start: rain, as hundreds of drops a second, each a short tick of its own pitch, over a soft low bed,
+  never a hiss like a television's; a downpour, as thousands; drops on water, which ring up in pitch,
+  as each traps a bubble; the wind, noise through a band that wanders and swells; fire falling,
+  crackles in bursts with a hiss now and then; the lava's slow low bubbles; and crickets, each
+  chirping three quick pulses on its own pitch.
+- `HearingOf` says how loud each should be from the land, the sky, and whether there's water near:
+  rain on the water by the sea, crickets and owls at night, birds in the morning, none of them in a
+  downpour, and drips off the Crypt's stone. Each loop glides to its level over a second and a half.
+- Now and then, made as they come: a bird's few sliding notes, an owl's hoo, hoo-hoo, a drip with
+  its echo. A bolt's thunder comes as long after its flash as sound takes to come that far, at 343
+  metres a second: a crack when it's near, then a long low roll that swells as it goes.
+- Where there's a recording in `assets/sounds/` (see its README), the client plays it in place of
+  what it makes: a minute of real rain, from other places in the same minute for a downpour and
+  for the rain on the sea, a minute of fire crackling, and a gust of wind that blows now and then
+  over the wind, more often the windier it is. Each loop is folded like the others, and played as
+  loud as the one it replaces. The recordings are Pixabay's, which we may use but not hand out, so
+  they stay out of git, as the music does, and a browser makes its own.
+- It's as loud as the Effects setting, and quiet off the world.
 
 ## Post-processing
 
