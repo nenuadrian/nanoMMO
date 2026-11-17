@@ -4,10 +4,12 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <ctime>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -15,6 +17,7 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "client/ambience.h"
 #include "client/animator.h"
 #include "client/atmosphere.h"
 #include "client/audio.h"
@@ -126,6 +129,10 @@ int main(int argc, char* argv[]) {
   nanommo::Footsteps footsteps;
   nanommo::Casts casts;
   nanommo::Passage passage;
+  // The weather and the time of day, as sound, all the time.
+  std::unique_ptr<nanommo::Ambience> ambience;
+  std::unique_ptr<nanommo::Stream> ambience_stream;
+  nanommo::Hearing hearing;
   const std::string settings_path = nanommo::SettingsPath();
   nanommo::Settings settings;
   if (absl::StatusOr<nanommo::Settings> loaded =
@@ -149,6 +156,9 @@ int main(int argc, char* argv[]) {
       std::cerr << "nanommo client: " << music_or.status() << "\n";
     }
     soundboard = std::make_unique<nanommo::Soundboard>(*audio, content->skills);
+    ambience = std::make_unique<nanommo::Ambience>(
+        static_cast<uint32_t>(std::time(nullptr)));
+    ambience_stream = nanommo::Stream::Open(*audio);
   } else {
     std::cerr << "nanommo client: " << audio_or.status() << "\n";
   }
@@ -469,6 +479,29 @@ int main(int argc, char* argv[]) {
           soundboard->Skill(figure.to_skill,
                             figure.target != 0 || figure.target_player != 0,
                             nanommo::Hear(figure.position, here, right));
+        }
+        // By the sea, if there's water a few steps from us, which the rain
+        // falls on.
+        bool by_water = false;
+        for (const auto& [dx, dz] : {std::pair{0.0f, 0.0f},
+                                     {8.0f, 0.0f},
+                                     {-8.0f, 0.0f},
+                                     {0.0f, 8.0f},
+                                     {0.0f, -8.0f}}) {
+          by_water = by_water || terrain->Height(here.x + dx, here.z + dz) <
+                                     nanommo::Terrain::kSeaLevel;
+        }
+        nanommo::protocol::Sky sky = world.sky();
+        if (!settings.graphics.day_night) {
+          sky.set_day(0.5f);
+        }
+        hearing =
+            nanommo::HearingOf(land, sky, by_water, settings.graphics.weather);
+        for (const nanommo::Bolt& bolt : renderer.weather().TakeBolts()) {
+          if (ambience) {
+            ambience->Thunder(Vector3Distance(bolt.at, here),
+                              nanommo::Hear(bolt.at, here, right).pan);
+          }
         }
       }
       // A click on someone to talk to opens their window, one on a monster,
@@ -806,6 +839,16 @@ int main(int argc, char* argv[]) {
       }
       music->SetVolume(nanommo::Gain(settings.sound.music) * jukebox.volume());
       music->Update();
+    }
+    // Out of the world, it fades to quiet.
+    if (ambience_stream) {
+      if (!in_world) {
+        hearing = nanommo::Hearing();
+      }
+      ambience_stream->SetVolume(nanommo::Gain(settings.sound.effects));
+      ambience_stream->Feed([&](std::span<float> left, std::span<float> right) {
+        ambience->Fill(left, right, hearing);
+      });
     }
     if (soundboard) {
       soundboard->set_volume(nanommo::Gain(settings.sound.effects));

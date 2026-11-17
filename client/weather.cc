@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "client/daylight.h"
@@ -373,6 +374,7 @@ void Weather::Update(float seconds, const protocol::Sky& sky, bool on,
   }
   strike_.at = clock_;
   strike_.near = 1.0f - 0.5f * (away - 110.0f) / 230.0f;
+  bolts_.push_back({.at = {x, ground, z}});
   // The stronger the storm, the more often.
   next_bolt_ = (5.0f + 11.0f * Unit(Hash(h, 2))) / (0.5f + sky.strength());
 }
@@ -396,6 +398,8 @@ float Weather::StrikeLight() const {
 }
 
 float Weather::flash() const { return 0.85f * strike_.near * StrikeLight(); }
+
+std::vector<Bolt> Weather::TakeBolts() { return std::exchange(bolts_, {}); }
 
 void Weather::Draw(const Camera3D& camera, const Atmosphere& atmosphere) const {
   if (!terrain_ || !on_) {

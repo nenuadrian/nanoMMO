@@ -1,7 +1,7 @@
 add_library(nanommo_client_core
   settings.proto
   window.cc audio.cc jukebox.cc sound.cc synth.cc foley.cc soundscape.cc soundboard.cc
-  daylight.cc weather.cc
+  ambience.cc daylight.cc weather.cc
   settings.cc gui.cc menu.cc renderer.cc
   offscreen.cc postprocess.cc outline.cc
   camera.cc scene.cc input.cc glsl.cc local_connection.cc inbox.cc
@@ -111,7 +111,7 @@ add_executable(nanommo_client_tests
   theme_test.cc compass_test.cc predicted_bag_test.cc chat_window_test.cc
   trade_window_test.cc duel_window_test.cc inbox_test.cc
   round_trip_test.cc prediction_test.cc interpolation_test.cc
-  daylight_test.cc
+  daylight_test.cc ambience_test.cc
 )
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)
 add_dependencies(nanommo_client_tests nanommo_client_assets)

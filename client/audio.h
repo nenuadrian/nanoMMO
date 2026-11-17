@@ -4,7 +4,9 @@
 #include <raylib.h>
 
 #include <cstddef>
+#include <functional>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -87,6 +89,33 @@ class Clip {
   /// raylib's aliases of the sound, which play its samples without copies.
   std::vector<Sound> voices_;
   std::size_t next_ = 0;
+};
+
+/// Sound we make as it plays, two channels a buffer at a time, for what goes
+/// on and on, such as the rain.
+class Stream {
+ public:
+  static std::unique_ptr<Stream> Open(const AudioDevice& device);
+  ~Stream();
+
+  Stream(const Stream&) = delete;
+  Stream& operator=(const Stream&) = delete;
+
+  /// Asks for more, into the left and the right, for each buffer that's
+  /// played out. raylib needs this each frame, as a track's Update.
+  void Feed(
+      const std::function<void(std::span<float>, std::span<float>)>& fill);
+
+  /// From nothing to full.
+  void SetVolume(float volume);
+
+ private:
+  explicit Stream(AudioStream stream) : stream_(stream) {}
+
+  AudioStream stream_;
+  std::vector<float> left_;
+  std::vector<float> right_;
+  std::vector<float> both_;
 };
 
 }  // namespace nanommo

@@ -15,8 +15,8 @@ struct GraphicsSettings {
   /// The sun across the sky and the night after it. Off, it's always the
   /// land's day.
   bool day_night = true;
-  /// The server's weather: rain, cloud and mist. Off, the sky is always
-  /// clear.
+  /// The server's weather: rain, snow, fire and mist, the fireflies, and their
+  /// sounds. Off, the sky is always clear.
   bool weather = true;
 
   bool operator==(const GraphicsSettings&) const = default;

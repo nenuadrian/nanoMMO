@@ -13,6 +13,11 @@
 
 namespace nanommo {
 
+/// Where a bolt of lightning struck, for its thunder to come from.
+struct Bolt {
+  Vector3 at;
+};
+
 /// What the sky lets fall, what glows in the dark, and the lightning, drawn
 /// around the camera from the sky the server sent. Each drop, flake and ember
 /// is worked out from the clock alone, where it is in its fall, so nothing is
@@ -52,6 +57,9 @@ class Weather {
   /// How bright the sky is from a bolt that's just struck, from 0 to 1.
   float flash() const;
 
+  /// The bolts that struck since the last time, once each.
+  std::vector<Bolt> TakeBolts();
+
  private:
   struct Strike {
     std::vector<Vector3> points;
@@ -80,6 +88,7 @@ class Weather {
   float next_bolt_ = 3.0f;
   uint32_t bolts_struck_ = 0;
   Strike strike_;
+  std::vector<Bolt> bolts_;
 };
 
 }  // namespace nanommo

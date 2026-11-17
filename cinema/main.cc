@@ -22,6 +22,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -29,6 +30,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "cinema/film.h"
+#include "client/ambience.h"
 #include "client/animator.h"
 #include "client/atmosphere.h"
 #include "client/audio.h"
@@ -109,8 +111,8 @@ void WriteWave(const std::string& path, const std::vector<float>& left,
   }
 }
 
-// The shot's sounds, mixed over what's playing all along, the music, into two
-// channels as long as the shot.
+// The shot's sounds, mixed over what's playing all along, the weather and the
+// music, into two channels as long as the shot.
 void Mix(const std::vector<Sound>& sounds, float seconds,
          std::vector<float> left, std::vector<float> right,
          const std::string& path) {
@@ -247,6 +249,7 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
   if (shot.sky().has_wetness()) {
     renderer.weather().set_wetness(shot.sky().wetness());
   }
+  nanommo::Ambience ambience(shot_seed);
   std::vector<float> bed_left, bed_right;
   nanommo::Animator animator(content);
   nanommo::PostProcess post;
@@ -369,6 +372,32 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
         ExportImage(image, absl::StrCat(name, ".png").c_str());
       }
       UnloadImage(image);
+    }
+    // The weather's sound, and the thunder of each bolt, heard where the
+    // camera looks, up to the end of this frame.
+    if (video != nullptr && skied) {
+      const Vector3 ears = camera.target;
+      for (const nanommo::Bolt& bolt : renderer.weather().TakeBolts()) {
+        ambience.Thunder(Vector3Distance(bolt.at, ears),
+                         nanommo::Hear(bolt.at, ears, right).pan);
+      }
+      bool by_water = false;
+      for (const auto& [dx, dz] : {std::pair{0.0f, 0.0f},
+                                   {8.0f, 0.0f},
+                                   {-8.0f, 0.0f},
+                                   {0.0f, 8.0f},
+                                   {0.0f, -8.0f}}) {
+        by_water = by_water || terrain.Height(ears.x + dx, ears.z + dz) <
+                                   nanommo::Terrain::kSeaLevel;
+      }
+      const size_t from = bed_left.size();
+      const size_t to = static_cast<size_t>(
+          std::lround((frame + 1) / options.fps * nanommo::kRate));
+      bed_left.resize(to, 0.0f);
+      bed_right.resize(to, 0.0f);
+      ambience.Fill(std::span(bed_left).subspan(from),
+                    std::span(bed_right).subspan(from),
+                    nanommo::HearingOf(land, sky_at(now), by_water, true));
     }
     moved = clock.Advance(1.0f / options.fps);
   }
