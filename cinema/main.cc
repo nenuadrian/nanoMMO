@@ -137,7 +137,7 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
   const nanommo::Terrain terrain = nanommo::cinema::TerrainOf(land);
   nanommo::Renderer renderer(content);
   renderer.set_cel_shading(options.cel);
-  renderer.set_terrain(terrain, nanommo::kLooks[land]);
+  renderer.set_terrain(terrain, land);
   renderer.set_cubes(nanommo::GateCubes(terrain, land));
   nanommo::Atmosphere* sky = renderer.mutable_atmosphere();
   if (shot.sky().fog_near() > 0.0f) {

@@ -42,12 +42,34 @@ uniform vec3 zenith;
 uniform vec3 sun;
 uniform vec3 disc;
 uniform float edge;
+uniform float stars;
+uniform float seconds;
 out vec4 pixel;
+
+float Hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
 
 void main() {
   vec3 look = normalize(direction);
   vec3 toward = normalize(sun);
   vec3 color = mix(horizon, zenith, smoothstep(0.0, 0.6, max(look.y, 0.0)));
+  // The stars: the sky cut into cells, as seen looking up, with a star in a
+  // few of them, bright enough to bloom, each twinkling in its own time, and
+  // fewer down by the horizon.
+  if (stars > 0.0 && look.y > 0.0) {
+    vec2 at = look.xz / (look.y + 0.4) * 110.0;
+    vec2 cell = floor(at);
+    if (Hash(cell) > 0.982) {
+      vec2 middle = cell + 0.25 + 0.5 * vec2(Hash(cell + 3.1), Hash(cell + 7.7));
+      float near = 1.0 - smoothstep(0.05, 0.16, length(at - middle));
+      float twinkle = 0.75 + 0.25 * sin(seconds * (2.0 + 3.0 * Hash(cell + 1.3))
+                                        + 40.0 * Hash(cell + 9.1));
+      float bright = 1.2 + 2.2 * Hash(cell + 5.3);
+      color += vec3(0.9, 0.95, 1.0) * stars * near * bright * twinkle
+               * smoothstep(0.02, 0.25, look.y);
+    }
+  }
   float facing = max(dot(look, toward), 0.0);
   color += disc * (0.06 * pow(facing, 48.0) + 0.02 * pow(facing, 6.0));
   // The disc, with its edge smoothed over a few pixels' worth of angle.
@@ -187,6 +209,8 @@ void Sky::Draw(const Camera3D& camera, const Atmosphere& atmosphere,
   SetVec3(dome_shader_, "disc", atmosphere.disc);
   SetFloat(dome_shader_, "edge",
            std::cos(atmosphere.disc_size * 0.5f * DEG2RAD));
+  SetFloat(dome_shader_, "stars", atmosphere.stars);
+  SetFloat(dome_shader_, "seconds", seconds);
   // From inside, behind everything, so it hides nothing.
   rlDisableBackfaceCulling();
   rlDisableDepthMask();

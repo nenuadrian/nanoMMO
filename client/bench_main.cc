@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
   SetTargetFPS(0);
   const nanommo::Terrain terrain(seed);
   nanommo::Renderer renderer;
-  renderer.set_terrain(terrain, nanommo::kMeadows);
+  renderer.set_terrain(terrain, 0);
   nanommo::FollowCamera camera;
 
   constexpr float kRadius = 80.0f;

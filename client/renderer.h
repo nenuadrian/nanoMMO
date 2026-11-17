@@ -17,6 +17,7 @@
 #include "client/characters.h"
 #include "client/chunks.h"
 #include "client/cube.h"
+#include "client/daylight.h"
 #include "client/fx.h"
 #include "client/outline.h"
 #include "client/reactions.h"
@@ -52,15 +53,19 @@ class Renderer {
   /// For the settings window, which edits the atmosphere in place.
   Atmosphere* mutable_atmosphere() { return &atmosphere_; }
 
+  /// The sky the server sent, whose time of day the light follows. Until
+  /// the first, the land has its own look all the time.
+  void set_sky(const protocol::Sky& sky) { sky_ = sky; }
+
   const Camera3D& camera() const { return camera_; }
   void set_camera(const Camera3D& camera) { camera_ = camera; }
 
   /// Cel shading's bands and outlines, on or off. It starts off.
   void set_cel_shading(bool on);
 
-  /// Builds the terrain's meshes in the look's colours, in place of any we
-  /// had, and takes on the look's atmosphere.
-  void set_terrain(const Terrain& terrain, const Look& look);
+  /// Builds the terrain's meshes in the colours of the land's look, by its
+  /// place in the lands, in place of any we had, and takes on its atmosphere.
+  void set_terrain(const Terrain& terrain, int land);
 
   void set_cubes(std::vector<Cube> cubes) { cubes_ = std::move(cubes); }
 
@@ -83,14 +88,9 @@ class Renderer {
 
   /// Moves the skills' fx, the sea's waves and the clouds on by the seconds,
   /// as the figures are now. Then the monsters take their blows, and those
-  /// that just landed hold their players, and them, still for a moment.
-  void Animate(float seconds) {
-    fx_->Update(figures_, seconds);
-    reactions_.Update(seconds);
-    reactions_.Apply(figures_);
-    fx_->Hold(figures_);
-    clock_ += seconds;
-  }
+  /// that just landed hold their players, and them, still for a moment. The
+  /// sky's light is worked out again, for the time of day now.
+  void Animate(float seconds);
 
   /// The player hit the monster, both by their ids.
   void Struck(uint32_t monster, uint32_t player) {
@@ -131,6 +131,8 @@ class Renderer {
   void DrawFigure(const Figure& figure) const;
 
   Atmosphere atmosphere_ = kMeadows.atmosphere;
+  int land_ = 0;
+  std::optional<protocol::Sky> sky_;
   Camera3D camera_ = GameCamera();
   std::vector<Cube> cubes_;
   std::vector<Figure> figures_;
@@ -163,7 +165,7 @@ class Renderer {
   std::map<uint32_t, std::unique_ptr<Characters>> monsters_;
   std::unique_ptr<Fx> fx_;
   Reactions reactions_;
-  std::unique_ptr<Sky> sky_;
+  std::unique_ptr<Sky> sky_dome_;
 };
 
 }  // namespace nanommo

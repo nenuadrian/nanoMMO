@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
@@ -353,7 +354,7 @@ Renderer::Renderer(const Content& content)
       spire_(LoadModelFromMesh(Spire().Upload())),
       characters_(content.rig, character_shader_, content.figures),
       fx_(std::make_unique<Fx>(content.skills, cube_shader_, content.items)),
-      sky_(std::make_unique<Sky>()) {
+      sky_dome_(std::make_unique<Sky>()) {
   for (Model* model : {&cube_, &disc_, &spire_}) {
     model->materials[0].shader = cube_shader_;
   }
@@ -391,14 +392,16 @@ Renderer::~Renderer() {
   UnloadShader(cube_shader_);
 }
 
-void Renderer::set_terrain(const Terrain& terrain, const Look& look) {
+void Renderer::set_terrain(const Terrain& terrain, int land) {
   UnloadTerrain();
   terrain_ = terrain;
+  land_ = land;
+  const Look& look = kLooks[static_cast<std::size_t>(land) % kLooks.size()];
   atmosphere_ = look.atmosphere;
   // The ground and the trees have no bones either.
   chunks_ = LoadChunks(terrain, look, tree_, cube_shader_);
   sea_ = std::make_unique<Sea>(terrain, look);
-  sky_->Gather(terrain.seed());
+  sky_dome_->Gather(terrain.seed());
 }
 
 void Renderer::set_cel_shading(bool on) {
@@ -412,6 +415,18 @@ void Renderer::set_cel_shading(bool on) {
   for (const Shader& shader : {cube_shader_, character_shader_}) {
     SetShaderValue(shader, GetShaderLocation(shader, "bands"), &bands,
                    SHADER_UNIFORM_FLOAT);
+  }
+}
+
+void Renderer::Animate(float seconds) {
+  fx_->Update(figures_, seconds);
+  reactions_.Update(seconds);
+  reactions_.Apply(figures_);
+  fx_->Hold(figures_);
+  clock_ += seconds;
+  // The light for the time of day the server sent.
+  if (sky_) {
+    atmosphere_ = AtmosphereUnder(land_, *sky_);
   }
 }
 
@@ -446,13 +461,13 @@ void Renderer::Draw() const {
   camera.position = Vector3Add(camera.position, shake);
   camera.target = Vector3Add(camera.target, shake);
   if (terrain_) {
-    sky_->Shade(cube_shader_, camera, atmosphere, clock_);
-    sky_->Shade(character_shader_, camera, atmosphere, clock_);
+    sky_dome_->Shade(cube_shader_, camera, atmosphere, clock_);
+    sky_dome_->Shade(character_shader_, camera, atmosphere, clock_);
   }
   BeginMode3D(camera);
   // First, as it's behind everything.
   if (terrain_) {
-    sky_->Draw(camera, atmosphere, clock_);
+    sky_dome_->Draw(camera, atmosphere, clock_);
   }
   // As BeginMode3D set them up, so we cull with what the GPU will use.
   const Matrix view_projection =

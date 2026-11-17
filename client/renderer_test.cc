@@ -52,7 +52,7 @@ TEST(Renderer, DrawsTheTerrainBelowTheSky) {
   ASSERT_TRUE(window.ok());
   nanommo::Offscreen target(64, 64);
   nanommo::Renderer renderer;
-  renderer.set_terrain(nanommo::Terrain(1), nanommo::kMeadows);
+  renderer.set_terrain(nanommo::Terrain(1), 0);
   renderer.set_background({30 / 255.0f, 144 / 255.0f, 255 / 255.0f});
   // Looking out to sea, level with the horizon.
   renderer.set_camera({.position = {0.0f, 10.0f, 0.0f},
@@ -102,7 +102,7 @@ TEST(Renderer, DrawsAMonstersSkillOnTheGroundTheWayItWasAimed) {
   nanommo::Offscreen target(64, 64);
   nanommo::Renderer renderer;
   const nanommo::Terrain terrain(1);
-  renderer.set_terrain(terrain, nanommo::kMeadows);
+  renderer.set_terrain(terrain, 0);
   // High over the middle of the land, looking down, with z up the screen, and
   // a metre and a half about five pixels.
   const float ground = terrain.Height(0.0f, 0.0f);

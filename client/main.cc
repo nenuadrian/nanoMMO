@@ -339,7 +339,7 @@ int main(int argc, char* argv[]) {
                    ? static_cast<int>(world.land())
                    : 0;
         terrain.emplace(world.seed());
-        renderer.set_terrain(*terrain, nanommo::kLooks[land]);
+        renderer.set_terrain(*terrain, land);
         renderer.set_cubes(nanommo::GateCubes(*terrain, land));
         land_map.Build(*terrain, land);
         std::cout << "nanommo client: in the " << nanommo::kLands[land].name
@@ -442,6 +442,8 @@ int main(int argc, char* argv[]) {
         target_player = 0;
       }
       renderer.set_figures(std::move(figures));
+      // The light follows the time of day the server sent.
+      renderer.set_sky(world.sky());
       renderer.Animate(GetFrameTime());
       // We hear from where we stand, with the camera's right to our right.
       if (soundboard) {

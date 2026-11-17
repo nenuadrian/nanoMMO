@@ -34,6 +34,9 @@ struct Atmosphere {
   /// are out, from none to all of them.
   std::array<float, 3> clouds;
   float cloudiness = 0.5f;
+  /// How many of the stars show, from none in the day to all of them on a
+  /// clear night.
+  float stars = 0.0f;
 };
 
 /// What a land's sea is made of: its colours, its waves and its light.
