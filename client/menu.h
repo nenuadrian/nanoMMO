@@ -8,7 +8,7 @@ namespace nanommo {
 /// The game's menu, which Escape opens over the world when nothing else is
 /// open, and the settings it leads to: the interface, sound, graphics, and the
 /// keys. The sky is the server's, so there's nothing of it to set, except to
-/// turn the day and the night off.
+/// turn the weather, or the day and the night, off.
 class Menu {
  public:
   bool open() const { return open_; }

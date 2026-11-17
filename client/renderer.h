@@ -25,6 +25,7 @@
 #include "client/sky.h"
 #include "client/telegraphs.h"
 #include "client/trees.h"
+#include "client/weather.h"
 #include "content/content.h"
 #include "terrain/terrain.h"
 
@@ -53,9 +54,9 @@ class Renderer {
   /// For a film, which sets a sky of its own, without the server's.
   Atmosphere* mutable_atmosphere() { return &atmosphere_; }
 
-  /// The sky the server sent, whose time of day the light follows, if the
-  /// player wants to see it. Until the first, the land has its own look all
-  /// the time.
+  /// The time of day and the weather, as the server sent them, and which of
+  /// them the player wants to see. Until the first, the land has its own
+  /// look all the time.
   void set_sky(const protocol::Sky& sky, const Showing& showing) {
     sky_ = sky;
     showing_ = showing;
@@ -90,10 +91,11 @@ class Renderer {
   /// none, if it's doing neither.
   std::optional<Gait> GaitOf(const Figure& figure) const;
 
-  /// Moves the skills' fx, the sea's waves and the clouds on by the seconds,
-  /// as the figures are now. Then the monsters take their blows, and those
-  /// that just landed hold their players, and them, still for a moment. The
-  /// sky's light is worked out again, for the time of day now.
+  /// Moves the skills' fx, the sea's waves, the clouds and the weather on by
+  /// the seconds, as the figures are now. Then the monsters take their blows,
+  /// and those that just landed hold their players, and them, still for a
+  /// moment. The sky's light is worked out again, for the time and the
+  /// weather now.
   void Animate(float seconds);
 
   /// The player hit the monster, both by their ids.
@@ -171,6 +173,7 @@ class Renderer {
   std::unique_ptr<Fx> fx_;
   Reactions reactions_;
   std::unique_ptr<Sky> sky_dome_;
+  std::unique_ptr<Weather> weather_;
 };
 
 }  // namespace nanommo

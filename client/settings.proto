@@ -16,6 +16,7 @@ message Graphics {
   optional bool cel_shading = 2;
   optional bool antialias = 3;
   optional bool day_night = 4;
+  optional bool weather = 5;
 }
 
 // How the interface looks and is laid out.

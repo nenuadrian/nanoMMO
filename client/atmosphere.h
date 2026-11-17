@@ -37,6 +37,9 @@ struct Atmosphere {
   /// How many of the stars show, from none in the day to all of them on a
   /// clear night.
   float stars = 0.0f;
+  /// How wet the ground is after rain, from dry to soaked: darker, and
+  /// shining where the light comes off it.
+  float wetness = 0.0f;
 };
 
 /// What a land's sea is made of: its colours, its waves and its light.

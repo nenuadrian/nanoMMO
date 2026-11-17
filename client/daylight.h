@@ -10,15 +10,17 @@ namespace nanommo {
 /// though a little to the south, at noon, and down in the west at 0.75.
 std::array<float, 3> SunAt(float day);
 
-/// What turns on and off: the time of day.
+/// What turns on and off: the time of day, and the weather.
 struct Showing {
   bool day_night = true;
+  bool weather = true;
 };
 
 /// The land's atmosphere under the sky the server sent: its day, dawn, dusk
-/// or night, with the sun or the moon where the time puts it. A land without
-/// days, the Crypt, keeps its own night. Without the time of day, it's the
-/// land's own look.
+/// or night, with the sun or the moon where the time puts it, and darker,
+/// greyer and nearer under the weather. A land without days, the Crypt, keeps
+/// its own night, and takes only the weather. Without the time of day, it's
+/// the land's own look.
 Atmosphere AtmosphereUnder(int land, const protocol::Sky& sky,
                            const Showing& showing);
 

@@ -179,6 +179,7 @@ void Menu::BuildSettings(Settings& settings, bool* reset_hotbar) {
       ImGui::Checkbox("Cel shading", &settings.graphics.cel_shading);
       ImGui::Checkbox("Anti-aliasing", &settings.graphics.antialias);
       ImGui::SeparatorText(ICON_FA_CLOUD_SUN "  Sky");
+      ImGui::Checkbox("Weather", &settings.graphics.weather);
       ImGui::Checkbox("Day and night", &settings.graphics.day_night);
       break;
     case Page::kKeys:

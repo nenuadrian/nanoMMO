@@ -1,5 +1,6 @@
 #include "client/daylight.h"
 
+#include <algorithm>
 #include <array>
 
 #include "client/atmosphere.h"
@@ -11,9 +12,14 @@ namespace {
 constexpr int kMeadowsLand = 0;
 constexpr int kCryptLand = 2;
 
-nanommo::protocol::Sky At(float day) {
+nanommo::protocol::Sky At(
+    float day,
+    nanommo::protocol::Weather weather = nanommo::protocol::WEATHER_CLEAR,
+    float strength = 0.0f) {
   nanommo::protocol::Sky sky;
   sky.set_day(day);
+  sky.set_weather(weather);
+  sky.set_strength(strength);
   return sky;
 }
 
@@ -57,12 +63,43 @@ TEST(Daylight, IsDarkerAtNightWithTheMoonUpAndTheStarsOut) {
   EXPECT_GT(night.sun[1], 0.9f);
 }
 
+TEST(Daylight, GreysAndDarkensTheSkyInTheRain) {
+  const nanommo::Atmosphere dry =
+      nanommo::AtmosphereUnder(kMeadowsLand, At(0.5f), {});
+  const nanommo::Atmosphere wet = nanommo::AtmosphereUnder(
+      kMeadowsLand, At(0.5f, nanommo::protocol::WEATHER_RAIN, 1.0f), {});
+  EXPECT_LT(Brightness(wet.sunlight), Brightness(dry.sunlight));
+  EXPECT_LT(wet.fog_far, dry.fog_far);
+  EXPECT_FLOAT_EQ(wet.cloudiness, 1.0f);
+  // Grey: its colours closer together than the blue sky's.
+  const auto spread = [](const std::array<float, 3>& c) {
+    return std::max({c[0], c[1], c[2]}) - std::min({c[0], c[1], c[2]});
+  };
+  EXPECT_LT(spread(wet.sky), spread(dry.sky));
+
+  // None of it, when it's gone.
+  const nanommo::Atmosphere gone = nanommo::AtmosphereUnder(
+      kMeadowsLand, At(0.5f, nanommo::protocol::WEATHER_RAIN, 0.0f), {});
+  EXPECT_EQ(gone.sky, dry.sky);
+}
+
 TEST(Daylight, ShowsTheLandsOwnLookWithDayAndNightTurnedOff) {
   const nanommo::Atmosphere off =
       nanommo::AtmosphereUnder(kMeadowsLand, At(0.0f), {.day_night = false});
   EXPECT_EQ(off.sky, nanommo::kMeadows.atmosphere.sky);
   EXPECT_EQ(off.sun, nanommo::kMeadows.atmosphere.sun);
   EXPECT_EQ(off.sunlight, nanommo::kMeadows.atmosphere.sunlight);
+}
+
+TEST(Daylight, KeepsTheSkyClearWithTheWeatherTurnedOff) {
+  const nanommo::Atmosphere clear =
+      nanommo::AtmosphereUnder(kMeadowsLand, At(0.5f), {});
+  const nanommo::Atmosphere off = nanommo::AtmosphereUnder(
+      kMeadowsLand, At(0.5f, nanommo::protocol::WEATHER_STORM, 1.0f),
+      {.weather = false});
+  EXPECT_EQ(off.sky, clear.sky);
+  EXPECT_EQ(off.sunlight, clear.sunlight);
+  EXPECT_FLOAT_EQ(off.fog_far, clear.fog_far);
 }
 
 TEST(Daylight, KeepsTheCryptsNightAllDay) {

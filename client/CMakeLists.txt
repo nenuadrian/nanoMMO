@@ -1,7 +1,7 @@
 add_library(nanommo_client_core
   settings.proto
   window.cc audio.cc jukebox.cc sound.cc synth.cc foley.cc soundscape.cc soundboard.cc
-  daylight.cc
+  daylight.cc weather.cc
   settings.cc gui.cc menu.cc renderer.cc
   offscreen.cc postprocess.cc outline.cc
   camera.cc scene.cc input.cc glsl.cc local_connection.cc inbox.cc

@@ -104,6 +104,10 @@ Rgb Scale(const Rgb& a, float s) { return {a[0] * s, a[1] * s, a[2] * s}; }
 
 float Mix(float a, float b, float t) { return a + (b - a) * t; }
 
+float Luminance(const Rgb& c) {
+  return 0.3f * c[0] + 0.59f * c[1] + 0.11f * c[2];
+}
+
 float Smooth(float edge0, float edge1, float x) {
   const float t = std::clamp((x - edge0) / (edge1 - edge0), 0.0f, 1.0f);
   return t * t * (3.0f - 2.0f * t);
@@ -151,6 +155,49 @@ Atmosphere Through(const Atmosphere& day, const Times& times, float d) {
   return Mix(times.dusk, times.night, Smooth(0.75f, 0.82f, d));
 }
 
+// Under the weather, as much of it as there is.
+void Overcast(Atmosphere& a, protocol::Weather weather, float w) {
+  const float bright = Luminance(a.sky);
+  switch (weather) {
+    case protocol::WEATHER_CLOUDY:
+      a.cloudiness = std::max(a.cloudiness, Mix(a.cloudiness, 1.0f, w));
+      a.sunlight = Scale(a.sunlight, 1.0f - 0.3f * w);
+      a.disc = Scale(a.disc, 1.0f - 0.5f * w);
+      break;
+    case protocol::WEATHER_RAIN:
+    case protocol::WEATHER_STORM: {
+      // Grey, and darker in a storm, at the brightness the sky had.
+      const float storm = weather == protocol::WEATHER_STORM ? 1.0f : 0.0f;
+      const float dim = 0.85f - 0.3f * storm;
+      const Rgb grey = Scale({0.92f, 0.97f, 1.05f}, bright * dim);
+      a.sky = Mix(a.sky, grey, 0.8f * w);
+      a.zenith = Mix(a.zenith, Scale(grey, 0.75f), 0.85f * w);
+      a.sunlight = Scale(a.sunlight, 1.0f - (0.65f + 0.15f * storm) * w);
+      a.ambient = Scale(a.ambient, 1.0f - (0.12f + 0.06f * storm) * w);
+      a.fog_near = Mix(a.fog_near, a.fog_near * 0.45f, w);
+      a.fog_far = Mix(a.fog_far, a.fog_far * (0.62f - 0.12f * storm), w);
+      a.disc = Scale(a.disc, 1.0f - 0.92f * w);
+      a.clouds = Mix(a.clouds, Scale(a.clouds, 0.55f - 0.15f * storm), w);
+      a.cloudiness = Mix(a.cloudiness, 1.0f, w);
+      a.stars *= 1.0f - w;
+      break;
+    }
+    case protocol::WEATHER_MIST: {
+      const Rgb pale = Scale({1.0f, 1.0f, 1.02f}, bright * 0.95f + 0.04f);
+      a.sky = Mix(a.sky, pale, 0.65f * w);
+      a.zenith = Mix(a.zenith, pale, 0.5f * w);
+      a.fog_near = Mix(a.fog_near, 2.0f, w);
+      a.fog_far = Mix(a.fog_far, 34.0f, w);
+      a.sunlight = Scale(a.sunlight, 1.0f - 0.4f * w);
+      a.disc = Scale(a.disc, 1.0f - 0.7f * w);
+      a.stars *= 1.0f - w;
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 }  // namespace
 
 std::array<float, 3> SunAt(float day) {
@@ -178,6 +225,9 @@ Atmosphere AtmosphereUnder(int land, const protocol::Sky& sky,
     const float up = Smooth(0.0f, 0.08f, light[1]);
     a.sunlight = Scale(a.sunlight, up);
     a.disc = Scale(a.disc, Smooth(0.0f, 0.04f, light[1]));
+  }
+  if (showing.weather) {
+    Overcast(a, sky.weather(), std::clamp(sky.strength(), 0.0f, 1.0f));
   }
   return a;
 }

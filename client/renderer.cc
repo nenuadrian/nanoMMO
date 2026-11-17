@@ -91,6 +91,9 @@ uniform float fogNear;
 uniform float fogFar;
 uniform float emission;
 uniform float bands;
+// After rain: from dry to soaked.
+uniform float wetness;
+uniform vec3 eye;
 out vec4 pixel;
 
 float Shadowed() {
@@ -118,6 +121,13 @@ void main() {
   }
   vec3 light = ambient + sunlight * sunlit + emission;
   vec3 lit = colDiffuse.rgb * color.rgb * light;
+  // Wet, what faces up is darker, and the light shines off it, where it
+  // comes back to the eye.
+  vec3 facing = normalize(normal);
+  float wet = wetness * smoothstep(0.55, 0.9, facing.y);
+  vec3 reflected = reflect(-normalize(sun), facing);
+  float shine = pow(max(dot(reflected, normalize(eye - world)), 0.0), 60.0);
+  lit = lit * (1.0 - 0.38 * wet) + sunlight * shine * 0.45 * wet;
   float fog = clamp((depth - fogNear) / (fogFar - fogNear), 0.0, 1.0);
   pixel = vec4(mix(lit, fogColor, fog), colDiffuse.a * color.a);
 }
@@ -339,6 +349,8 @@ void SetAtmosphere(Shader shader, const Atmosphere& atmosphere) {
                  atmosphere.sunlight.data(), SHADER_UNIFORM_VEC3);
   SetShaderValue(shader, GetShaderLocation(shader, "ambient"),
                  atmosphere.ambient.data(), SHADER_UNIFORM_VEC3);
+  SetShaderValue(shader, GetShaderLocation(shader, "wetness"),
+                 &atmosphere.wetness, SHADER_UNIFORM_FLOAT);
 }
 
 }  // namespace
@@ -354,7 +366,8 @@ Renderer::Renderer(const Content& content)
       spire_(LoadModelFromMesh(Spire().Upload())),
       characters_(content.rig, character_shader_, content.figures),
       fx_(std::make_unique<Fx>(content.skills, cube_shader_, content.items)),
-      sky_dome_(std::make_unique<Sky>()) {
+      sky_dome_(std::make_unique<Sky>()),
+      weather_(std::make_unique<Weather>()) {
   for (Model* model : {&cube_, &disc_, &spire_}) {
     model->materials[0].shader = cube_shader_;
   }
@@ -398,6 +411,7 @@ void Renderer::set_terrain(const Terrain& terrain, int land) {
   land_ = land;
   const Look& look = kLooks[static_cast<std::size_t>(land) % kLooks.size()];
   atmosphere_ = look.atmosphere;
+  weather_->set_land(terrain, land);
   // The ground and the trees have no bones either.
   chunks_ = LoadChunks(terrain, look, tree_, cube_shader_);
   sea_ = std::make_unique<Sea>(terrain, look);
@@ -424,9 +438,12 @@ void Renderer::Animate(float seconds) {
   reactions_.Apply(figures_);
   fx_->Hold(figures_);
   clock_ += seconds;
-  // The light for the time of day the server sent.
+  weather_->Update(seconds, sky_.value_or(protocol::Sky()),
+                   sky_.has_value() && showing_.weather);
+  // The light for the time of day and the weather the server sent.
   if (sky_) {
     atmosphere_ = AtmosphereUnder(land_, *sky_, showing_);
+    atmosphere_.wetness = weather_->wetness();
   }
 }
 
@@ -450,6 +467,10 @@ void Renderer::Draw() const {
   SetAtmosphere(character_shader_, atmosphere);
   SetFog(outline_.still, atmosphere);
   SetFog(outline_.skinned, atmosphere);
+  for (const Shader& shader : {cube_shader_, character_shader_}) {
+    SetShaderValue(shader, GetShaderLocation(shader, "eye"), &camera_.position,
+                   SHADER_UNIFORM_VEC3);
+  }
   // A heavy blow nearby shakes the camera, and a skill of ours can take it
   // in closer, though never past where it looks.
   Camera3D camera = camera_;
@@ -536,6 +557,8 @@ void Renderer::Draw() const {
     ++work_.draws;
     work_.triangles += sea_->triangles();
   }
+  // Over the sea too, as the rain falls into it.
+  weather_->Draw(camera, atmosphere);
   // See-through, like the light, but lit as the figures are.
   fx_->DrawGhosts(characters_);
   // The skills' light goes last, over everything it lights up.

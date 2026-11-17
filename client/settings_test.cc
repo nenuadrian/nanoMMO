@@ -22,7 +22,8 @@ TEST(Settings, KeepsThemBetweenRuns) {
       .graphics = {.bloom = false,
                    .cel_shading = true,
                    .antialias = false,
-                   .day_night = false},
+                   .day_night = false,
+                   .weather = false},
       .ui = {.scale = 1.25f, .minimap_turns = true, .hotbar = {3, 1, 2}}};
   ASSERT_TRUE(nanommo::SaveSettings(path, settings).ok());
 

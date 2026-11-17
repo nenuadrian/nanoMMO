@@ -442,9 +442,9 @@ int main(int argc, char* argv[]) {
         target_player = 0;
       }
       renderer.set_figures(std::move(figures));
-      // The light follows the time of day the server sent, if the player
-      // wants it to.
-      renderer.set_sky(world.sky(), {.day_night = settings.graphics.day_night});
+      // The sky the server sent, as much of it as the player wants.
+      renderer.set_sky(world.sky(), {.day_night = settings.graphics.day_night,
+                                     .weather = settings.graphics.weather});
       renderer.Animate(GetFrameTime());
       // We hear from where we stand, with the camera's right to our right.
       if (soundboard) {
