@@ -6,8 +6,10 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -16,6 +18,23 @@
 namespace nanommo {
 
 std::string MusicFolder();
+
+/// Where the recorded sounds are, beside the music.
+std::string SoundsFolder();
+
+/// A sound file's two channels, at our rate, or nothing if there's no such
+/// file. It needs no audio device, so a film can read one too.
+std::optional<std::pair<Samples, Samples>> LoadStereo(const std::string& path);
+
+/// The same, with its two channels as one.
+std::optional<Samples> LoadMono(const std::string& path);
+
+class Ambience;
+
+/// Gives the ambience the recordings in the sounds folder, of the rain, the
+/// fire and a gust of wind, in place of what it makes from numbers, for each
+/// that's there.
+void UseRecordings(Ambience& ambience);
 
 /// raylib's audio device, which plays our sound through the system's. Like
 /// the window, there's one, opened after the window and closed before it.

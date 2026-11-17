@@ -250,6 +250,7 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
     renderer.weather().set_wetness(shot.sky().wetness());
   }
   nanommo::Ambience ambience(shot_seed);
+  nanommo::UseRecordings(ambience);
   std::vector<float> bed_left, bed_right;
   nanommo::Animator animator(content);
   nanommo::PostProcess post;

@@ -131,3 +131,64 @@ TEST(Ambience, MakesThunderLouderNearby) {
   EXPECT_GT(Loudness(std::span(near).first(moment)),
             Loudness(std::span(far).first(moment)));
 }
+
+TEST(Ambience, PlaysRecordedRainAsLoudAsTheRainItMakes) {
+  nanommo::Ambience made(7);
+  Listen(made, {.rain = 1.0f}, 6.0f);
+  const float made_loudness = Loudness(Listen(made, {.rain = 1.0f}, 2.0f));
+
+  // A recording ten times louder, and of another length.
+  nanommo::Noise noise(3);
+  nanommo::Samples left(static_cast<std::size_t>(nanommo::SamplesIn(5.0f)));
+  nanommo::Samples right(left.size());
+  for (std::size_t i = 0; i < left.size(); ++i) {
+    left[i] = 0.5f * noise.Next();
+    right[i] = 0.5f * noise.Next();
+  }
+  nanommo::Ambience recorded(7);
+  recorded.UseRain(left, right);
+  Listen(recorded, {.rain = 1.0f}, 6.0f);
+  const float recorded_loudness =
+      Loudness(Listen(recorded, {.rain = 1.0f}, 2.0f));
+  EXPECT_NEAR(recorded_loudness, made_loudness, 0.25f * made_loudness);
+}
+
+TEST(Ambience, PlaysRecordedFireAsLoudAsTheFireItMakes) {
+  nanommo::Ambience made(7);
+  Listen(made, {.fire = 1.0f}, 6.0f);
+  const float made_loudness = Loudness(Listen(made, {.fire = 1.0f}, 2.0f));
+
+  nanommo::Noise noise(5);
+  nanommo::Samples left(static_cast<std::size_t>(nanommo::SamplesIn(5.0f)));
+  nanommo::Samples right(left.size());
+  for (std::size_t i = 0; i < left.size(); ++i) {
+    left[i] = 0.05f * noise.Next();
+    right[i] = 0.05f * noise.Next();
+  }
+  nanommo::Ambience recorded(7);
+  recorded.UseFire(left, right);
+  Listen(recorded, {.fire = 1.0f}, 6.0f);
+  EXPECT_NEAR(Loudness(Listen(recorded, {.fire = 1.0f}, 2.0f)), made_loudness,
+              0.25f * made_loudness);
+}
+
+TEST(Ambience, BlowsAGustNowAndThenInTheWind) {
+  // A gust that's easy to hear: a second of a tone, over a quiet wind.
+  nanommo::Samples gust(static_cast<std::size_t>(nanommo::SamplesIn(1.0f)));
+  for (std::size_t i = 0; i < gust.size(); ++i) {
+    gust[i] = std::sin(0.05f * static_cast<float>(i));
+  }
+  nanommo::Ambience calm(7);
+  calm.UseGust(gust, gust);
+  nanommo::Ambience windy(7);
+  windy.UseGust(gust, gust);
+  // Over a minute, a strong wind has more gusts in it than none at all.
+  const std::vector<float> still = Listen(calm, {}, 60.0f);
+  const std::vector<float> blowing = Listen(windy, {.wind = 1.0f}, 60.0f);
+  EXPECT_EQ(Loudness(still), 0.0f);
+  // Louder at its loudest than the same wind without the gusts.
+  nanommo::Ambience plain(7);
+  const std::vector<float> wind = Listen(plain, {.wind = 1.0f}, 60.0f);
+  EXPECT_GT(*std::max_element(blowing.begin(), blowing.end()),
+            *std::max_element(wind.begin(), wind.end()) + 0.2f);
+}

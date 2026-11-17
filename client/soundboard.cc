@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
+#include <utility>
 
 namespace nanommo {
 
@@ -18,7 +20,8 @@ constexpr float kStepLevel = 0.6f;
 
 }  // namespace
 
-Soundboard::Soundboard(const AudioDevice& device, const SkillTable& skills)
+Soundboard::Soundboard(const AudioDevice& device, const SkillTable& skills,
+                       std::optional<Samples> departure)
     : skill_variety_(1, kSkillPitch, kSkillVolume) {
   for (const Ground ground : kGrounds) {
     Takes& takes = steps_[ground];
@@ -44,7 +47,13 @@ Soundboard::Soundboard(const AudioDevice& device, const SkillTable& skills)
       }
     }
   }
-  departure_ = Clip::Load(device, nanommo::Departure(1), 1);
+  // A recording plays as loud as the sound it replaces, at its loudest.
+  Samples made = nanommo::Departure(1);
+  if (departure && Peak(*departure) > 0.0f) {
+    Normalize(*departure, Peak(made));
+    made = *std::move(departure);
+  }
+  departure_ = Clip::Load(device, made, 1);
   for (std::size_t land = 0; land < kLandSounds.size(); ++land) {
     arrivals_.push_back(
         Clip::Load(device, nanommo::Arrival(static_cast<int>(land)), 1));

@@ -45,6 +45,41 @@ Samples Looped(Samples made) {
   return made;
 }
 
+// Folds a sound's last moment into its first, so that it goes round without
+// a seam, and as long as it was, less that moment.
+void Fold(Samples& made, std::size_t seam) {
+  if (made.size() <= 2 * seam) {
+    return;
+  }
+  const std::size_t length = made.size() - seam;
+  for (std::size_t i = 0; i < seam; ++i) {
+    const float in = static_cast<float>(i) / static_cast<float>(seam);
+    made[i] = made[i] * in + made[length + i] * (1.0f - in);
+  }
+  made.resize(length);
+}
+
+// The loudness of a sound, as the root of its mean square.
+float Rms(const Samples& samples) {
+  double sum = 0.0;
+  for (const float s : samples) {
+    sum += static_cast<double>(s) * s;
+  }
+  return samples.empty() ? 0.0f
+                         : static_cast<float>(std::sqrt(
+                               sum / static_cast<double>(samples.size())));
+}
+
+// The same sound from a later place in it, which plays beside it as another
+// part of the rain.
+Samples From(const Samples& samples, std::size_t at) {
+  Samples moved(samples.size());
+  for (std::size_t i = 0; i < samples.size(); ++i) {
+    moved[i] = samples[(at + i) % samples.size()];
+  }
+  return moved;
+}
+
 Samples Silence() {
   return Samples(static_cast<std::size_t>(SamplesIn(kLoop + kSeam)), 0.0f);
 }
@@ -351,6 +386,59 @@ Ambience::Ambience(uint32_t seed) : noise_(seed) {
   beds_[kCrickets] = {Crickets(s + 13), Crickets(s + 14)};
 }
 
+bool Ambience::Recorded(Bed bed, Samples& left, Samples& right) const {
+  const std::size_t length = std::min(left.size(), right.size());
+  left.resize(length);
+  right.resize(length);
+  const std::size_t seam = static_cast<std::size_t>(SamplesIn(kSeam));
+  Fold(left, seam);
+  Fold(right, seam);
+  // As loud as the loop it replaces, whatever the recording's own loudness.
+  const float made = 0.5f * (Rms(beds_[bed].left) + Rms(beds_[bed].right));
+  const float recorded = 0.5f * (Rms(left) + Rms(right));
+  if (left.empty() || recorded <= 0.0f) {
+    return false;
+  }
+  const float gain = made / recorded;
+  for (Samples* channel : {&left, &right}) {
+    for (float& s : *channel) {
+      s *= gain;
+    }
+  }
+  return true;
+}
+
+void Ambience::UseFire(Samples left, Samples right) {
+  if (Recorded(kFire, left, right)) {
+    beds_[kFire] = {.left = std::move(left), .right = std::move(right)};
+  }
+}
+
+void Ambience::UseGust(const Samples& left, const Samples& right) {
+  // From the middle, as it blows past, at about the loudness of the wind.
+  gust_.resize(std::min(left.size(), right.size()));
+  for (std::size_t i = 0; i < gust_.size(); ++i) {
+    gust_[i] = 0.5f * (left[i] + right[i]);
+  }
+  if (const float peak = Peak(gust_); peak > 0.0f) {
+    Normalize(gust_, 0.5f);
+  }
+  FadeOut(gust_);
+}
+
+void Ambience::UseRain(Samples left, Samples right) {
+  if (!Recorded(kRain, left, right)) {
+    return;
+  }
+  // A downpour is more of it, from other places in the minute, and the rain
+  // on the sea is some more again.
+  const std::size_t third = left.size() / 3;
+  beds_[kDownpour] = {.left = From(left, third), .right = From(right, third)};
+  beds_[kWater] = {.left = From(left, 2 * third),
+                   .right = From(right, 2 * third)};
+  beds_[kRain] = {.left = std::move(left), .right = std::move(right)};
+}
+
 void Ambience::Call(const Samples& samples, float gain, float pan, float wait) {
   voices_.push_back({.samples = samples,
                      .wait = static_cast<std::size_t>(SamplesIn(wait)),
@@ -372,19 +460,18 @@ void Ambience::Fill(std::span<float> left, std::span<float> right,
       0.3f * hearing.crickets};
   const float glide = 1.0f / (kGlide * kRate);
   const std::size_t frames = std::min(left.size(), right.size());
-  const std::size_t length = beds_[0].left.size();
   for (std::size_t i = 0; i < frames; ++i) {
-    const std::size_t at = (played_ + i) % length;
     for (int b = 0; b < kBeds; ++b) {
       Loop& bed = beds_[b];
       bed.level += (wanted[b] - bed.level) * glide;
       if (bed.level > 1e-4f) {
+        const std::size_t at = (played_ + i) % bed.left.size();
         left[i] += bed.level * bed.left[at];
         right[i] += bed.level * bed.right[at];
       }
     }
   }
-  played_ = (played_ + frames) % length;
+  played_ += frames;
 
   // Now and then: birds by day, an owl at night, and drips in the Crypt.
   const float seconds = static_cast<float>(frames) / kRate;
@@ -403,6 +490,11 @@ void Ambience::Fill(std::span<float> left, std::span<float> right,
   now_and_then(next_bird_, hearing.birds, 2.5f, Bird, 0.5f);
   now_and_then(next_owl_, hearing.owls, 28.0f, Owl, 0.45f);
   now_and_then(next_drip_, hearing.drips, 1.6f, Drip, 0.5f);
+  // A gust of wind, the windier the more often, when there's one recorded.
+  if (!gust_.empty()) {
+    now_and_then(
+        next_gust_, hearing.wind, 6.0f, [this](Noise&) { return gust_; }, 0.9f);
+  }
 
   for (Voice& voice : voices_) {
     for (std::size_t i = 0; i < frames; ++i) {

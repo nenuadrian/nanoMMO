@@ -155,9 +155,15 @@ int main(int argc, char* argv[]) {
     } else {
       std::cerr << "nanommo client: " << music_or.status() << "\n";
     }
-    soundboard = std::make_unique<nanommo::Soundboard>(*audio, content->skills);
+    // Going through a gate sounds like a teleport, if there's a recording of
+    // one.
+    soundboard = std::make_unique<nanommo::Soundboard>(
+        *audio, content->skills,
+        nanommo::LoadMono(nanommo::SoundsFolder() + "/teleport.ogg"));
     ambience = std::make_unique<nanommo::Ambience>(
         static_cast<uint32_t>(std::time(nullptr)));
+    // Real rain, fire and wind, where there are recordings of them.
+    nanommo::UseRecordings(*ambience);
     ambience_stream = nanommo::Stream::Open(*audio);
   } else {
     std::cerr << "nanommo client: " << audio_or.status() << "\n";

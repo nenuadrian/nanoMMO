@@ -47,6 +47,19 @@ class Ambience {
  public:
   explicit Ambience(uint32_t seed);
 
+  /// Rain recorded from the real thing, in place of the rain made from
+  /// numbers, its two channels as long as each other. It loops, its end
+  /// fading into its start, and plays as loud as the one it replaces.
+  void UseRain(Samples left, Samples right);
+
+  /// Fire recorded crackling, in place of the fire made from numbers, the
+  /// same way.
+  void UseFire(Samples left, Samples right);
+
+  /// A gust of wind recorded, which blows now and then over the wind made
+  /// from numbers, more often the windier it is.
+  void UseGust(const Samples& left, const Samples& right);
+
   /// Adds the next of the sound into the two channels, as many samples as
   /// they have, while each loop glides to how loud the hearing says.
   void Fill(std::span<float> left, std::span<float> right,
@@ -60,6 +73,8 @@ class Ambience {
  private:
   enum Bed { kRain, kDownpour, kWater, kWind, kFire, kLava, kCrickets, kBeds };
 
+  /// Each loop goes round at its own length, so a long recording and a
+  /// short one made from numbers can play side by side.
   struct Loop {
     Samples left;
     Samples right;
@@ -77,6 +92,11 @@ class Ambience {
 
   void Call(const Samples& samples, float gain, float pan, float wait = 0.0f);
 
+  /// Makes a recording into a loop to play in place of the bed: its end
+  /// folded into its start, and as loud as the bed. False if there's
+  /// nothing in it.
+  bool Recorded(Bed bed, Samples& left, Samples& right) const;
+
   Noise noise_;
   std::array<Loop, kBeds> beds_;
   std::size_t played_ = 0;
@@ -84,6 +104,8 @@ class Ambience {
   float next_bird_ = 2.0f;
   float next_owl_ = 8.0f;
   float next_drip_ = 1.0f;
+  float next_gust_ = 4.0f;
+  Samples gust_;
   uint32_t takes_ = 0;
 };
 

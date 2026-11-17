@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -22,7 +23,10 @@ class Soundboard {
   static constexpr int kStepTakes = 8;
   static constexpr int kSkillTakes = 3;
 
-  Soundboard(const AudioDevice& device, const SkillTable& skills);
+  /// With a recording to go through a gate with, in place of the sound made
+  /// from numbers, if there's one.
+  Soundboard(const AudioDevice& device, const SkillTable& skills,
+             std::optional<Samples> departure = std::nullopt);
 
   /// How loud the sounds are, from the settings, from 0 to 1.
   void set_volume(float volume) { volume_ = volume; }

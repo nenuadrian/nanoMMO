@@ -53,6 +53,9 @@ add_custom_target(nanommo_client_assets ALL
     ${PROJECT_SOURCE_DIR}/assets/music
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/music
   COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+    ${PROJECT_SOURCE_DIR}/assets/sounds
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sounds
+  COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
     ${PROJECT_SOURCE_DIR}/assets/fonts
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/fonts
   COMMAND ${CMAKE_COMMAND} -E make_directory

@@ -6,17 +6,70 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
+#include <utility>
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "client/ambience.h"
 
 namespace nanommo {
 
 std::string MusicFolder() {
   return std::string(GetApplicationDirectory()) + "music";
+}
+
+std::optional<Samples> LoadMono(const std::string& path) {
+  std::optional<std::pair<Samples, Samples>> both = LoadStereo(path);
+  if (!both) {
+    return std::nullopt;
+  }
+  Samples one(both->first.size());
+  for (std::size_t i = 0; i < one.size(); ++i) {
+    one[i] = 0.5f * (both->first[i] + both->second[i]);
+  }
+  return one;
+}
+
+void UseRecordings(Ambience& ambience) {
+  if (auto rain = LoadStereo(SoundsFolder() + "/rain.ogg")) {
+    ambience.UseRain(std::move(rain->first), std::move(rain->second));
+  }
+  if (auto fire = LoadStereo(SoundsFolder() + "/fire.ogg")) {
+    ambience.UseFire(std::move(fire->first), std::move(fire->second));
+  }
+  if (auto gust = LoadStereo(SoundsFolder() + "/gust.ogg")) {
+    ambience.UseGust(gust->first, gust->second);
+  }
+}
+
+std::string SoundsFolder() {
+  return std::string(GetApplicationDirectory()) + "sounds";
+}
+
+std::optional<std::pair<Samples, Samples>> LoadStereo(const std::string& path) {
+  if (!FileExists(path.c_str())) {
+    return std::nullopt;
+  }
+  Wave wave = LoadWave(path.c_str());
+  if (!IsWaveValid(wave)) {
+    return std::nullopt;
+  }
+  WaveFormat(&wave, kRate, 32, 2);
+  float* both = LoadWaveSamples(wave);
+  std::pair<Samples, Samples> channels;
+  channels.first.resize(wave.frameCount);
+  channels.second.resize(wave.frameCount);
+  for (std::size_t i = 0; i < wave.frameCount; ++i) {
+    channels.first[i] = both[2 * i];
+    channels.second[i] = both[2 * i + 1];
+  }
+  UnloadWaveSamples(both);
+  UnloadWave(wave);
+  return channels;
 }
 
 absl::StatusOr<std::unique_ptr<AudioDevice>> AudioDevice::Create() {

@@ -6,6 +6,7 @@ profile/
 bench/results/
 site/
 assets/music/*.mp3
+assets/sounds/*.ogg
 tls/*
 !tls/certificates.sh
 .env
