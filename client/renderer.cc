@@ -439,11 +439,19 @@ void Renderer::Animate(float seconds) {
   fx_->Hold(figures_);
   clock_ += seconds;
   weather_->Update(seconds, sky_.value_or(protocol::Sky()),
-                   sky_.has_value() && showing_.weather);
+                   sky_.has_value() && showing_.weather, camera_);
   // The light for the time of day and the weather the server sent.
   if (sky_) {
     atmosphere_ = AtmosphereUnder(land_, *sky_, showing_);
     atmosphere_.wetness = weather_->wetness();
+    // A bolt lights up the sky, and everything under it, for a moment.
+    const float flash = weather_->flash();
+    for (int c = 0; c < 3; ++c) {
+      atmosphere_.sky[c] += flash * 0.55f;
+      atmosphere_.zenith[c] += flash * 0.4f;
+      atmosphere_.ambient[c] += flash * 0.45f;
+      atmosphere_.clouds[c] += flash * 0.6f;
+    }
   }
 }
 

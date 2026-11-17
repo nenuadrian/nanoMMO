@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -17,7 +18,8 @@ namespace {
 
 // Each quad's colour is its vertices', and how much brighter than that it
 // glows rides in its first texture coordinate, so that what glows past white
-// blooms. Far away, it fades into the fog.
+// blooms. Far away, it fades into the fog, or, added onto what's behind it,
+// to nothing.
 constexpr const char* kVertexShader = R"(#version 330
 in vec3 vertexPosition;
 in vec2 vertexTexCoord;
@@ -42,11 +44,17 @@ in float depth;
 uniform vec3 fogColor;
 uniform float fogNear;
 uniform float fogFar;
+uniform float added;
 out vec4 pixel;
 
 void main() {
   float fog = clamp((depth - fogNear) / (fogFar - fogNear), 0.0, 1.0);
-  pixel = vec4(mix(color.rgb * glow, fogColor, fog), color.a);
+  vec3 lit = color.rgb * glow;
+  if (added > 0.5) {
+    pixel = vec4(lit * (1.0 - fog) * color.a, 1.0);
+  } else {
+    pixel = vec4(mix(lit, fogColor, fog), color.a);
+  }
 }
 )";
 
@@ -219,7 +227,8 @@ void Weather::set_land(const Terrain& terrain, int land) {
   land_ = land;
 }
 
-void Weather::Update(float seconds, const protocol::Sky& sky, bool on) {
+void Weather::Update(float seconds, const protocol::Sky& sky, bool on,
+                     const Camera3D& camera) {
   clock_ += seconds;
   sky_ = sky;
   on_ = on;
@@ -236,7 +245,69 @@ void Weather::Update(float seconds, const protocol::Sky& sky, bool on) {
   } else {
     wetness_ = std::max(soaked, *wetness_ - seconds / 180.0f);
   }
+
+  if (!on || !terrain_ || land_ != kMeadowsLand ||
+      sky.weather() != protocol::WEATHER_STORM || sky.strength() < 0.25f) {
+    return;
+  }
+  next_bolt_ -= seconds;
+  if (next_bolt_ > 0.0f) {
+    return;
+  }
+  // Somewhere off in the storm, most often ahead of us, where we'd see it,
+  // from the clouds to the ground, in a jagged line with a fork off it.
+  const uint32_t h = Hash(++bolts_struck_);
+  const Vector3 ahead = Vector3Subtract(camera.target, camera.position);
+  const float wide = Unit(Hash(h, 3)) < 0.7f ? 0.7f : 2.4f;
+  const float turn = std::atan2(ahead.z, ahead.x) + wide * (Unit(h) - 0.5f);
+  const float away = 110.0f + 230.0f * Unit(Hash(h, 1));
+  const float x = camera.position.x + away * std::cos(turn);
+  const float z = camera.position.z + away * std::sin(turn);
+  const float ground = std::max(terrain_->Height(x, z), Terrain::kSeaLevel);
+  constexpr int kSegments = 12;
+  constexpr float kCloud = 115.0f;
+  strike_.points.clear();
+  strike_.branch.clear();
+  for (int i = 0; i <= kSegments; ++i) {
+    const float down = static_cast<float>(i) / kSegments;
+    const float jitter = i == 0 || i == kSegments ? 0.0f : 9.0f;
+    strike_.points.push_back(
+        {x + jitter * (Unit(Hash(h, 10 + i)) - 0.5f) * 2.0f,
+         kCloud + (ground - kCloud) * down,
+         z + jitter * (Unit(Hash(h, 40 + i)) - 0.5f) * 2.0f});
+  }
+  Vector3 fork = strike_.points[4];
+  strike_.branch.push_back(fork);
+  for (int i = 1; i <= 5; ++i) {
+    fork = {fork.x + 7.0f * (Unit(Hash(h, 70 + i)) - 0.3f), fork.y - 9.0f,
+            fork.z + 7.0f * (Unit(Hash(h, 90 + i)) - 0.3f)};
+    strike_.branch.push_back(fork);
+  }
+  strike_.at = clock_;
+  strike_.near = 1.0f - 0.5f * (away - 110.0f) / 230.0f;
+  // The stronger the storm, the more often.
+  next_bolt_ = (5.0f + 11.0f * Unit(Hash(h, 2))) / (0.5f + sky.strength());
 }
+
+float Weather::StrikeLight() const {
+  const float since = clock_ - strike_.at;
+  if (since < 0.0f || since > 0.45f) {
+    return 0.0f;
+  }
+  // It flickers: on, nearly off, on again, then fades.
+  if (since < 0.07f) {
+    return 1.0f;
+  }
+  if (since < 0.11f) {
+    return 0.25f;
+  }
+  if (since < 0.17f) {
+    return 0.9f;
+  }
+  return 0.9f * (1.0f - (since - 0.17f) / 0.28f);
+}
+
+float Weather::flash() const { return 0.85f * strike_.near * StrikeLight(); }
 
 void Weather::Draw(const Camera3D& camera, const Atmosphere& atmosphere) const {
   if (!terrain_ || !on_) {
@@ -256,8 +327,19 @@ void Weather::Draw(const Camera3D& camera, const Atmosphere& atmosphere) const {
   const Vector3 level = Vector3Normalize({ahead.x, 0.0f, ahead.z});
   const Vector3 middle =
       Vector3Add(camera.position, Vector3Scale(level, kAhead));
+  SetFloat(shader_, "added", 0.0f);
   rlBegin(RL_TRIANGLES);
   DrawFalling(camera, atmosphere, middle);
+  rlEnd();
+  EndBlendMode();
+  // The lightning's added onto what's behind it, and seen through the fog
+  // and the rain, however far off.
+  BeginBlendMode(BLEND_ADDITIVE);
+  SetFloat(shader_, "added", 1.0f);
+  SetFloat(shader_, "fogNear", 1e5f);
+  SetFloat(shader_, "fogFar", 2e5f);
+  rlBegin(RL_TRIANGLES);
+  DrawStrike(camera);
   rlEnd();
   EndBlendMode();
   EndShaderMode();
@@ -301,6 +383,21 @@ void Weather::DrawFalling(const Camera3D& camera, const Atmosphere& atmosphere,
         Ring(spot.landed, r * 0.75f, r,
              tinted({1.1f, 1.15f, 1.25f}, (water ? 0.5f : 0.32f) * (1.0f - t)));
       }
+    }
+  }
+}
+
+void Weather::DrawStrike(const Camera3D& camera) const {
+  const float light = StrikeLight();
+  if (light <= 0.0f) {
+    return;
+  }
+  const Color bolt = {215, 228, 255, 255};
+  for (const std::vector<Vector3>* line : {&strike_.points, &strike_.branch}) {
+    const float width = line == &strike_.points ? 1.3f : 0.7f;
+    for (std::size_t i = 1; i < line->size(); ++i) {
+      Streak((*line)[i - 1], (*line)[i], width, camera.position, bolt, bolt,
+             9.0f * light);
     }
   }
 }

@@ -3,7 +3,9 @@
 
 #include <raylib.h>
 
+#include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "client/atmosphere.h"
 #include "protocol/nanommo.pb.h"
@@ -11,9 +13,9 @@
 
 namespace nanommo {
 
-/// What the sky lets fall, drawn around the camera from the sky the server
-/// sent. Each drop is worked out from the clock alone, where it is in its
-/// fall, so nothing is kept for any of them between frames.
+/// What the sky lets fall, and the lightning, drawn around the camera from the
+/// sky the server sent. Each drop is worked out from the clock alone, where it
+/// is in its fall, so nothing is kept for any of them between frames.
 class Weather {
  public:
   Weather();
@@ -26,9 +28,10 @@ class Weather {
   /// lands, which says what falls there.
   void set_land(const Terrain& terrain, int land);
 
-  /// Moves on by the seconds, under the sky. Off, nothing falls, and the
-  /// ground dries.
-  void Update(float seconds, const protocol::Sky& sky, bool on);
+  /// Moves on by the seconds, under the sky, around the camera. Off, nothing
+  /// falls, and the ground dries.
+  void Update(float seconds, const protocol::Sky& sky, bool on,
+              const Camera3D& camera);
 
   /// Inside BeginMode3D, after what's solid and the sea, as it's all
   /// see-through.
@@ -37,9 +40,21 @@ class Weather {
   /// From dry to soaked, which rain makes it, and the sun dries.
   float wetness() const { return wetness_.value_or(0.0f); }
 
+  /// How bright the sky is from a bolt that's just struck, from 0 to 1.
+  float flash() const;
+
  private:
+  struct Strike {
+    std::vector<Vector3> points;
+    std::vector<Vector3> branch;
+    float at = -10.0f;
+    float near = 1.0f;
+  };
+
   void DrawFalling(const Camera3D& camera, const Atmosphere& atmosphere,
                    Vector3 middle) const;
+  void DrawStrike(const Camera3D& camera) const;
+  float StrikeLight() const;
 
   Shader shader_;
   std::optional<Terrain> terrain_;
@@ -50,6 +65,10 @@ class Weather {
   float clock_ = 0.0f;
   /// Unset until the first sky, so that rain we come into is already wet.
   std::optional<float> wetness_;
+  /// Until the next bolt, in seconds.
+  float next_bolt_ = 3.0f;
+  uint32_t bolts_struck_ = 0;
+  Strike strike_;
 };
 
 }  // namespace nanommo
