@@ -10,7 +10,9 @@
 #include <cstdint>
 #include <vector>
 
+#include "client/daylight.h"
 #include "client/glsl.h"
+#include "terrain/lands.h"
 
 namespace nanommo {
 
@@ -107,6 +109,24 @@ constexpr float kSnowLine = 19.0f;
 // A drop's splash, or an ember's sparks, last this long, in seconds.
 constexpr float kSplash = 0.3f;
 constexpr float kSparks = 0.45f;
+
+// What glows, a few to each cell of the ground around the camera.
+struct Swarm {
+  /// In metres along a side.
+  float cell;
+  /// How far out from the camera, in metres.
+  float reach;
+  /// Of the cells, the share that have one, at the most.
+  float density;
+  uint32_t salt;
+};
+
+constexpr Swarm kFireflies = {
+    .cell = 2.5f, .reach = 40.0f, .density = 0.6f, .salt = 53};
+constexpr Swarm kWisps = {
+    .cell = 6.0f, .reach = 55.0f, .density = 0.5f, .salt = 59};
+constexpr Swarm kSparksOffLava = {
+    .cell = 3.0f, .reach = 50.0f, .density = 0.3f, .salt = 61};
 
 constexpr int kMeadowsLand = 0;
 constexpr int kAshlandsLand = 1;
@@ -391,7 +411,7 @@ void Weather::Draw(const Camera3D& camera, const Atmosphere& atmosphere) const {
   BeginBlendMode(BLEND_ALPHA);
   SetFloat(shader_, "added", 0.0f);
   // What falls fills a box a little in front of the camera, where we'd see
-  // it, however far off it looks.
+  // it, however far off it looks, and what glows is round there too.
   const Vector3 ahead = Vector3Subtract(camera.target, camera.position);
   const Vector3 level = Vector3Normalize({ahead.x, 0.0f, ahead.z});
   const Vector3 middle =
@@ -402,7 +422,6 @@ void Weather::Draw(const Camera3D& camera, const Atmosphere& atmosphere) const {
   EndBlendMode();
   BeginBlendMode(BLEND_ADDITIVE);
   SetFloat(shader_, "added", 1.0f);
-  // What burns is added onto what's behind it, so it glows.
   rlBegin(RL_TRIANGLES);
   DrawGlows(camera, middle);
   rlEnd();
@@ -503,10 +522,95 @@ void Weather::DrawGlows(const Camera3D& camera, Vector3 middle) const {
       Vector3Normalize(Vector3CrossProduct(forward, camera.up));
   const Vector3 up = Vector3CrossProduct(right, forward);
   const float strength = std::clamp(sky_.strength(), 0.0f, 1.0f);
+  const float dark = Darkness(sky_.day());
   const Vector2 wind = {sky_.wind_x(), sky_.wind_z()};
 
+  // Each cell of the ground near the camera that has one, by the share
+  // that's out now.
+  const auto swarm = [&](const Swarm& s, float share, auto&& draw) {
+    if (share <= 0.0f) {
+      return;
+    }
+    const int x0 = static_cast<int>(std::floor((middle.x - s.reach) / s.cell));
+    const int x1 = static_cast<int>(std::floor((middle.x + s.reach) / s.cell));
+    const int z0 = static_cast<int>(std::floor((middle.z - s.reach) / s.cell));
+    const int z1 = static_cast<int>(std::floor((middle.z + s.reach) / s.cell));
+    for (int cx = x0; cx <= x1; ++cx) {
+      for (int cz = z0; cz <= z1; ++cz) {
+        const uint32_t h = Hash(Hash(static_cast<uint32_t>(cx) * 73856093u ^
+                                     static_cast<uint32_t>(cz) * 19349663u),
+                                s.salt);
+        if (Unit(h) > s.density * share) {
+          continue;
+        }
+        const float x = (static_cast<float>(cx) + Unit(Hash(h, 1))) * s.cell;
+        const float z = (static_cast<float>(cz) + Unit(Hash(h, 2))) * s.cell;
+        draw(h, x, z, terrain.Height(x, z));
+      }
+    }
+  };
+
+  if (land_ == kMeadowsLand) {
+    // Fireflies, as the light goes, over the grass: not in the rain, on the
+    // water, or up in the snow.
+    const bool wet = sky_.weather() == protocol::WEATHER_RAIN ||
+                     sky_.weather() == protocol::WEATHER_STORM;
+    const float out =
+        dark * (wet ? std::max(0.0f, 1.0f - 2.0f * strength) : 1.0f);
+    swarm(kFireflies, out, [&](uint32_t h, float x, float z, float ground) {
+      if (ground < 0.3f || ground > 14.0f) {
+        return;
+      }
+      const float a = 40.0f * Unit(Hash(h, 3));
+      const float b = 40.0f * Unit(Hash(h, 4));
+      const Vector3 at = {x + 1.1f * std::sin(clock_ * 0.37f + a) +
+                              0.4f * std::sin(clock_ * 0.9f + b),
+                          ground + 0.7f + 1.3f * Unit(Hash(h, 5)) +
+                              0.35f * std::sin(clock_ * 0.6f + b),
+                          z + 1.1f * std::sin(clock_ * 0.31f + b) +
+                              0.4f * std::sin(clock_ * 0.8f + a)};
+      // Each blinks in its own time: a slow glow up, and down again.
+      const float beat = 0.9f + 0.9f * Unit(Hash(h, 6));
+      const float on =
+          std::pow(std::max(0.0f, std::sin(clock_ * beat + a)), 3.0f);
+      Glow(at, 0.09f, camera.position, right, up, {190, 255, 90, 255},
+           0.5f + 8.0f * on);
+    });
+  }
+  if (kLands[static_cast<std::size_t>(land_) % kLands.size()].dungeon) {
+    // Pale wisps, drifting slowly, all the time.
+    swarm(kWisps, 1.0f, [&](uint32_t h, float x, float z, float ground) {
+      if (ground < Terrain::kSeaLevel) {
+        return;
+      }
+      const float a = 40.0f * Unit(Hash(h, 3));
+      const Vector3 at = {x + 2.0f * std::sin(clock_ * 0.15f + a),
+                          ground + 1.0f + 2.2f * Unit(Hash(h, 5)) +
+                              0.5f * std::sin(clock_ * 0.4f + a),
+                          z + 2.0f * std::cos(clock_ * 0.12f + a)};
+      const float pulse = 0.65f + 0.35f * std::sin(clock_ * 0.8f + a);
+      Glow(at, 0.2f, camera.position, right, up, {140, 190, 255, 255},
+           4.0f * pulse);
+    });
+  }
   if (land_ == kAshlandsLand) {
-    // Fire falling from the sky in a firestorm.
+    // Sparks rising off the lava, more of them in the dark, and fire falling
+    // from the sky in a firestorm.
+    swarm(kSparksOffLava, 0.35f + 0.65f * dark,
+          [&](uint32_t h, float x, float z, float ground) {
+            if (ground > -0.05f) {
+              return;
+            }
+            const float rise = 0.7f + 0.6f * Unit(Hash(h, 3));
+            const float up_by =
+                Wrap(clock_ * rise + 9.0f * Unit(Hash(h, 4)), 5.0f);
+            const Vector3 at = {x + wind.x * up_by * 0.3f, 0.2f + up_by,
+                                z + wind.y * up_by * 0.3f};
+            const float fade = 1.0f - up_by / 5.0f;
+            Glow(at, 0.05f, camera.position, right, up,
+                 {255, 120, 30, static_cast<unsigned char>(255 * fade)},
+                 3.5f * fade);
+          });
     if (sky_.weather() == protocol::WEATHER_FIRE) {
       const int embers = static_cast<int>(kEmbers.count * strength);
       const Vector3 down = Vector3Normalize({wind.x, -kEmbers.speed, wind.y});

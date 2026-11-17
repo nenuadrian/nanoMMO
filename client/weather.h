@@ -13,10 +13,10 @@
 
 namespace nanommo {
 
-/// What the sky lets fall, and the lightning, drawn around the camera from the
-/// sky the server sent. Each drop, flake and ember is worked out from the clock
-/// alone, where it is in its fall, so nothing is kept for any of them between
-/// frames.
+/// What the sky lets fall, what glows in the dark, and the lightning, drawn
+/// around the camera from the sky the server sent. Each drop, flake and ember
+/// is worked out from the clock alone, where it is in its fall, so nothing is
+/// kept for any of them between frames.
 class Weather {
  public:
   Weather();
@@ -26,7 +26,7 @@ class Weather {
   Weather& operator=(const Weather&) = delete;
 
   /// The land's ground, which what falls lands on, and its place in the
-  /// lands, which says what falls there.
+  /// lands, which says what falls there and what glows.
   void set_land(const Terrain& terrain, int land);
 
   /// Where the lightning strikes and how often comes from this, so that a
@@ -38,7 +38,7 @@ class Weather {
   void set_wetness(float wetness) { wetness_ = wetness; }
 
   /// Moves on by the seconds, under the sky, around the camera. Off, nothing
-  /// falls, and the ground dries.
+  /// falls or glows, and the ground dries.
   void Update(float seconds, const protocol::Sky& sky, bool on,
               const Camera3D& camera);
 

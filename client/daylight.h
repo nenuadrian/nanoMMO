@@ -6,6 +6,10 @@
 
 namespace nanommo {
 
+/// How dark it is at that time of day, from 0 all day to 1 all night, going
+/// between the two at dawn and dusk.
+float Darkness(float day);
+
 /// Towards the sun at that time of day: up from the east at 0.25, overhead,
 /// though a little to the south, at noon, and down in the west at 0.75.
 std::array<float, 3> SunAt(float day);

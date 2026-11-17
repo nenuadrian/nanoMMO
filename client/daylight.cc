@@ -224,6 +224,11 @@ void Overcast(Atmosphere& a, protocol::Weather weather, float w) {
 
 }  // namespace
 
+float Darkness(float day) {
+  return day < 0.5f ? 1.0f - Smooth(0.18f, 0.3f, day)
+                    : Smooth(0.7f, 0.82f, day);
+}
+
 std::array<float, 3> SunAt(float day) {
   const float turn = 6.2831853f * (day - 0.25f);
   return Normalized({std::cos(turn), std::sin(turn), 0.35f});

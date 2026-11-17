@@ -28,6 +28,14 @@ float Brightness(const std::array<float, 3>& c) { return c[0] + c[1] + c[2]; }
 
 }  // namespace
 
+TEST(Daylight, IsDarkAtNightAndLightAllDay) {
+  EXPECT_FLOAT_EQ(nanommo::Darkness(0.0f), 1.0f);
+  EXPECT_FLOAT_EQ(nanommo::Darkness(0.5f), 0.0f);
+  EXPECT_FLOAT_EQ(nanommo::Darkness(0.95f), 1.0f);
+  EXPECT_GT(nanommo::Darkness(0.25f), 0.0f);
+  EXPECT_LT(nanommo::Darkness(0.25f), 1.0f);
+}
+
 TEST(Daylight, RisesInTheEastAndSetsInTheWest) {
   const std::array<float, 3> rising = nanommo::SunAt(0.25f);
   const std::array<float, 3> noon = nanommo::SunAt(0.5f);

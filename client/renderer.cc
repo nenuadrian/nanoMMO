@@ -438,8 +438,13 @@ void Renderer::Animate(float seconds) {
   reactions_.Apply(figures_);
   fx_->Hold(figures_);
   clock_ += seconds;
-  weather_->Update(seconds, sky_.value_or(protocol::Sky()),
-                   sky_.has_value() && showing_.weather, camera_);
+  // Without the time of day, it's always noon for what glows.
+  protocol::Sky shown = sky_.value_or(protocol::Sky());
+  if (!sky_ || !showing_.day_night) {
+    shown.set_day(0.5f);
+  }
+  weather_->Update(seconds, shown, sky_.has_value() && showing_.weather,
+                   camera_);
   const Look& look = kLooks[static_cast<std::size_t>(land_) % kLooks.size()];
   atmosphere_ =
       sky_ ? AtmosphereUnder(land_, *sky_, showing_) : look.atmosphere;
