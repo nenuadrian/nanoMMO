@@ -4,10 +4,12 @@
 #include <cstdlib>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "gtest/gtest.h"
@@ -104,6 +106,7 @@ TEST(Database, RunsAReadAgainOnANewConnectionOnceItsOwnIsGone) {
   EXPECT_NE(again->rows, first->rows);
 }
 
+using std::chrono::milliseconds;
 using std::chrono::seconds;
 using std::chrono::steady_clock;
 
@@ -125,8 +128,9 @@ TEST(Database, AStatementMysqlDoesntAnswerInTimeFails) {
     GTEST_SKIP() << "set NANOMMO_MYSQL_HOST to test against MySQL";
   }
   absl::StatusOr<std::unique_ptr<nanommo::Database>> database =
-      nanommo::Database::Create(host, "nanommo", "nanommo", "nanommo",
-                                {.answer = seconds(1)});
+      nanommo::Database::Create(
+          host, "nanommo", "nanommo", "nanommo",
+          {.answer = seconds(1), .fail_fast = milliseconds(300)});
   ASSERT_TRUE(database.ok()) << database.status();
   // A statement that answers within the second does.
   ASSERT_TRUE((*database)->Run("SELECT SLEEP(0.1)").ok());
@@ -140,7 +144,15 @@ TEST(Database, AStatementMysqlDoesntAnswerInTimeFails) {
   EXPECT_GE(took, seconds(1));
   EXPECT_LT(took, seconds(5));
 
-  // The next goes on a new connection, as the one that timed out is gone.
+  // For the next 300 milliseconds, MySQL isn't asked.
+  start = steady_clock::now();
+  const absl::StatusOr<nanommo::Result> resting = (*database)->Run("SELECT 1");
+  EXPECT_LT(steady_clock::now() - start, milliseconds(50));
+  EXPECT_TRUE(absl::StrContains(resting.status().message(), "isn't asked yet"))
+      << resting.status();
+
+  // And then on a new connection, as the one that timed out is gone.
+  std::this_thread::sleep_for(milliseconds(300));
   const absl::StatusOr<nanommo::Result> again = (*database)->Run("SELECT 1");
   ASSERT_TRUE(again.ok()) << again.status();
   EXPECT_EQ(again->rows, (std::vector<std::vector<std::string>>{{"1"}}));

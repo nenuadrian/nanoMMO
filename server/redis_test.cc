@@ -113,8 +113,9 @@ TEST_F(RedisTest, ARedisThatAnswersInTimeAnswers) {
 
 TEST_F(RedisTest, AReplyThatComesLateAnswersNoOtherCommand) {
   absl::StatusOr<std::unique_ptr<nanommo::Redis>> redis =
-      nanommo::Redis::Create(std::getenv("NANOMMO_REDIS_HOST"), 6379,
-                             {.answer = milliseconds(100)});
+      nanommo::Redis::Create(
+          std::getenv("NANOMMO_REDIS_HOST"), 6379,
+          {.answer = milliseconds(100), .fail_fast = milliseconds(100)});
   ASSERT_TRUE(redis.ok()) << redis.status();
   // Redis hangs for 300 milliseconds, and then answers what it was asked.
   ASSERT_TRUE(redis_->Command({"CLIENT", "PAUSE", "300", "ALL"}).ok());
@@ -163,4 +164,27 @@ TEST_F(RedisTest, AReadThatBlocksForEverWaitsPastTheTimeout) {
   EXPECT_EQ(entries->front().fields,
             (std::vector<std::string>{"row", "later"}));
   EXPECT_GE(steady_clock::now() - start, milliseconds(300));
+}
+
+TEST(RedisTimeouts, FailsFastAfterATimeoutAndAsksAgainAfter) {
+  const nanommo::testing::SilentListener silent;
+  absl::StatusOr<std::unique_ptr<nanommo::Redis>> redis =
+      nanommo::Redis::Create(
+          "127.0.0.1", silent.port(),
+          {.answer = milliseconds(100), .fail_fast = milliseconds(300)});
+  ASSERT_TRUE(redis.ok()) << redis.status();
+  ASSERT_FALSE((*redis)->Command({"PING"}).ok());
+
+  // It isn't asked again until the 300 milliseconds are over.
+  steady_clock::time_point start = steady_clock::now();
+  const absl::StatusOr<std::string> resting = (*redis)->Command({"PING"});
+  EXPECT_LT(steady_clock::now() - start, milliseconds(50));
+  EXPECT_TRUE(absl::IsUnavailable(resting.status()));
+  EXPECT_TRUE(absl::StrContains(resting.status().message(), "isn't asked yet"))
+      << resting.status();
+
+  std::this_thread::sleep_for(milliseconds(300));
+  start = steady_clock::now();
+  EXPECT_FALSE((*redis)->Command({"PING"}).ok());
+  EXPECT_GE(steady_clock::now() - start, milliseconds(100));
 }

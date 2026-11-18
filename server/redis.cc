@@ -138,12 +138,21 @@ absl::StatusOr<std::unique_ptr<Redis>> Redis::Create(const std::string& host,
 
 Redis::~Redis() { redisFree(context_); }
 
+void Redis::FailFast() {
+  failing_until_ = std::chrono::steady_clock::now() + timeouts_.fail_fast;
+}
+
 absl::Status Redis::Ready() {
+  if (std::chrono::steady_clock::now() < failing_until_) {
+    return absl::UnavailableError(
+        "Redis didn't answer a moment ago, so it isn't asked yet");
+  }
   // A lost connection, say from Redis restarting, or one that timed out,
   // leaves its error on the context, and hiredis can connect again with the
   // settings it kept. A connection that timed out is never used again, as a
   // reply that came late would answer the next command.
   if (context_->err != 0 && redisReconnect(context_) != REDIS_OK) {
+    FailFast();
     return absl::UnavailableError(
         absl::StrCat("couldn't reconnect to Redis: ", context_->errstr));
   }
@@ -158,6 +167,7 @@ absl::StatusOr<Reply> Redis::NextReply() {
                            (context_->err == REDIS_ERR_IO &&
                             (errno == EAGAIN || errno == EWOULDBLOCK));
     if (timed_out) {
+      FailFast();
       return absl::UnavailableError(absl::StrCat(
           "Redis didn't answer within ",
           absl::FormatDuration(absl::FromChrono(timeouts_.answer))));

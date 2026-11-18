@@ -141,6 +141,7 @@ absl::Status Database::Connect() {
     const absl::Status status = absl::UnavailableError(
         absl::StrCat("couldn't connect to MySQL: ", mysql_error(mysql)));
     mysql_close(mysql);
+    failing_until_ = std::chrono::steady_clock::now() + timeouts_.fail_fast;
     return status;
   }
   // A world's tick waits for what it asks of MySQL, so a statement waits two
@@ -163,14 +164,40 @@ Database::~Database() {
   mysql_close(mysql_);
 }
 
+absl::Status Database::Ready() const {
+  if (std::chrono::steady_clock::now() < failing_until_) {
+    return absl::UnavailableError(
+        "MySQL didn't answer a moment ago, so it isn't asked yet");
+  }
+  return absl::OkStatus();
+}
+
 bool Database::TimedOut(std::chrono::steady_clock::time_point start) const {
   return std::chrono::steady_clock::now() - start >= timeouts_.answer;
+}
+
+void Database::Notice(const absl::Status& status,
+                      std::chrono::steady_clock::time_point start) {
+  if (absl::IsUnavailable(status) && TimedOut(start)) {
+    failing_until_ = std::chrono::steady_clock::now() + timeouts_.fail_fast;
+  }
 }
 
 absl::StatusOr<Result> Database::Run(std::string_view sql,
                                      const std::vector<std::string>& values) {
   const Span span = StartStatement(sql);
+  if (const absl::Status ready = Ready(); !ready.ok()) {
+    return ready;
+  }
   const auto start = std::chrono::steady_clock::now();
+  absl::StatusOr<Result> result = RunOnce(sql, values, start);
+  Notice(result.status(), start);
+  return result;
+}
+
+absl::StatusOr<Result> Database::RunOnce(
+    std::string_view sql, const std::vector<std::string>& values,
+    std::chrono::steady_clock::time_point start) {
   if (const auto kept = reads_.find(sql); kept != reads_.end()) {
     absl::StatusOr<Result> result = Execute(kept->second.get(), values);
     if (result.ok()) {
@@ -273,6 +300,9 @@ absl::Status Database::Transaction(
     const std::function<absl::Status()>& statements) {
   // Its statements' spans go under it, and the commit's time is its own.
   const Span span = StartChildSpan("mysql transaction", SpanKind::kInternal);
+  if (const absl::Status ready = Ready(); !ready.ok()) {
+    return ready;
+  }
   const auto start = std::chrono::steady_clock::now();
   // Turning autocommit off is the first thing to reach MySQL, so a connection
   // that's gone stale fails there, before anything has run, and we connect
@@ -282,6 +312,7 @@ absl::Status Database::Transaction(
         TimedOut(start) ? absl::UnavailableError("MySQL didn't answer in time")
                         : Connect();
     if (!connected.ok()) {
+      Notice(connected, start);
       return connected;
     }
     if (mysql_autocommit(mysql_, false) != 0) {
@@ -298,6 +329,7 @@ absl::Status Database::Transaction(
     mysql_rollback(mysql_);
   }
   mysql_autocommit(mysql_, true);
+  Notice(status, start);
   return status;
 }
 

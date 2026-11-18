@@ -32,7 +32,7 @@ struct Result {
   uint64_t affected_rows = 0;
 };
 
-/// How long MySQL has to answer. A world's
+/// How long MySQL has to answer, and what happens when it doesn't. A world's
 /// tick waits for the reads that load a player who joins, so a MySQL that
 /// hangs would hang the world.
 struct MysqlTimeouts {
@@ -42,6 +42,9 @@ struct MysqlTimeouts {
   /// seconds a statement waits for a lock, which fails by itself. MySQL's
   /// client counts them in seconds.
   std::chrono::seconds answer{3};
+  /// After MySQL didn't answer in time, or couldn't be reached, each call
+  /// fails at once for this long, without asking it.
+  std::chrono::milliseconds fail_fast{5000};
 };
 
 class Database {
@@ -65,7 +68,8 @@ class Database {
   /// Unavailable, and a lock waited for too long, or a deadlock, as Aborted.
   /// A SELECT is prepared the first time it runs, and kept, so that it runs
   /// in one round trip after that, not two. A statement MySQL doesn't answer
-  /// in time fails as Unavailable.
+  /// in time fails as Unavailable, and so does each after it, at once, until
+  /// the timeouts' fail_fast is over.
   absl::StatusOr<Result> Run(std::string_view sql,
                              const std::vector<std::string>& values = {});
 
@@ -85,9 +89,18 @@ class Database {
         timeouts_(timeouts) {}
 
   absl::Status Connect();
+  absl::StatusOr<Result> RunOnce(std::string_view sql,
+                                 const std::vector<std::string>& values,
+                                 std::chrono::steady_clock::time_point start);
+  /// Whether to ask MySQL at all: not while failing fast.
+  absl::Status Ready() const;
   /// Whether a call that began then and failed as Unavailable waited out its
   /// timeout, rather than finding the connection gone.
   bool TimedOut(std::chrono::steady_clock::time_point start) const;
+  /// Fails each call at once for the timeouts' fail_fast, after a call that
+  /// failed so.
+  void Notice(const absl::Status& status,
+              std::chrono::steady_clock::time_point start);
   absl::StatusOr<Result> Execute(MYSQL_STMT* statement,
                                  const std::vector<std::string>& values);
 
@@ -96,6 +109,7 @@ class Database {
   std::string password_;
   std::string name_;
   MysqlTimeouts timeouts_;
+  std::chrono::steady_clock::time_point failing_until_;
   MYSQL* mysql_ = nullptr;
   bool in_transaction_ = false;
   /// The reads prepared on this connection, by their SQL.

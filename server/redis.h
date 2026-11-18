@@ -13,11 +13,16 @@
 
 namespace nanommo {
 
-/// How long Redis has to answer. A world's tick waits for its saves and its
-/// leases, so a Redis that hangs would hang every world.
+/// How long Redis has to answer, and what happens when it doesn't. A world's
+/// tick waits for its saves and its leases, so a Redis that hangs would hang
+/// every world.
 struct RedisTimeouts {
   /// For connecting, and then for each reply.
   std::chrono::milliseconds answer{250};
+  /// After Redis didn't answer in time, or couldn't be reached, each call
+  /// fails at once for this long, without asking it, so that a tick pays for
+  /// one timeout a second, not one each call.
+  std::chrono::milliseconds fail_fast{1000};
 };
 
 class Redis {
@@ -32,7 +37,8 @@ class Redis {
 
   /// Returns the reply as text, or a NotFound error when Redis says nil. A
   /// command that loses the connection fails, and the next one reconnects.
-  /// One that Redis doesn't answer in time fails as Unavailable, and its
+  /// One that Redis doesn't answer in time fails as Unavailable, and so does
+  /// each after it, at once, until the timeouts' fail_fast is over; its
   /// connection goes, as the reply might come later, as another's.
   absl::StatusOr<std::string> Command(const std::vector<std::string>& words);
 
@@ -75,15 +81,18 @@ class Redis {
   Redis(redisContext* context, RedisTimeouts timeouts)
       : context_(context), timeouts_(timeouts) {}
 
-  /// Whether to ask Redis at all: only once the connection's back, if it was
-  /// lost.
+  /// Whether to ask Redis at all: not while failing fast, and only once the
+  /// connection's back, if it was lost.
   absl::Status Ready();
   /// The next reply, or why there's none.
   absl::StatusOr<std::unique_ptr<redisReply, decltype(&freeReplyObject)>>
   NextReply();
+  /// Fails each call at once for the timeouts' fail_fast.
+  void FailFast();
 
   redisContext* context_;
   RedisTimeouts timeouts_;
+  std::chrono::steady_clock::time_point failing_until_;
 };
 
 }  // namespace nanommo
