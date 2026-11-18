@@ -20,3 +20,156 @@ groups:
         for: 1m
         annotations:
           summary: "Serials that more than one item has, as an item and its copy do: {{ $value }}"
+
+  # What players get, as our service level objectives measure it: each
+  # indicator as the share of what went wrong, over the windows the alerts
+  # below compare. They're recording rules, worked out every 30 seconds, so the
+  # alerts and the reliability dashboard read a number rather than redo it,
+  # and each window is as much of it as Prometheus has.
+  #
+  # The alerts after them are in the same group, so that each reads what the
+  # rules recorded at that same evaluation, as a group's rules run in order.
+  - name: slos
+    interval: 30s
+    rules:
+      # The share of each world's ticks over the last minute that weren't on
+      # time, within their 50 milliseconds, out of the 20 a second it owes, as
+      # main.cc's kTicksPerSecond is 20. In a handover, two instances tick, so
+      # it's capped at all of them. rate() divides by its whole window, so a
+      # series younger than the window would look like a world that missed
+      # ticks: one counts once it has a minute's samples, at 2 seconds a scrape,
+      # or all but one. A world that's down, or gone from Prometheus's targets,
+      # though it was there in the last day, misses every tick, as WorldDown has
+      # it.
+      - record: world:nanommo_tick_errors:ratio_rate1m
+        expr: >-
+          1 - clamp_max(
+            sum by (world) (
+              rate(nanommo_tick_duration_seconds_bucket{job="nanommo-server", le="0.05"}[1m])
+              and count_over_time(nanommo_tick_duration_seconds_bucket{job="nanommo-server", le="0.05"}[1m]) >= 29
+            ) / 20, 1)
+          or on (world) (
+            1 + 0 * max by (world) (max_over_time(up{job="nanommo-server"}[1d]))
+            unless on (world) max by (world) (up{job="nanommo-server"}) == 1
+          )
+      # The longer windows the alerts compare, from those minutes, each once
+      # Prometheus has watched for half of it: a few minutes' samples, as a
+      # Prometheus that's just started has, can't speak for an hour.
+      - record: world:nanommo_tick_errors:ratio_rate5m
+        expr: >-
+          avg_over_time(world:nanommo_tick_errors:ratio_rate1m[5m])
+          and count_over_time(world:nanommo_tick_errors:ratio_rate1m[5m]) >= 5
+      - record: world:nanommo_tick_errors:ratio_rate30m
+        expr: >-
+          avg_over_time(world:nanommo_tick_errors:ratio_rate1m[30m])
+          and count_over_time(world:nanommo_tick_errors:ratio_rate1m[30m]) >= 30
+      - record: world:nanommo_tick_errors:ratio_rate1h
+        expr: >-
+          avg_over_time(world:nanommo_tick_errors:ratio_rate1m[1h])
+          and count_over_time(world:nanommo_tick_errors:ratio_rate1m[1h]) >= 60
+      - record: world:nanommo_tick_errors:ratio_rate6h
+        expr: >-
+          avg_over_time(world:nanommo_tick_errors:ratio_rate1m[6h])
+          and count_over_time(world:nanommo_tick_errors:ratio_rate1m[6h]) >= 360
+      - record: world:nanommo_tick_errors:ratio_rate3d
+        expr: >-
+          avg_over_time(world:nanommo_tick_errors:ratio_rate1m[3d])
+          and count_over_time(world:nanommo_tick_errors:ratio_rate1m[3d]) >= 4320
+
+      # Requests the login server didn't answer within five seconds, or
+      # couldn't answer at all, out of all of them. A wrong password is
+      # answered: it's the player's mistake, not ours. Prometheus 3 writes
+      # each bucket's bound as a float as it scrapes it, so 5 is "5.0".
+      - record: nanommo_login_errors:ratio_rate5m
+        expr: >-
+          1 - sum(rate(nanommo_login_duration_seconds_bucket{result!="failed", le="5.0"}[5m]))
+          / sum(rate(nanommo_login_duration_seconds_count[5m]))
+      - record: nanommo_login_errors:ratio_rate30m
+        expr: >-
+          1 - sum(rate(nanommo_login_duration_seconds_bucket{result!="failed", le="5.0"}[30m]))
+          / sum(rate(nanommo_login_duration_seconds_count[30m]))
+      - record: nanommo_login_errors:ratio_rate1h
+        expr: >-
+          1 - sum(rate(nanommo_login_duration_seconds_bucket{result!="failed", le="5.0"}[1h]))
+          / sum(rate(nanommo_login_duration_seconds_count[1h]))
+      - record: nanommo_login_errors:ratio_rate6h
+        expr: >-
+          1 - sum(rate(nanommo_login_duration_seconds_bucket{result!="failed", le="5.0"}[6h]))
+          / sum(rate(nanommo_login_duration_seconds_count[6h]))
+
+      # 1 while MySQL is more than 30 seconds behind Redis: the saver's last
+      # flush that saved everyone ended over 30 seconds ago, or the saver's
+      # gone, though it was there in the last day, and 0 while it isn't. Its
+      # average over a window is the share of that time the saves were stale,
+      # once Prometheus has watched for half the window, as for the ticks.
+      - record: nanommo_saves_stale
+        expr: >-
+          (time() - max(nanommo_saver_flushed_timestamp_seconds) > bool 30)
+          or on () (1 + 0 * max(max_over_time(up{job="nanommo-saver"}[1d])))
+      - record: nanommo_saves_stale:ratio_rate5m
+        expr: avg_over_time(nanommo_saves_stale[5m]) and count_over_time(nanommo_saves_stale[5m]) >= 5
+      - record: nanommo_saves_stale:ratio_rate30m
+        expr: avg_over_time(nanommo_saves_stale[30m]) and count_over_time(nanommo_saves_stale[30m]) >= 30
+      - record: nanommo_saves_stale:ratio_rate1h
+        expr: avg_over_time(nanommo_saves_stale[1h]) and count_over_time(nanommo_saves_stale[1h]) >= 60
+      - record: nanommo_saves_stale:ratio_rate6h
+        expr: avg_over_time(nanommo_saves_stale[6h]) and count_over_time(nanommo_saves_stale[6h]) >= 360
+
+      # Each objective allows so much to go wrong over 30 days, its error
+      # budget: 0.1% of the ticks, 1% of the logins, 0.1% of the time for the
+      # saves. These alert on how fast a budget's going, its burn rate, where 1
+      # spends it in exactly the 30 days, as the SRE Workbook's multiwindow,
+      # multi-burn-rate alerts do. A page, at 14.4 times over the last hour,
+      # which spends 2% of a month's budget in that hour, or at 6 times over six
+      # hours, 5%, each while its short window, a twelfth as long, still burns
+      # as fast, so that the alert ends soon after the burning does. A ticket at
+      # 1 times over three days, 10%. Each alert's value is its burn rate.
+      - alert: TicksBurningBudget
+        expr: >-
+          (world:nanommo_tick_errors:ratio_rate1h / 0.001 > 14.4
+            and world:nanommo_tick_errors:ratio_rate5m / 0.001 > 14.4)
+          or
+          (world:nanommo_tick_errors:ratio_rate6h / 0.001 > 6
+            and world:nanommo_tick_errors:ratio_rate30m / 0.001 > 6)
+        labels:
+          severity: page
+        annotations:
+          summary: '{{ $labels.world }} misses its ticks {{ $value | printf "%.0f" }} times as fast as its error budget allows'
+
+      - alert: TicksDrainingBudget
+        expr: >-
+          world:nanommo_tick_errors:ratio_rate3d / 0.001 > 1
+          and world:nanommo_tick_errors:ratio_rate6h / 0.001 > 1
+        labels:
+          severity: ticket
+        annotations:
+          summary: '{{ $labels.world }} has missed its ticks {{ $value | printf "%.1f" }} times as fast as its error budget allows for three days'
+
+      # A handful of logins can't tell a bad hour from bad luck, so it waits
+      # for ten in the hour.
+      - alert: LoginsBurningBudget
+        expr: >-
+          (
+            (nanommo_login_errors:ratio_rate1h / 0.01 > 14.4
+              and nanommo_login_errors:ratio_rate5m / 0.01 > 14.4)
+            or
+            (nanommo_login_errors:ratio_rate6h / 0.01 > 6
+              and nanommo_login_errors:ratio_rate30m / 0.01 > 6)
+          )
+          and on () sum(increase(nanommo_login_duration_seconds_count[1h])) >= 10
+        labels:
+          severity: page
+        annotations:
+          summary: 'Logins fail or take over five seconds {{ $value | printf "%.0f" }} times as often as their error budget allows'
+
+      - alert: SavesBurningBudget
+        expr: >-
+          (nanommo_saves_stale:ratio_rate1h / 0.001 > 14.4
+            and nanommo_saves_stale:ratio_rate5m / 0.001 > 14.4)
+          or
+          (nanommo_saves_stale:ratio_rate6h / 0.001 > 6
+            and nanommo_saves_stale:ratio_rate30m / 0.001 > 6)
+        labels:
+          severity: page
+        annotations:
+          summary: 'MySQL has been over 30 seconds behind Redis {{ $value | printf "%.0f" }} times as long as its error budget allows'

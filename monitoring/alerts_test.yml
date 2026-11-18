@@ -48,3 +48,155 @@ tests:
         exp_alerts:
           - exp_annotations:
               summary: "Serials that more than one item has, as an item and its copy do: 1"
+
+  # Ember ticks on time all along, 40 ticks between scrapes two seconds
+  # apart, and Frost freezes after an hour: its counter of ticks on time stops.
+  - name: Frost freezes, and spends its budget
+    interval: 2s
+    input_series:
+      - series: 'nanommo_tick_duration_seconds_bucket{job="nanommo-server", world="Ember", le="0.05"}'
+        values: '0+40x2700'
+      - series: 'nanommo_tick_duration_seconds_bucket{job="nanommo-server", world="Frost", le="0.05"}'
+        values: '0+40x1800 72000x900'
+      - series: 'up{job="nanommo-server", world="Ember"}'
+        values: '1x2700'
+      - series: 'up{job="nanommo-server", world="Frost"}'
+        values: '1x2700'
+    promql_expr_test:
+      - expr: world:nanommo_tick_errors:ratio_rate5m
+        eval_time: 75m
+        exp_samples:
+          - labels: 'world:nanommo_tick_errors:ratio_rate5m{world="Ember"}'
+            value: 0
+          - labels: 'world:nanommo_tick_errors:ratio_rate5m{world="Frost"}'
+            value: 1
+    alert_rule_test:
+      - eval_time: 55m
+        alertname: TicksBurningBudget
+        exp_alerts: []
+      - eval_time: 75m
+        alertname: TicksBurningBudget
+        exp_alerts:
+          - exp_labels: { world: Frost, severity: page }
+            exp_annotations:
+              summary: Frost misses its ticks 242 times as fast as its error budget allows
+
+  # A freeze of six seconds misses 120 ticks: over five minutes, about 20
+  # times the rate the budget allows, but over the hour, about 2. Nobody's
+  # paged.
+  - name: A six-second freeze pages nobody
+    interval: 2s
+    input_series:
+      - series: 'nanommo_tick_duration_seconds_bucket{job="nanommo-server", world="Frost", le="0.05"}'
+        values: '0+40x1800 72000x2 72040+40x897'
+      - series: 'up{job="nanommo-server", world="Frost"}'
+        values: '1x2700'
+    promql_expr_test:
+      - expr: world:nanommo_tick_errors:ratio_rate5m / 0.001 > bool 14.4
+        eval_time: 64m
+        exp_samples:
+          - labels: '{world="Frost"}'
+            value: 1
+      - expr: world:nanommo_tick_errors:ratio_rate1h / 0.001 > bool 14.4
+        eval_time: 64m
+        exp_samples:
+          - labels: '{world="Frost"}'
+            value: 0
+    alert_rule_test:
+      - eval_time: 64m
+        alertname: TicksBurningBudget
+        exp_alerts: []
+
+  # Frost goes, and Prometheus forgets its series: it misses every tick,
+  # rather than none.
+  - name: Frost is gone, and spends its budget
+    interval: 2s
+    input_series:
+      - series: 'nanommo_tick_duration_seconds_bucket{job="nanommo-server", world="Frost", le="0.05"}'
+        values: '0+40x1800 stale'
+      - series: 'up{job="nanommo-server", world="Frost"}'
+        values: '1x1800 stale'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: TicksBurningBudget
+        exp_alerts:
+          - exp_labels: { world: Frost, severity: page }
+            exp_annotations:
+              summary: Frost misses its ticks 250 times as fast as its error budget allows
+
+  # A Prometheus that started three minutes ago has three minutes of
+  # samples, not an hour's, which no window mistakes for a world that missed
+  # its ticks.
+  - name: A new Prometheus pages nobody
+    interval: 2s
+    input_series:
+      - series: 'nanommo_tick_duration_seconds_bucket{job="nanommo-server", world="Frost", le="0.05"}'
+        values: '0+40x300'
+      - series: 'up{job="nanommo-server", world="Frost"}'
+        values: '1x300'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TicksBurningBudget
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: TicksDrainingBudget
+        exp_alerts: []
+
+  # The saver flushes as the test goes, its last good flush never more than
+  # 15 seconds old, and then, an hour in, it's stuck: its gauge stays put.
+  - name: The saver stops
+    interval: 15s
+    input_series:
+      - series: 'nanommo_saver_flushed_timestamp_seconds{job="nanommo-saver"}'
+        values: '0+15x240 3600x120'
+    promql_expr_test:
+      - expr: nanommo_saves_stale
+        eval_time: 30m
+        exp_samples:
+          - labels: 'nanommo_saves_stale'
+            value: 0
+      - expr: nanommo_saves_stale
+        eval_time: 62m
+        exp_samples:
+          - labels: 'nanommo_saves_stale'
+            value: 1
+    alert_rule_test:
+      - eval_time: 55m
+        alertname: SavesBurningBudget
+        exp_alerts: []
+      - eval_time: 75m
+        alertname: SavesBurningBudget
+        exp_alerts:
+          - exp_labels: { severity: page }
+            exp_annotations:
+              summary: MySQL has been over 30 seconds behind Redis 242 times as long as its error budget allows
+
+  # Twenty logins a minute, two of them refused, as a wrong password is,
+  # which is fine, and from an hour in, half of them fail. Over the hour, that
+  # burns the budget 11.9 times as fast as it lasts, short of 14.4, and over
+  # the six hours, which have only had 75 minutes, about 9 times, past 6.
+  - name: Logins fail
+    interval: 1m
+    input_series:
+      - series: 'nanommo_login_duration_seconds_count{result="ok"}'
+        values: '0+18x60 1080+8x30'
+      - series: 'nanommo_login_duration_seconds_bucket{result="ok", le="5.0"}'
+        values: '0+18x60 1080+8x30'
+      - series: 'nanommo_login_duration_seconds_count{result="refused"}'
+        values: '0+2x90'
+      - series: 'nanommo_login_duration_seconds_bucket{result="refused", le="5.0"}'
+        values: '0+2x90'
+      - series: 'nanommo_login_duration_seconds_count{result="failed"}'
+        values: '0x60 0+10x30'
+      - series: 'nanommo_login_duration_seconds_bucket{result="failed", le="5.0"}'
+        values: '0x60 0+10x30'
+    alert_rule_test:
+      - eval_time: 55m
+        alertname: LoginsBurningBudget
+        exp_alerts: []
+      - eval_time: 75m
+        alertname: LoginsBurningBudget
+        exp_alerts:
+          - exp_annotations:
+              summary: Logins fail or take over five seconds 9 times as often as their error budget allows
+            exp_labels: { severity: page }
