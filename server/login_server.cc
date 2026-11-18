@@ -4,6 +4,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -15,6 +16,7 @@
 #include "server/listen.h"
 #include "server/password.h"
 #include "server/session.h"
+#include "server/tracing.h"
 
 namespace nanommo {
 
@@ -56,6 +58,26 @@ absl::StatusOr<uint32_t> Authenticate(const protocol::LoginRequest& request,
     return 0;
   }
   return account->id;
+}
+
+// What the request asks for, as its span's name.
+std::string_view Asked(const protocol::LoginRequest& request) {
+  if (request.list_worlds()) {
+    return "list worlds";
+  }
+  if (request.session().empty()) {
+    return request.new_account() ? "create account" : "log in";
+  }
+  if (request.enter()) {
+    return "enter world";
+  }
+  if (request.create_character()) {
+    return "create character";
+  }
+  if (request.delete_character()) {
+    return "delete character";
+  }
+  return "list characters";
 }
 
 // An error the player can read, from a status a character's request got,
@@ -204,6 +226,11 @@ void LoginServer::Accept() {
           session.Close();
           return;
         }
+        // Each request is a trace of its own, from here to its answer.
+        Span span = StartSpan(Asked(request), SpanKind::kServer);
+        if (request.enter()) {
+          span.SetAttribute("nanommo.character", request.character());
+        }
         if (request.list_worlds()) {
           session.Send(Frame(ListWorlds()));
           return;
@@ -213,8 +240,13 @@ void LoginServer::Accept() {
         protocol::LoginReply reply;
         if (handled.ok()) {
           reply = *std::move(handled);
+          // A wrong password, say, is the player's mistake, not the server's.
+          if (!reply.error().empty()) {
+            span.SetAttribute("nanommo.refused", reply.error());
+          }
         } else {
           std::cerr << "nanommo login: " << handled.status() << "\n";
+          span.SetError(handled.status().ToString());
           reply.set_error("The server couldn't do that. Try again later.");
         }
         // A login, as it happens: the requests that follow it go with its

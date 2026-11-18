@@ -38,6 +38,7 @@
 #include "server/storyteller.h"
 #include "server/tick.h"
 #include "server/tokens.h"
+#include "server/tracing.h"
 
 namespace {
 
@@ -179,6 +180,14 @@ int main(int argc, char* argv[]) {
       .started = absl::ToUnixSeconds(absl::Now()),
   };
   const std::string instance = nanommo::InstanceId(registration);
+  // As the instance, as two of a world's can run at once, to an OpenTelemetry
+  // collector, such as Alloy, when there's one.
+  const std::string collector = nanommo::Setting("NANOMMO_OTLP_ENDPOINT", "");
+  if (!collector.empty()) {
+    nanommo::StartTracing(instance, nanommo::PostTo(collector),
+                          metrics.registry().get());
+    std::cout << "nanommo server: sending spans to " << collector << std::endl;
+  }
   // Consul gets its own thread, so that a slow answer can't hold up a tick.
   asio::thread_pool consul_thread(1);
   // A beat still waiting on Consul is enough, so that beats can't pile up.
@@ -276,6 +285,7 @@ int main(int argc, char* argv[]) {
     wait({});
   });
   io.run();
+  nanommo::StopTracing();
   std::cout << "nanommo server: stopped" << std::endl;
   return 0;
 }

@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/status/statusor.h"
@@ -18,6 +19,7 @@
 #include "server/login_server.h"
 #include "server/redis.h"
 #include "server/tokens.h"
+#include "server/tracing.h"
 
 int main() {
   std::cout << "nanommo login: version " << nanommo::kVersion << std::endl;
@@ -53,6 +55,13 @@ int main() {
   nanommo::Characters characters(*database);
   nanommo::Consul consul(nanommo::Setting("NANOMMO_CONSUL_HOST", "127.0.0.1"));
 
+  // To an OpenTelemetry collector, such as Alloy, when there's one.
+  const std::string collector = nanommo::Setting("NANOMMO_OTLP_ENDPOINT", "");
+  if (!collector.empty()) {
+    nanommo::StartTracing("login", nanommo::PostTo(collector));
+    std::cout << "nanommo login: sending spans to " << collector << std::endl;
+  }
+
   asio::io_context io;
   absl::StatusOr<std::unique_ptr<nanommo::LoginServer>> server_or =
       nanommo::LoginServer::Create(io, kPort, *tls, accounts, tokens,
@@ -67,6 +76,7 @@ int main() {
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });
   io.run();
+  nanommo::StopTracing();
   std::cout << "nanommo login: stopped" << std::endl;
   return 0;
 }

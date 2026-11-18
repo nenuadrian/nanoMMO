@@ -94,6 +94,7 @@ services:
       NANOMMO_CONSUL_HOST: consul
       NANOMMO_TLS_CERTIFICATE: /tls/server.crt
       NANOMMO_TLS_KEY: /tls/server.key
+      NANOMMO_OTLP_ENDPOINT: http://alloy:4318
     volumes:
       - ./tls:/tls:ro
     ports:
@@ -143,6 +144,7 @@ services:
       NANOMMO_TLS_KEY: /tls/server.key
       NANOMMO_WORLD: Ember
       NANOMMO_WORLD_SEED: 1
+      NANOMMO_OTLP_ENDPOINT: http://alloy:4318
     volumes:
       - ./tls:/tls:ro
     ports:

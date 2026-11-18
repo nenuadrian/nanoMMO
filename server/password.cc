@@ -7,6 +7,7 @@
 
 #include "absl/log/absl_check.h"
 #include "absl/status/status.h"
+#include "server/tracing.h"
 
 namespace nanommo {
 
@@ -20,6 +21,8 @@ void InitSodium() {
 
 absl::StatusOr<std::string> HashPassword(std::string_view password) {
   InitSodium();
+  // Slow on purpose, so it's a span of its own.
+  Span span = StartChildSpan("argon2id hash", SpanKind::kInternal);
   std::array<char, crypto_pwhash_STRBYTES> hash{};
   // What libsodium suggests for logins: two passes over 64 MiB of memory.
   if (crypto_pwhash_str(hash.data(), password.data(), password.size(),
@@ -32,6 +35,7 @@ absl::StatusOr<std::string> HashPassword(std::string_view password) {
 
 bool VerifyPassword(const std::string& hash, std::string_view password) {
   InitSodium();
+  Span span = StartChildSpan("argon2id verify", SpanKind::kInternal);
   return crypto_pwhash_str_verify(hash.c_str(), password.data(),
                                   password.size()) == 0;
 }

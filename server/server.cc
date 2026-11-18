@@ -33,6 +33,7 @@
 #include "server/listen.h"
 #include "server/shown.h"
 #include "server/stories.h"
+#include "server/tracing.h"
 #include "server/weather.h"
 #include "terrain/lands.h"
 #include "tracy/Tracy.hpp"
@@ -248,6 +249,8 @@ void Server::Accept() {
 }
 
 uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
+  // A player coming in is a trace of its own.
+  Span span = StartSpan("hello", SpanKind::kServer);
   protocol::Hello hello;
   const absl::StatusOr<uint32_t> id =
       hello.ParseFromString(bytes) ? tokens_.Redeem(hello.token())
@@ -255,9 +258,17 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   if (!id.ok() || WorldOf(*id) != nullptr) {
     std::cout << "refused a client: unknown token, or already playing"
               << std::endl;
+    // Redis not answering is the server's failure, not the player's.
+    if (!id.ok() && !absl::IsNotFound(id.status()) &&
+        !absl::IsInvalidArgument(id.status())) {
+      span.SetError(id.status().ToString());
+    } else {
+      span.SetAttribute("nanommo.refused", "unknown token, or already playing");
+    }
     session.Close();
     return 0;
   }
+  span.SetAttribute("nanommo.player", *id);
   // A character plays on one instance of its world at a time, which has their
   // lease while they do, so that the others turn them away.
   const absl::StatusOr<std::string> lease =
@@ -266,9 +277,11 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
     if (absl::IsFailedPrecondition(lease.status())) {
       std::cout << "refused player " << *id << ": " << lease.status().message()
                 << std::endl;
+      span.SetAttribute("nanommo.refused", lease.status().message());
     } else {
       std::cerr << "couldn't lease player " << *id << ": " << lease.status()
                 << "\n";
+      span.SetError(lease.status().ToString());
     }
     session.Close();
     return 0;
@@ -277,6 +290,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   if (!player.ok()) {
     std::cerr << "couldn't load player " << *id << ": " << player.status()
               << "\n";
+    span.SetError(player.status().ToString());
     players_.Release(name_, *id, *lease).IgnoreError();
     session.Close();
     return 0;

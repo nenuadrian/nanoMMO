@@ -17,6 +17,7 @@
 #include "content/items.h"
 #include "google/protobuf/util/json_util.h"
 #include "server/inventory.h"
+#include "server/tracing.h"
 #include "terrain/lands.h"
 
 namespace nanommo {
@@ -226,6 +227,7 @@ absl::StatusOr<protocol::Inventory> BagOf(const Result& rows,
 }  // namespace
 
 absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
+  Span span = StartChildSpan("load player", SpanKind::kInternal);
   // A character in another world is no player of this one's.
   const absl::StatusOr<Result> result = database_.Run(
       "SELECT name, x, z, experience, health, land, items_revision, quests, "
@@ -320,6 +322,7 @@ absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
 absl::StatusOr<std::string> Players::Lease(const std::string& world,
                                            uint32_t id,
                                            const std::string& instance) {
+  Span span = StartChildSpan("lease player", SpanKind::kInternal);
   absl::StatusOr<std::string> lease = redis_.Command(
       {"EVAL", kTake, "2", LeaseKey(world, id), FencingKey(world), instance,
        absl::StrCat(kLease.count())});
