@@ -226,8 +226,8 @@ Samples Crickets(uint32_t seed) {
     const float hertz = noise.Between(4000.0f, 5200.0f);
     const float every = noise.Between(0.6f, 1.2f);
     const float gain = noise.Between(0.05f, 0.12f);
-    for (float at = noise.Between(0.0f, every); at < kLoop + kSeam;
-         at += every * noise.Between(0.9f, 1.1f)) {
+    float at = noise.Between(0.0f, every);
+    while (at < kLoop + kSeam) {
       for (int p = 0; p < 3; ++p) {
         const auto start = static_cast<std::size_t>(SamplesIn(at + 0.045f * p));
         const auto length = static_cast<std::size_t>(SamplesIn(0.02f));
@@ -237,6 +237,7 @@ Samples Crickets(uint32_t seed) {
           s[start + i] += gain * shape * std::sin(kTau * hertz * t);
         }
       }
+      at += every * noise.Between(0.9f, 1.1f);
     }
   }
   return Looped(std::move(s));

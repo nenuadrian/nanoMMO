@@ -405,6 +405,7 @@ void Weather::Draw(const Camera3D& camera, const Atmosphere& atmosphere) const {
   if (!terrain_ || !on_) {
     return;
   }
+  const Terrain& terrain = *terrain_;
   SetShaderValue(shader_, GetShaderLocation(shader_, "fogColor"),
                  atmosphere.sky.data(), SHADER_UNIFORM_VEC3);
   SetFloat(shader_, "fogNear", atmosphere.fog_near);
@@ -421,13 +422,13 @@ void Weather::Draw(const Camera3D& camera, const Atmosphere& atmosphere) const {
   const Vector3 middle =
       Vector3Add(camera.position, Vector3Scale(level, kAhead));
   rlBegin(RL_TRIANGLES);
-  DrawFalling(camera, atmosphere, middle);
+  DrawFalling(camera, atmosphere, terrain, middle);
   rlEnd();
   EndBlendMode();
   BeginBlendMode(BLEND_ADDITIVE);
   SetFloat(shader_, "added", 1.0f);
   rlBegin(RL_TRIANGLES);
-  DrawGlows(camera, middle);
+  DrawGlows(camera, terrain, middle);
   rlEnd();
   // The lightning's seen through the fog and the rain, however far off.
   rlDrawRenderBatchActive();
@@ -443,8 +444,7 @@ void Weather::Draw(const Camera3D& camera, const Atmosphere& atmosphere) const {
 }
 
 void Weather::DrawFalling(const Camera3D& camera, const Atmosphere& atmosphere,
-                          Vector3 middle) const {
-  const Terrain& terrain = *terrain_;
+                          const Terrain& terrain, Vector3 middle) const {
   const Vector2 wind = {sky_.wind_x(), sky_.wind_z()};
   const float strength = std::clamp(sky_.strength(), 0.0f, 1.0f);
   const Vector3 forward =
@@ -518,8 +518,8 @@ void Weather::DrawFalling(const Camera3D& camera, const Atmosphere& atmosphere,
   }
 }
 
-void Weather::DrawGlows(const Camera3D& camera, Vector3 middle) const {
-  const Terrain& terrain = *terrain_;
+void Weather::DrawGlows(const Camera3D& camera, const Terrain& terrain,
+                        Vector3 middle) const {
   const Vector3 forward =
       Vector3Normalize(Vector3Subtract(camera.target, camera.position));
   const Vector3 right =

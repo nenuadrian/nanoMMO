@@ -124,15 +124,25 @@ TEST(WorldList, AsksOnAThreadOfItsOwnAndTakesTheAnswerOnTheIoThread) {
 // A TLS server that sends back what it's sent, as a world would answer.
 class Echo {
  public:
-  Echo() : acceptor_(io_, tcp::endpoint(asio::ip::address_v4::loopback(), 0)) {
+  Echo()
+      : acceptor_(io_, tcp::endpoint(asio::ip::address_v4::loopback(), 0)),
+        port_(acceptor_.local_endpoint().port()) {
     thread_ = std::thread([this] { Serve(); });
   }
   ~Echo() {
-    std::error_code ignored;
-    acceptor_.close(ignored);
+    // A test that never reached the echo leaves its thread waiting in accept.
+    // Closing the acceptor from here would be a second thread on it, which
+    // asio doesn't allow, so a connection of our own lets it go: it's closed
+    // straight away, and the handshake ends there.
+    {
+      asio::io_context io;
+      tcp::socket wake(io);
+      std::error_code ignored;
+      wake.connect({asio::ip::address_v4::loopback(), port_}, ignored);
+    }
     thread_.join();
   }
-  uint16_t port() const { return acceptor_.local_endpoint().port(); }
+  uint16_t port() const { return port_; }
 
  private:
   void Serve() {
@@ -155,6 +165,7 @@ class Echo {
 
   asio::io_context io_;
   tcp::acceptor acceptor_;
+  uint16_t port_;
   std::thread thread_;
 };
 

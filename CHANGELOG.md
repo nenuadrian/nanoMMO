@@ -7,6 +7,15 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.86.1 (2026-11-18)
+
+- The weather's code passes clang-tidy again: what falls and what glows get the land from `Draw`,
+  which checks there is one, and the crickets' chirps step through time in a `while` loop rather
+  than a `for` loop over a `float`. They sound the same as before.
+- The gateway's tests no longer race. The echo server they stand in for a world with closed its
+  acceptor from the test's thread while its own thread waited in `accept`, which ThreadSanitizer
+  caught; now a connection of its own lets that thread go.
+
 ## 0.86.0 (2026-11-17)
 
 - Snow falls above 19 metres in the Meadows, where the ground is white. Ash tumbles over the

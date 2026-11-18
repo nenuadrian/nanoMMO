@@ -69,8 +69,9 @@ class Weather {
   };
 
   void DrawFalling(const Camera3D& camera, const Atmosphere& atmosphere,
-                   Vector3 middle) const;
-  void DrawGlows(const Camera3D& camera, Vector3 middle) const;
+                   const Terrain& terrain, Vector3 middle) const;
+  void DrawGlows(const Camera3D& camera, const Terrain& terrain,
+                 Vector3 middle) const;
   void DrawStrike(const Camera3D& camera) const;
   float StrikeLight() const;
 
