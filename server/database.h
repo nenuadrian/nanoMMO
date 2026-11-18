@@ -3,6 +3,7 @@
 
 #include <mysql.h>
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -31,12 +32,26 @@ struct Result {
   uint64_t affected_rows = 0;
 };
 
+/// How long MySQL has to answer. A world's
+/// tick waits for the reads that load a player who joins, so a MySQL that
+/// hangs would hang the world.
+struct MysqlTimeouts {
+  /// For connecting.
+  std::chrono::seconds connect{1};
+  /// For each read and each write on the connection, longer than the two
+  /// seconds a statement waits for a lock, which fails by itself. MySQL's
+  /// client counts them in seconds.
+  std::chrono::seconds answer{3};
+};
+
 class Database {
  public:
-  /// Connects to MySQL, or returns why it couldn't.
+  /// Connects to MySQL, at the host, which can name a port as host:port, or
+  /// returns why it couldn't.
   static absl::StatusOr<std::unique_ptr<Database>> Create(
       const std::string& host, const std::string& user,
-      const std::string& password, const std::string& name);
+      const std::string& password, const std::string& name,
+      MysqlTimeouts timeouts = {});
   ~Database();
 
   Database(const Database&) = delete;
@@ -49,7 +64,8 @@ class Database {
   /// duplicate key comes back as an AlreadyExists error, a lost connection as
   /// Unavailable, and a lock waited for too long, or a deadlock, as Aborted.
   /// A SELECT is prepared the first time it runs, and kept, so that it runs
-  /// in one round trip after that, not two.
+  /// in one round trip after that, not two. A statement MySQL doesn't answer
+  /// in time fails as Unavailable.
   absl::StatusOr<Result> Run(std::string_view sql,
                              const std::vector<std::string>& values = {});
 
@@ -61,13 +77,17 @@ class Database {
 
  private:
   Database(std::string host, std::string user, std::string password,
-           std::string name)
+           std::string name, MysqlTimeouts timeouts)
       : host_(std::move(host)),
         user_(std::move(user)),
         password_(std::move(password)),
-        name_(std::move(name)) {}
+        name_(std::move(name)),
+        timeouts_(timeouts) {}
 
   absl::Status Connect();
+  /// Whether a call that began then and failed as Unavailable waited out its
+  /// timeout, rather than finding the connection gone.
+  bool TimedOut(std::chrono::steady_clock::time_point start) const;
   absl::StatusOr<Result> Execute(MYSQL_STMT* statement,
                                  const std::vector<std::string>& values);
 
@@ -75,6 +95,7 @@ class Database {
   std::string user_;
   std::string password_;
   std::string name_;
+  MysqlTimeouts timeouts_;
   MYSQL* mysql_ = nullptr;
   bool in_transaction_ = false;
   /// The reads prepared on this connection, by their SQL.

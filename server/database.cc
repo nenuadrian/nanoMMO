@@ -4,6 +4,7 @@
 #include <mysqld_error.h>
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -14,6 +15,7 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "server/tracing.h"
@@ -103,9 +105,10 @@ absl::StatusOr<Statement> Prepare(MYSQL* mysql, std::string_view sql) {
 
 absl::StatusOr<std::unique_ptr<Database>> Database::Create(
     const std::string& host, const std::string& user,
-    const std::string& password, const std::string& name) {
+    const std::string& password, const std::string& name,
+    MysqlTimeouts timeouts) {
   std::unique_ptr<Database> database =
-      absl::WrapUnique(new Database(host, user, password, name));
+      absl::WrapUnique(new Database(host, user, password, name, timeouts));
   const absl::Status connected = database->Connect();
   if (!connected.ok()) {
     return connected;
@@ -119,8 +122,22 @@ absl::Status Database::Connect() {
     return absl::ResourceExhaustedError("out of memory");
   }
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, "utf8mb4");
-  if (mysql_real_connect(mysql, host_.c_str(), user_.c_str(), password_.c_str(),
-                         name_.c_str(), 0, nullptr, 0) == nullptr) {
+  const auto connect = static_cast<unsigned int>(timeouts_.connect.count());
+  const auto answer = static_cast<unsigned int>(timeouts_.answer.count());
+  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, &connect);
+  mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, &answer);
+  mysql_options(mysql, MYSQL_OPT_WRITE_TIMEOUT, &answer);
+  // A host can name its port, as host:port, or it's MySQL's.
+  const std::vector<std::string> host = absl::StrSplit(host_, ':');
+  unsigned int port = 0;
+  if (host.size() == 2 && !absl::SimpleAtoi(host[1], &port)) {
+    mysql_close(mysql);
+    return absl::InvalidArgumentError(
+        absl::StrCat("a MySQL host's port that isn't a number: ", host_));
+  }
+  if (mysql_real_connect(mysql, host[0].c_str(), user_.c_str(),
+                         password_.c_str(), name_.c_str(), port, nullptr,
+                         0) == nullptr) {
     const absl::Status status = absl::UnavailableError(
         absl::StrCat("couldn't connect to MySQL: ", mysql_error(mysql)));
     mysql_close(mysql);
@@ -146,9 +163,14 @@ Database::~Database() {
   mysql_close(mysql_);
 }
 
+bool Database::TimedOut(std::chrono::steady_clock::time_point start) const {
+  return std::chrono::steady_clock::now() - start >= timeouts_.answer;
+}
+
 absl::StatusOr<Result> Database::Run(std::string_view sql,
                                      const std::vector<std::string>& values) {
   const Span span = StartStatement(sql);
+  const auto start = std::chrono::steady_clock::now();
   if (const auto kept = reads_.find(sql); kept != reads_.end()) {
     absl::StatusOr<Result> result = Execute(kept->second.get(), values);
     if (result.ok()) {
@@ -158,16 +180,21 @@ absl::StatusOr<Result> Database::Run(std::string_view sql,
     reads_.erase(kept);
     // A connection that's gone stale since it was prepared fails as it runs.
     // A read changed nothing, so it runs again, on a new connection, unless
-    // we're in a transaction, which went with the old one.
-    if (!absl::IsUnavailable(result.status()) || in_transaction_) {
+    // we're in a transaction, which went with the old one. One that waited
+    // out its timeout found MySQL not answering, and asking again would wait
+    // as long again.
+    if (!absl::IsUnavailable(result.status()) || in_transaction_ ||
+        TimedOut(start)) {
       return result;
     }
   }
   absl::StatusOr<Statement> prepared = Prepare(mysql_, sql);
   // MySQL drops a connection that sits idle for eight hours, and a restart
   // drops them all. Nothing has run yet, so we connect again and retry,
-  // unless we're in a transaction, which went with the connection.
-  if (absl::IsUnavailable(prepared.status()) && !in_transaction_) {
+  // unless we're in a transaction, which went with the connection, or MySQL
+  // didn't answer in time.
+  if (absl::IsUnavailable(prepared.status()) && !in_transaction_ &&
+      !TimedOut(start)) {
     const absl::Status connected = Connect();
     if (!connected.ok()) {
       return connected;
@@ -246,11 +273,14 @@ absl::Status Database::Transaction(
     const std::function<absl::Status()>& statements) {
   // Its statements' spans go under it, and the commit's time is its own.
   const Span span = StartChildSpan("mysql transaction", SpanKind::kInternal);
+  const auto start = std::chrono::steady_clock::now();
   // Turning autocommit off is the first thing to reach MySQL, so a connection
   // that's gone stale fails there, before anything has run, and we connect
   // again.
   if (mysql_autocommit(mysql_, false) != 0) {
-    const absl::Status connected = Connect();
+    const absl::Status connected =
+        TimedOut(start) ? absl::UnavailableError("MySQL didn't answer in time")
+                        : Connect();
     if (!connected.ok()) {
       return connected;
     }

@@ -33,6 +33,7 @@
 #include "server/listen.h"
 #include "server/shown.h"
 #include "server/stories.h"
+#include "server/tick.h"
 #include "server/tracing.h"
 #include "server/weather.h"
 #include "terrain/lands.h"
@@ -259,13 +260,15 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
                                    : absl::InvalidArgumentError("not a hello");
   Span span = StartSpan("hello", SpanKind::kServer, issuer, arrived);
   if (!id.ok() || WorldOf(*id) != nullptr) {
-    std::cout << "refused a client: unknown token, or already playing"
-              << TraceField() << std::endl;
     // Redis not answering is the server's failure, not the player's.
     if (!id.ok() && !absl::IsNotFound(id.status()) &&
         !absl::IsInvalidArgument(id.status())) {
+      std::cerr << "couldn't redeem a token: " << id.status() << TraceField()
+                << "\n";
       span.SetError(id.status().ToString());
     } else {
+      std::cout << "refused a client: unknown token, or already playing"
+                << TraceField() << std::endl;
       span.SetAttribute("nanommo.refused", "unknown token, or already playing");
     }
     session.Close();
@@ -975,8 +978,17 @@ void Server::Tick() {
   metrics_.ObserveTick(std::chrono::steady_clock::now() - start);
   TracyPlot("players", static_cast<int64_t>(players()));
   FrameMark;
-  // From the last expiry, not from now, so that the ticks don't drift.
-  timer_.expires_at(timer_.expiry() + interval_);
+  // From the last expiry, not from now, so that the ticks don't drift, unless
+  // the world's so far behind that it lets the ticks it missed go.
+  const auto now = std::chrono::steady_clock::now();
+  const auto next = NextTick(timer_.expiry(), now, interval_);
+  if (next != timer_.expiry() + interval_) {
+    std::cout << "nanommo server: "
+              << absl::FormatDuration(
+                     absl::FromChrono(now - timer_.expiry() - interval_))
+              << " behind, so the ticks missed are let go" << std::endl;
+  }
+  timer_.expires_at(next);
   timer_.async_wait([this](std::error_code) { Tick(); });
 }
 

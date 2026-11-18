@@ -1,9 +1,15 @@
 #include "server/redis.h"
 
+#include <sys/time.h>
+
 #include <algorithm>
+#include <cerrno>
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -12,25 +18,36 @@
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "absl/time/time.h"
 #include "server/tracing.h"
 
 namespace nanommo {
 
 namespace {
 
-// A lost connection, say from Redis restarting, leaves its error on the
-// context, and hiredis can connect again with the settings it kept.
-absl::Status ReconnectIfLost(redisContext* context) {
-  if (context->err != 0 && redisReconnect(context) != REDIS_OK) {
-    return absl::UnavailableError(
-        absl::StrCat("couldn't reconnect to Redis: ", context->errstr));
-  }
-  return absl::OkStatus();
+using Reply = std::unique_ptr<redisReply, decltype(&freeReplyObject)>;
+
+timeval TimevalOf(std::chrono::milliseconds time) {
+  return {.tv_sec = static_cast<decltype(timeval::tv_sec)>(time.count() / 1000),
+          .tv_usec = static_cast<decltype(timeval::tv_usec)>(
+              (time.count() % 1000) * 1000)};
 }
 
-using Reply = std::unique_ptr<redisReply, decltype(&freeReplyObject)>;
+// How long a read with BLOCK waits in Redis, where zero is for ever, or
+// nothing without BLOCK.
+std::optional<std::chrono::milliseconds> Blocks(
+    const std::vector<std::string>& words) {
+  const auto block = std::ranges::find(words, "BLOCK");
+  int64_t wait = 0;
+  if (block == words.end() || block + 1 == words.end() ||
+      !absl::SimpleAtoi(*(block + 1), &wait)) {
+    return std::nullopt;
+  }
+  return std::chrono::milliseconds(wait);
+}
 
 // A call, as a span under the request it's made for, named by its commands,
 // such as GETDEL, or SREM HMGET for a pipeline of both, without their keys or
@@ -65,15 +82,6 @@ void Append(redisContext* context, const std::vector<std::string>& words) {
                          lengths.data());
 }
 
-absl::StatusOr<Reply> NextReply(redisContext* context) {
-  void* reply = nullptr;
-  if (redisGetReply(context, &reply) != REDIS_OK) {
-    return absl::UnavailableError(
-        absl::StrCat("lost the connection to Redis: ", context->errstr));
-  }
-  return Reply(static_cast<redisReply*>(reply), freeReplyObject);
-}
-
 std::string Text(const redisReply& reply) {
   if (reply.type == REDIS_REPLY_INTEGER) {
     return absl::StrCat(reply.integer);
@@ -106,13 +114,21 @@ return wrong
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<Redis>> Redis::Create(const std::string& host,
-                                                     int port) {
-  redisContext* context = redisConnect(host.c_str(), port);
+                                                     int port,
+                                                     RedisTimeouts timeouts) {
+  // hiredis keeps its own copies of the timeouts, and connects with them
+  // again after a lost connection.
+  const timeval answer = TimevalOf(timeouts.answer);
+  redisOptions options{};
+  REDIS_OPTIONS_SET_TCP(&options, host.c_str(), port);
+  options.connect_timeout = &answer;
+  options.command_timeout = &answer;
+  redisContext* context = redisConnectWithOptions(&options);
   if (context == nullptr) {
     return absl::ResourceExhaustedError("out of memory connecting to Redis");
   }
   // The object owns the context from here, so an error below frees it.
-  std::unique_ptr<Redis> redis = absl::WrapUnique(new Redis(context));
+  std::unique_ptr<Redis> redis = absl::WrapUnique(new Redis(context, timeouts));
   if (context->err != 0) {
     return absl::UnavailableError(
         absl::StrCat("couldn't connect to Redis: ", context->errstr));
@@ -122,15 +138,45 @@ absl::StatusOr<std::unique_ptr<Redis>> Redis::Create(const std::string& host,
 
 Redis::~Redis() { redisFree(context_); }
 
+absl::Status Redis::Ready() {
+  // A lost connection, say from Redis restarting, or one that timed out,
+  // leaves its error on the context, and hiredis can connect again with the
+  // settings it kept. A connection that timed out is never used again, as a
+  // reply that came late would answer the next command.
+  if (context_->err != 0 && redisReconnect(context_) != REDIS_OK) {
+    return absl::UnavailableError(
+        absl::StrCat("couldn't reconnect to Redis: ", context_->errstr));
+  }
+  return absl::OkStatus();
+}
+
+absl::StatusOr<Reply> Redis::NextReply() {
+  void* reply = nullptr;
+  if (redisGetReply(context_, &reply) != REDIS_OK) {
+    // A blocking socket whose wait for a reply runs out says to try again.
+    const bool timed_out = context_->err == REDIS_ERR_TIMEOUT ||
+                           (context_->err == REDIS_ERR_IO &&
+                            (errno == EAGAIN || errno == EWOULDBLOCK));
+    if (timed_out) {
+      return absl::UnavailableError(absl::StrCat(
+          "Redis didn't answer within ",
+          absl::FormatDuration(absl::FromChrono(timeouts_.answer))));
+    }
+    return absl::UnavailableError(
+        absl::StrCat("lost the connection to Redis: ", context_->errstr));
+  }
+  return Reply(static_cast<redisReply*>(reply), freeReplyObject);
+}
+
 absl::StatusOr<std::string> Redis::Command(
     const std::vector<std::string>& words) {
   const Span span = StartCall({&words, 1});
-  const absl::Status connected = ReconnectIfLost(context_);
-  if (!connected.ok()) {
-    return connected;
+  const absl::Status ready = Ready();
+  if (!ready.ok()) {
+    return ready;
   }
   Append(context_, words);
-  const absl::StatusOr<Reply> reply_or = NextReply(context_);
+  const absl::StatusOr<Reply> reply_or = NextReply();
   if (!reply_or.ok()) {
     return reply_or.status();
   }
@@ -156,12 +202,26 @@ absl::StatusOr<std::string> Redis::Command(
 absl::StatusOr<std::vector<Redis::Entry>> Redis::Read(
     const std::vector<std::string>& words) {
   const Span span = StartCall({&words, 1});
-  const absl::Status connected = ReconnectIfLost(context_);
-  if (!connected.ok()) {
-    return connected;
+  const absl::Status ready = Ready();
+  if (!ready.ok()) {
+    return ready;
   }
   Append(context_, words);
-  const absl::StatusOr<Reply> reply = NextReply(context_);
+  // A read that waits for entries to come waits that long for its reply, on
+  // top of the timeout, and then the timeout's as it was. BLOCK 0 waits for
+  // ever, and so does its read, as a timeout of zero is none.
+  const std::optional<std::chrono::milliseconds> blocks = Blocks(words);
+  if (blocks) {
+    const std::chrono::milliseconds wait =
+        blocks->count() == 0 ? *blocks : timeouts_.answer + *blocks;
+    redisSetTimeout(context_, TimevalOf(wait));
+  }
+  const absl::StatusOr<Reply> reply = NextReply();
+  // hiredis keeps the timeout for the connection it makes next, too, so it's
+  // put back even after a reply that didn't come.
+  if (blocks) {
+    redisSetTimeout(context_, TimevalOf(timeouts_.answer));
+  }
   if (!reply.ok()) {
     return reply.status();
   }
@@ -200,9 +260,9 @@ absl::StatusOr<std::vector<Redis::Entry>> Redis::Read(
 absl::StatusOr<std::vector<std::vector<std::string>>> Redis::Pipeline(
     const std::vector<std::vector<std::string>>& commands) {
   const Span span = StartCall(commands);
-  const absl::Status connected = ReconnectIfLost(context_);
-  if (!connected.ok()) {
-    return connected;
+  const absl::Status ready = Ready();
+  if (!ready.ok()) {
+    return ready;
   }
   for (const std::vector<std::string>& words : commands) {
     Append(context_, words);
@@ -210,7 +270,7 @@ absl::StatusOr<std::vector<std::vector<std::string>>> Redis::Pipeline(
   std::vector<std::vector<std::string>> replies;
   absl::Status error;
   for (std::size_t i = 0; i < commands.size(); ++i) {
-    const absl::StatusOr<Reply> reply = NextReply(context_);
+    const absl::StatusOr<Reply> reply = NextReply();
     if (!reply.ok()) {
       return reply.status();
     }
@@ -238,9 +298,9 @@ absl::StatusOr<std::vector<std::vector<std::string>>> Redis::Pipeline(
 absl::Status Redis::Transaction(
     const std::vector<std::vector<std::string>>& commands) {
   const Span span = StartCall(commands);
-  const absl::Status connected = ReconnectIfLost(context_);
-  if (!connected.ok()) {
-    return connected;
+  const absl::Status ready = Ready();
+  if (!ready.ok()) {
+    return ready;
   }
   Append(context_, {"MULTI"});
   for (const std::vector<std::string>& words : commands) {
@@ -251,7 +311,7 @@ absl::Status Redis::Transaction(
   // wouldn't queue, which makes EXEC run none of them.
   absl::Status error;
   for (std::size_t i = 0; i <= commands.size(); ++i) {
-    const absl::StatusOr<Reply> reply = NextReply(context_);
+    const absl::StatusOr<Reply> reply = NextReply();
     if (!reply.ok()) {
       return reply.status();
     }
@@ -259,7 +319,7 @@ absl::Status Redis::Transaction(
       error.Update(absl::InternalError(absl::StrCat("Redis: ", Text(**reply))));
     }
   }
-  const absl::StatusOr<Reply> exec = NextReply(context_);
+  const absl::StatusOr<Reply> exec = NextReply();
   if (!exec.ok()) {
     return exec.status();
   }

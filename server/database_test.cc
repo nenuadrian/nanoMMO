@@ -1,7 +1,10 @@
 #include "server/database.h"
 
+#include <chrono>
+#include <cstdlib>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -99,4 +102,46 @@ TEST(Database, RunsAReadAgainOnANewConnectionOnceItsOwnIsGone) {
       database->Run("SELECT CONNECTION_ID()");
   ASSERT_TRUE(again.ok()) << again.status();
   EXPECT_NE(again->rows, first->rows);
+}
+
+using std::chrono::seconds;
+using std::chrono::steady_clock;
+
+TEST(Database, AMysqlThatDoesntAnswerTimesOutConnecting) {
+  const nanommo::testing::SilentListener silent;
+  const steady_clock::time_point start = steady_clock::now();
+  const absl::StatusOr<std::unique_ptr<nanommo::Database>> database =
+      nanommo::Database::Create(absl::StrCat("127.0.0.1:", silent.port()),
+                                "nanommo", "nanommo", "nanommo",
+                                {.connect = seconds(1)});
+  const steady_clock::duration took = steady_clock::now() - start;
+  EXPECT_TRUE(absl::IsUnavailable(database.status())) << database.status();
+  EXPECT_LT(took, seconds(4));
+}
+
+TEST(Database, AStatementMysqlDoesntAnswerInTimeFails) {
+  const char* host = std::getenv("NANOMMO_MYSQL_HOST");
+  if (host == nullptr) {
+    GTEST_SKIP() << "set NANOMMO_MYSQL_HOST to test against MySQL";
+  }
+  absl::StatusOr<std::unique_ptr<nanommo::Database>> database =
+      nanommo::Database::Create(host, "nanommo", "nanommo", "nanommo",
+                                {.answer = seconds(1)});
+  ASSERT_TRUE(database.ok()) << database.status();
+  // A statement that answers within the second does.
+  ASSERT_TRUE((*database)->Run("SELECT SLEEP(0.1)").ok());
+
+  // One that takes ten seconds, as MySQL hung would, fails, long before that.
+  steady_clock::time_point start = steady_clock::now();
+  const absl::StatusOr<nanommo::Result> slept =
+      (*database)->Run("SELECT SLEEP(10)");
+  const steady_clock::duration took = steady_clock::now() - start;
+  EXPECT_TRUE(absl::IsUnavailable(slept.status())) << slept.status();
+  EXPECT_GE(took, seconds(1));
+  EXPECT_LT(took, seconds(5));
+
+  // The next goes on a new connection, as the one that timed out is gone.
+  const absl::StatusOr<nanommo::Result> again = (*database)->Run("SELECT 1");
+  ASSERT_TRUE(again.ok()) << again.status();
+  EXPECT_EQ(again->rows, (std::vector<std::vector<std::string>>{{"1"}}));
 }

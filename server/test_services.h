@@ -1,6 +1,7 @@
 #ifndef NANOMMO_SERVER_TEST_SERVICES_H_
 #define NANOMMO_SERVER_TEST_SERVICES_H_
 
+#include <cstdint>
 #include <cstdlib>
 #include <memory>
 #include <random>
@@ -8,6 +9,9 @@
 #include <utility>
 
 #include "absl/status/statusor.h"
+#include "asio/io_context.hpp"
+#include "asio/ip/address_v4.hpp"
+#include "asio/ip/tcp.hpp"
 #include "gtest/gtest.h"
 #include "server/database.h"
 #include "server/redis.h"
@@ -43,6 +47,18 @@ inline std::unique_ptr<Redis> TestRedis() {
   }
   return *std::move(redis);
 }
+
+/// A port that takes connections, as the kernel does for a listening socket,
+/// and never answers: a server that's hung, as it looks from outside.
+class SilentListener {
+ public:
+  uint16_t port() const { return acceptor_.local_endpoint().port(); }
+
+ private:
+  asio::io_context io_;
+  asio::ip::tcp::acceptor acceptor_{
+      io_, asio::ip::tcp::endpoint(asio::ip::address_v4::loopback(), 0)};
+};
 
 inline std::string TestName() {
   return "test_" + std::to_string(std::random_device()() % 1000000000);

@@ -13,4 +13,15 @@ absl::StatusOr<std::chrono::nanoseconds> TickInterval(int ticks_per_second) {
   return std::chrono::nanoseconds(std::chrono::seconds(1)) / ticks_per_second;
 }
 
+std::chrono::steady_clock::time_point NextTick(
+    std::chrono::steady_clock::time_point due,
+    std::chrono::steady_clock::time_point now,
+    std::chrono::nanoseconds interval) {
+  const std::chrono::steady_clock::time_point next = due + interval;
+  if (now - next > kMostBehind) {
+    return now + interval;
+  }
+  return next;
+}
+
 }  // namespace nanommo
