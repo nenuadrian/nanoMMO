@@ -110,10 +110,14 @@ class Players {
   /// Takes the unsaved players of all the worlds from Redis to MySQL, a batch
   /// at a time, each in a transaction with the bags that changed, and returns
   /// how many it saved. The trades that are waiting go first, each in a batch
-  /// with both its players, into the trades table.
+  /// with both its players, into the trades table. A batch stays in Redis, in
+  /// a set of its own, until MySQL has it, so that one a flush took and
+  /// didn't save, as its saver died, goes back with the unsaved players as
+  /// the next flush starts. There's one saver at a time.
   absl::StatusOr<int> Flush();
 
-  /// How many players are marked unsaved in Redis, waiting for a flush.
+  /// How many players are marked unsaved in Redis, waiting for a flush, or in
+  /// a batch that isn't in MySQL yet, or both, each once.
   absl::StatusOr<int> Unsaved();
 
   /// The serials that more than one item in MySQL has, as only a copy of an
@@ -121,6 +125,9 @@ class Players {
   absl::StatusOr<int> Duplicates();
 
  private:
+  /// Puts a batch that wasn't saved back into the sets of those unsaved.
+  absl::Status PutBack();
+
   Database& database_;
   Redis& redis_;
 };

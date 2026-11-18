@@ -68,6 +68,9 @@ class PlayersTest : public ::testing::Test {
                       .ok());
       EXPECT_TRUE(
           redis_->Command({"SREM", "items:unsaved", ember, frost}).ok());
+      EXPECT_TRUE(
+          redis_->Command({"SREM", "players:saving", ember, frost}).ok());
+      EXPECT_TRUE(redis_->Command({"SREM", "items:saving", ember, frost}).ok());
       EXPECT_TRUE(redis_->Command({"DEL", Lease()}).ok());
     }
   }
@@ -206,6 +209,52 @@ TEST_F(PlayersTest, CountsThePlayersWaitingForAFlush) {
 
   ASSERT_TRUE(players.Flush().ok());
   EXPECT_EQ(players.Unsaved().value_or(-1), 0);
+}
+
+TEST_F(PlayersTest, ABatchASaverDiedWithIsSavedByTheNextFlush) {
+  nanommo::Players players(*database_, *redis_);
+  const std::string key = "player:Frost:" + std::to_string(frost_);
+  ASSERT_TRUE(
+      players
+          .Save("Frost",
+                {{frost_, {.x = 4.5f, .experience = 30, .items_revision = 3}}},
+                {{frost_, Bag(3)}})
+          .ok());
+  // As a flush that took them leaves them, when its saver's killed as it
+  // waits for MySQL: in its batch's sets, and no longer marked unsaved.
+  ASSERT_TRUE(
+      redis_
+          ->Pipeline({{"SMOVE", "players:unsaved", "players:saving", key},
+                      {"SMOVE", "items:unsaved", "items:saving", key}})
+          .ok());
+  // They're still waiting.
+  EXPECT_GE(players.Unsaved().value_or(0), 1);
+
+  ASSERT_TRUE(players.Flush().ok());
+  const absl::StatusOr<nanommo::Result> row = database_->Run(
+      "SELECT x, experience, (SELECT COUNT(*) FROM player_items WHERE player "
+      "= players.id) FROM players WHERE id = ?",
+      {std::to_string(frost_)});
+  ASSERT_TRUE(row.ok()) << row.status();
+  EXPECT_EQ(row->rows,
+            (std::vector<std::vector<std::string>>{{"4.5", "30", "2"}}));
+  EXPECT_EQ(players.Unsaved().value_or(-1), 0);
+}
+
+TEST_F(PlayersTest, CountsThePlayersInABatchAndMarkedAgainOnce) {
+  nanommo::Players players(*database_, *redis_);
+  const std::string key = "player:Frost:" + std::to_string(frost_);
+  const absl::StatusOr<int> before = players.Unsaved();
+  ASSERT_TRUE(before.ok()) << before.status();
+  // Taken into a batch, as a flush that waits for MySQL has them, and then
+  // changed, so marked unsaved again: in both sets.
+  ASSERT_TRUE(players.Save("Frost", {{frost_, {.x = 1.0f}}}).ok());
+  ASSERT_TRUE(
+      redis_->Command({"SMOVE", "players:unsaved", "players:saving", key})
+          .ok());
+  ASSERT_TRUE(players.Save("Frost", {{frost_, {.x = 2.0f}}}).ok());
+
+  EXPECT_EQ(players.Unsaved().value_or(0), *before + 1);
 }
 
 TEST_F(PlayersTest, LoadsTheBagTheyLeftWith) {
