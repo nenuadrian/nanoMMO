@@ -5,11 +5,17 @@
 Each world serves its metrics for Prometheus at http://localhost:9464/metrics: the players online in each land,
 how long each tick takes, how long saving the players takes in each tick, the bytes it sends, the
 messages it receives, the lines of chat, said or refused, and the stories asked for, told, refused
-or failed, with how long each one took. The bots serve theirs on
-port 9465: how old the world on a player's screen would be, by transport. The saver serves one on
-port 9466, `nanommo_duplicate_items`: the serials that more than one item in MySQL has, after its
-last flush, which is zero unless an item's been copied (see [Saving players](saving.md)).
-Prometheus finds it by its name, `saver`.
+or failed, with how long each one took, and the players it dropped without saving them, by why
+(`nanommo_players_dropped_total`). The bots serve theirs on
+port 9465: how old the world on a player's screen would be, by transport, and how long each bot's
+login took, by what came of it, timeouts too (`nanommo_bot_login_duration_seconds`). The saver
+serves its on port 9466: `nanommo_duplicate_items`, the serials that more than one item in MySQL
+has, after its last flush, which is zero unless an item's been copied (see
+[Saving players](saving.md)), when its last good flush ended, and the players waiting for the next.
+The login server serves its on port 9467: how long it took to answer each request, by what came of
+it, ok, refused or failed (`nanommo_login_duration_seconds`). Prometheus finds those two by their
+names, `saver` and `login`. Those are what the objectives in [Reliability](reliability.md) are made
+from.
 
 `compose.yaml` starts the servers, MySQL and Redis together with Prometheus, which finds the worlds
 in Consul and scrapes each of them every two seconds, with its name as the `world` label, and
@@ -53,8 +59,12 @@ About sixty times a second, like a client's frames, the bots look at how old the
 from the time the server puts in each world, and Prometheus finds them through Docker's DNS, under the
 name `bots`. The bots and the server have to share a clock for that, as they do on one machine.
 
+A bot that loses its world, say as a world dropped it, logs in again, after a wait that doubles
+with each try that fails, from a second to thirty, and a random part of that, so that bots dropped
+together don't all come back together, and five a second at most.
+
 Or in Docker, next to the server: 300 bots, arriving over two minutes, unless `BOTS` and `RAMP` say
-otherwise.
+otherwise, from bot1, or `BOTS_FIRST`.
 
 ```bash
 docker compose up -d bots
@@ -66,7 +76,7 @@ A few hundred bots need more open files than macOS allows a shell by default, so
 
 ## Alerts
 
-Prometheus checks the rules in `monitoring/alerts.yml` every five seconds, and its alerts page,
+Prometheus checks the rules in `monitoring/alerts.yml` every five seconds, the objectives' every 30, and its alerts page,
 http://localhost:9090/alerts, shows each one as inactive, pending or firing:
 
 - `WorldFallingBehind`, when a world has run fewer than 19 ticks a second, out of its 20, for a
@@ -74,6 +84,10 @@ http://localhost:9090/alerts, shows each one as inactive, pending or firing:
 - `WorldDown`, when a world that was one of Prometheus's targets in the last day hasn't been up for a
   minute. A world that stops leaves Consul, and Prometheus stops scraping it, so `up == 0` would miss
   it. A world whose tick is stuck stops its heartbeat too, so Consul drops it, and `WorldDown` fires.
+- `TicksBurningBudget`, `TicksDrainingBudget`, `LoginsBurningBudget` and `SavesBurningBudget`, when
+  an objective's error budget is going fast enough to be gone long before the month is, a page, or
+  steadily, a ticket, as [Reliability](reliability.md#alerts-on-how-fast-a-budget-burns) explains.
+  They and the recording rules they read are in the `slos` group.
 - `ItemsDuplicated`, when `nanommo_duplicate_items` has been above zero for a minute: two items with
   one serial, an item and its copy, which a dupe makes, as in
   [decision 31](decisions/0031-a-character-is-leased-to-one-instance-at-a-time.md). A minute, as a

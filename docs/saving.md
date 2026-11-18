@@ -42,13 +42,24 @@ each gave, as protobuf's JSON for a `TradeSide`, serials and all. It goes into a
 `player_skills` table, from V6, a row for each skill a character knows. A learned skill stays
 learned, so the saver inserts each of a character's skills each time, and `INSERT IGNORE` skips the
 rows MySQL has already. A character's skills go with its row in `players`: deleting it deletes both.
-If MySQL fails, they go back into the set, for the next try. A character that was deleted has no
-row to join, and one whose hash is gone, or saved by its account before characters, is skipped, so
-that one player can't hold back the others. It saves what's left when it stops.
+A character that was deleted has no row to join, and one whose hash is gone, or saved by its
+account before characters, is skipped, so that one player can't hold back the others. It saves
+what's left when it stops.
+
+A batch moves out of `players:unsaved` into `players:saving`, in one script, and stays there until
+MySQL has committed it; then that set goes. If MySQL fails, or the saver dies with a batch, as one
+killed while MySQL hangs does, the next flush puts it back into the unsaved set first, and saves it
+then: a reliable queue, at least once, as the trades stream is. Before episode 89, the batch came
+out of the set with `SPOP`, and only an error from MySQL put it back, so a saver killed mid-flush
+lost its batch, and those players' rows stayed behind Redis's for good, with nothing to say so
+([Reliability](reliability.md#what-the-experiments-found)). There's one saver at a time, which it
+takes for granted. `nanommo_unsaved_players` counts who's in either set, once, and
+`nanommo_saver_flushed_timestamp_seconds` is when the last good flush ended, whose age is the saves'
+objective.
 
 The saver writes a player's bag again only when it's changed, and not each time they take a step:
-it takes each player's mark off `items:unsaved` before it reads their hash, so that a bag that
-changes in between is marked again, and writes the bags it took off. The `player_items` table, from
+it moves each player's mark from `items:unsaved` into `items:saving` before it reads their hash, so
+that a bag that changes in between is marked again, and writes the bags it moved. The `player_items` table, from
 V7, has a row for each stack in a bag and each item worn: where it is, `bag 0` to `bag 23` or the
 slot, such as `main hand`, the item, how many, and its `state`, what that one has of its own, such
 as its rolls, as protobuf's JSON for a stack. A field a later server adds to a stack goes into the
@@ -88,6 +99,7 @@ MySQL, and from the `players` table if Redis doesn't have them, and their bag fr
 ```bash
 docker compose exec redis redis-cli HGETALL player:Ember:1
 docker compose exec redis redis-cli SCARD players:unsaved
+docker compose exec redis redis-cli SCARD players:saving
 docker compose exec mysql mysql -unanommo -pnanommo nanommo -e 'SELECT * FROM player_items'
 docker compose exec redis redis-cli XRANGE trades - +
 docker compose exec mysql mysql -unanommo -pnanommo nanommo -e 'SELECT * FROM trades'

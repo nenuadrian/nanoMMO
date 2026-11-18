@@ -12,6 +12,12 @@
 - The client takes the token to the character's world, a game server, `nanommo_server`. The game
   server takes the token out of Redis, and loads that character, if it's in this world: its name
   and where it is from the `players` table, with what Redis has on top, as that's newer.
+- A client gives up on a request the login server hasn't answered within five seconds,
+  `kLoginDeadline` in `protocol/login_client.h`, connecting, shaking hands and the reply together,
+  once it has the server's address, and says so. The login server counts each request it answers,
+  and how long it took, by what came of it, on port 9467 (see [Reliability](reliability.md)). When
+  Consul doesn't answer, it sends the worlds it listed in the last half a minute, as they play on
+  without Consul.
 
 ## Characters
 

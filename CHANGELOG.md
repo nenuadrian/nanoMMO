@@ -7,6 +7,40 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.89.0 (2026-11-18)
+
+- Redis and MySQL answer in time or count as down: 250 milliseconds for each Redis reply, a second
+  to connect to MySQL and three for each read or write, and after a timeout, neither is asked again
+  for a moment, a second for Redis, five for MySQL. A world that's more than a second behind lets the
+  ticks it missed go, rather than running them back to back.
+- The saver keeps each batch in Redis until MySQL has it, so a saver that dies mid-flush loses
+  nothing.
+- A trade that Redis can't save is called off: both sides leave, unsaved. Before, the one who stayed
+  kept what they were given, and the one who'd left kept it too.
+- A login gives up after five seconds, `kLoginDeadline`, in the client, the bots and the red-team
+  client. The bots count their logins by result, `nanommo_bot_login_duration_seconds`, and the login
+  server lists the worlds from the last half a minute when Consul doesn't answer.
+- The first postmortem, in `docs/postmortems/`, of a chaos run that dropped every player in Ember.
+
+## 0.88.0 (2026-11-18)
+
+- Service level objectives, with error budgets: 99.9% of each world's ticks within their 50
+  milliseconds, 99% of logins answered within five seconds, and MySQL no more than 30 seconds behind
+  Redis 99.9% of the time. Prometheus records each every 30 seconds, and alerts on how fast a
+  budget burns, over an hour and six hours, as a page, and over three days, as a ticket:
+  `TicksBurningBudget`, `TicksDrainingBudget`, `LoginsBurningBudget`, `SavesBurningBudget`. A
+  dashboard, nanoMMO reliability, shows each budget left this month and how fast it's going.
+  Prometheus keeps 31 days, on a volume of its own.
+- The login server serves metrics on port 9467: how long it took to answer each request, by what
+  came of it, `nanommo_login_duration_seconds`. The saver's `nanommo_saver_flushed_timestamp_seconds`
+  is when its last good flush ended, and `nanommo_unsaved_players` how many wait. The worlds count
+  the players they drop without saving them, `nanommo_players_dropped_total`, by why.
+- `bench/chaos.sh`, chaos experiments in staging, one fault at a time, while bots play: Redis or
+  MySQL frozen, stopped or slow, the saver killed mid-flush, the login server frozen, Consul stopped,
+  Alloy frozen. It reports what the metrics, logs and traces saw as JSON, and refuses a deployment's
+  stack.
+- The bots log in again after losing their world, with a backoff that doubles, with jitter.
+
 ## 0.87.0 (2026-11-18)
 
 - Distributed tracing. The login server, the worlds and the saver trace the work they do for a
