@@ -35,6 +35,16 @@ if(EMSCRIPTEN)
 endif()
 target_link_libraries(nanommo_world PUBLIC Tracy::TracyClient)
 
+# The spans of the servers' work, which go to an OpenTelemetry collector as
+# traces.
+add_library(nanommo_tracing tracing.cc)
+target_include_directories(nanommo_tracing PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(nanommo_tracing
+  PUBLIC prometheus-cpp::core absl::status absl::statusor
+  PRIVATE httplib::httplib nlohmann_json::nlohmann_json absl::random_random
+    absl::strings absl::time
+)
+
 add_library(nanommo_server_core
   tick.cc listen.cc copies.cc session.cc
   server.cc metrics.cc password.cc database.cc events.cc
@@ -43,7 +53,7 @@ add_library(nanommo_server_core
 )
 target_include_directories(nanommo_server_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_server_core PUBLIC
-  nanommo_world nanommo_inventory nanommo_walking nanommo_protocol nanommo_content nanommo_terrain asio prometheus-cpp::core Tracy::TracyClient
+  nanommo_world nanommo_inventory nanommo_walking nanommo_protocol nanommo_content nanommo_terrain nanommo_tracing asio prometheus-cpp::core Tracy::TracyClient
   PkgConfig::sodium PkgConfig::mysqlclient hiredis
   httplib::httplib nlohmann_json::nlohmann_json
   absl::memory absl::status absl::statusor absl::strings absl::time absl::absl_check
@@ -66,7 +76,7 @@ add_executable(nanommo_server_tests
   levels_test.cc inputs_test.cc shown_test.cc weather_test.cc metrics_test.cc password_test.cc
   database_test.cc accounts_test.cc guilds_test.cc players_test.cc redis_test.cc tokens_test.cc
   login_server_test.cc consul_test.cc token_bucket_test.cc stories_test.cc
-  events_test.cc recorder_test.cc
+  events_test.cc recorder_test.cc tracing_test.cc
   server_test.cc
 )
 target_link_libraries(nanommo_server_tests PRIVATE nanommo_server_core GTest::gtest_main)
