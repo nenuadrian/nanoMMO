@@ -369,6 +369,11 @@ logins=$(jq -n \
      | . + {over_5s: ((([$c1[]] | add) - ([$c0[]] | add))
                       - (([$b1[]] | add) - ([$b0[]] | add)))}
    end')
+# And as the bots saw them, from outside.
+bot_logins=$(jq -n \
+  --argjson c0 "$(count nanommo_bot_login_duration_seconds_count result "$from")" \
+  --argjson c1 "$(count nanommo_bot_login_duration_seconds_count result "$end")" \
+  '$c1 | with_entries(.value -= ($c0[.key] // 0))')
 spans_dropped=$(jq -n \
   --argjson d0 "$(count nanommo_spans_dropped_total job "$from")" \
   --argjson d1 "$(count nanommo_spans_dropped_total job "$end")" \
@@ -417,7 +422,8 @@ jq -n \
   --argjson restored "$restored_at" --argjson end "$end" \
   --argjson recovered_after "$recovered_after" \
   --argjson ticks "$ticks" --argjson dropped "$dropped" \
-  --argjson logins "$logins" --argjson stale "$stale" \
+  --argjson logins "$logins" --argjson bot_logins "$bot_logins" \
+  --argjson stale "$stale" \
   --argjson spans_dropped "$spans_dropped" --argjson alerts "$alerts" \
   --argjson errors "$errors" --argjson timeline "$timeline" \
   --argjson failed "$failed_traces" --argjson slow "$slow_traces" \
@@ -435,7 +441,7 @@ jq -n \
     ticks: $ticks, players_dropped: $dropped,
     world_age_p99_max_s: $age, bots_connected_fewest: $fewest,
     bots_connected_after: $connected,
-    logins: $logins, saver_behind_max_s: $behind, stale_in_mysql: $stale,
+    logins: $logins, bot_logins: $bot_logins, saver_behind_max_s: $behind, stale_in_mysql: $stale,
     duplicates_max: $copies, spans_dropped: $spans_dropped,
     stderr_lines: $errors, alerts: $alerts,
     error_traces: {count: ($failed | length), first: $failed[:5]},

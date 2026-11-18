@@ -305,6 +305,11 @@ protocol::LoginReply LoginServer::ListWorlds() {
       consul_.Worlds();
   if (!worlds.ok()) {
     std::cerr << "nanommo login: " << worlds.status() << "\n";
+    // The worlds play on without Consul, so the list from the last half a
+    // minute is better than none, which would leave a player nowhere to go.
+    if (worlds_.ok() && now - worlds_at_ < std::chrono::seconds(30)) {
+      return worlds_;
+    }
     reply.set_error("The server couldn't list the worlds. Try again later.");
     return reply;
   }

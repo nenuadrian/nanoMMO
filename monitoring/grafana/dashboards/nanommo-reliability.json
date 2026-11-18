@@ -407,8 +407,8 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "Logins answered a second, by result",
-      "description": "A request that never ends is never counted: only the bots, outside, see that.",
+      "title": "Logins a second, by result, as the login server and the bots saw them",
+      "description": "The login server counts each request it answers; a request that never reaches it, or never ends, it never counts. The bots count each login from outside, a timeout too.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -423,7 +423,12 @@
         {
           "refId": "A",
           "expr": "sum by (result) (rate(nanommo_login_duration_seconds_count[30s]))",
-          "legendFormat": "{{result}}"
+          "legendFormat": "login server: {{result}}"
+        },
+        {
+          "refId": "C",
+          "expr": "sum by (result) (rate(nanommo_bot_login_duration_seconds_count[30s]))",
+          "legendFormat": "bots: {{result}}"
         },
         {
           "refId": "B",

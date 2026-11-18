@@ -114,6 +114,17 @@ absl::StatusOr<std::string> LogIn(const std::string& host,
   return reply->token();
 }
 
+// What came of a login, for the metrics.
+const char* Outcome(const absl::Status& status) {
+  if (status.ok()) {
+    return "ok";
+  }
+  if (absl::IsPermissionDenied(status)) {
+    return "refused";
+  }
+  return absl::IsDeadlineExceeded(status) ? "timeout" : "failed";
+}
+
 class Swarm {
  public:
   Swarm(asio::io_context& io, asio::ssl::context& tls, std::string login,
@@ -149,8 +160,10 @@ class Swarm {
     const int number = first_ + static_cast<int>(bots_.size());
     auto bot = std::make_unique<nanommo::Bot>(
         io_, tls_, static_cast<uint32_t>(number), udp_, content_);
+    const auto start = std::chrono::steady_clock::now();
     const absl::StatusOr<std::string> token = LogIn(login_, tls_, number);
     const auto now = std::chrono::steady_clock::now();
+    metrics_.ObserveLogin(Outcome(token.status()), now - start);
     if (token.ok()) {
       bot->Start(server_, *token);
       retries_.push_back({.next = now + kGrace});
@@ -224,7 +237,10 @@ class Swarm {
       }
       ++tried;
       const int number = first_ + static_cast<int>(i);
+      const auto start = std::chrono::steady_clock::now();
       const absl::StatusOr<std::string> token = LogIn(login_, tls_, number);
+      metrics_.ObserveLogin(Outcome(token.status()),
+                            std::chrono::steady_clock::now() - start);
       if (!token.ok()) {
         std::cerr << "nanommo bot: bot" << number
                   << " couldn't log in again: " << token.status() << "\n";

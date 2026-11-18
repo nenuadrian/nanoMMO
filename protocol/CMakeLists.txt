@@ -4,7 +4,7 @@ add_library(nanommo_protocol
 # Logging in, over TLS, takes sockets, which a browser doesn't give us.
 if(NOT EMSCRIPTEN)
   target_sources(nanommo_protocol PRIVATE login_client.cc tls.cc)
-  target_link_libraries(nanommo_protocol PUBLIC OpenSSL::SSL)
+  target_link_libraries(nanommo_protocol PUBLIC OpenSSL::SSL absl::time)
 endif()
 protobuf_generate(TARGET nanommo_protocol
   IMPORT_DIRS ${PROJECT_SOURCE_DIR} PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}
@@ -30,7 +30,7 @@ if(EMSCRIPTEN)
 endif()
 
 add_executable(nanommo_protocol_tests
-  protocol_test.cc framing_test.cc parts_test.cc tls_test.cc chat_test.cc
+  protocol_test.cc framing_test.cc parts_test.cc tls_test.cc chat_test.cc login_client_test.cc
   settings_test.cc version_test.cc
 )
 target_link_libraries(nanommo_protocol_tests PRIVATE nanommo_protocol GTest::gtest_main)

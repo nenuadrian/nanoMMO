@@ -1,8 +1,17 @@
 #include "bot/bot_metrics.h"
 
+#include <chrono>
 #include <string>
 
 namespace nanommo {
+
+namespace {
+
+prometheus::Histogram::BucketBoundaries LoginBuckets() {
+  return {0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20};
+}
+
+}  // namespace
 
 BotMetrics::BotMetrics(const std::string& transport)
     : registry_(std::make_shared<prometheus::Registry>()),
@@ -21,12 +30,26 @@ BotMetrics::BotMetrics(const std::string& transport)
                      .Name("nanommo_bots_connected")
                      .Help("How many bots are connected to a world")
                      .Register(*registry_)
-                     .Add({{"transport", transport}})) {}
+                     .Add({{"transport", transport}})),
+      logins_(prometheus::BuildHistogram()
+                  .Name("nanommo_bot_login_duration_seconds")
+                  .Help("How long each bot's login took, by what came of it")
+                  .Register(*registry_)) {
+  for (const char* result : {"ok", "refused", "timeout", "failed"}) {
+    logins_.Add({{"result", result}}, LoginBuckets());
+  }
+}
 
 void BotMetrics::ObserveAge(std::chrono::microseconds age) {
   age_seconds_.Observe(std::chrono::duration<double>(age).count());
 }
 
 void BotMetrics::SetConnected(int bots) { connected_.Set(bots); }
+
+void BotMetrics::ObserveLogin(const char* result,
+                              std::chrono::nanoseconds time) {
+  logins_.Add({{"result", result}}, LoginBuckets())
+      .Observe(std::chrono::duration<double>(time).count());
+}
 
 }  // namespace nanommo
