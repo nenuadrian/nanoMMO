@@ -338,7 +338,7 @@ void Server::Leave(uint32_t id) {
   // tick goes now. The next instance has loaded them as they were saved when
   // the handover began, which this mustn't write over.
   if (!handing_over_) {
-    Save({id});
+    Save({id}).IgnoreError();
   }
   // So that another instance can take them at once, not once it runs out.
   if (const auto lease = leases_.find(id); lease != leases_.end()) {
@@ -547,11 +547,20 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
       span.SetAttribute("nanommo.trade", record.id);
       span.SetAttribute("nanommo.player", id);
       span.SetAttribute("nanommo.partner", *traded);
-      if (!Save({id, *traded}, record).empty()) {
-        span.SetError("a side's lease isn't this instance's any more");
+      // A save that failed, as when Redis is down, read as one that went
+      // through, which left the trade to whoever stayed: one who left kept
+      // what they gave in Redis, and one who stayed had it too once Redis was
+      // back, an item twice. A trade is saved, or called off.
+      const absl::StatusOr<std::set<uint32_t>> lost =
+          Save({id, *traded}, record);
+      if (!lost.ok() || !lost->empty()) {
+        span.SetError(lost.ok()
+                          ? "a side's lease isn't this instance's any more"
+                          : lost.status().ToString());
         // One of them isn't this instance's any more, and another can have
-        // them as they were before the trade, so neither keeps it: both go,
-        // unsaved, and come back with what Redis has, from before it.
+        // them as they were before the trade, or Redis couldn't take it, so
+        // neither keeps it: both go, unsaved, and come back with what Redis
+        // has, which the trade's one script wrote both bags of, or neither.
         const std::string name = land.players().at(id).name;
         const std::string partner = land.players().at(*traded).name;
         Drop(id, "trade",
@@ -1007,12 +1016,13 @@ void Server::SaveChanged() {
   }
   // Those whose leases aren't this instance's any more go, and the rest are
   // saved without them.
-  for (std::set<uint32_t> lost = Save(everyone); !lost.empty();
-       lost = Save(everyone)) {
-    for (const uint32_t id : lost) {
+  for (absl::StatusOr<std::set<uint32_t>> lost = Save(everyone);
+       lost.ok() && !lost->empty(); lost = Save(everyone)) {
+    for (const uint32_t id : *lost) {
       Drop(id, "lease", "their lease isn't this instance's any more");
     }
-    std::erase_if(everyone, [&lost](uint32_t id) { return lost.contains(id); });
+    std::erase_if(everyone,
+                  [&lost](uint32_t id) { return lost->contains(id); });
   }
   metrics_.ObserveSave(std::chrono::steady_clock::now() - start);
 }
@@ -1040,8 +1050,8 @@ void Server::RenewLeases() {
   }
 }
 
-std::set<uint32_t> Server::Save(const std::vector<uint32_t>& ids,
-                                const std::optional<Traded>& traded) {
+absl::StatusOr<std::set<uint32_t>> Server::Save(
+    const std::vector<uint32_t>& ids, const std::optional<Traded>& traded) {
   std::map<uint32_t, Progress> changed;
   std::map<uint32_t, protocol::Inventory> bags;
   std::map<uint32_t, std::string> leases;
@@ -1067,7 +1077,7 @@ std::set<uint32_t> Server::Save(const std::vector<uint32_t>& ids,
   if (!lost.ok()) {
     std::cerr << "couldn't save " << changed.size()
               << " players: " << lost.status() << "\n";
-    return {};
+    return lost.status();
   }
   for (const uint32_t id : *lost) {
     std::cout << "couldn't save " << WorldOf(id)->players().at(id).name

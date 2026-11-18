@@ -14,6 +14,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -1049,6 +1050,77 @@ TEST_F(ServerTest, ATradeAndALeaveLeaveOneSword) {
   TestPlayer back(io_, *client_tls_, (*market)->port(), Token(alice_));
   ASSERT_TRUE(RunUntil([&] { return back.bag().revision() > 0; }));
   EXPECT_EQ(swords(back.bag()) + swords(bob.bag()), 2);
+}
+
+TEST_F(ServerTest, ATradeRedisCantTakeIsCalledOff) {
+  // Each joins with the kit: a sword in hand, and three potions.
+  const nanommo::Content gear{.items = nanommo::testing::Gear()};
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> market =
+      nanommo::Server::Create(
+          io_, 0, *server_tls_, std::chrono::milliseconds(50), world_, 1, gear,
+          metrics_, *tokens_, *players_, *guilds_, *events_, *storyteller_);
+  ASSERT_TRUE(market.ok()) << market.status();
+  TestPlayer alice(io_, *client_tls_, (*market)->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, (*market)->port(), Token(bob_));
+  const auto swords = [](const nanommo::protocol::Inventory& bag) {
+    int count = 0;
+    for (const auto& [slot, stack] : bag.bag()) {
+      count += stack.item() == 1u ? 1 : 0;
+    }
+    for (const auto& [slot, stack] : bag.worn()) {
+      count += stack.item() == 1u ? 1 : 0;
+    }
+    return count;
+  };
+  ASSERT_TRUE(RunUntil(
+      [&] { return swords(alice.bag()) == 1 && swords(bob.bag()) == 1; }));
+  nanommo::protocol::Input stow;
+  nanommo::protocol::ItemMove* sword = stow.mutable_item()->mutable_move();
+  *sword->mutable_from() = nanommo::Worn(nanommo::items::SLOT_MAIN_HAND);
+  *sword->mutable_to() = nanommo::InBag(1);
+  alice.Send(stow);
+  ASSERT_TRUE(RunUntil([&] { return alice.bag().bag().contains(1); }));
+  nanommo::protocol::Input ask;
+  ask.mutable_trade()->set_ask(names_[bob_]);
+  alice.Send(ask);
+  ask.mutable_trade()->set_ask(names_[alice_]);
+  bob.Send(ask);
+  ASSERT_TRUE(RunUntil([&] { return alice.trade() && bob.trade(); }));
+  nanommo::protocol::Input offer;
+  offer.mutable_trade()->mutable_offer()->add_bag(1);
+  alice.Send(offer);
+  ASSERT_TRUE(
+      RunUntil([&] { return bob.trade()->theirs().bag().contains(1); }));
+  nanommo::protocol::Input ready;
+  ready.mutable_trade()->set_ready(true);
+  ready.mutable_trade()->set_revision(bob.trade()->revision());
+  bob.Send(ready);
+  ASSERT_TRUE(RunUntil([&] { return alice.trade()->theirs().ready(); }));
+
+  // Redis hangs, so the trade's save times out, as alice is ready too, and
+  // gone, before Redis is back.
+  ASSERT_TRUE(redis_->Command({"CLIENT", "PAUSE", "600", "WRITE"}).ok());
+  ready.mutable_trade()->set_revision(alice.trade()->revision());
+  alice.SendAndLeave(ready);
+  // Neither keeps the trade: bob goes too, unsaved.
+  ASSERT_TRUE(
+      RunUntil([&] { return (*market)->players() == 0 && bob.closed(); }));
+  EXPECT_TRUE(absl::StrContains(
+      prometheus::TextSerializer().Serialize(metrics_.registry()->Collect()),
+      "nanommo_players_dropped_total{why=\"trade\"} 2\n"));
+
+  // Once Redis is back, and asked again, they come back with what it has.
+  // Redis ran the trade's script once it was back, as the world had sent it
+  // before giving up on its answer, so that's both bags from after the trade;
+  // had the world not sent it, it would be both from before. Either way, the
+  // sword is in one bag, where a dupe would have it in both.
+  std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+  TestPlayer alice_back(io_, *client_tls_, (*market)->port(), Token(alice_));
+  TestPlayer bob_back(io_, *client_tls_, (*market)->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] {
+    return alice_back.bag().revision() > 0 && bob_back.bag().revision() > 0;
+  }));
+  EXPECT_EQ(swords(alice_back.bag()) + swords(bob_back.bag()), 2);
 }
 
 TEST_F(ServerTest, TwoPlayersDuel) {

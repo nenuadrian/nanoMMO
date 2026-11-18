@@ -119,9 +119,11 @@ class Server {
   /// Redis, as one: everyone once a tick, the two sides of a trade as it's
   /// done, and a player as they leave. Only while this instance has their
   /// leases: it returns the players whose leases it's lost, when it saved
-  /// none of them. A trade's record goes in with them.
-  std::set<uint32_t> Save(const std::vector<uint32_t>& ids,
-                          const std::optional<Traded>& traded = std::nullopt);
+  /// none of them, or an error when Redis couldn't take it, which it's said.
+  /// A trade's record goes in with them.
+  absl::StatusOr<std::set<uint32_t>> Save(
+      const std::vector<uint32_t>& ids,
+      const std::optional<Traded>& traded = std::nullopt);
   /// Closes the player's session without saving them, as another instance
   /// has them, or what they have here can't be saved, and says why. They're
   /// counted by the kind of why: "lease" or "trade".
