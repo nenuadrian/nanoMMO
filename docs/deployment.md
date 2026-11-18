@@ -8,10 +8,10 @@ The game runs on any Linux server with Docker and Docker Compose, such as a VPS,
   UDP, and their next instances on 7877 and 7887, and the website on port 8080, and nothing else. MySQL, Redis, the storyteller and the worlds'
   metrics stay on Compose's own network. Docker publishes a port past a firewall such as ufw, so leaving a port out of
   the file is what keeps it off the internet.
-- Prometheus, Grafana, Loki, Alertmanager, Mailpit and Consul listen on the server's localhost. Reach
+- Prometheus, Grafana, Loki, Tempo, Alertmanager, Mailpit and Consul listen on the server's localhost. Reach
   them through SSH: `ssh -L 3000:localhost:3000 -L 9090:localhost:9090 -L 9093:localhost:9093 -L
   8025:localhost:8025 -L 8500:localhost:8500 debian@203.0.113.7`, then open
-  http://localhost:3000, where Grafana reaches Loki on Compose's network.
+  http://localhost:3000, where Grafana reaches Loki and Tempo on Compose's network.
 - MySQL's password and the website's `APP_KEY` come from `.env` on the server, which `deploy.sh` makes
   on the first deploy, with random ones, readable by the deploying user alone. Git and the Docker
   builds leave `.env` out.

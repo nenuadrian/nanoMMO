@@ -7,6 +7,31 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.87.0 (2026-11-18)
+
+- Distributed tracing. The login server, the worlds and the saver trace the work they do for a
+  request, and send the spans in OpenTelemetry's protocol, OTLP, as JSON over HTTP, to the collector
+  `NANOMMO_OTLP_ENDPOINT` names: Alloy, in Compose, which keeps the traces worth keeping and sends
+  them to Tempo, at http://localhost:3200. Without it, a server traces nothing. The tracer is the
+  servers' own, `server/tracing.h`, with W3C Trace Context's `traceparent`.
+- A request to the login server is a trace, with checking or hashing the password a span of its
+  own. Entering a world is one trace across the login server and the world, as the token's record
+  in Redis carries it, and so is a handover across the two instances of a world. A trade is one
+  trace from the world, through the trades stream, which carries it too, to the saver. Each call to
+  Redis, statement to MySQL and request to Consul made for a request is a span, which names what it
+  asks, and never its keys or values. The tick isn't traced, nor the client, nor going through a
+  gate.
+- The lines the servers print for a traced request end with its trace's id, `trace_id=`, which
+  opens the trace from Grafana's logs, and a trace opens its lines. Alloy keeps every trace with an
+  error, every one over 100 milliseconds, and a tenth of the rest.
+- Grafana has Tempo as a data source, a dashboard of traces, nanoMMO traces, with who calls whom,
+  and exemplars that open a metric's trace. Prometheus takes the metrics Tempo makes from the spans
+  with its remote-write receiver, and anonymous visitors to Grafana can edit, as Explore is an
+  editor's. The worlds and the saver count the spans they drop, `nanommo_spans_dropped_total`.
+- A MySQL connection keeps the reads it's prepared, and runs one again in a round trip rather than
+  two. The traces found it: with MySQL two milliseconds away, a player's hello took 19 milliseconds
+  of the world's tick thread, and takes 9.9 now.
+
 ## 0.86.1 (2026-11-18)
 
 - The weather's code passes clang-tidy again: what falls and what glows get the land from `Draw`,

@@ -92,7 +92,7 @@ How each part of the game works is in `docs/`, a page each, which the
 - [Accounts, logins and TLS](docs/accounts.md): the login server, the tokens, and TLS with an authority of our own.
 - [Saving players and migrations](docs/saving.md): the players in Redis, the saver that takes them on to MySQL, and Flyway's migrations.
 - [The website](docs/website.md): the Laravel website, with its rankings and accounts.
-- [Monitoring, logs and analytics](docs/monitoring.md): Prometheus and Grafana, the bots, alerts, logs in Loki, and analytics in ClickHouse.
+- [Monitoring, logs, traces and analytics](docs/monitoring.md): Prometheus and Grafana, the bots, alerts, logs in Loki, traces in Tempo, and analytics in ClickHouse.
 - [Benchmarking and profiling](docs/benchmarking.md): the load test, flame graphs, Pyroscope and Tracy.
 - [Deployment](docs/deployment.md): a server with Docker Compose, handing players over without downtime, and deploying on push.
 - [The client in a browser](docs/web.md): the client built with Emscripten, drawing with WebGL 2 in a page, what differs there, playing offline, and online through the gateway.

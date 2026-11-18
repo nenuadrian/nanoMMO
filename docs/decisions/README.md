@@ -82,3 +82,4 @@ one commit could undo, or that the code makes plain, needs none.
 | [0035](0035-a-monsters-skill-lands-where-it-was-aimed.md) | A monster's skill lands where it was aimed, after a telegraph players can step out of | Accepted | 83 |
 | [0036](0036-a-boss-fights-who-hurt-it-most-and-shares-its-death.md) | A boss fights whoever's hurt it most, and its death is everyone's who took 5% of its health | Accepted | 84 |
 | [0037](0037-the-server-owns-the-sky.md) | The server owns the sky: the time of day and the weather, from the clock | Accepted | 85 |
+| [0038](0038-trace-requests-with-a-tracer-of-our-own.md) | Trace requests with a tracer of our own, which speaks OpenTelemetry | Accepted | 87 |

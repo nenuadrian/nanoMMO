@@ -1,4 +1,4 @@
-# Monitoring, logs and analytics
+# Monitoring, logs, traces and analytics
 
 ## Monitoring and load
 
@@ -155,6 +155,162 @@ Neither looks at the rules' LogQL. A rule Loki can't parse shows up in its log, 
 rules`, and the rest of its group doesn't load: `docker compose logs loki | grep rules`.
 
 In production, Loki listens on the server's localhost, like Prometheus, and Alloy has no port.
+
+## Tracing
+
+The metrics say the logins' 99th percentile went up, and a server's log says what that one process
+did. A trace follows one request through each process it goes through, the login server, Redis,
+MySQL, a world and the saver, as spans: each a piece of the work, with when it started, how long it
+took, and which span it was part of. So a slow login shows where its time went, and in which
+process ([decision 38](decisions/0038-trace-requests-with-a-tracer-of-our-own.md)).
+
+- The login server, the worlds and the saver send their spans, in OpenTelemetry's protocol, OTLP,
+  as JSON over HTTP, to the collector that `NANOMMO_OTLP_ENDPOINT` names. Compose sets it to
+  Alloy's, http://alloy:4318, and a server run on this machine can use http://localhost:4318, which
+  Compose publishes. Without it, a server traces nothing, so the tests and a server run on its own
+  need no collector.
+- [Alloy](https://github.com/grafana/alloy) keeps the traces worth keeping (see
+  [Sampling](#sampling)), and sends them on to [Tempo](https://github.com/grafana/tempo), Grafana's
+  trace store, in a single process (`monitoring/tempo.yaml`), with the traces on a volume of its
+  own, `tempo`, and its API at http://localhost:3200.
+- Tempo makes metrics from the spans as they come, who calls whom and how long each kind of span
+  takes, and writes them into Prometheus (`traces_service_graph_*`, `traces_spanmetrics_*`), each
+  sample with the trace it came from, an exemplar.
+- Grafana has Tempo as a data source. The nanoMMO traces dashboard, at
+  http://localhost:3000/d/nanommo-traces, has who calls whom as a graph, the requests a second and
+  how long the slowest take, by kind, and the traces that took over 100 milliseconds, each of which
+  opens in Explore. Grafana lets anonymous visitors edit, as Explore is an editor's.
+
+The tracer is our own, `server/tracing.h`, which speaks OpenTelemetry's formats: W3C Trace
+Context's `traceparent`, `00-<trace id>-<span id>-01`, for a span's place, and OTLP's JSON for the
+spans. A span that's open is its thread's current span, and a span started on the thread goes under
+it. A span that ends goes on a queue, and a thread of the tracer's sends what's there once a second,
+or as soon as there are 512, so the thread that ended it, which may be the tick's, never waits for
+the collector. With 4096 waiting, a span that ends is dropped, and so is a batch the collector
+doesn't take, each counted in `nanommo_spans_dropped_total`, by the worlds and the saver. The login
+server serves no metrics, so its drops aren't counted. A server that stops sends what's left, for
+two seconds at most.
+
+### What's traced
+
+Each trace starts with a request, and the work it does in each process is a span, named by what it
+is. The login server's spans are `login`'s, a world's are its instance's, such as `Ember-7777`, as
+two instances of a world can run at once, and the saver's are `saver`'s.
+
+| Trace | Its spans |
+|---|---|
+| A request to the login server | `log in`, `create account`, `enter world`, `create character`, `delete character`, `list characters` or `list worlds`, with `argon2id hash` or `argon2id verify` under a login, which is slow on purpose |
+| Entering a world | The login server's `enter world`, its `issue token`, and the world's `hello` under that, with `lease player` and `load player` |
+| A trade | The world's `trade`, `save players` and `publish trade`, then the saver's `save trades`, with its transaction in MySQL |
+| A handover | The leaving instance's `hand over`, `pass leases` and an `issue token` for each player, and each player's `hello` on the next instance |
+
+Each call to Redis, each statement to MySQL and each request to Consul is a span under the span
+that's current as it's made, such as `redis GETDEL`, `mysql SELECT players` or `consul GET
+/v1/health/service/nanommo-world`, with `db.system` and `db.operation`, as OpenTelemetry names them.
+A statement's span has its SQL, with a `?` for each value, and never a key or a value. A player's
+mistake, such as a wrong password, is an attribute, `nanommo.refused`, and the servers' failures,
+such as MySQL being down, mark their spans as errors. The lines a server prints as it answers a
+traced request end with its trace's id, `trace_id=`.
+
+What isn't traced:
+
+- The tick. It's not a request, and nobody waits on one alone, while a span for each, 20 a second
+  in each world, would be 1.7 million a day for what Tracy and `nanommo_tick_duration_seconds`
+  already show (see [Benchmarking and profiling](benchmarking.md)). The tick's own calls to Redis
+  and MySQL have no span to go under, so they aren't traced either, and neither are the saver's
+  flushes that carry no trade.
+- Going through a gate. A world's lands are copies in one process, and a player goes through as
+  the world steps, in the tick, without a request, or anything over the network.
+- The client. Its spans would come from players' computers, whose clocks differ from the servers'
+  by up to minutes, through a collector open to the internet, which anyone could send spans to.
+  The servers' spans start where their work does, as a request arrives.
+- The browser's way in, through the gateway, which carries the client's bytes as they are.
+
+### How a trace goes from one process to another
+
+A trace goes from one process to another in what already carries the request there, as a
+traceparent:
+
+- **The token.** The token to enter a world goes from the login server, through Redis, to the
+  world, which reads it back as the player says hello. Issuing it is a producer span, whose
+  traceparent goes into the token's record, after the player's id: `token:<token>` holds
+  `7 00-…-01`. Redeeming it gives the world that span, and the hello goes under it, so entering a
+  world is one trace, across both. A world handing its players over issues their tokens the same
+  way, so a deploy is one trace across the two instances. The hello's span starts as its message
+  arrives, but it's only once Redis gives the token back that the world knows whose trace it's in.
+- **The trades stream.** A trade's record goes on the `trades` stream with a `traceparent` field,
+  from its `publish trade` span. The saver carries a batch's trades on in a consumer span, from when
+  it read them, under the oldest trade's span, and linked to the others', as a span has one parent
+  and a batch is for each of its trades. The gap between the world's half of a trade and the
+  saver's is the time its record waited in the stream, up to the saver's five seconds.
+
+A record without a traceparent, from a server that doesn't trace, is read as before, and one that
+can't be read loses the trace, not the player. A session from the login server carries no trace:
+it lasts half an hour, through every request a player makes with it, which would make a trace with
+no end, so logging in is a trace of its own, and entering a world another.
+
+### Sampling
+
+Alloy keeps some of the traces, not all (`monitoring/config.alloy`). Sampling at the head, as a
+trace starts, decides before anything's happened, so it keeps a slow trace, or one that failed, no
+more often than the rest, and those are the ones worth reading. Sampling at the tail waits until a
+trace is whole, and decides from all its spans, at the cost of holding each one in memory until
+then. Alloy waits ten seconds from a trace's first span, as a trade's saver half comes up to five
+seconds after its world half, and keeps:
+
+- every trace with an error,
+- every trace that took over 100 milliseconds,
+- and a tenth of the rest, picked by their ids, to see what a normal one looks like.
+
+A span that comes after its trace's decision, such as a hello with a token issued 30 seconds
+before, follows it. Tempo makes its metrics from what's kept, so they count a tenth of the quick
+traces, and a log line's `trace_id` opens its trace when Alloy kept it.
+
+### Reading traces
+
+In Grafana's Explore, http://localhost:3000/explore, Tempo searches with TraceQL, Tempo's query
+language, and a trace opens as a waterfall of its spans, with a button to its servers' lines in
+Loki, a minute either side. In Loki, a line's `trace_id` opens its trace, and on a Prometheus chart,
+a dot, an exemplar, opens the trace a sample came from.
+
+```
+{ name = "hello" && duration > 10ms }               # the slow hellos
+{ resource.service.name = "saver" }                 # the trades the saver took
+{ traceDuration > 100ms }                           # what the dashboard lists
+{ status = error }                                  # what failed
+```
+
+Tempo's API answers the same, as JSON:
+
+```bash
+curl -sG localhost:3200/api/search --data-urlencode 'q={ name = "hand over" }'
+curl -s localhost:3200/api/traces/<trace id>
+```
+
+### What the traces showed
+
+In episode 87, with a hundred bots, a player's hello took about a millisecond on the world's
+thread, the one that ticks, and most of it was MySQL: three statements to load the player and one
+for their guild, each 0.15 to 0.25 milliseconds against Redis's 0.06. With MySQL's replies delayed
+by two milliseconds, each statement took 4.7, two round trips: `Database::Run` prepared each
+statement, a round trip, ran it, another, and closed it. A hello took 19 milliseconds, and a
+handover of a hundred players, whose hellos come all at once, kept the next instance busy with them
+for 1.95 seconds, in which it didn't tick. Since 0.87.0, a connection keeps the reads it's prepared,
+and runs one again in a round trip: with the same delay, each statement takes 2.4 milliseconds, a
+hello 9.9, and the handover's hundred hellos 0.97 seconds.
+
+To see that for yourself, netem, from the Dockerfile's `netem` stage, delays what MySQL sends:
+
+```bash
+docker build --target netem -t nanommo-netem .
+docker run --rm --network container:nanommo-mysql-1 --cap-add NET_ADMIN --entrypoint tc \
+  nanommo-netem qdisc replace dev eth0 root netem delay 2ms
+docker run --rm --network container:nanommo-mysql-1 --cap-add NET_ADMIN --entrypoint tc \
+  nanommo-netem qdisc del dev eth0 root                 # and back
+```
+
+In production, Tempo listens on the server's localhost, like Loki, and the servers reach Alloy on
+Compose's network.
 
 ## Analytics
 
