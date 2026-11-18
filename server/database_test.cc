@@ -5,6 +5,8 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "gtest/gtest.h"
 #include "server/test_services.h"
 
@@ -44,4 +46,57 @@ TEST(Database, RunsATransactionWholeOrNotAtAll) {
   EXPECT_EQ(accounts(), 1u);
   EXPECT_TRUE(
       database->Run("DELETE FROM accounts WHERE username = ?", {name}).ok());
+}
+
+TEST(Database, PreparesAReadOnceAndRunsItAgain) {
+  const std::unique_ptr<nanommo::Database> database =
+      nanommo::testing::TestDatabase();
+  if (!database) {
+    GTEST_SKIP() << "set NANOMMO_MYSQL_HOST to test against MySQL";
+  }
+  // How many statements the connection has prepared, this one too.
+  const auto prepared = [&] {
+    const absl::StatusOr<nanommo::Result> shown =
+        database->Run("SHOW SESSION STATUS LIKE 'Com_stmt_prepare'");
+    int count = -1;
+    if (shown.ok() && !shown->rows.empty()) {
+      EXPECT_TRUE(absl::SimpleAtoi(shown->rows[0][1], &count));
+    }
+    return count;
+  };
+  const std::string name = nanommo::testing::TestName();
+  const int before = prepared();
+  for (int i = 0; i < 3; ++i) {
+    ASSERT_TRUE(
+        database->Run("SELECT id FROM accounts WHERE username = ?", {name})
+            .ok());
+  }
+  // The read, once, and the SHOW that counts.
+  EXPECT_EQ(prepared(), before + 2);
+  // A write is prepared each time, as it was.
+  for (int i = 0; i < 3; ++i) {
+    ASSERT_TRUE(
+        database->Run("DELETE FROM accounts WHERE username = ?", {name}).ok());
+  }
+  EXPECT_EQ(prepared(), before + 2 + 4);
+}
+
+TEST(Database, RunsAReadAgainOnANewConnectionOnceItsOwnIsGone) {
+  const std::unique_ptr<nanommo::Database> database =
+      nanommo::testing::TestDatabase();
+  const std::unique_ptr<nanommo::Database> other =
+      nanommo::testing::TestDatabase();
+  if (!database || !other) {
+    GTEST_SKIP() << "set NANOMMO_MYSQL_HOST to test against MySQL";
+  }
+  const absl::StatusOr<nanommo::Result> first =
+      database->Run("SELECT CONNECTION_ID()");
+  ASSERT_TRUE(first.ok()) << first.status();
+  // As MySQL does to a connection that's sat idle for eight hours.
+  ASSERT_TRUE(other->Run(absl::StrCat("KILL ", first->rows[0][0])).ok());
+
+  const absl::StatusOr<nanommo::Result> again =
+      database->Run("SELECT CONNECTION_ID()");
+  ASSERT_TRUE(again.ok()) << again.status();
+  EXPECT_NE(again->rows, first->rows);
 }

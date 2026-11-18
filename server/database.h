@@ -3,8 +3,10 @@
 
 #include <mysql.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -15,6 +17,12 @@
 #include "absl/status/statusor.h"
 
 namespace nanommo {
+
+/// Closes a statement that's been prepared, as a unique_ptr goes.
+struct CloseStatement {
+  void operator()(MYSQL_STMT* statement) const { mysql_stmt_close(statement); }
+};
+using Statement = std::unique_ptr<MYSQL_STMT, CloseStatement>;
 
 struct Result {
   std::vector<std::vector<std::string>> rows;
@@ -34,9 +42,14 @@ class Database {
   Database(const Database&) = delete;
   Database& operator=(const Database&) = delete;
 
+  /// The most reads a connection keeps prepared.
+  static constexpr std::size_t kMostReads = 64;
+
   /// Values go apart from the SQL, one for each ?, so they stay values. A
   /// duplicate key comes back as an AlreadyExists error, a lost connection as
   /// Unavailable, and a lock waited for too long, or a deadlock, as Aborted.
+  /// A SELECT is prepared the first time it runs, and kept, so that it runs
+  /// in one round trip after that, not two.
   absl::StatusOr<Result> Run(std::string_view sql,
                              const std::vector<std::string>& values = {});
 
@@ -55,6 +68,8 @@ class Database {
         name_(std::move(name)) {}
 
   absl::Status Connect();
+  absl::StatusOr<Result> Execute(MYSQL_STMT* statement,
+                                 const std::vector<std::string>& values);
 
   std::string host_;
   std::string user_;
@@ -62,6 +77,8 @@ class Database {
   std::string name_;
   MYSQL* mysql_ = nullptr;
   bool in_transaction_ = false;
+  /// The reads prepared on this connection, by their SQL.
+  std::map<std::string, Statement, std::less<>> reads_;
 };
 
 }  // namespace nanommo

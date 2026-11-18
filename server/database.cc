@@ -34,11 +34,6 @@ struct Value {
   bool null = false;
 };
 
-struct CloseStatement {
-  void operator()(MYSQL_STMT* statement) const { mysql_stmt_close(statement); }
-};
-using Statement = std::unique_ptr<MYSQL_STMT, CloseStatement>;
-
 absl::Status Error(unsigned int code, const char* message) {
   if (code == ER_DUP_ENTRY) {
     return absl::AlreadyExistsError(message);
@@ -138,17 +133,36 @@ absl::Status Database::Connect() {
     mysql_close(mysql);
     return status;
   }
-  // The old connection goes once the new one works.
+  // The old connection goes once the new one works, and the statements
+  // prepared on it with it.
+  reads_.clear();
   mysql_close(mysql_);
   mysql_ = mysql;
   return absl::OkStatus();
 }
 
-Database::~Database() { mysql_close(mysql_); }
+Database::~Database() {
+  reads_.clear();
+  mysql_close(mysql_);
+}
 
 absl::StatusOr<Result> Database::Run(std::string_view sql,
                                      const std::vector<std::string>& values) {
   const Span span = StartStatement(sql);
+  if (const auto kept = reads_.find(sql); kept != reads_.end()) {
+    absl::StatusOr<Result> result = Execute(kept->second.get(), values);
+    if (result.ok()) {
+      return result;
+    }
+    // It's prepared again next time.
+    reads_.erase(kept);
+    // A connection that's gone stale since it was prepared fails as it runs.
+    // A read changed nothing, so it runs again, on a new connection, unless
+    // we're in a transaction, which went with the old one.
+    if (!absl::IsUnavailable(result.status()) || in_transaction_) {
+      return result;
+    }
+  }
   absl::StatusOr<Statement> prepared = Prepare(mysql_, sql);
   // MySQL drops a connection that sits idle for eight hours, and a restart
   // drops them all. Nothing has run yet, so we connect again and retry,
@@ -163,8 +177,17 @@ absl::StatusOr<Result> Database::Run(std::string_view sql,
   if (!prepared.ok()) {
     return prepared.status();
   }
-  const Statement statement = *std::move(prepared);
-  if (mysql_stmt_param_count(statement.get()) != values.size()) {
+  Statement statement = *std::move(prepared);
+  absl::StatusOr<Result> result = Execute(statement.get(), values);
+  if (result.ok() && sql.starts_with("SELECT") && reads_.size() < kMostReads) {
+    reads_.emplace(sql, std::move(statement));
+  }
+  return result;
+}
+
+absl::StatusOr<Result> Database::Execute(
+    MYSQL_STMT* statement, const std::vector<std::string>& values) {
+  if (mysql_stmt_param_count(statement) != values.size()) {
     return absl::InvalidArgumentError(
         "the statement needs a different number of values");
   }
@@ -177,15 +200,15 @@ absl::StatusOr<Result> Database::Run(std::string_view sql,
     params[i].buffer_length = values[i].size();
   }
   if ((!params.empty() &&
-       mysql_stmt_bind_param(statement.get(), params.data()) != 0) ||
-      mysql_stmt_execute(statement.get()) != 0) {
-    return StatementError(statement.get());
+       mysql_stmt_bind_param(statement, params.data()) != 0) ||
+      mysql_stmt_execute(statement) != 0) {
+    return StatementError(statement);
   }
 
   Result result;
-  result.insert_id = mysql_stmt_insert_id(statement.get());
-  result.affected_rows = mysql_stmt_affected_rows(statement.get());
-  const unsigned int columns = mysql_stmt_field_count(statement.get());
+  result.insert_id = mysql_stmt_insert_id(statement);
+  result.affected_rows = mysql_stmt_affected_rows(statement);
+  const unsigned int columns = mysql_stmt_field_count(statement);
   if (columns == 0) {
     return result;
   }
@@ -199,11 +222,11 @@ absl::StatusOr<Result> Database::Run(std::string_view sql,
     bound[i].length = &row[i].length;
     bound[i].is_null = &row[i].null;
   }
-  if (mysql_stmt_bind_result(statement.get(), bound.data()) != 0) {
-    return StatementError(statement.get());
+  if (mysql_stmt_bind_result(statement, bound.data()) != 0) {
+    return StatementError(statement);
   }
   int status = 0;
-  while ((status = mysql_stmt_fetch(statement.get())) == 0) {
+  while ((status = mysql_stmt_fetch(statement)) == 0) {
     std::vector<std::string>& copy = result.rows.emplace_back();
     for (const Value& value : row) {
       copy.emplace_back(value.bytes.data(), value.null ? 0 : value.length);
@@ -214,7 +237,7 @@ absl::StatusOr<Result> Database::Run(std::string_view sql,
         absl::StrCat("a value didn't fit in ", kValueSize, " bytes"));
   }
   if (status != MYSQL_NO_DATA) {
-    return StatementError(statement.get());
+    return StatementError(statement);
   }
   return result;
 }
