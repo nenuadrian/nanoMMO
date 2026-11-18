@@ -8,3 +8,8 @@ datasources:
     isDefault: true
     jsonData:
       timeInterval: 2s
+      # A sample from Tempo's metrics can name the trace it came from, which
+      # a chart shows as a dot that opens it.
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo

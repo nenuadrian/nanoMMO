@@ -87,3 +87,32 @@ pyroscope.write "pyroscope" {
     url = "http://pyroscope:4040"
   }
 }
+
+// Spans from our servers, in OpenTelemetry's protocol over HTTP, as JSON.
+// Alloy gathers them into batches, and sends those on to Tempo, over gRPC.
+otelcol.receiver.otlp "servers" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.servers.input]
+  }
+}
+
+otelcol.processor.batch "servers" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+
+    // Inside Compose's network, as Loki and Pyroscope are reached.
+    tls {
+      insecure = true
+    }
+  }
+}

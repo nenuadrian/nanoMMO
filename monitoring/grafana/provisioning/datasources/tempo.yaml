@@ -1,0 +1,17 @@
+apiVersion: 1
+
+datasources:
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    url: http://tempo:3200
+    jsonData:
+      # Who calls whom, from the metrics Tempo writes into Prometheus.
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      streamingEnabled:
+        search: true

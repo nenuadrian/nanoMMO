@@ -96,7 +96,13 @@ services:
       - "127.0.0.1:4040:4040"
     restart: unless-stopped
 
+  tempo:
+    ports: !override
+      - "127.0.0.1:3200:3200"
+    restart: unless-stopped
+
   alloy:
+    ports: !reset []
     restart: unless-stopped
 
   grafana:
