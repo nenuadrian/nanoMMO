@@ -8,12 +8,15 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
+#include "server/tracing.h"
 
 namespace nanommo {
 
@@ -55,6 +58,39 @@ absl::Status Error(unsigned int code, const char* message) {
 
 absl::Status StatementError(MYSQL_STMT* statement) {
   return Error(mysql_stmt_errno(statement), mysql_stmt_error(statement));
+}
+
+// A statement, as a span under the request it's run for, named by what it does
+// and to which table, such as SELECT players. Its SQL has a ? for each value,
+// so the values stay out of it.
+Span StartStatement(std::string_view sql) {
+  if (!InTrace()) {
+    return Span();
+  }
+  std::string_view operation;
+  std::string_view table;
+  bool table_next = false;
+  for (const std::string_view word :
+       absl::StrSplit(sql, absl::ByAnyChar(" (),\n"), absl::SkipEmpty())) {
+    if (operation.empty()) {
+      operation = word;
+      table_next = operation == "UPDATE";
+    } else if (table_next && word != "SELECT") {
+      table = word;
+      break;
+    } else {
+      table_next = word == "FROM" || word == "INTO";
+    }
+  }
+  Span span = StartChildSpan(absl::StrCat("mysql ", operation, " ", table),
+                             SpanKind::kClient);
+  span.SetAttribute("db.system", "mysql");
+  span.SetAttribute("db.operation", operation);
+  span.SetAttribute("db.sql.table", table);
+  // The saver's statements run to thousands of ?, so a few hundred characters
+  // say which one it is.
+  span.SetAttribute("db.statement", sql.substr(0, 300));
+  return span;
 }
 
 absl::StatusOr<Statement> Prepare(MYSQL* mysql, std::string_view sql) {
@@ -112,6 +148,7 @@ Database::~Database() { mysql_close(mysql_); }
 
 absl::StatusOr<Result> Database::Run(std::string_view sql,
                                      const std::vector<std::string>& values) {
+  const Span span = StartStatement(sql);
   absl::StatusOr<Statement> prepared = Prepare(mysql_, sql);
   // MySQL drops a connection that sits idle for eight hours, and a restart
   // drops them all. Nothing has run yet, so we connect again and retry,
@@ -184,6 +221,8 @@ absl::StatusOr<Result> Database::Run(std::string_view sql,
 
 absl::Status Database::Transaction(
     const std::function<absl::Status()>& statements) {
+  // Its statements' spans go under it, and the commit's time is its own.
+  const Span span = StartChildSpan("mysql transaction", SpanKind::kInternal);
   // Turning autocommit off is the first thing to reach MySQL, so a connection
   // that's gone stale fails there, before anything has run, and we connect
   // again.

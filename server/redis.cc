@@ -1,8 +1,10 @@
 #include "server/redis.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -11,6 +13,8 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
+#include "server/tracing.h"
 
 namespace nanommo {
 
@@ -27,6 +31,27 @@ absl::Status ReconnectIfLost(redisContext* context) {
 }
 
 using Reply = std::unique_ptr<redisReply, decltype(&freeReplyObject)>;
+
+// A call, as a span under the request it's made for, named by its commands,
+// such as GETDEL, or SREM HMGET for a pipeline of both, without their keys or
+// values.
+Span StartCall(std::span<const std::vector<std::string>> commands) {
+  if (!InTrace()) {
+    return Span();
+  }
+  std::vector<std::string_view> names;
+  for (const std::vector<std::string>& words : commands) {
+    if (!words.empty() && std::ranges::find(names, words[0]) == names.end()) {
+      names.emplace_back(words[0]);
+    }
+  }
+  const std::string operation = absl::StrJoin(names, " ");
+  Span span =
+      StartChildSpan(absl::StrCat("redis ", operation), SpanKind::kClient);
+  span.SetAttribute("db.system", "redis");
+  span.SetAttribute("db.operation", operation);
+  return span;
+}
 
 void Append(redisContext* context, const std::vector<std::string>& words) {
   // Each word goes with its length, so it can hold any bytes, spaces and all.
@@ -99,6 +124,7 @@ Redis::~Redis() { redisFree(context_); }
 
 absl::StatusOr<std::string> Redis::Command(
     const std::vector<std::string>& words) {
+  const Span span = StartCall({&words, 1});
   const absl::Status connected = ReconnectIfLost(context_);
   if (!connected.ok()) {
     return connected;
@@ -129,6 +155,7 @@ absl::StatusOr<std::string> Redis::Command(
 
 absl::StatusOr<std::vector<Redis::Entry>> Redis::Read(
     const std::vector<std::string>& words) {
+  const Span span = StartCall({&words, 1});
   const absl::Status connected = ReconnectIfLost(context_);
   if (!connected.ok()) {
     return connected;
@@ -172,6 +199,7 @@ absl::StatusOr<std::vector<Redis::Entry>> Redis::Read(
 
 absl::StatusOr<std::vector<std::vector<std::string>>> Redis::Pipeline(
     const std::vector<std::vector<std::string>>& commands) {
+  const Span span = StartCall(commands);
   const absl::Status connected = ReconnectIfLost(context_);
   if (!connected.ok()) {
     return connected;
@@ -209,6 +237,7 @@ absl::StatusOr<std::vector<std::vector<std::string>>> Redis::Pipeline(
 
 absl::Status Redis::Transaction(
     const std::vector<std::vector<std::string>>& commands) {
+  const Span span = StartCall(commands);
   const absl::Status connected = ReconnectIfLost(context_);
   if (!connected.ok()) {
     return connected;

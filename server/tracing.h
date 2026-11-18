@@ -10,6 +10,8 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "prometheus/registry.h"
 
 namespace nanommo {
@@ -110,6 +112,16 @@ void StopTracing();
 /// A span under the thread's current span, or the first of a new trace when
 /// there's none.
 Span StartSpan(std::string_view name, SpanKind kind);
+
+/// A span under one from another process, or the first of a new trace when
+/// the parent's no span, from start: a request's work can start before we
+/// know which trace it's part of.
+Span StartSpan(std::string_view name, SpanKind kind, const SpanContext& parent,
+               absl::Time start = absl::Now());
+
+/// Whether the thread has a current span: whether a call made now is made for
+/// a traced request. The tick's calls aren't, and stop at this check.
+bool InTrace();
 
 /// A span under the thread's current span, or one that records nothing when
 /// there's none. For calls to Redis and MySQL, which are traced when they're

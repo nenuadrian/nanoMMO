@@ -249,12 +249,15 @@ void Server::Accept() {
 }
 
 uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
-  // A player coming in is a trace of its own.
-  Span span = StartSpan("hello", SpanKind::kServer);
+  // The hello's span starts as it arrives, under the span that issued its
+  // token, which we know once Redis gives the token back.
+  const absl::Time arrived = absl::Now();
   protocol::Hello hello;
+  SpanContext issuer;
   const absl::StatusOr<uint32_t> id =
-      hello.ParseFromString(bytes) ? tokens_.Redeem(hello.token())
+      hello.ParseFromString(bytes) ? tokens_.Redeem(hello.token(), &issuer)
                                    : absl::InvalidArgumentError("not a hello");
+  Span span = StartSpan("hello", SpanKind::kServer, issuer, arrived);
   if (!id.ok() || WorldOf(*id) != nullptr) {
     std::cout << "refused a client: unknown token, or already playing"
               << std::endl;

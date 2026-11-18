@@ -4,10 +4,13 @@
 
 #include <array>
 #include <string>
+#include <string_view>
+#include <utility>
 
 #include "absl/log/absl_check.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 
 namespace nanommo {
 
@@ -31,26 +34,41 @@ Tokens::Tokens(Redis& redis) : redis_(redis) {
 }
 
 absl::StatusOr<std::string> Tokens::Issue(uint32_t player_id) {
+  // The token is a message to the world, through Redis, and the world's span
+  // for the player's hello goes under this one, in its trace.
+  Span span = StartChildSpan("issue token", SpanKind::kProducer);
   std::string token = RandomHex();
-  const absl::StatusOr<std::string> stored = redis_.Command(
-      {"SET", absl::StrCat(kPrefix, token), absl::StrCat(player_id), "EX",
-       absl::StrCat(kLifetime.count())});
+  std::string record = absl::StrCat(player_id);
+  if (span.recording()) {
+    absl::StrAppend(&record, " ", Traceparent(span.context()));
+  }
+  const absl::StatusOr<std::string> stored =
+      redis_.Command({"SET", absl::StrCat(kPrefix, token), record, "EX",
+                      absl::StrCat(kLifetime.count())});
   if (!stored.ok()) {
     return stored.status();
   }
   return token;
 }
 
-absl::StatusOr<uint32_t> Tokens::Redeem(const std::string& token) {
+absl::StatusOr<uint32_t> Tokens::Redeem(const std::string& token,
+                                        SpanContext* issuer) {
   // GETDEL reads and deletes at once, so two clients can't use one token.
-  const absl::StatusOr<std::string> account =
+  const absl::StatusOr<std::string> record =
       redis_.Command({"GETDEL", absl::StrCat(kPrefix, token)});
-  if (!account.ok()) {
-    return account.status();
+  if (!record.ok()) {
+    return record.status();
   }
+  // The id, and the traceparent, if it was issued in a trace.
+  const std::pair<std::string_view, std::string_view> parts =
+      absl::StrSplit(*record, absl::MaxSplits(' ', 1));
   uint32_t id = 0;
-  if (!absl::SimpleAtoi(*account, &id)) {
+  if (!absl::SimpleAtoi(parts.first, &id)) {
     return absl::InternalError("a token for an id that isn't a number");
+  }
+  // A trace we can't follow is no reason to turn the player away.
+  if (issuer != nullptr) {
+    *issuer = ParseTraceparent(parts.second).value_or(SpanContext());
   }
   return id;
 }

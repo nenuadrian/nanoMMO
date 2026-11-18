@@ -40,9 +40,9 @@ target_link_libraries(nanommo_world PUBLIC Tracy::TracyClient)
 add_library(nanommo_tracing tracing.cc)
 target_include_directories(nanommo_tracing PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(nanommo_tracing
-  PUBLIC prometheus-cpp::core absl::status absl::statusor
+  PUBLIC prometheus-cpp::core absl::status absl::statusor absl::time
   PRIVATE httplib::httplib nlohmann_json::nlohmann_json absl::random_random
-    absl::strings absl::time
+    absl::strings
 )
 
 add_library(nanommo_server_core

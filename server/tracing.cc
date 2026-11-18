@@ -234,14 +234,15 @@ std::atomic<Exporter*> exporter{nullptr};
 // part of.
 thread_local SpanContext current;
 
-Span Start(std::string_view name, SpanKind kind, const SpanContext& parent) {
+Span Start(std::string_view name, SpanKind kind, const SpanContext& parent,
+           absl::Time start) {
   if (exporter.load() == nullptr) {
     return Span();
   }
   auto data = std::make_unique<Span::Data>();
   data->name = name;
   data->kind = kind;
-  data->start = absl::ToUnixNanos(absl::Now());
+  data->start = absl::ToUnixNanos(start);
   // A child is in its parent's trace, and the first span of a trace makes it.
   if (parent.valid()) {
     data->context = parent;
@@ -375,14 +376,21 @@ void StartTracing(std::string service, SendSpans send,
 void StopTracing() { delete exporter.exchange(nullptr); }
 
 Span StartSpan(std::string_view name, SpanKind kind) {
-  return Start(name, kind, current);
+  return Start(name, kind, current, absl::Now());
 }
 
+Span StartSpan(std::string_view name, SpanKind kind, const SpanContext& parent,
+               absl::Time start) {
+  return Start(name, kind, parent, start);
+}
+
+bool InTrace() { return current.valid(); }
+
 Span StartChildSpan(std::string_view name, SpanKind kind) {
-  if (!current.valid()) {
+  if (!InTrace()) {
     return Span();
   }
-  return Start(name, kind, current);
+  return Start(name, kind, current, absl::Now());
 }
 
 }  // namespace nanommo

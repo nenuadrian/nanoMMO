@@ -7,6 +7,7 @@
 
 #include "absl/status/statusor.h"
 #include "server/redis.h"
+#include "server/tracing.h"
 
 namespace nanommo {
 
@@ -24,10 +25,15 @@ class Tokens {
 
   /// A token to enter a world with, once, as the player with the id: a
   /// character, from the login server, or one moving to another instance.
+  /// Issued for a traced request, its record carries on the trace.
   absl::StatusOr<std::string> Issue(uint32_t player_id);
 
   /// Returns a NotFound error for a token that's unknown, used or expired.
-  absl::StatusOr<uint32_t> Redeem(const std::string& token);
+  /// With an issuer, it's given the span that issued the token, which the
+  /// request redeeming it carries on from, or no span, when that wasn't
+  /// traced.
+  absl::StatusOr<uint32_t> Redeem(const std::string& token,
+                                  SpanContext* issuer = nullptr);
 
   /// A session for the account, which its next requests to the login server
   /// go with in place of the name and the password.

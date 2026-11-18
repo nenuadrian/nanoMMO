@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -15,12 +16,29 @@
 #include "asio/io_context.hpp"
 #include "asio/ip/udp.hpp"
 #include "nlohmann/json.hpp"
+#include "server/tracing.h"
 
 namespace nanommo {
 
 namespace {
 
 constexpr char kService[] = "nanommo-world";
+
+// A request to Consul's API, as a span under the request it's made for.
+Span StartRequest(std::string_view method, const std::string& path) {
+  if (!InTrace()) {
+    return Span();
+  }
+  // Without the query, such as ?passing.
+  const std::string_view route =
+      std::string_view(path).substr(0, path.find('?'));
+  Span span = StartChildSpan(absl::StrCat("consul ", method, " ", route),
+                             SpanKind::kClient);
+  span.SetAttribute("peer.service", "consul");
+  span.SetAttribute("http.request.method", method);
+  span.SetAttribute("url.path", route);
+  return span;
+}
 
 httplib::Client Connect(const std::string& host) {
   httplib::Client http(host, Consul::kPort);
@@ -198,10 +216,12 @@ absl::StatusOr<std::string> Consul::OwnAddress() const {
 
 absl::Status Consul::Put(const std::string& path,
                          const std::string& body) const {
+  const Span span = StartRequest("PUT", path);
   return Answer(Connect(host_).Put(path, body, "application/json")).status();
 }
 
 absl::StatusOr<std::string> Consul::Get(const std::string& path) const {
+  const Span span = StartRequest("GET", path);
   return Answer(Connect(host_).Get(path));
 }
 
