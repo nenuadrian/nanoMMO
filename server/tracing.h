@@ -76,6 +76,9 @@ class Span {
   void SetAttribute(std::string_view key, int64_t value);
   /// Marks it as failed, and why.
   void SetError(std::string_view message);
+  /// Another trace's span that this one's work was for too, as a batch's span
+  /// is for each message in it, and has one parent.
+  void AddLink(const SpanContext& other);
 
   /// Records it, and makes the span that was current before it current again.
   /// Going out of scope does the same.

@@ -175,6 +175,33 @@ TEST_F(TracingTest, AChildSpanNeedsAParent) {
   EXPECT_TRUE(StartChildSpan("redis GET", SpanKind::kClient).recording());
 }
 
+TEST_F(TracingTest, LinksToTheOtherSpansItWasFor) {
+  SpanContext first;
+  SpanContext second;
+  {
+    Span one = StartSpan("publish trade", SpanKind::kProducer);
+    first = one.context();
+  }
+  {
+    Span two = StartSpan("publish trade", SpanKind::kProducer);
+    second = two.context();
+  }
+  {
+    Span batch = StartSpan("save trades", SpanKind::kConsumer, first);
+    batch.AddLink(second);
+  }
+  const std::vector<nlohmann::json> spans = Spans();
+  ASSERT_EQ(spans.size(), 3u);
+  // Under the first, in its trace, and linked to the second, in another.
+  EXPECT_EQ(spans[2]["traceId"], first.trace_id());
+  EXPECT_EQ(spans[2]["parentSpanId"], spans[0]["spanId"]);
+  EXPECT_EQ(spans[2]["links"],
+            nlohmann::json::parse(absl::StrCat(
+                R"([{"traceId": ")", second.trace_id(), R"(", "spanId": ")",
+                spans[1]["spanId"].get<std::string>(), R"("}])")));
+  EXPECT_NE(first.trace_id(), second.trace_id());
+}
+
 TEST_F(TracingTest, EachTraceAndSpanHasAnIdOfItsOwn) {
   std::set<std::string> traces;
   std::set<uint64_t> spans;

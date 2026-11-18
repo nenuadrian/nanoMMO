@@ -3,8 +3,10 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -12,11 +14,13 @@
 #include "absl/strings/numbers.h"
 #include "google/protobuf/util/message_differencer.h"
 #include "gtest/gtest.h"
+#include "nlohmann/json.hpp"
 #include "protocol/nanommo.pb.h"
 #include "server/accounts.h"
 #include "server/characters.h"
 #include "server/inventory.h"
 #include "server/test_services.h"
+#include "server/tracing.h"
 
 namespace {
 
@@ -487,6 +491,61 @@ TEST_F(PlayersTest, AFlushTriedTwiceRecordsATradeOnce) {
   ASSERT_TRUE(blades.ok()) << blades.status();
   EXPECT_EQ(blades->rows,
             (std::vector<std::vector<std::string>>{{std::to_string(*other)}}));
+
+  const std::string key = "player:Ember:" + std::to_string(*other);
+  EXPECT_TRUE(redis_->Command({"DEL", key}).ok());
+  EXPECT_TRUE(database_->Run("DELETE FROM trades WHERE id = ?", {name_}).ok());
+}
+
+TEST_F(PlayersTest, TheSaverCarriesOnATradesTrace) {
+  nanommo::Players players(*database_, *redis_);
+  const absl::StatusOr<uint32_t> other =
+      nanommo::Characters(*database_).Create(account_, "Ember", name_ + "c");
+  ASSERT_TRUE(other.ok()) << other.status();
+  // Each span, as it's sent.
+  std::mutex mutex;
+  std::vector<nlohmann::json> spans;
+  nanommo::StartTracing("test", [&](const std::string& json) {
+    const nlohmann::json batch = nlohmann::json::parse(json, nullptr, false);
+    const std::lock_guard lock(mutex);
+    for (const nlohmann::json& span :
+         batch["resourceSpans"][0]["scopeSpans"][0]["spans"]) {
+      spans.push_back(span);
+    }
+    return absl::OkStatus();
+  });
+  {
+    const nanommo::Span trade =
+        nanommo::StartSpan("trade", nanommo::SpanKind::kServer);
+    EXPECT_TRUE(
+        players
+            .Save(
+                "Ember", {{id_, {.x = 1.0f}}, {*other, {.x = 2.0f}}}, {}, {},
+                nanommo::Traded{.id = name_, .player = id_, .partner = *other})
+            .ok());
+  }
+  // The saver's flush isn't a request, and is traced only for the trade.
+  EXPECT_TRUE(players.Flush().ok());
+  nanommo::StopTracing();
+
+  const auto named = [&spans](std::string_view name) {
+    for (const nlohmann::json& span : spans) {
+      if (span["name"] == name) {
+        return span;
+      }
+    }
+    return nlohmann::json::object();
+  };
+  const nlohmann::json published = named("publish trade");
+  const nlohmann::json saved = named("save trades");
+  ASSERT_TRUE(published.contains("kind")) << "no span published the trade";
+  ASSERT_TRUE(saved.contains("kind")) << "no span saved the trade";
+  EXPECT_EQ(published["kind"], 4);
+  EXPECT_EQ(saved["kind"], 5);
+  EXPECT_EQ(saved["parentSpanId"], published["spanId"]);
+  EXPECT_EQ(saved["traceId"], named("trade")["traceId"]);
+  // And its record into MySQL, in the same trace.
+  EXPECT_EQ(named("mysql INSERT trades")["traceId"], saved["traceId"]);
 
   const std::string key = "player:Ember:" + std::to_string(*other);
   EXPECT_TRUE(redis_->Command({"DEL", key}).ok());

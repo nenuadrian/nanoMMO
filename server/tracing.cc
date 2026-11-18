@@ -41,6 +41,7 @@ struct Span::Data {
       attributes;
   bool failed = false;
   std::string error;
+  std::vector<SpanContext> links;
 };
 
 namespace {
@@ -111,6 +112,10 @@ std::string Json(const std::string& service,
     // Code 2 is an error.
     if (span.failed) {
       json["status"] = {{"code", 2}, {"message", span.error}};
+    }
+    for (const SpanContext& link : span.links) {
+      json["links"].push_back(
+          {{"traceId", link.trace_id()}, {"spanId", Hex(link.span)}});
     }
     written.push_back(std::move(json));
   }
@@ -322,6 +327,12 @@ void Span::SetError(std::string_view message) {
   if (data_ != nullptr) {
     data_->failed = true;
     data_->error = message;
+  }
+}
+
+void Span::AddLink(const SpanContext& other) {
+  if (data_ != nullptr && other.valid()) {
+    data_->links.push_back(other);
   }
 }
 

@@ -14,6 +14,8 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "content/items.h"
 #include "google/protobuf/util/json_util.h"
 #include "server/inventory.h"
@@ -167,6 +169,34 @@ std::string FieldOf(const Redis::Entry& entry, std::string_view name) {
     }
   }
   return "";
+}
+
+// The span a batch's trades go on with their traces in, from when they were
+// read off the stream: under the oldest's, as a span has one parent, and
+// linked to the rest. None for a batch without traced trades.
+Span StartSavingTrades(const std::vector<Redis::Entry>& trades,
+                       absl::Time read) {
+  std::vector<SpanContext> published;
+  for (const Redis::Entry& trade : trades) {
+    if (const absl::StatusOr<SpanContext> context =
+            ParseTraceparent(FieldOf(trade, "traceparent"));
+        context.ok()) {
+      published.push_back(*context);
+    }
+  }
+  if (published.empty()) {
+    return Span();
+  }
+  Span span =
+      StartSpan("save trades", SpanKind::kConsumer, published.front(), read);
+  for (std::size_t i = 1; i < published.size(); ++i) {
+    span.AddLink(published[i]);
+  }
+  span.SetAttribute("messaging.system", "redis");
+  span.SetAttribute("messaging.destination.name", kTrades);
+  span.SetAttribute("messaging.batch.message_count",
+                    static_cast<int64_t>(trades.size()));
+  return span;
 }
 
 // A player's quests as one message, which Redis keeps the bytes of, and
@@ -369,6 +399,7 @@ absl::Status Players::Release(const std::string& world, uint32_t id,
 absl::StatusOr<std::set<uint32_t>> Players::Pass(
     const std::string& world, const std::map<uint32_t, std::string>& leases,
     const std::string& next) {
+  Span span = StartChildSpan("pass leases", SpanKind::kInternal);
   std::vector<std::string> eval = {
       "EVAL", kPass, absl::StrCat(leases.size() + 1), FencingKey(world)};
   for (const auto& [id, lease] : leases) {
@@ -394,6 +425,7 @@ absl::StatusOr<std::set<uint32_t>> Players::Save(
   if (changed.empty() && !traded) {
     return std::set<uint32_t>();
   }
+  Span span = StartChildSpan("save players", SpanKind::kInternal);
   std::vector<std::vector<std::string>> commands;
   std::vector<std::string> unsaved = {"SADD", kUnsaved};
   std::vector<std::string> items_unsaved = {"SADD", kItemsUnsaved};
@@ -424,13 +456,22 @@ absl::StatusOr<std::set<uint32_t>> Players::Save(
     commands.push_back(items_unsaved);
   }
   // The trade's record goes with its bags, so the saver takes them to MySQL
-  // together.
+  // together. It's a message to the saver, through the stream, with the
+  // traceparent of this span, which the saver's span for it goes under.
+  const Span publishing =
+      traded ? StartChildSpan("publish trade", SpanKind::kProducer) : Span();
   if (traded) {
-    commands.push_back({"XADD", kTrades, "*", "id", traded->id, "world", world,
-                        "player", absl::StrCat(traded->player), "player_gave",
-                        GaveOf(traded->player_gave), "partner",
-                        absl::StrCat(traded->partner), "partner_gave",
-                        GaveOf(traded->partner_gave)});
+    std::vector<std::string>& added =
+        commands.emplace_back(std::vector<std::string>{
+            "XADD", kTrades, "*", "id", traded->id, "world", world, "player",
+            absl::StrCat(traded->player), "player_gave",
+            GaveOf(traded->player_gave), "partner",
+            absl::StrCat(traded->partner), "partner_gave",
+            GaveOf(traded->partner_gave)});
+    if (publishing.recording()) {
+      added.insert(added.end(),
+                   {"traceparent", Traceparent(publishing.context())});
+    }
   }
   // Another instance that's taken a player has saved them since, and its
   // saves are the ones to keep.
@@ -462,6 +503,7 @@ absl::StatusOr<int> Players::Flush() {
     // The oldest trades go first, each with both its players, so that MySQL
     // has a trade's record and both bags from after it, or none of it.
     std::vector<Redis::Entry> trades;
+    const absl::Time read = absl::Now();
     if (trades_left > 0) {
       absl::StatusOr<std::vector<Redis::Entry>> oldest = redis_.Read(
           {"XREAD", "COUNT", absl::StrCat(std::min(trades_left, kBatch / 2)),
@@ -473,6 +515,8 @@ absl::StatusOr<int> Players::Flush() {
       trades_left =
           trades.empty() ? 0 : trades_left - static_cast<int>(trades.size());
     }
+    // The batch's statements in MySQL go under it.
+    const Span saving = StartSavingTrades(trades, read);
     std::vector<std::string> keys;
     const auto take = [&keys](const std::string& key) {
       if (std::ranges::find(keys, key) == keys.end()) {

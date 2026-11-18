@@ -521,6 +521,7 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
       done = land.OfferToTrade(id, action.offer());
       break;
     case protocol::TradeAction::kReady: {
+      const absl::Time asked = absl::Now();
       // What each side offers, for the trade's record, should this complete it.
       const protocol::Trade offers = land.TradeOf(id);
       const absl::StatusOr<uint32_t> traded =
@@ -532,12 +533,19 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
       if (traded.value_or(0) == 0) {
         break;
       }
+      // A trade that's done is a trace of its own, from the ready that did it
+      // to the saver putting it into MySQL.
+      Span span = StartSpan("trade", SpanKind::kServer, SpanContext(), asked);
       const Traded record{.id = RandomHex(),
                           .player = id,
                           .player_gave = offers.yours(),
                           .partner = *traded,
                           .partner_gave = offers.theirs()};
+      span.SetAttribute("nanommo.trade", record.id);
+      span.SetAttribute("nanommo.player", id);
+      span.SetAttribute("nanommo.partner", *traded);
       if (!Save({id, *traded}, record).empty()) {
+        span.SetError("a side's lease isn't this instance's any more");
         // One of them isn't this instance's any more, and another can have
         // them as they were before the trade, so neither keeps it: both go,
         // unsaved, and come back with what Redis has, from before it.
@@ -869,6 +877,10 @@ void Server::Receive() {
 }
 
 int Server::HandOver(const std::string& host, uint16_t port) {
+  // A trace of its own, which each player's hello on the next instance carries
+  // on, from the token they're given.
+  Span span = StartSpan("hand over", SpanKind::kInternal);
+  span.SetAttribute("nanommo.next", absl::StrCat(host, ":", port));
   // The next instance loads each player from Redis, so they go in now, and
   // nothing changes them here afterwards. Those in a dungeon come out of it
   // there, as its copy stays here.
@@ -894,6 +906,7 @@ int Server::HandOver(const std::string& host, uint16_t port) {
       players_.Pass(name_, leases_, InstanceId({.name = name_, .port = port}));
   if (!passed.ok()) {
     std::cerr << "couldn't hand the leases over: " << passed.status() << "\n";
+    span.SetError(passed.status().ToString());
     return 0;
   }
   int told = 0;
@@ -920,6 +933,7 @@ int Server::HandOver(const std::string& host, uint16_t port) {
     session->Send(Frame(move));
     ++told;
   }
+  span.SetAttribute("nanommo.players", told);
   return told;
 }
 

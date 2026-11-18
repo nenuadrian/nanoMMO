@@ -18,6 +18,7 @@
 #include "server/database.h"
 #include "server/players.h"
 #include "server/redis.h"
+#include "server/tracing.h"
 
 namespace {
 
@@ -79,6 +80,14 @@ int main() {
   prometheus::Exposer exposer("0.0.0.0:" + std::to_string(kMetricsPort));
   exposer.RegisterCollectable(registry);
 
+  // The trades it saves carry on their traces, to an OpenTelemetry collector,
+  // such as Alloy, when there's one.
+  const std::string collector = nanommo::Setting("NANOMMO_OTLP_ENDPOINT", "");
+  if (!collector.empty()) {
+    nanommo::StartTracing("saver", nanommo::PostTo(collector), registry.get());
+    std::cout << "nanommo saver: sending spans to " << collector << std::endl;
+  }
+
   asio::io_context io;
   asio::steady_timer timer(io, kInterval);
   // self is the lambda, which waits on the timer again, with its return type
@@ -97,6 +106,7 @@ int main() {
   signals.async_wait([&io](std::error_code, int) { io.stop(); });
   io.run();
   Flush(players, duplicates);
+  nanommo::StopTracing();
   std::cout << "nanommo saver: saved what was left, and stopped" << std::endl;
   return 0;
 }
