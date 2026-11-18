@@ -15,3 +15,10 @@ datasources:
         hide: false
       streamingEnabled:
         search: true
+      # From a span to our servers' lines with its trace's id.
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: -1m
+        spanEndTimeShift: 1m
+        customQuery: true
+        query: '{service=~"login|server|frost|server-next|frost-next|saver"} |= "trace_id=$${__trace.traceId}"'

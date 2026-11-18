@@ -245,7 +245,8 @@ void LoginServer::Accept() {
             span.SetAttribute("nanommo.refused", reply.error());
           }
         } else {
-          std::cerr << "nanommo login: " << handled.status() << "\n";
+          std::cerr << "nanommo login: " << handled.status() << TraceField()
+                    << "\n";
           span.SetError(handled.status().ToString());
           reply.set_error("The server couldn't do that. Try again later.");
         }
@@ -256,10 +257,10 @@ void LoginServer::Accept() {
             std::cout << "nanommo login: " << request.username()
                       << (request.new_account() ? " created an account"
                                                 : " logged in")
-                      << std::endl;
+                      << TraceField() << std::endl;
           } else {
             std::cout << "nanommo login: refused " << request.username() << ": "
-                      << reply.error() << std::endl;
+                      << reply.error() << TraceField() << std::endl;
           }
         }
         // The worlds come with each answer, for the list the client shows.

@@ -395,6 +395,10 @@ Span StartSpan(std::string_view name, SpanKind kind, const SpanContext& parent,
   return Start(name, kind, parent, start);
 }
 
+std::string TraceField() {
+  return current.valid() ? absl::StrCat(" trace_id=", current.trace_id()) : "";
+}
+
 bool InTrace() { return current.valid(); }
 
 Span StartChildSpan(std::string_view name, SpanKind kind) {

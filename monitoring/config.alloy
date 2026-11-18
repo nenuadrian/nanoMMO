@@ -89,10 +89,64 @@ pyroscope.write "pyroscope" {
 }
 
 // Spans from our servers, in OpenTelemetry's protocol over HTTP, as JSON.
-// Alloy gathers them into batches, and sends those on to Tempo, over gRPC.
+// Alloy keeps the traces worth keeping, gathers them into batches, and sends
+// those on to Tempo, over gRPC.
 otelcol.receiver.otlp "servers" {
   http {
     endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.tail_sampling.servers.input]
+  }
+}
+
+// Which traces to keep is decided once each is whole, from all its spans, so
+// it can keep the ones that went wrong or were slow, which a decision made as
+// a trace starts couldn't know. A trace is taken as whole ten seconds after its
+// first span, as a trade's waits up to five seconds for the saver. A trace is
+// kept if any of these keeps it.
+otelcol.processor.tail_sampling "servers" {
+  decision_wait = "10s"
+
+  // A span that comes after its trace's decision, such as a hello from a token
+  // issued thirty seconds before, follows it.
+  decision_cache = {
+    sampled_cache_size     = 100000,
+    non_sampled_cache_size = 100000,
+  }
+
+  // Each trace with an error: those are the ones we'll want to read.
+  policy {
+    name = "errors"
+    type = "status_code"
+
+    status_code {
+      status_codes = ["ERROR"]
+    }
+  }
+
+  // Each trace that took over 100 milliseconds: a slow request is what the
+  // metrics can't explain.
+  policy {
+    name = "slow"
+    type = "latency"
+
+    latency {
+      threshold_ms = 100
+    }
+  }
+
+  // And a tenth of the rest, by their ids, to see what a normal one looks
+  // like. Tempo's metrics are made from what's kept, so they count a tenth of
+  // the quick ones.
+  policy {
+    name = "a_tenth_of_the_rest"
+    type = "probabilistic"
+
+    probabilistic {
+      sampling_percentage = 10
+    }
   }
 
   output {

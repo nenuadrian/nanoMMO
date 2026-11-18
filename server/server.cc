@@ -260,7 +260,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   Span span = StartSpan("hello", SpanKind::kServer, issuer, arrived);
   if (!id.ok() || WorldOf(*id) != nullptr) {
     std::cout << "refused a client: unknown token, or already playing"
-              << std::endl;
+              << TraceField() << std::endl;
     // Redis not answering is the server's failure, not the player's.
     if (!id.ok() && !absl::IsNotFound(id.status()) &&
         !absl::IsInvalidArgument(id.status())) {
@@ -279,11 +279,11 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   if (!lease.ok()) {
     if (absl::IsFailedPrecondition(lease.status())) {
       std::cout << "refused player " << *id << ": " << lease.status().message()
-                << std::endl;
+                << TraceField() << std::endl;
       span.SetAttribute("nanommo.refused", lease.status().message());
     } else {
       std::cerr << "couldn't lease player " << *id << ": " << lease.status()
-                << "\n";
+                << TraceField() << "\n";
       span.SetError(lease.status().ToString());
     }
     session.Close();
@@ -292,7 +292,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   const absl::StatusOr<Player> player = players_.Load(name_, *id);
   if (!player.ok()) {
     std::cerr << "couldn't load player " << *id << ": " << player.status()
-              << "\n";
+              << TraceField() << "\n";
     span.SetError(player.status().ToString());
     players_.Release(name_, *id, *lease).IgnoreError();
     session.Close();
@@ -308,7 +308,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
     RefreshGuild(membership->guild);
   } else if (!absl::IsNotFound(membership.status())) {
     std::cerr << "couldn't load player " << *id
-              << "'s guild: " << membership.status() << "\n";
+              << "'s guild: " << membership.status() << TraceField() << "\n";
   }
   guild_news_.insert(*id);
   // Names, kinds and NPCs go out once a second, so the next broadcast is a
@@ -325,7 +325,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   duel_limits_.emplace(*id, TokenBucket(kDuelBurst, kDuelRefill));
   udp_tokens_[hello.token()] = *id;
   std::cout << player->name << " joined, as player " << *id << ", with lease "
-            << *lease << std::endl;
+            << *lease << TraceField() << std::endl;
   return *id;
 }
 
@@ -1072,7 +1072,7 @@ std::set<uint32_t> Server::Save(const std::vector<uint32_t>& ids,
 
 void Server::Drop(uint32_t id, std::string_view why) {
   std::cout << "dropped " << WorldOf(id)->players().at(id).name
-            << " without saving them, as " << why << std::endl;
+            << " without saving them, as " << why << TraceField() << std::endl;
   // So that leaving doesn't save them. A lease that's still this instance's
   // goes, so that they can come back at once.
   if (const auto lease = leases_.find(id); lease != leases_.end()) {

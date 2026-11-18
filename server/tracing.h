@@ -122,6 +122,10 @@ Span StartSpan(std::string_view name, SpanKind kind);
 Span StartSpan(std::string_view name, SpanKind kind, const SpanContext& parent,
                absl::Time start = absl::Now());
 
+/// " trace_id=" and the trace of the thread's current span, for the end of a
+/// log line, which Grafana links to the trace, or nothing when there's none.
+std::string TraceField();
+
 /// Whether the thread has a current span: whether a call made now is made for
 /// a traced request. The tick's calls aren't, and stop at this check.
 bool InTrace();
