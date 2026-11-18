@@ -369,7 +369,7 @@ services:
     build:
       context: .
       target: bot
-    command: ["login", "server", "${BOTS:-300}", "${RAMP:-120}"]
+    command: ["login", "server", "${BOTS:-300}", "${RAMP:-120}", "${BOTS_FIRST:-1}"]
     environment:
       NANOMMO_TLS_CA: /tls/ca.crt
     volumes:

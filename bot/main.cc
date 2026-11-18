@@ -6,6 +6,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <random>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -19,6 +20,7 @@
 #include "asio/signal_set.hpp"
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
+#include "bot/backoff.h"
 #include "bot/bot.h"
 #include "bot/bot_metrics.h"
 #include "content/content.h"
@@ -42,6 +44,14 @@ constexpr std::chrono::milliseconds kFrame(16);
 
 // The world on kGamePort, which the bots play in.
 constexpr char kWorld[] = "Ember";
+
+// How long a bot that's logged in has to reach its world, and how long one
+// that's lost its world takes to notice, before it logs in again.
+constexpr std::chrono::seconds kGrace(5);
+
+// The most bots that log in again each second, as each waits for the login
+// server, and the swarm's other bots for it.
+constexpr int kRejoinsPerSecond = 5;
 
 // The login server's answer, or why there's none: it couldn't be reached, or
 // it said no.
@@ -123,7 +133,8 @@ class Swarm {
         content_(content),
         timer_(io),
         report_(io),
-        frame_(io) {
+        frame_(io),
+        random_(static_cast<uint32_t>(first)) {
     Add();
     Report();
     frame_.expires_after(kFrame);
@@ -139,11 +150,15 @@ class Swarm {
     auto bot = std::make_unique<nanommo::Bot>(
         io_, tls_, static_cast<uint32_t>(number), udp_, content_);
     const absl::StatusOr<std::string> token = LogIn(login_, tls_, number);
+    const auto now = std::chrono::steady_clock::now();
     if (token.ok()) {
       bot->Start(server_, *token);
+      retries_.push_back({.next = now + kGrace});
     } else {
       std::cerr << "nanommo bot: bot" << number
                 << " couldn't log in: " << token.status() << "\n";
+      retries_.push_back(
+          {.next = now + nanommo::Backoff(0, random_), .failed = 1});
     }
     bots_.push_back(std::move(bot));
     timer_.expires_after(gap_);
@@ -189,6 +204,49 @@ class Swarm {
     }
   }
 
+  // A bot that's lost its world, say as a world that stalled past its leases
+  // dropped it, or that couldn't log in, logs in again, as a player would,
+  // after a wait that doubles with each try that fails, and a few a second at
+  // most.
+  void Rejoin() {
+    const auto now = std::chrono::steady_clock::now();
+    int tried = 0;
+    int rejoined = 0;
+    for (std::size_t i = 0; i < bots_.size() && tried < kRejoinsPerSecond;
+         ++i) {
+      Retry& retry = retries_[i];
+      if (bots_[i]->connected()) {
+        retry = {.next = now + kGrace};
+        continue;
+      }
+      if (bots_[i]->move() || now < retry.next) {
+        continue;
+      }
+      ++tried;
+      const int number = first_ + static_cast<int>(i);
+      const absl::StatusOr<std::string> token = LogIn(login_, tls_, number);
+      if (!token.ok()) {
+        std::cerr << "nanommo bot: bot" << number
+                  << " couldn't log in again: " << token.status() << "\n";
+        retry.next = now + nanommo::Backoff(retry.failed++, random_);
+        continue;
+      }
+      // The bot before stays until we stop, as its handlers may be waiting
+      // on its sockets.
+      bots_[i]->Leave();
+      left_.push_back(std::move(bots_[i]));
+      bots_[i] = std::make_unique<nanommo::Bot>(
+          io_, tls_, static_cast<uint32_t>(number), udp_, content_);
+      bots_[i]->Start(server_, *token);
+      retry.next = now + kGrace;
+      ++rejoined;
+    }
+    if (rejoined > 0) {
+      std::cout << "nanommo bot: " << rejoined << " bots logged in again"
+                << std::endl;
+    }
+  }
+
   void Report() {
     int connected = 0;
     for (const auto& bot : bots_) {
@@ -197,6 +255,7 @@ class Swarm {
     metrics_.SetConnected(connected);
     // After the count, as a bot that moves takes a moment to connect again.
     Follow();
+    Rejoin();
     if (connected != reported_) {
       std::cout << "nanommo bot: " << connected << " of " << count_
                 << " bots connected" << std::endl;
@@ -246,6 +305,14 @@ class Swarm {
   asio::steady_timer frame_;
   std::vector<std::unique_ptr<nanommo::Bot>> bots_;
   std::vector<std::unique_ptr<nanommo::Bot>> left_;
+  // When each bot, by its place in bots_, may log in again, and how many of
+  // its tries have failed in a row.
+  struct Retry {
+    std::chrono::steady_clock::time_point next;
+    int failed = 0;
+  };
+  std::vector<Retry> retries_;
+  std::mt19937 random_;
   int reported_ = 0;
 };
 
