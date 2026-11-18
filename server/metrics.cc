@@ -18,6 +18,12 @@ prometheus::Histogram::BucketBoundaries StoryBuckets() {
   return {0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 7.5, 10};
 }
 
+// A login takes tens of milliseconds, most of it hashing the password, and
+// one that takes over five seconds is one the player's given up on.
+prometheus::Histogram::BucketBoundaries LoginBuckets() {
+  return {0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10};
+}
+
 }  // namespace
 
 Metrics::Metrics()
@@ -62,7 +68,11 @@ Metrics::Metrics()
                          .Name("nanommo_story_duration_seconds")
                          .Help("Time from asking for a story to its telling")
                          .Register(*registry_)
-                         .Add({}, StoryBuckets())) {
+                         .Add({}, StoryBuckets())),
+      dropped_(prometheus::BuildCounter()
+                   .Name("nanommo_players_dropped_total")
+                   .Help("Players let go of without saving them, by why")
+                   .Register(*registry_)) {
   // The version goes in a label, the way Prometheus gives its own, so that
   // a query can tell the worlds a deploy has reached from the others.
   prometheus::BuildGauge()
@@ -71,6 +81,11 @@ Metrics::Metrics()
       .Register(*registry_)
       .Add({{"version", std::string(kVersion)}})
       .Set(1);
+  // At zero from the start, so that the first player dropped counts as one
+  // more than none, which a rate or an increase sees.
+  for (const char* why : {"lease", "trade"}) {
+    dropped_.Add({{"why", why}});
+  }
 }
 
 void Metrics::SetPlayers(const char* land, std::size_t count) {
@@ -106,6 +121,35 @@ void Metrics::AddStory(const char* result) {
 
 void Metrics::ObserveStory(std::chrono::nanoseconds time) {
   story_seconds_.Observe(std::chrono::duration<double>(time).count());
+}
+
+void Metrics::AddDropped(const char* why) {
+  dropped_.Add({{"why", why}}).Increment();
+}
+
+LoginMetrics::LoginMetrics()
+    : registry_(std::make_shared<prometheus::Registry>()),
+      seconds_(prometheus::BuildHistogram()
+                   .Name("nanommo_login_duration_seconds")
+                   .Help("Time to answer each request, by what came of it")
+                   .Register(*registry_)) {
+  // Each result is there from the start, at zero, so that a rate of failures
+  // is zero before the first one, rather than nothing.
+  for (const char* result : {"ok", "refused", "failed"}) {
+    seconds_.Add({{"result", result}}, LoginBuckets());
+  }
+  prometheus::BuildGauge()
+      .Name("nanommo_build_info")
+      .Help("The server's version, in its label; always 1")
+      .Register(*registry_)
+      .Add({{"version", std::string(kVersion)}})
+      .Set(1);
+}
+
+void LoginMetrics::ObserveRequest(const char* result,
+                                  std::chrono::nanoseconds time) {
+  seconds_.Add({{"result", result}}, LoginBuckets())
+      .Observe(std::chrono::duration<double>(time).count());
 }
 
 }  // namespace nanommo

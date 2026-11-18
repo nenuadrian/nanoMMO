@@ -1,7 +1,9 @@
 #include <csignal>
 #include <cstdint>
+#include <exception>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -9,6 +11,7 @@
 #include "asio/io_context.hpp"
 #include "asio/signal_set.hpp"
 #include "asio/ssl/context.hpp"
+#include "prometheus/exposer.h"
 #include "protocol/settings.h"
 #include "protocol/tls.h"
 #include "protocol/version.h"
@@ -17,6 +20,7 @@
 #include "server/consul.h"
 #include "server/database.h"
 #include "server/login_server.h"
+#include "server/metrics.h"
 #include "server/redis.h"
 #include "server/tokens.h"
 #include "server/tracing.h"
@@ -55,17 +59,36 @@ int main() {
   nanommo::Characters characters(*database);
   nanommo::Consul consul(nanommo::Setting("NANOMMO_CONSUL_HOST", "127.0.0.1"));
 
-  // To an OpenTelemetry collector, such as Alloy, when there's one.
+  // How long each request took to answer, and what came of it, for
+  // Prometheus.
+  nanommo::LoginMetrics metrics;
+  const std::string metrics_port =
+      nanommo::Setting("NANOMMO_METRICS_PORT", "9467");
+  std::optional<prometheus::Exposer> exposer;
+  try {
+    exposer.emplace("0.0.0.0:" + metrics_port);
+  } catch (const std::exception& error) {
+    std::cerr << "nanommo login: couldn't serve metrics on port "
+              << metrics_port << " (" << error.what() << ")\n";
+    return 1;
+  }
+  exposer->RegisterCollectable(metrics.registry());
+  std::cout << "nanommo login: metrics on port " << metrics_port
+            << ", at /metrics" << std::endl;
+
+  // To an OpenTelemetry collector, such as Alloy, when there's one, counting
+  // the spans it drops with the metrics.
   const std::string collector = nanommo::Setting("NANOMMO_OTLP_ENDPOINT", "");
   if (!collector.empty()) {
-    nanommo::StartTracing("login", nanommo::PostTo(collector));
+    nanommo::StartTracing("login", nanommo::PostTo(collector),
+                          metrics.registry().get());
     std::cout << "nanommo login: sending spans to " << collector << std::endl;
   }
 
   asio::io_context io;
   absl::StatusOr<std::unique_ptr<nanommo::LoginServer>> server_or =
       nanommo::LoginServer::Create(io, kPort, *tls, accounts, tokens,
-                                   characters, consul);
+                                   characters, consul, metrics);
   if (!server_or.ok()) {
     std::cerr << "nanommo login: " << server_or.status() << "\n";
     return 1;

@@ -123,8 +123,9 @@ class Server {
   std::set<uint32_t> Save(const std::vector<uint32_t>& ids,
                           const std::optional<Traded>& traded = std::nullopt);
   /// Closes the player's session without saving them, as another instance
-  /// has them, or what they have here can't be saved, and says why.
-  void Drop(uint32_t id, std::string_view why);
+  /// has them, or what they have here can't be saved, and says why. They're
+  /// counted by the kind of why: "lease" or "trade".
+  void Drop(uint32_t id, const char* kind, std::string_view why);
   /// What happened in the worlds this tick, into the events stream.
   void RecordEvents(const std::vector<Event>& happened);
   /// To each player near what happened, in their copy, after the world, so

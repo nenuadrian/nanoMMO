@@ -63,7 +63,7 @@ add_executable(nanommo_server main.cc)
 target_link_libraries(nanommo_server PRIVATE nanommo_server_core absl::time prometheus-cpp::pull)
 
 add_executable(nanommo_login login_main.cc)
-target_link_libraries(nanommo_login PRIVATE nanommo_server_core)
+target_link_libraries(nanommo_login PRIVATE nanommo_server_core prometheus-cpp::pull)
 
 add_executable(nanommo_saver saver_main.cc)
 target_link_libraries(nanommo_saver PRIVATE nanommo_server_core absl::time prometheus-cpp::pull)

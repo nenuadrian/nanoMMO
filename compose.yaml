@@ -276,14 +276,18 @@ services:
     # Tempo writes the metrics it makes from the spans into Prometheus, rather
     # than Prometheus scraping them, and each sample can carry the trace it
     # came from, an exemplar.
+    # It keeps 31 days, rather than its default 15, so that an error budget
+    # over 30 days has all of them, on a volume of its own.
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=31d
       - --web.enable-remote-write-receiver
       - --enable-feature=exemplar-storage
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus:/prometheus
     ports:
       - "127.0.0.1:9090:9090"
 
@@ -456,3 +460,4 @@ volumes:
   huggingface:
   loki:
   tempo:
+  prometheus:

@@ -34,3 +34,7 @@ scrape_configs:
   - job_name: nanommo-saver
     static_configs:
       - targets: [saver:9466]
+
+  - job_name: nanommo-login
+    static_configs:
+      - targets: [login:9467]

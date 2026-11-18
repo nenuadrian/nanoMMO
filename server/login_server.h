@@ -14,6 +14,7 @@
 #include "server/accounts.h"
 #include "server/characters.h"
 #include "server/consul.h"
+#include "server/metrics.h"
 #include "server/tokens.h"
 
 namespace nanommo {
@@ -28,18 +29,25 @@ absl::StatusOr<protocol::LoginReply> HandleLogin(
     const protocol::LoginRequest& request, Accounts& accounts, Tokens& tokens,
     Characters& characters);
 
+/// What came of a request, for the metrics: "ok", "refused" when the reply
+/// says why not, as for a wrong password, which is the player's mistake, or
+/// "failed" when the servers couldn't answer it.
+const char* Outcome(const absl::StatusOr<protocol::LoginReply>& handled);
+
 class LoginServer {
  public:
   /// Starts listening on the port, or returns why it couldn't. Each client
-  /// talks to it over TLS, with the context.
+  /// talks to it over TLS, with the context. Each request it answers goes
+  /// into the metrics, with how long it took.
   static absl::StatusOr<std::unique_ptr<LoginServer>> Create(
       asio::io_context& io, uint16_t port, asio::ssl::context& tls,
       Accounts& accounts, Tokens& tokens, Characters& characters,
-      Consul& consul);
+      Consul& consul, LoginMetrics& metrics);
 
  private:
   LoginServer(asio::io_context& io, asio::ssl::context& tls, Accounts& accounts,
-              Tokens& tokens, Characters& characters, Consul& consul);
+              Tokens& tokens, Characters& characters, Consul& consul,
+              LoginMetrics& metrics);
 
   absl::Status Start(uint16_t port);
   void Accept();
@@ -51,6 +59,7 @@ class LoginServer {
   Tokens& tokens_;
   Characters& characters_;
   Consul& consul_;
+  LoginMetrics& metrics_;
   protocol::LoginReply worlds_;
   std::chrono::steady_clock::time_point worlds_at_;
 };

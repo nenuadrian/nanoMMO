@@ -113,6 +113,9 @@ class Players {
   /// with both its players, into the trades table.
   absl::StatusOr<int> Flush();
 
+  /// How many players are marked unsaved in Redis, waiting for a flush.
+  absl::StatusOr<int> Unsaved();
+
   /// The serials that more than one item in MySQL has, as only a copy of an
   /// item can have another's.
   absl::StatusOr<int> Duplicates();

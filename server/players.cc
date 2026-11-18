@@ -748,6 +748,19 @@ absl::StatusOr<int> Players::Flush() {
   return saved;
 }
 
+absl::StatusOr<int> Players::Unsaved() {
+  const absl::StatusOr<std::string> counted =
+      redis_.Command({"SCARD", kUnsaved});
+  if (!counted.ok()) {
+    return counted.status();
+  }
+  int unsaved = 0;
+  if (!absl::SimpleAtoi(*counted, &unsaved)) {
+    return absl::InternalError("a count of unsaved players that isn't one");
+  }
+  return unsaved;
+}
+
 absl::StatusOr<int> Players::Duplicates() {
   // By player_items' serial, from V13, which MySQL takes from each row's
   // state, and indexes.

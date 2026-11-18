@@ -93,6 +93,13 @@ absl::Status Readable(const absl::Status& status, protocol::LoginReply& reply) {
 
 }  // namespace
 
+const char* Outcome(const absl::StatusOr<protocol::LoginReply>& handled) {
+  if (!handled.ok()) {
+    return "failed";
+  }
+  return handled->ok() ? "ok" : "refused";
+}
+
 absl::StatusOr<protocol::LoginReply> HandleLogin(
     const protocol::LoginRequest& request, Accounts& accounts, Tokens& tokens,
     Characters& characters) {
@@ -185,10 +192,10 @@ absl::StatusOr<protocol::LoginReply> HandleLogin(
 
 absl::StatusOr<std::unique_ptr<LoginServer>> LoginServer::Create(
     asio::io_context& io, uint16_t port, asio::ssl::context& tls,
-    Accounts& accounts, Tokens& tokens, Characters& characters,
-    Consul& consul) {
+    Accounts& accounts, Tokens& tokens, Characters& characters, Consul& consul,
+    LoginMetrics& metrics) {
   std::unique_ptr<LoginServer> server = absl::WrapUnique(
-      new LoginServer(io, tls, accounts, tokens, characters, consul));
+      new LoginServer(io, tls, accounts, tokens, characters, consul, metrics));
   const absl::Status started = server->Start(port);
   if (!started.ok()) {
     return started;
@@ -198,13 +205,15 @@ absl::StatusOr<std::unique_ptr<LoginServer>> LoginServer::Create(
 
 LoginServer::LoginServer(asio::io_context& io, asio::ssl::context& tls,
                          Accounts& accounts, Tokens& tokens,
-                         Characters& characters, Consul& consul)
+                         Characters& characters, Consul& consul,
+                         LoginMetrics& metrics)
     : acceptor_(io),
       tls_(tls),
       accounts_(accounts),
       tokens_(tokens),
       characters_(characters),
-      consul_(consul) {}
+      consul_(consul),
+      metrics_(metrics) {}
 
 absl::Status LoginServer::Start(uint16_t port) {
   const absl::Status listening = Listen(acceptor_, port);
@@ -227,16 +236,21 @@ void LoginServer::Accept() {
           return;
         }
         // Each request is a trace of its own, from here to its answer.
+        const auto start = std::chrono::steady_clock::now();
         Span span = StartSpan(Asked(request), SpanKind::kServer);
         if (request.enter()) {
           span.SetAttribute("nanommo.character", request.character());
         }
         if (request.list_worlds()) {
-          session.Send(Frame(ListWorlds()));
+          const protocol::LoginReply worlds = ListWorlds();
+          session.Send(Frame(worlds));
+          metrics_.ObserveRequest(worlds.ok() ? "ok" : "failed",
+                                  std::chrono::steady_clock::now() - start);
           return;
         }
         absl::StatusOr<protocol::LoginReply> handled =
             HandleLogin(request, accounts_, tokens_, characters_);
+        const char* result = Outcome(handled);
         protocol::LoginReply reply;
         if (handled.ok()) {
           reply = *std::move(handled);
@@ -268,6 +282,8 @@ void LoginServer::Accept() {
           reply.mutable_worlds()->CopyFrom(ListWorlds().worlds());
         }
         session.Send(Frame(reply));
+        metrics_.ObserveRequest(result,
+                                std::chrono::steady_clock::now() - start);
       };
       const auto on_close = [] {};
       std::make_shared<Session>(std::move(socket), tls_, on_message, on_close)

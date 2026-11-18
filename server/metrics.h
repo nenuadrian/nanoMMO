@@ -40,6 +40,10 @@ class Metrics {
   /// From when the player asked to when the story was told.
   void ObserveStory(std::chrono::nanoseconds time);
 
+  /// A player the server let go of without saving them, by why: their lease
+  /// isn't this instance's any more, or their trade couldn't be saved.
+  void AddDropped(const char* why);
+
   const std::shared_ptr<prometheus::Registry>& registry() const {
     return registry_;
   }
@@ -55,6 +59,27 @@ class Metrics {
   prometheus::Family<prometheus::Counter>& chat_lines_;
   prometheus::Family<prometheus::Counter>& stories_;
   prometheus::Histogram& story_seconds_;
+  prometheus::Family<prometheus::Counter>& dropped_;
+};
+
+/// The login server's: how long it took to answer each request, by what came
+/// of it.
+class LoginMetrics {
+ public:
+  LoginMetrics();
+
+  /// A request answered: ok, refused, when the reply says why not, as for a
+  /// wrong password, which is the player's mistake, or failed, when the
+  /// servers it needs couldn't answer.
+  void ObserveRequest(const char* result, std::chrono::nanoseconds time);
+
+  const std::shared_ptr<prometheus::Registry>& registry() const {
+    return registry_;
+  }
+
+ private:
+  std::shared_ptr<prometheus::Registry> registry_;
+  prometheus::Family<prometheus::Histogram>& seconds_;
 };
 
 }  // namespace nanommo

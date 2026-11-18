@@ -27,6 +27,7 @@
 #include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
 #include "gtest/gtest.h"
+#include "prometheus/text_serializer.h"
 #include "server/accounts.h"
 #include "server/characters.h"
 #include "server/guilds.h"
@@ -507,6 +508,10 @@ TEST_F(ServerTest, AnInstanceDropsAPlayerWhoseLeaseItsLost) {
   EXPECT_EQ(first.players(), 0);
   EXPECT_EQ(second.players(), 1);
   EXPECT_EQ(LeasedTo(alice_), Instance(second));
+  // Which the metrics count.
+  EXPECT_TRUE(absl::StrContains(
+      prometheus::TextSerializer().Serialize(metrics_.registry()->Collect()),
+      "nanommo_players_dropped_total{why=\"lease\"} 1\n"));
 
   // Redis has her sword in her hand, as the second has it.
   const absl::StatusOr<std::vector<std::vector<std::string>>> kept =

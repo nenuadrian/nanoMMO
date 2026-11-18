@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "absl/status/statusor.h"
+#include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "asio/io_context.hpp"
 #include "asio/signal_set.hpp"
@@ -25,16 +26,34 @@ namespace {
 constexpr std::chrono::seconds kInterval(5);
 constexpr uint16_t kMetricsPort = 9466;
 
-void Flush(nanommo::Players& players, prometheus::Gauge& duplicates) {
+// What the saver's metrics say.
+struct Gauges {
+  prometheus::Gauge& duplicates;
+  prometheus::Gauge& flushed;
+  prometheus::Gauge& unsaved;
+};
+
+void Flush(nanommo::Players& players, const Gauges& gauges) {
   const auto start = std::chrono::steady_clock::now();
   const absl::StatusOr<int> saved = players.Flush();
   if (!saved.ok()) {
     std::cerr << "nanommo saver: " << saved.status() << "\n";
-  } else if (*saved > 0) {
-    std::cout << "nanommo saver: saved " << *saved << " players in "
-              << absl::FormatDuration(
-                     absl::FromChrono(std::chrono::steady_clock::now() - start))
-              << std::endl;
+  } else {
+    // When MySQL last had everything Redis had as the flush began, which an
+    // alert can tell the age of, whether the saver's failing or stuck. One
+    // that's gone takes its gauge with it, which up says.
+    gauges.flushed.Set(absl::ToDoubleSeconds(absl::Now() - absl::UnixEpoch()));
+    if (*saved > 0) {
+      std::cout << "nanommo saver: saved " << *saved << " players in "
+                << absl::FormatDuration(absl::FromChrono(
+                       std::chrono::steady_clock::now() - start))
+                << std::endl;
+    }
+  }
+  // Those who changed since, for the next flush.
+  const absl::StatusOr<int> waiting = players.Unsaved();
+  if (waiting.ok()) {
+    gauges.unsaved.Set(*waiting);
   }
   // Two items with one serial are an item and its copy, which the alerts
   // watch for.
@@ -43,7 +62,7 @@ void Flush(nanommo::Players& players, prometheus::Gauge& duplicates) {
     std::cerr << "nanommo saver: " << twice.status() << "\n";
     return;
   }
-  duplicates.Set(*twice);
+  gauges.duplicates.Set(*twice);
 }
 
 }  // namespace
@@ -71,14 +90,28 @@ int main() {
             << absl::FormatDuration(absl::FromChrono(kInterval)) << std::endl;
 
   auto registry = std::make_shared<prometheus::Registry>();
-  prometheus::Gauge& duplicates =
-      prometheus::BuildGauge()
-          .Name("nanommo_duplicate_items")
-          .Help("Serials that more than one item in MySQL has")
-          .Register(*registry)
-          .Add({});
+  const Gauges gauges{
+      .duplicates = prometheus::BuildGauge()
+                        .Name("nanommo_duplicate_items")
+                        .Help("Serials that more than one item in MySQL has")
+                        .Register(*registry)
+                        .Add({}),
+      .flushed = prometheus::BuildGauge()
+                     .Name("nanommo_saver_flushed_timestamp_seconds")
+                     .Help("When the last flush that saved everyone ended")
+                     .Register(*registry)
+                     .Add({}),
+      .unsaved = prometheus::BuildGauge()
+                     .Name("nanommo_unsaved_players")
+                     .Help("Players in Redis waiting for the next flush")
+                     .Register(*registry)
+                     .Add({}),
+  };
   prometheus::Exposer exposer("0.0.0.0:" + std::to_string(kMetricsPort));
   exposer.RegisterCollectable(registry);
+  // It has as long to make its first good flush as it has for each after,
+  // from now.
+  gauges.flushed.Set(absl::ToDoubleSeconds(absl::Now() - absl::UnixEpoch()));
 
   // The trades it saves carry on their traces, to an OpenTelemetry collector,
   // such as Alloy, when there's one.
@@ -96,7 +129,7 @@ int main() {
     if (error) {
       return;
     }
-    Flush(players, duplicates);
+    Flush(players, gauges);
     timer.expires_at(timer.expiry() + kInterval);
     timer.async_wait(self);
   };
@@ -105,7 +138,7 @@ int main() {
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });
   io.run();
-  Flush(players, duplicates);
+  Flush(players, gauges);
   nanommo::StopTracing();
   std::cout << "nanommo saver: saved what was left, and stopped" << std::endl;
   return 0;

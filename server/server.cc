@@ -551,9 +551,9 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
         // unsaved, and come back with what Redis has, from before it.
         const std::string name = land.players().at(id).name;
         const std::string partner = land.players().at(*traded).name;
-        Drop(id,
+        Drop(id, "trade",
              absl::StrCat("their trade with ", partner, " couldn't be saved"));
-        Drop(*traded,
+        Drop(*traded, "trade",
              absl::StrCat("their trade with ", name, " couldn't be saved"));
         return;
       }
@@ -998,7 +998,7 @@ void Server::SaveChanged() {
   for (std::set<uint32_t> lost = Save(everyone); !lost.empty();
        lost = Save(everyone)) {
     for (const uint32_t id : lost) {
-      Drop(id, "their lease isn't this instance's any more");
+      Drop(id, "lease", "their lease isn't this instance's any more");
     }
     std::erase_if(everyone, [&lost](uint32_t id) { return lost.contains(id); });
   }
@@ -1024,7 +1024,7 @@ void Server::RenewLeases() {
   for (const uint32_t id : *lost) {
     std::cout << WorldOf(id)->players().at(id).name << "'s lease isn't "
               << leases_.at(id) << " any more" << std::endl;
-    Drop(id, "their lease isn't this instance's any more");
+    Drop(id, "lease", "their lease isn't this instance's any more");
   }
 }
 
@@ -1070,9 +1070,10 @@ std::set<uint32_t> Server::Save(const std::vector<uint32_t>& ids,
   return *lost;
 }
 
-void Server::Drop(uint32_t id, std::string_view why) {
+void Server::Drop(uint32_t id, const char* kind, std::string_view why) {
   std::cout << "dropped " << WorldOf(id)->players().at(id).name
             << " without saving them, as " << why << TraceField() << std::endl;
+  metrics_.AddDropped(kind);
   // So that leaving doesn't save them. A lease that's still this instance's
   // goes, so that they can come back at once.
   if (const auto lease = leases_.find(id); lease != leases_.end()) {

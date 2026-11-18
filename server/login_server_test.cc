@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "gtest/gtest.h"
@@ -191,4 +192,16 @@ TEST_F(LoginTest, TurnsAwayAClientFromBeforeVersions) {
   EXPECT_EQ(reply.error(),
             absl::StrCat("This client is too old for the servers, which are ",
                          nanommo::kVersion, ". Get the new one to play."));
+}
+
+TEST_F(LoginTest, TellsThePlayersMistakesFromTheServers) {
+  ASSERT_TRUE(LogIn("correct horse", true).ok());
+
+  EXPECT_STREQ(nanommo::Outcome(LogIn("correct horse")), "ok");
+  // A wrong password is answered, and it's the player's.
+  EXPECT_STREQ(nanommo::Outcome(LogIn("battery staple")), "refused");
+  // MySQL not answering is the servers'.
+  EXPECT_STREQ(
+      nanommo::Outcome(absl::UnavailableError("lost the connection to MySQL")),
+      "failed");
 }

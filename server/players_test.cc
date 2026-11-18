@@ -197,6 +197,17 @@ TEST_F(PlayersTest, FlushesThePlayersToMySQL) {
   EXPECT_EQ(player->skills, (std::set<uint32_t>{1, 2}));
 }
 
+TEST_F(PlayersTest, CountsThePlayersWaitingForAFlush) {
+  nanommo::Players players(*database_, *redis_);
+  const absl::StatusOr<int> before = players.Unsaved();
+  ASSERT_TRUE(before.ok()) << before.status();
+  ASSERT_TRUE(players.Save("Ember", {{id_, {.x = 1.0f}}}).ok());
+  EXPECT_EQ(players.Unsaved().value_or(0), *before + 1);
+
+  ASSERT_TRUE(players.Flush().ok());
+  EXPECT_EQ(players.Unsaved().value_or(-1), 0);
+}
+
 TEST_F(PlayersTest, LoadsTheBagTheyLeftWith) {
   nanommo::Players players(*database_, *redis_);
   // Never saved, the bag has no revision, which the world takes as a new
