@@ -4,9 +4,15 @@
 
 [![CI](https://github.com/nenuadrian/nanommo/actions/workflows/ci.yml/badge.svg)](https://github.com/nenuadrian/nanommo/actions/workflows/ci.yml) [![Dependencies](https://github.com/nenuadrian/nanommo/actions/workflows/dependencies.yml/badge.svg)](https://github.com/nenuadrian/nanommo/actions/workflows/dependencies.yml)
 
-The game built in the YouTube series *Building an MMO: The Engineering Series*: a C++ server, a
-C++ client, and everything around them. Each episode's code is a git tag (`ep001/end`,
-`ep002/end`, ...).
+nanoMMO is a devlog where I build an MMO from scratch in C++, with features I'd like to see exist,
+even if some might be impractical for most games, such as players creating their own skills. It's a
+learning journey, with the software engineering and the hard parts out in the open, and not always
+about the gameplay: a C++ server, a C++ client, and everything around them.
+
+The episodes are [on YouTube](https://www.youtube.com/playlist?list=PLJcOiy0pkaG4), from the plan in
+episode one. Each episode's code is a git tag (`ep001/end`, `ep002/end`, ...), and
+[the series' website](https://nanommo.nenuadrian.com) has a page for each episode, with its code at
+each step. The reasons behind the design are in [docs/decisions](docs/decisions/).
 
 ![Playing nanoMMO: arthur's portrait and his target at the top, the compass and the round minimap, the chat and the hotbar](docs/screens/playing.jpg)
 
