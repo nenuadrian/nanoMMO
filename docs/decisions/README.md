@@ -84,3 +84,4 @@ one commit could undo, or that the code makes plain, needs none.
 | [0037](0037-the-server-owns-the-sky.md) | The server owns the sky: the time of day and the weather, from the clock | Accepted | 85 |
 | [0038](0038-trace-requests-with-a-tracer-of-our-own.md) | Trace requests with a tracer of our own, which speaks OpenTelemetry | Accepted | 87 |
 | [0039](0039-objectives-with-error-budgets-and-chaos-in-staging.md) | Objectives with error budgets, and chaos experiments in staging, never in production | Accepted | 88 |
+| [0040](0040-check-the-content-as-a-graph-with-smollergraph.md) | Check the content as a graph, with smollerGraph, in the tests | Accepted | 90 |

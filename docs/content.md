@@ -95,3 +95,25 @@ A change to the content, such as the sword's reach, is an edit to a file and a r
 servers, and a rebuild of the client when it changes what the client reads. A new item or kind is
 another entry, with the next id, as the Ash Skeleton was, and a monster drops it once its kind's
 loot names it.
+
+## Checked as a graph
+
+What `CheckContent` can't tell is whether a player can ever get to each thing: a quest whose giver
+stands in no land, a monster with no spawn or camps, an item nothing drops or gives. The content
+tests (`content/graph_test.cc`) check that, as a graph, in [smollerGraph](https://github.com/nenuadrian/smollerGraph),
+the graph database from its own series, which the build fetches at a version
+([decision 40](decisions/0040-check-the-content-as-a-graph-with-smollergraph.md)):
+
+- `AddContentGraph` (`content/graph.h`) adds a node for a new player and for each land, kind of
+  monster and NPC, quest, item and skill, labelled `Player`, `Land`, `Monster`, `Npc`, `Quest`,
+  `Item` and `Skill`, and a relationship for each way a player gets from one to the next:
+  `STARTS_IN`, `STARTS_WITH`, `KNOWS`, `GATE`, `SPAWNS`, `STANDS`, `DROPS`, `SUMMONS`, `GIVES`,
+  `REWARDS`, `TEACHES` and `NEXT`. A quest `ASKS_FOR` its monster, which is what finishing it takes.
+- `Unreachable` lists each node no path from a new player reaches, and each quest whose monster is
+  out of reach. The test on the game's content expects none.
+- `nanommo_graph content content.sg` writes the graph, and prints what's out of reach, with an exit
+  code of 1 when there's anything. smollerGraph's `sg`, built from our build with
+  `cmake --build build --target sg`, serves it with its explorer:
+  `build/bin/sg serve content.sg 8474`.
+
+A new kind of link in the content needs its relationship in `content/graph.cc` too.

@@ -7,6 +7,13 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.90.0 (2026-11-20)
+
+- The content is checked as a graph, in smollerGraph, the graph database from its own series, which
+  the build fetches at v0.20.0: the content tests fail when a new player can't get to a land, a
+  monster, an NPC, a quest, an item or a skill, or a quest's monster is out of reach.
+  `nanommo_graph` writes the graph for smollerGraph's `sg` to serve, with its explorer.
+
 ## 0.89.0 (2026-11-18)
 
 - Redis and MySQL answer in time or count as down: 250 milliseconds for each Redis reply, a second
