@@ -1,16 +1,36 @@
 #include "content/graph.h"
 
 #include <cstdint>
+#include <set>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "smollergraph/graph.h"
+#include "smollergraph/plan.h"
 #include "terrain/lands.h"
 
 namespace nanommo {
 namespace {
+
+// The ways a player gets from one thing to the next, which a path follows.
+// A quest's ASKS_FOR isn't one of them.
+constexpr std::string_view kWays =
+    "STARTS_IN|STARTS_WITH|KNOWS|GATE|SPAWNS|STANDS|DROPS|SUMMONS|GIVES|"
+    "REWARDS|TEACHES|NEXT";
+
+// Each label, and what it's called in a line of Unreachable's.
+struct Kind {
+  std::string_view label;
+  std::string_view called;
+};
+constexpr Kind kKinds[] = {
+    {"Land", "a land"},   {"Monster", "a monster"}, {"Npc", "an NPC"},
+    {"Quest", "a quest"}, {"Item", "an item"},      {"Skill", "a skill"},
+};
 
 // Adds the content's nodes and relationships, a name at a time, and keeps
 // the first thing that goes wrong.
@@ -45,6 +65,15 @@ class Builder {
   smollergraph::Graph& graph_;
   absl::Status status_;
 };
+
+// The rows' first column, as strings.
+std::set<std::string> Names(const smollergraph::Result& result) {
+  std::set<std::string> names;
+  for (const std::vector<smollergraph::Cell>& row : result.rows) {
+    names.insert(smollergraph::ValueText(*row[0].value));
+  }
+  return names;
+}
 
 }  // namespace
 
@@ -139,6 +168,45 @@ absl::Status AddContentGraph(const Content& content,
     }
   }
   return add.status();
+}
+
+absl::StatusOr<std::vector<std::string>> Unreachable(
+    const smollergraph::Graph& graph) {
+  std::vector<std::string> lines;
+  std::set<std::string> monsters;
+  for (const Kind& kind : kKinds) {
+    absl::StatusOr<smollergraph::Result> all = smollergraph::Execute(
+        graph, absl::StrCat("MATCH (x:", kind.label, ") RETURN x.name"));
+    if (!all.ok()) return all.status();
+    // A shortest path from a new player to each node with the label, along the
+    // ways a player gets about, and a row for each node that has one.
+    absl::StatusOr<smollergraph::Result> reached = smollergraph::Execute(
+        graph, absl::StrCat("MATCH p = shortestPath((s {name: '", kNewPlayer,
+                            "'})-[:", kWays, "*]->(x:", kind.label,
+                            ")) RETURN x.name"));
+    if (!reached.ok()) return reached.status();
+    const std::set<std::string> got = Names(*reached);
+    if (kind.label == "Monster") monsters = got;
+    for (const std::string& name : Names(*all)) {
+      if (!got.contains(name)) {
+        lines.push_back(absl::StrCat(name, ", ", kind.called));
+      }
+    }
+  }
+  // A quest is finished by killing its monster, so a monster out of reach
+  // leaves its quests unfinished, wherever their givers stand.
+  absl::StatusOr<smollergraph::Result> asks = smollergraph::Execute(
+      graph, "MATCH (q:Quest)-[:ASKS_FOR]->(m) RETURN q.name, m.name");
+  if (!asks.ok()) return asks.status();
+  for (const std::vector<smollergraph::Cell>& row : asks->rows) {
+    const std::string monster = smollergraph::ValueText(*row[1].value);
+    if (!monsters.contains(monster)) {
+      lines.push_back(absl::StrCat(smollergraph::ValueText(*row[0].value),
+                                   " asks for the ", monster,
+                                   ", which no new player can reach"));
+    }
+  }
+  return lines;
 }
 
 }  // namespace nanommo

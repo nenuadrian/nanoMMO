@@ -1,9 +1,12 @@
 // Writes the game's content as a graph in smollerGraph, into a folder that
-// smollerGraph's sg can serve, with its explorer:
+// smollerGraph's sg can serve, with its explorer, and says what a new player
+// can't reach:
 //
 //   nanommo_graph content content.sg
 //   sg serve content.sg 8474
 #include <iostream>
+#include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -31,6 +34,14 @@ int main(int argc, char** argv) {
   }
   std::cout << graph.node_count() << " nodes, " << graph.relationship_count()
             << " relationships\n";
+  const absl::StatusOr<std::vector<std::string>> lines =
+      nanommo::Unreachable(graph);
+  if (!lines.ok()) {
+    std::cerr << "nanommo_graph: " << lines.status().message() << '\n';
+    return 1;
+  }
+  for (const std::string& line : *lines) std::cout << line << '\n';
   graph.Flush();
-  return 0;
+  // Something out of reach is an error, so a script can tell.
+  return lines->empty() ? 0 : 1;
 }

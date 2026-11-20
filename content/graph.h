@@ -1,7 +1,11 @@
 #ifndef NANOMMO_CONTENT_GRAPH_H_
 #define NANOMMO_CONTENT_GRAPH_H_
 
+#include <string>
+#include <vector>
+
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "content/content.h"
 #include "smollergraph/graph.h"
 
@@ -21,6 +25,12 @@ inline constexpr char kNewPlayer[] = "A new player";
 /// a node.
 absl::Status AddContentGraph(const Content& content,
                              smollergraph::Graph& graph);
+
+/// What's wrong with the content as a graph, a line each: what no path from a
+/// new player reaches, such as "Leather Cap, an item", and each quest whose
+/// monster is out of reach, which nobody can finish. Or the query's error.
+absl::StatusOr<std::vector<std::string>> Unreachable(
+    const smollergraph::Graph& graph);
 
 }  // namespace nanommo
 
