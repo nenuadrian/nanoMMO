@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(nanommo VERSION 0.90.0 LANGUAGES CXX)
+project(nanommo VERSION 0.90.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -36,19 +36,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 enable_testing()
-
-# smollerGraph, the graph database from its own series, as a library, for
-# checking the content as a graph (content/graph.h). It names Abseil as we
-# do, so, declared after ours, it builds with ours; its tests, and the
-# GoogleTest they use, stay out when another project fetches it.
-FetchContent_Declare(
-  smollergraph
-  URL https://github.com/nenuadrian/smollerGraph/archive/refs/tags/v0.20.0.tar.gz
-  URL_HASH SHA256=47db65ece73011395af3a0cf9fb8831fd919de90f39c0cd671415fa06f400408
-  SYSTEM
-  EXCLUDE_FROM_ALL
-)
-FetchContent_MakeAvailable(smollergraph)
 
 FetchContent_Declare(
   raylib
@@ -189,6 +176,20 @@ FetchContent_Declare(
   SYSTEM
 )
 FetchContent_MakeAvailable(httplib)
+
+# smollerGraph, the graph database from its own series, as a library, for
+# checking the content as a graph (content/graph.h). It names Abseil, and its
+# sg names httplib, as we do, so, declared after both, it builds with ours,
+# httplib's lookups set for ThreadSanitizer; its tests, and the GoogleTest
+# they use, stay out when another project fetches it.
+FetchContent_Declare(
+  smollergraph
+  URL https://github.com/nenuadrian/smollerGraph/archive/refs/tags/v0.20.0.tar.gz
+  URL_HASH SHA256=47db65ece73011395af3a0cf9fb8831fd919de90f39c0cd671415fa06f400408
+  SYSTEM
+  EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(smollergraph)
 
 find_package(PkgConfig REQUIRED)
 # Homebrew keeps mysql-client and OpenSSL out of the places pkg-config and

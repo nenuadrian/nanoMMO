@@ -1,6 +1,7 @@
 #include "content/graph.h"
 
 #include <cstdint>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -56,7 +57,14 @@ class Builder {
   void Relationship(std::string_view from, std::string_view type,
                     std::string_view to) {
     if (!status_.ok()) return;
-    graph_.AddRelationship(*graph_.Find(from), type, *graph_.Find(to));
+    const std::optional<smollergraph::NodeId> start = graph_.Find(from);
+    const std::optional<smollergraph::NodeId> end = graph_.Find(to);
+    if (!start || !end) {
+      status_ = absl::NotFoundError(
+          absl::StrCat("nothing is called ", start ? to : from));
+      return;
+    }
+    graph_.AddRelationship(*start, type, *end);
   }
 
   const absl::Status& status() const { return status_; }
@@ -70,7 +78,8 @@ class Builder {
 std::set<std::string> Names(const smollergraph::Result& result) {
   std::set<std::string> names;
   for (const std::vector<smollergraph::Cell>& row : result.rows) {
-    names.insert(smollergraph::ValueText(*row[0].value));
+    const std::optional<smollergraph::Value>& name = row[0].value;
+    if (name) names.insert(smollergraph::ValueText(*name));
   }
   return names;
 }
@@ -199,9 +208,12 @@ absl::StatusOr<std::vector<std::string>> Unreachable(
       graph, "MATCH (q:Quest)-[:ASKS_FOR]->(m) RETURN q.name, m.name");
   if (!asks.ok()) return asks.status();
   for (const std::vector<smollergraph::Cell>& row : asks->rows) {
-    const std::string monster = smollergraph::ValueText(*row[1].value);
+    const std::optional<smollergraph::Value>& quest = row[0].value;
+    const std::optional<smollergraph::Value>& asked = row[1].value;
+    if (!quest || !asked) continue;
+    const std::string monster = smollergraph::ValueText(*asked);
     if (!monsters.contains(monster)) {
-      lines.push_back(absl::StrCat(smollergraph::ValueText(*row[0].value),
+      lines.push_back(absl::StrCat(smollergraph::ValueText(*quest),
                                    " asks for the ", monster,
                                    ", which no new player can reach"));
     }

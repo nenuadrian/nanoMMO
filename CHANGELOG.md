@@ -7,6 +7,15 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.90.1 (2026-11-20)
+
+- The game builds with its own httplib again, 0.65.0, set up for ThreadSanitizer. smollerGraph's
+  `sg` names httplib too, at 0.60.1, and was declared first, so its httplib won, and looked names up
+  on a thread of glibc's that ThreadSanitizer can't follow, which crashed `Tracing.PostsToACollector`
+  under it. smollerGraph is now declared after our httplib.
+- The content graph's code passes clang-tidy: `Relationship` checks both names are in the graph, and
+  `Names` and `Unreachable` check each cell has a value, before they use it.
+
 ## 0.90.0 (2026-11-20)
 
 - The content is checked as a graph, in smollerGraph, the graph database from its own series, which
