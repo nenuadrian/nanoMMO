@@ -30,3 +30,14 @@ target_compile_definitions(nanommo_content_tests PRIVATE
 
 include(GoogleTest)
 gtest_discover_tests(nanommo_content_tests)
+
+# The content as a graph in smollerGraph, and a tool that writes it out for sg
+# to serve. The game's own programs don't link it.
+add_library(nanommo_content_graph graph.cc)
+target_link_libraries(nanommo_content_graph PUBLIC
+  nanommo_content smollergraph::smollergraph absl::status absl::statusor
+  absl::strings
+)
+
+add_executable(nanommo_graph graph_main.cc)
+target_link_libraries(nanommo_graph PRIVATE nanommo_content_graph)
