@@ -299,7 +299,8 @@ the server refused. A health potion heals forty, one every ten seconds.
 Monsters drop items, straight into their killer's bag: each kind's `loot` in the monsters file has
 the items it can drop, the chance of each, and how many. A skeleton drops bones more often than
 not, and now and then a potion, a leather cap, a tunic or boots, and the skeletons of the Ashlands and the
-Crypt the Ash Blade and the buckler, the Crypt's more often. What stacks drops as a stack, and what
+Crypt the Ash Blade and the buckler, the Crypt's more often. Bones are what recipes make things
+from (see [Crafting](#crafting)). What stacks drops as a stack, and what
 doesn't one at a time, each with rolls of its own, so two Ash Blades are seldom the same, and a
 serial that no other item has. A line in
 the chat says what the monster dropped, and what didn't fit, if the bag was full, which stays
@@ -456,6 +457,47 @@ it has them:
 - Once they've traded, both players are saved, together, with a record of the trade, in one Redis
   script, before either hears of it, and a player who leaves is saved as they go (see
   [Saving](saving.md)).
+
+## Crafting
+
+K opens the crafting window, wherever you are: there's no forge or workbench to go to, and nobody
+to craft for you. A recipe makes something from what's in your bag, where you stand. You know every
+recipe of your level or below, so there's none to learn. The window lists them, each with what it
+takes, as how many you have in your bag of how many it needs, in green once you've enough, what it
+makes, and in how long, and a Craft button, which is off while you can't.
+
+| Recipe | Takes | Makes | From level | In |
+|---|---|---|---|---|
+| Carve a Bone Buckler | 12 bones | A Bone Buckler, for the off hand, with an armour of 1 | 1 | 5 s |
+| Bind a Bone Sword | The sword and 10 bones | A Bone Sword, with 18 damage and 1.7 metres of reach | 2 | 8 s |
+| Temper an Ash Blade | A Bone Sword and 20 bones | An Ash Blade, which rolls its damage as a dropped one does | 4 | 12 s |
+
+The sword is the one a new player starts with, bones drop from every skeleton, fifty to a slot, and
+the Ash Blade drops in the Ashlands and the Crypt too, now and then.
+
+- A recipe takes from the bag, a stack at a time from the first slot, and never from what you wear,
+  so the sword in your hand goes into the bag first. What you offer in a trade isn't there to take
+  either, as the trade holds it.
+- While you make something, a bar over the hotbar fills, with the item's name on it, and the
+  window's Stop button stops it. So does moving, a walk you asked for, a swing or a skill, a blow,
+  from a monster or another player, dying, a trade that opens, a duel you say yes to, and leaving
+  the land or the game: "You stopped making a Bone Sword." Nothing's taken until it's made, so
+  stopping loses nothing. You make one thing at a time.
+- Once its time is up, the world checks your bag again, as it may have changed since: all it
+  takes, and room for what it makes once that's gone. Then it takes the one and gives the other, as
+  one change to the bag, which is saved once, and the chat says "You made a Bone Sword." What
+  doesn't stack gets a serial and rolls of its own, as loot does, and what was taken goes, serial
+  and all. If the bag isn't enough any more, nothing changes, and the chat says why.
+
+The server decides it all. The client sends `Input`'s `craft`, once, to start making a recipe or to
+stop, and the world starts it, or says why not, in a line from nobody: "You can make a Bone Sword
+from level 2.", "You need 10 Bones in your bag to make a Bone Sword." or "Your bag is full. Make
+room for a Bone Sword first." A player can start or stop three times at once, and then once a
+second, and nothing starts while the world hands its players over to its next instance. What you're
+making, and how long you've been at it, comes in your own part of each world, as your wait to come
+back does (see [Networking](networking.md#what-crafting-sends)). Each thing made is an event for the
+analytics, `craft`, with the item and how many. The recipes are in `content/recipes.txtpb` (see
+[Content](content.md)), and a new one is another entry, which needs no code.
 
 ## Duels
 

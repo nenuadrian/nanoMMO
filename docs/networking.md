@@ -200,6 +200,19 @@ The news comes as the war starts, as its score moves, and as it ends, as the wor
 every five seconds. Each kill is a line from nobody in both guilds' chat, on `CHANNEL_GUILD`, which
 the client shows in green, after `[Guild]`.
 
+## What crafting sends
+
+Crafting ([Gameplay](gameplay.md#crafting)) changes the bag, so the server checks it as it does a
+move in the bag, and the client says no more than which recipe.
+
+| Message | Field | What |
+|---|---|---|
+| `Input` | `craft`, 22 | A `CraftAction`: `start`, a recipe by its id, or `stop`, once, over TCP. Three at once, and then one a second |
+| `World` | `crafting`, 29 | While you're making something, a `Crafting`: the `recipe`, by its id, and `done`, how long you've been at it, in milliseconds, which the client fills its bar from, with the recipe's seconds from its content. In your own part of every world, as `respawn` is, up to 15 bytes, which each datagram leaves room for. Nothing, while you're making nothing |
+
+What's made goes into the bag, which comes as it always does, once its revision moves, and why
+something couldn't be made, or that it was, is a line from nobody.
+
 ## Blows where the attacker saw them
 
 A client draws everyone else 100 milliseconds in the past (above), and its keys reach the server a

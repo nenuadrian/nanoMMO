@@ -80,6 +80,7 @@ and anything else that runs a world can too, the same rules for each: the client
 |---|---|
 | `Inputs` | Each player's numbered inputs, which wait for their tick, the queue's limits, and the last one applied |
 | `DoItem` | An item moved, used or thrown away |
+| `DoCraft` | A recipe started, or stopped |
 
 ## Lands
 

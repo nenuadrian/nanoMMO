@@ -2,16 +2,17 @@
 
 The game's content is data, in the `content` folder, which the world servers, the client and the
 bots read, so that there's one place to change it: `figures.txtpb`, `items.txtpb`,
-`monsters.txtpb`, `npcs.txtpb`, `quests.txtpb`, `rig.txtpb` and `skills.txtpb`, in protobuf's text
-format, each with its schema next to it, in `figures.proto`, `items.proto`, `monsters.proto`,
-`npcs.proto`, `quests.proto`, `rig.proto` and `skills.proto`. The figures are the players' bodies and
+`monsters.txtpb`, `npcs.txtpb`, `quests.txtpb`, `recipes.txtpb`, `rig.txtpb` and `skills.txtpb`, in
+protobuf's text format, each with its schema next to it, in `figures.proto`, `items.proto`,
+`monsters.proto`, `npcs.proto`, `quests.proto`, `recipes.proto`, `rig.proto` and `skills.proto`. The figures are the players' bodies and
 hair, and the rig is the skeleton they're built on, and how it stands, idles, walks, runs and dies
-(see [Characters](graphics.md#characters)). There are eleven items: the sword, a health potion, a bone, a leather
+(see [Characters](graphics.md#characters)). There are thirteen items: the sword, a health potion, a bone, a leather
 cap and tunic, the Ashlands' blade and buckler, the clothes a new player starts in, a linen shirt,
-cloth trousers and plain shoes, and leather boots, four kinds of monster, the skeleton, the Ash
+cloth trousers and plain shoes, leather boots, and a bone buckler and a bone sword, which recipes
+make, four kinds of monster, the skeleton, the Ash
 Skeleton and the Crypt Skeleton, the last two with a skill each, and a boss, the Bone Colossus,
-with four (see [The world boss](gameplay.md#the-world-boss)), six kinds of NPC, three quests (see [Quests](gameplay.md#quests)) and four
-skills (see [Skills](gameplay.md#skills)).
+with four (see [The world boss](gameplay.md#the-world-boss)), six kinds of NPC, three quests (see [Quests](gameplay.md#quests)), four
+skills (see [Skills](gameplay.md#skills)) and three recipes (see [Crafting](gameplay.md#crafting)).
 
 - An item, or a kind of monster or NPC, has an id and a name, and parts that each side reads what it
   needs from. A weapon's `weapon` and a monster's `fight` are the server's: reach, swing and hit
@@ -43,8 +44,14 @@ skills (see [Skills](gameplay.md#skills)).
   skill's level and cooldown too, so those are in both. `starting` names the skills every new
   player knows, `attack` the swing on Space, which every player knows, and a kind of NPC's
   `teaches` the skills it teaches, by id.
+- A recipe is something a player can make from their bag, wherever they are: its `inputs`, each an
+  `item` and a `count`, which it takes, its `output`, the same, which it makes, how many `seconds`
+  that takes, and the `level` it needs. Every player knows each recipe of their level or below,
+  so there's no list of who knows what. Each of its items is at most a slot's worth, so that what it
+  makes always has room in a slot that what it takes has emptied.
 - Monsters with a fixed home, camps of monsters and NPCs name their kind by id, and their land by
-  name. A quest names its giver's kind of NPC, the kind of monster it asks for and its prizes by id.
+  name. A quest names its giver's kind of NPC, the kind of monster it asks for and its prizes by id,
+  and a recipe what it takes and makes.
 - Each file's first two lines, `# proto-file:` and `# proto-message:`, name its schema, so that
   editors and tools that know text protos can check it and complete its fields.
 - `content/content.h` (`nanommo_content`) reads the folder with protobuf's `TextFormat`, so a field
@@ -61,12 +68,14 @@ skills (see [Skills](gameplay.md#skills)).
   first phase starts at 100%, each phase after it below the one before and above nothing, uses
   skills its kind has, and calls up some of a kind in the file, and each
   drop has a chance from nothing to one, and goes from fewer to more, as a monster's gold goes from
-  less to more, each kind of NPC has a skin, and each quest has a giver, asks for some kills, and
-  gives some of each of its prizes. Once every
+  less to more, each kind of NPC has a skin, each quest has a giver, asks for some kills, and
+  gives some of each of its prizes, and each recipe has a level, takes some time and something,
+  and takes and makes some of each of its items. Once every
   file is read, `CheckContent` checks what no file can on its own: that each item a monster drops is
   in the items file, each skill a trainer teaches is in the skills file, each NPC's hair is in the
   figures file and its clothes in the items file, each quest's giver, monster and prizes are in
-  theirs, and each part of a figure, a way to wear the hair or an item is on a joint of the rig. The server, the client and the bots don't start without good content.
+  theirs, each item a recipe takes or makes is in the items file, no more of it than go in a slot,
+  and each part of a figure, a way to wear the hair or an item is on a joint of the rig. The server, the client and the bots don't start without good content.
 - Ids start at one, and an item or a kind keeps its id for good, as they're saved and sent by id.
   Protobuf leaves a zero out, so the client takes a missing weapon or kind as one it already knows.
 - Each player's bag holds its items by their ids (see [Items](gameplay.md#items)), saved with the rest of the
@@ -85,7 +94,7 @@ skills (see [Skills](gameplay.md#skills)).
 Each side reads its own copy, so a client and a world have to agree on what the client reads. Each
 world works out its `ClientHash`, a 64-bit FNV-1a of the ids, names and looks, what the bag shows of
 each item, which is all of it but its weapon, the skills' levels and cooldowns, the monsters'
-skills but for their damage, cooldowns and ranges, where each boss's phases start, what each trainer teaches, and all of each quest, serialized deterministically, registers it with Consul, and the login server
+skills but for their damage, cooldowns and ranges, where each boss's phases start, what each trainer teaches, and all of each quest and each recipe, serialized deterministically, registers it with Consul, and the login server
 lists it with the world. The fights and the skills' effects stay out of it, so that changing a
 sword's damage or a skeleton's leash needs no new client.
 A client lists a world with other content than its own as such, and doesn't log in to it. The servers
@@ -99,20 +108,35 @@ loot names it.
 ## Checked as a graph
 
 What `CheckContent` can't tell is whether a player can ever get to each thing: a quest whose giver
-stands in no land, a monster with no spawn or camps, an item nothing drops or gives. The content
+stands in no land, a monster with no spawn or camps, an item nothing drops, gives or makes, or a
+recipe that takes one. Nor whether recipes go round, making something from nothing. The content
 tests (`content/graph_test.cc`) check that, as a graph, in [smollerGraph](https://github.com/nenuadrian/smollerGraph),
 the graph database from its own series, which the build fetches at a version
 ([decision 40](decisions/0040-check-the-content-as-a-graph-with-smollergraph.md)):
 
 - `AddContentGraph` (`content/graph.h`) adds a node for a new player and for each land, kind of
-  monster and NPC, quest, item and skill, labelled `Player`, `Land`, `Monster`, `Npc`, `Quest`,
-  `Item` and `Skill`, and a relationship for each way a player gets from one to the next:
-  `STARTS_IN`, `STARTS_WITH`, `KNOWS`, `GATE`, `SPAWNS`, `STANDS`, `DROPS`, `SUMMONS`, `GIVES`,
-  `REWARDS`, `TEACHES` and `NEXT`. A quest `ASKS_FOR` its monster, which is what finishing it takes.
+  monster and NPC, quest, item, skill and recipe, labelled `Player`, `Land`, `Monster`, `Npc`,
+  `Quest`, `Item`, `Skill` and `Recipe`, and a relationship for each way a player gets from one to
+  the next: `STARTS_IN`, `STARTS_WITH`, `KNOWS`, `GATE`, `SPAWNS`, `STANDS`, `DROPS`, `SUMMONS`,
+  `GIVES`, `REWARDS`, `TEACHES`, `NEXT`, `CRAFTS` and `MAKES`. A quest `ASKS_FOR` its monster, which
+  is what finishing it takes.
+- Each item a recipe takes goes `INTO` it, which isn't a way, as a path reaches a node through any
+  one way in, and a recipe needs all it takes. So `AddContentGraph` ends in rounds: each asks for
+  the items a new player reaches, by the shortest paths `Unreachable` asks for, and adds a `CRAFTS`
+  from the new player to each recipe whose items they all are, so that what it `MAKES` is reached.
+  What that makes may go into another recipe, as the Bone Sword goes into the Ash Blade, so the
+  rounds go on until one crafts nothing new. The game's recipes take two, and a third that crafts
+  nothing.
 - `Unreachable` lists each node no path from a new player reaches, and each quest whose monster is
   out of reach. The test on the game's content expects none.
-- `nanommo_graph content content.sg` writes the graph, and prints what's out of reach, with an exit
-  code of 1 when there's anything. smollerGraph's `sg`, built from our build with
+- `Cycles` lists each item that goes back into itself through recipes, with the way round:
+  `Bone goes back into itself: (Bone)-[:INTO]->(Bind a Bone Sword)-[:MAKES]->(Bone Sword)-[:INTO]->...`.
+  smollerGraph's Cypher can't give one variable to both ends of a path, and its shortest path from a
+  node to itself is the node alone, so it's two queries, joined in C++: a shortest path from each
+  recipe to each item it leads to, along `MAKES` and `INTO`, and each item `INTO` each recipe. An
+  item whose recipe leads back to it goes round. The test on the game's content expects none.
+- `nanommo_graph content content.sg` writes the graph, and prints what's out of reach and what goes
+  round, with an exit code of 1 when there's anything. smollerGraph's `sg`, built from our build with
   `cmake --build build --target sg`, serves it with its explorer:
   `build/bin/sg serve content.sg 8474`.
 

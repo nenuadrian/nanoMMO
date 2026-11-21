@@ -7,6 +7,27 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.93.0 (2026-11-21)
+
+- Crafting, wherever you are. K opens the crafting window, with the recipes of your level and
+  below, what each takes, as how many you have in your bag of how many it needs, what it makes and
+  in how long, and a Craft button. A recipe takes from the bag, never from what you wear, nor from
+  what you offer in a trade, and takes its seconds, with a bar over the hotbar. Moving, a swing or
+  a skill, a blow, dying, a trade that opens, a duel you say yes to and leaving stop it, and you
+  lose nothing. Once it's done, the world checks the bag again, and takes what it takes and gives
+  what it makes, as one change to the bag, saved once.
+- Recipes are content, in `content/recipes.txtpb`: twelve bones carve a Bone Buckler, from level 1,
+  the sword and ten bones bind a Bone Sword, with 18 damage, from level 2, and a Bone Sword and
+  twenty bones temper an Ash Blade, from level 4. The two new items are the Bone Buckler and the
+  Bone Sword.
+- The content graph needs all a recipe takes before a new player reaches it, in rounds that add
+  `CRAFTS` until one adds nothing, and `Cycles` refuses an item that goes back into itself through
+  recipes. `nanommo_graph` prints both.
+- `Input`'s `craft`, 22, starts or stops a recipe, three at once and then one a second, and `World`'s
+  `crafting`, 29, says what you're making and how long you've been at it. The recipes are in
+  `ClientHash`.
+- Each thing made is an event for the analytics, `craft`, with the item and how many.
+
 ## 0.92.0 (2026-11-21)
 
 - A war's score counts each kill once. Each kill has an id of its own, and the saver inserts it as

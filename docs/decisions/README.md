@@ -87,3 +87,4 @@ one commit could undo, or that the code makes plain, needs none.
 | [0040](0040-check-the-content-as-a-graph-with-smollergraph.md) | Check the content as a graph, with smollerGraph, in the tests | Accepted | 90 |
 | [0041](0041-guilds-at-war-hurt-each-other-anywhere.md) | Guilds at war hurt each other anywhere, for half an hour, and count their kills | Accepted | 91 |
 | [0042](0042-a-war-kill-counts-once-and-nobody-leaves-a-war.md) | A war kill counts once, a victim scores once every five minutes, and nobody leaves a war | Accepted | 92 |
+| [0043](0043-craft-from-the-bag-without-a-station-and-a-recipe-needs-all-it-takes.md) | Craft from the bag, without a station, and a recipe needs all it takes | Accepted | 93 |
