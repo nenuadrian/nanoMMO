@@ -7,6 +7,21 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.91.0 (2026-11-21)
+
+- Guild wars. A guild's leader asks another guild in the world to war with `/war` and its name,
+  and the other's leader asking back is a yes. For half an hour, the players of the two can hurt
+  each other anywhere, and their blows kill, with the ten seconds' wait, and give no experience and
+  drop nothing. A guild is in one war at a time, until its time is up. Wars are in MySQL, in
+  `guild_wars`, from V14, and the asks in Redis, for a minute.
+- The enemy guild's players have red names over their heads, and a click picks one as a duel
+  opponent is picked. A skill that hits all around hits every enemy it reaches. The guild window
+  shows the war: the enemy, the kills both ways and how long it has left.
+- Each kill is a line in both guilds' chat, and goes into Redis's `war_kills` stream with the tick's
+  save. The saver adds the kills to their wars' scores in MySQL, which the worlds read back every
+  five seconds, as they do the wars.
+- The protocol has `GuildAction`'s `war`, 11, and `Guild`'s `war`, 4, a `GuildWar`.
+
 ## 0.90.2 (2026-11-21)
 
 - Walking diagonally is smooth again. The server walks a diagonal no faster than a straight line,

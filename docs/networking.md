@@ -180,10 +180,25 @@ player, so the server keeps it to the two who said yes, and checks the rest as i
 | Message | Field | What |
 |---|---|---|
 | `Input` | `duel`, 19 | An ask, by name, a yes, a no or a yield, once, over TCP |
-| `Input` | `target_player`, 20 | The player picked, with each input, beside the monster's `target`. The world keeps it only for the opponent in a duel that's started, so it can't hurt anyone else |
+| `Input` | `target_player`, 20 | The player picked, with each input, beside the monster's `target`. The world keeps it only for the opponent in a duel that's started, or an enemy at war (below), so it can't hurt anyone else |
 | `World` | `duel`, 27 | Who with, by name and id, how far it's got, the countdown's milliseconds and the flag. On its own, over TCP, to both sides, as it's asked for, at each second of the countdown, and as it starts and ends, with nobody in it once it's over |
 | `Player` | `target_player`, 16 | While they use a skill in a duel, the player it's for, so that its fx land on them on everyone's screen, as `target` does for a monster |
 | `Input` | `drawn`, 21 | When, on the server's clock, in microseconds, the client was drawing everyone else as it sent it, with each numbered input: a blow on the opponent is checked against where they were then (below) |
+
+## A war's messages
+
+A guild war ([Gameplay](gameplay.md#guild-wars)) lets the players of two guilds hurt each other
+without a duel, so `Input`'s `target_player`, 20, is kept for a player of the guild at war with
+yours too, and a blow on them is checked as a duel's is (below).
+
+| Message | Field | What |
+|---|---|---|
+| `GuildAction` | `war`, 11 | A leader's ask, by the other guild's name, or a yes, as asking back is, once, over TCP |
+| `Guild` | `war`, 4 | The guild's war, with its news, a `GuildWar`: the enemy guild, by name, `kills` and `enemy_kills`, from your side, as MySQL has them, a few seconds behind, and `left`, the seconds it had left, which the client counts down from. Nothing, for no war |
+
+The news comes as the war starts, as its score moves, and as it ends, as the world reads its wars
+every five seconds. Each kill is a line from nobody in both guilds' chat, on `CHANNEL_GUILD`, which
+the client shows in green, after `[Guild]`.
 
 ## Blows where the attacker saw them
 
@@ -192,7 +207,7 @@ round trip after the world they answer left it, so by the time a blow lands, the
 aimed at has moved on from where the attacker saw them. Running, at 3.1 metres a second, with a
 round trip of 50 to 200 milliseconds, that's 0.5 to 0.9 metres, against a sword's reach of 1.6: a
 blow that looked in reach misses, and one that looked as if it would miss can land. Making up for
-it is called lag compensation, and the server does it for a duel's blows.
+it is called lag compensation, and the server does it for the blows of a duel or a war.
 
 - Each World keeps where each of its players is after each step, for the last second, by a clock of
   its own that goes on a step at a time (`server/history.h`). It gives where they were at any time
@@ -201,9 +216,9 @@ it is called lag compensation, and the server does it for a duel's blows.
   sent it (`drawn`): 100 milliseconds before the newest world, as the clocks go
   (`Interpolation::Drawn`). As the input is applied, the server takes how far behind its own clock
   that is.
-- A player's blows on their duel opponent are checked against where the opponent was that long
-  before: the reach and the arc, and the aim and the run-up, which go by where the one picked is.
-  Nobody's moved: the history is only looked at.
+- A player's blows on their duel opponent, or an enemy at war, are checked against where that
+  player was that long before: the reach and the arc, and the aim and the run-up, which go by where
+  the one picked is. Nobody's moved: the history is only looked at.
 - A client can say anything, so the server believes 200 milliseconds at most
   (`Inputs::kMostRewind`): the 100 a client draws everyone in the past, and a round trip of up to
   100. A time further back is 200 milliseconds, and a time ahead of the server's clock is now, as is

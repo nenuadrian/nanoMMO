@@ -388,7 +388,7 @@ characters, and a character is in one guild at most.
 | Who | Can |
 |---|---|
 | Anyone in no guild | Found one, with a name of 3 to 24 letters, one space between words, which nobody else in the world has, whatever its case |
-| The leader | Make a member an officer, or an officer a member, remove anyone, and disband the guild, after a question |
+| The leader | Make a member an officer, or an officer a member, remove anyone, disband the guild, after a question, and take it to war with another, with `/war` (see [Guild wars](#guild-wars)) |
 | Officers | Ask someone in, by the name of a character playing in the world, whatever its case, and remove members |
 | Anyone in a guild | Talk to it, with `/g` and a space before the line, see its roster, and leave it |
 
@@ -458,7 +458,7 @@ it has them:
 ## Duels
 
 Two players in the same land fight each other in a duel, once both have said yes to it, and
-nobody hurts another player otherwise. `/duel` and a name in the chat asks that player, whatever
+nobody hurts another player otherwise, but in a [guild war](#guild-wars). `/duel` and a name in the chat asks that player, whatever
 its case, within ten metres (`Duels::kReach`). They hear it as a line in the chat, and a question on
 their screen: Duel says yes, and Not now, or closing it, says no, as `/duel yes` and `/duel no` do,
 and asking back the one who asked is a yes too. An ask waits thirty seconds, and then it's gone,
@@ -471,7 +471,7 @@ and the one who asked hears that nobody answered.
   ring at their feet and their frame beside yours, and hit them with a swing or a skill, which runs
   you up to them first, out of its reach, as it does to a monster. A skill that hits all around hits
   them too. Nobody else can be picked, so nobody else hits either of them, and neither hits anyone
-  else. Monsters fight on as before.
+  else, but an enemy at war. Monsters fight on as before.
 - Your screen draws your opponent a moment in the past, as it does everyone else, so your blows on
   them are checked against where your screen had them, up to a fifth of a second back: a blow that
   looked as if it would reach someone running off lands, and one that looked short of someone
@@ -495,6 +495,46 @@ and the world does it as the message comes, or says why not in a line from nobod
 then one a second. After each tick, each player whose duel was asked for, counted down a second,
 started or ended gets it, on its own, over TCP, as `World`'s `duel`, with nobody in it once it's
 over. The player you pick comes with each input, as `Input`'s `target_player`, beside the monster's
-`target`, and the world keeps it only for your opponent in a duel that's started, in place of a
-monster: picking anyone else picks nobody. Why a duel ends at one health, and the opponent is picked
+`target`, and the world keeps it only for your opponent in a duel that's started, or an enemy at
+war, in place of a monster: picking anyone else picks nobody. Why a duel ends at one health, and the opponent is picked
 beside the monster, is [decision 33](decisions/0033-players-fight-each-other-in-duels-that-end-at-one-health.md).
+
+## Guild wars
+
+Two guilds in the same world go to war once both their leaders say so, and for half an hour, the
+players of the two can hurt each other anywhere, in any land, without asking. `/war` and a guild's
+name in the chat, whatever its case, asks that guild, as your guild's leader, and its players in
+the world hear it in their guild's chat: "Iron Wolves asks Stone Bears to war. Your leader types
+/war Iron Wolves to say yes." An ask waits a minute, and a guild asks another once until then. Their
+leader asking back is the yes, as in a duel, and both guilds hear "Iron Wolves and Stone Bears are
+at war, for 30 minutes."
+
+- A guild is in one war at a time. A war ends when its time is up (`Guilds::kWarLength`), and both
+  guilds hear "The war between Iron Wolves and Stone Bears is over." Nobody can give one up.
+- The enemy guild's players have their names in red over their heads, and a click on one picks
+  them as it picks a monster, or a duel opponent: a red ring at their feet, their frame beside
+  yours, and the hotbar's skills for one target ready to use on them. A skill that hits all around
+  hits every enemy it reaches, with the monsters, and never your guildmates or anyone else. Nobody
+  else can hurt a player, but a duel opponent.
+- Your blows on an enemy are checked where your screen drew them, up to a fifth of a second back,
+  as in a duel ([Networking](networking.md#blows-where-the-attacker-saw-them)), and a blow doesn't
+  push or throw a player.
+- A war's blows kill: the enemy with no health left dies, as to a monster, and comes back in the
+  middle of their land, at full health, after ten seconds. A kill gives no experience and drops
+  nothing, and it's the killing blow's player's alone. A duellist an enemy kills loses the duel.
+- Each kill is a line in both guilds' chat, green, after `[Guild]`: "arthur killed mordred."
+- The guild window shows the war under the guild's name: the enemy, in red, the kills both ways,
+  from your side, and how long it has left. The score comes from MySQL, so it's a few seconds behind
+  the game, as the roster's levels are.
+
+The world's rules know nothing of MySQL, so the server tells each world each player's guild, as
+they join it, leave it or it ends, and the world's wars, as they change, and `World::Hostile` says
+who may hurt whom: a duel opponent, or a player of the guild at war with yours. A war is a row in
+`guild_wars`, from V14, as guilds are rows of their own, and an ask is a key in Redis,
+`war_ask:<world>:<guild>:<enemy>`, for a minute, as an invitation is. The yes is a transaction that
+locks both guilds' rows, the lower id first, before the leader's own. The server reads the world's
+wars again every five seconds, in the tick, so that a war accepted on the other instance during a
+handover, or one whose time is up, takes effect: a war can go on for up to five seconds past its half
+hour. Each kill goes to the saver with the tick's save, for the war's score
+([Saving players](saving.md#guild-wars)). Why wars take two guilds, last half an hour and kill is
+[decision 41](decisions/0041-guilds-at-war-hurt-each-other-anywhere.md).

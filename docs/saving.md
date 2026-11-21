@@ -182,6 +182,39 @@ docker compose exec mysql mysql -unanommo -pnanommo nanommo -e 'SELECT * FROM gu
 docker compose exec redis redis-cli KEYS 'guild_invite:*'
 ```
 
+## Guild wars
+
+A war between two guilds ([Gameplay](gameplay.md#guild-wars)) changes both, so it's in MySQL too,
+in `guild_wars`, from V14: the world, the guild that asked, `challenger`, and the one that said
+yes, `challenged`, when it started and when it ends, and how many of the other side's players each
+side has killed, `challenger_kills` and `challenged_kills`. A war's rows go with either guild, and
+an ended war stays on record.
+
+- An ask is in Redis, as `war_ask:<world>:<guild>:<enemy>`, holding who asked, set with `SET ... NX
+  EX 60`, as an invitation is, so a guild asks another once until it's answered, and the ask runs
+  out by itself. The other guild's leader asking back reads it, and deletes it once the war has
+  started or can't.
+- The yes is a transaction, which locks both guilds' rows, the lower id first, then the leader's
+  own, as every change to a guild locks its row before any member's, and checks that neither guild
+  is at war, as a guild is in one at a time. A test has two leaders say yes at once, each to the
+  other's ask, on two connections, and the second finds the first's war.
+- The world server reads the world's wars that haven't ended every five seconds, in the tick, with
+  each side's name and kills.
+
+Each kill in a war goes into another stream, `war_kills`, in the same script as the tick's save:
+the war, the world, the killer, the one killed and the killer's guild, whose side it counts for.
+In each batch, the saver reads the oldest kills, up to 500, as it reads the trades, adds each war's
+to its counts, by the killer's guild, a statement for each war and side, in the batch's
+transaction, and takes them out of the stream once MySQL has them. So a war's score is a few
+seconds behind the game: the saver's flush, every five seconds, and the world's next read of the
+wars. A kill whose save Redis doesn't take, as when it can't be reached, isn't counted.
+
+```bash
+docker compose exec mysql mysql -unanommo -pnanommo nanommo -e 'SELECT * FROM guild_wars'
+docker compose exec redis redis-cli KEYS 'war_ask:*'
+docker compose exec redis redis-cli XRANGE war_kills - +
+```
+
 ## Migrations
 
 The tables are made and changed by migrations, SQL files in `db/` that [Flyway](https://github.com/flyway/flyway)
