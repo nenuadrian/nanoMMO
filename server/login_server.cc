@@ -3,6 +3,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -163,8 +164,9 @@ absl::StatusOr<protocol::LoginReply> HandleLogin(
       return unreadable;
     }
   } else if (request.create_character()) {
-    const absl::StatusOr<uint32_t> created =
-        characters.Create(account, request.world(), request.name());
+    const absl::StatusOr<uint32_t> created = characters.Create(
+        account, request.world(), request.name(),
+        request.has_looks() ? std::optional(request.looks()) : std::nullopt);
     if (!created.ok()) {
       if (absl::Status unreadable = Readable(created.status(), reply);
           !unreadable.ok()) {

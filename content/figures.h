@@ -2,6 +2,7 @@
 #define NANOMMO_CONTENT_FIGURES_H_
 
 #include <cstdint>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -21,8 +22,9 @@ absl::Status CheckPart(const figures::Part& part);
 /// hair that's wrong.
 absl::StatusOr<figures::Figures> ParseFigures(std::string_view text);
 
-/// What a player looks like under what they wear, which their id picks from
-/// the figures' lists, so that every client draws them the same.
+/// What a player looks like under what they wear, from the figures' lists,
+/// as they chose it or as their id picks it, so that every client draws them
+/// the same.
 struct Features {
   /// As 0xRRGGBBAA: white, when there are none to pick from.
   uint32_t skin = 0xFFFFFFFF;
@@ -30,6 +32,9 @@ struct Features {
   /// Which way they wear their hair, from the figures' hairs, or -1 when
   /// there are none.
   int hair = -1;
+  /// Which of the rig's builds, wrapped round to what there is, or none for
+  /// the one the figure's id picks.
+  std::optional<uint32_t> build;
 };
 Features FeaturesOf(const figures::Figures& figures, uint32_t id);
 

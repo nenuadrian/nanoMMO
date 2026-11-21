@@ -373,8 +373,12 @@ std::optional<Gait> Characters::GaitOf(const Figure& figure) const {
 }
 
 const Characters::Character& Characters::For(const Figure& figure) const {
-  // An NPC looks the same wherever it stands, so it goes by its kind.
-  const uint32_t which = figure.npc ? figure.kind : figure.id;
+  // A player who chose their build has it. An NPC looks the same wherever it
+  // stands, so it goes by its kind, and anyone else by their id.
+  uint32_t which = figure.npc ? figure.kind : figure.id;
+  if (figure.features && figure.features->build) {
+    which = *figure.features->build;
+  }
   return characters_[which % characters_.size()];
 }
 

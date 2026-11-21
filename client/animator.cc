@@ -107,6 +107,24 @@ Figure Stand(const std::map<uint32_t, Figure>& figures,
 
 }  // namespace
 
+Features FeaturesOf(const figures::Figures& figures,
+                    const protocol::Looks& looks) {
+  Features features;
+  if (!figures.skins().empty()) {
+    features.skin =
+        figures.skins(static_cast<int>(looks.skin() % figures.skins_size()));
+  }
+  if (!figures.hair_colors().empty()) {
+    features.hair_color = figures.hair_colors(
+        static_cast<int>(looks.hair_color() % figures.hair_colors_size()));
+  }
+  if (!figures.hairs().empty()) {
+    features.hair = static_cast<int>(looks.hair() % figures.hairs_size());
+  }
+  features.build = looks.build();
+  return features;
+}
+
 std::vector<Figure> Animator::Update(const protocol::World& world,
                                      float seconds) {
   std::map<uint32_t, Figure> players;
@@ -123,6 +141,10 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
     figure.wearing = {player.wearing().begin(), player.wearing().end()};
     figure.target = player.target();
     figure.target_player = player.target_player();
+    figure.features =
+        player.has_looks()
+            ? std::optional(FeaturesOf(content_.figures, player.looks()))
+            : std::nullopt;
     players[player.id()] = figure;
     figures.push_back(std::move(figure));
   }

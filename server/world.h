@@ -45,6 +45,9 @@ struct Stats {
 
 struct Player {
   std::string name;
+  /// How they chose to look, which everyone's shown, or none for a character
+  /// from before there were looks to choose, whose id picks theirs.
+  std::optional<protocol::Looks> looks;
   /// The guild they're in, by its id, or 0 for none, which the server tells
   /// the world, as it's in MySQL.
   uint32_t guild = 0;

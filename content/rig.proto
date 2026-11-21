@@ -29,9 +29,12 @@ message Shift {
 }
 
 // A build of body: the rig, with some of its joints moved, such as the
-// shoulders out wider. Each player has one, which their id picks.
+// shoulders out wider. Each player has one, which they pick as they make
+// their character, or, from before there was a pick, their id picks.
 message Build {
   repeated Shift shifts = 1;
+  // As a player picks it, such as "Broad".
+  string name = 2;
 }
 
 // A walk or a run. The client works out where each foot is as the cycle goes

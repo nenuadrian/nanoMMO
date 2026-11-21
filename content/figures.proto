@@ -53,13 +53,16 @@ message Part {
 // colour. One with no parts is bald.
 message Hair {
   repeated Part parts = 1;
+  // As a player picks it, making their character, such as "Long".
+  string name = 2;
 }
 
 message Figures {
   // A player's body, under what they wear.
   repeated Part body = 1;
   // As 0xRRGGBBAA. Each player has one skin, one hair colour and one way to
-  // wear their hair from these, which their id picks.
+  // wear their hair from these, which they pick as they make their character,
+  // or, from before there was a pick, their id picks.
   repeated uint32 skins = 2;
   repeated uint32 hair_colors = 3;
   repeated Hair hairs = 4;

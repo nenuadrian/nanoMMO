@@ -285,7 +285,8 @@ absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
   // A character in another world is no player of this one's.
   const absl::StatusOr<Result> result = database_.Run(
       "SELECT name, x, z, experience, health, land, items_revision, quests, "
-      "gold FROM players WHERE id = ? AND world = ?",
+      "gold, build, skin, hair_color, hair FROM players "
+      "WHERE id = ? AND world = ?",
       {std::to_string(id), world});
   if (!result.ok()) {
     return result.status();
@@ -296,6 +297,26 @@ absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
   }
   const std::vector<std::string>& row = result->rows.front();
   Player player{.name = row[0]};
+  // How they chose to look, which never changes, so it's only ever in MySQL.
+  // A character from before there were looks to choose has none.
+  if (!row[9].empty()) {
+    protocol::Looks looks;
+    uint32_t build = 0;
+    uint32_t skin = 0;
+    uint32_t hair_color = 0;
+    uint32_t hair = 0;
+    if (!absl::SimpleAtoi(row[9], &build) ||
+        !absl::SimpleAtoi(row[10], &skin) ||
+        !absl::SimpleAtoi(row[11], &hair_color) ||
+        !absl::SimpleAtoi(row[12], &hair)) {
+      return absl::InternalError("looks that aren't numbers");
+    }
+    looks.set_build(build);
+    looks.set_skin(skin);
+    looks.set_hair_color(hair_color);
+    looks.set_hair(hair);
+    player.looks = looks;
+  }
   // Where they are, their experience, health and land, and next their skills.
   std::vector<std::string> saved(row.begin() + 1, row.begin() + 6);
   // A row for each skill, which we join the way Redis keeps them.

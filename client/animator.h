@@ -29,7 +29,8 @@ struct Figure {
   uint32_t kind = 0;
   /// A monster's tint, or the colour of what an NPC wears that's dyed.
   Color color = WHITE;
-  /// An NPC's skin and hair, from its kind. A player's come from their id.
+  /// An NPC's skin and hair, from its kind, and a player's, with their build,
+  /// as they chose them. Without any, their id picks them.
   std::optional<Features> features;
   /// Whether the player can talk to it, by clicking it.
   bool talks = false;
@@ -77,6 +78,13 @@ struct Figure {
   float to_time = 0.0f;
   float blend = 1.0f;
 };
+
+/// What a player looks like, from the looks they chose: the skin, the hair
+/// colour and the hair at those places in the figures' lists, each wrapped
+/// round to what there is, so that any looks draw as someone, and the build,
+/// which the rig's builds wrap round the same way as they're drawn.
+Features FeaturesOf(const figures::Figures& figures,
+                    const protocol::Looks& looks);
 
 class Animator {
  public:

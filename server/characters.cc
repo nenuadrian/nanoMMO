@@ -1,6 +1,7 @@
 #include "server/characters.h"
 
 #include <map>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,7 +18,7 @@ absl::StatusOr<std::vector<protocol::CharacterListing>> Characters::List(
     uint32_t account) {
   const absl::StatusOr<Result> rows = database_.Run(
       "SELECT id, name, world, experience, land, COALESCE(weapon, 0), "
-      "items_revision IS NULL "
+      "items_revision IS NULL, build, skin, hair_color, hair "
       "FROM players WHERE account_id = ? ORDER BY id",
       {absl::StrCat(account)});
   if (!rows.ok()) {
@@ -43,6 +44,24 @@ absl::StatusOr<std::vector<protocol::CharacterListing>> Characters::List(
     character.set_land(row[4]);
     character.set_weapon(weapon);
     character.set_fresh(row[6] == "1");
+    // Its looks, unless it's from before there were looks to choose.
+    if (!row[7].empty()) {
+      uint32_t build = 0;
+      uint32_t skin = 0;
+      uint32_t hair_color = 0;
+      uint32_t hair = 0;
+      if (!absl::SimpleAtoi(row[7], &build) ||
+          !absl::SimpleAtoi(row[8], &skin) ||
+          !absl::SimpleAtoi(row[9], &hair_color) ||
+          !absl::SimpleAtoi(row[10], &hair)) {
+        return absl::InternalError("looks that aren't numbers");
+      }
+      protocol::Looks& looks = *character.mutable_looks();
+      looks.set_build(build);
+      looks.set_skin(skin);
+      looks.set_hair_color(hair_color);
+      looks.set_hair(hair);
+    }
   }
   for (protocol::CharacterListing& character : characters) {
     by_id[character.id()] = &character;
@@ -80,21 +99,40 @@ absl::StatusOr<std::vector<protocol::CharacterListing>> Characters::List(
   return characters;
 }
 
-absl::StatusOr<uint32_t> Characters::Create(uint32_t account,
-                                            const std::string& world,
-                                            const std::string& name) {
+absl::StatusOr<uint32_t> Characters::Create(
+    uint32_t account, const std::string& world, const std::string& name,
+    const std::optional<protocol::Looks>& looks) {
   if (const absl::Status checked = CheckUsername(name); !checked.ok()) {
     return checked;
   }
+  // The login server has no content to tell how many of each look there are,
+  // so it keeps any that fit their columns, and every client wraps each
+  // round to what there is: a look that's out of range draws as one there
+  // is, the same for everyone, so there's nothing in it to cheat with.
+  std::vector<std::string> values = {absl::StrCat(account), world, name};
+  const char* chosen = "NULL, NULL, NULL, NULL";
+  if (looks) {
+    for (const uint32_t look :
+         {looks->build(), looks->skin(), looks->hair_color(), looks->hair()}) {
+      if (look > kMostLook) {
+        return absl::InvalidArgumentError("That isn't a look there is.");
+      }
+      values.push_back(absl::StrCat(look));
+    }
+    chosen = "?, ?, ?, ?";
+  }
+  values.insert(values.end(),
+                {absl::StrCat(account), world, absl::StrCat(kPerWorld)});
   // Counting and inserting in one statement, so that two at once can't both
   // fit in the last place. The unique key on the world and the name says
   // whether it's taken.
   const absl::StatusOr<Result> inserted = database_.Run(
-      "INSERT INTO players (account_id, world, name, x, z) "
-      "SELECT ?, ?, ?, 0, 0 FROM DUAL WHERE "
-      "(SELECT COUNT(*) FROM players WHERE account_id = ? AND world = ?) < ?",
-      {absl::StrCat(account), world, name, absl::StrCat(account), world,
-       absl::StrCat(kPerWorld)});
+      absl::StrCat("INSERT INTO players (account_id, world, name, x, z, build, "
+                   "skin, hair_color, hair) SELECT ?, ?, ?, 0, 0, ",
+                   chosen,
+                   " FROM DUAL WHERE (SELECT COUNT(*) FROM players WHERE "
+                   "account_id = ? AND world = ?) < ?"),
+      values);
   if (absl::IsAlreadyExists(inserted.status())) {
     return absl::AlreadyExistsError(
         absl::StrCat("Someone in ", world, " is called that already."));

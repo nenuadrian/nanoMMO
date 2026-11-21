@@ -185,7 +185,8 @@ int main(int argc, char* argv[]) {
   hotbar.Arrange(settings.ui.hotbar);
   nanommo::PlayerFrame player_frame;
   nanommo::PredictedBag predicted_bag(content->items);
-  nanommo::LoginScreen login_screen(content_hash, content->items);
+  nanommo::LoginScreen login_screen(content_hash, content->items,
+                                    content->figures, content->rig);
   nanommo::Renderer renderer(*content);
   nanommo::PostProcess post;
   nanommo::Animator animator(*content);

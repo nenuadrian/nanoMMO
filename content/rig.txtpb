@@ -94,8 +94,9 @@ joints {
 
 # Two builds: the rig as it is, and one broader at the shoulders, with its hips
 # a little wider too.
-builds {}
+builds { name: "Slight" }
 builds {
+  name: "Broad"
   shifts {
     joint: "LeftArm"
     by { x: 0.03 }

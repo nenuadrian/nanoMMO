@@ -2,6 +2,7 @@
 #define NANOMMO_SERVER_CHARACTERS_H_
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,8 @@ class Characters {
  public:
   /// How many characters an account can have in each world.
   static constexpr int kPerWorld = 4;
+  /// The most each of a character's looks can be, as its column keeps it.
+  static constexpr uint32_t kMostLook = 255;
 
   explicit Characters(Database& database) : database_(database) {}
 
@@ -29,11 +32,13 @@ class Characters {
       uint32_t account);
 
   /// A new character, which gets the starting kit as it first enters its
-  /// world. An InvalidArgument error says what's wrong with the name, an
-  /// AlreadyExists error that it's taken in the world, and a
+  /// world, and looks as the player chose, or, without looks, as its id
+  /// picks. An InvalidArgument error says what's wrong with the name or the
+  /// looks, an AlreadyExists error that it's taken in the world, and a
   /// ResourceExhausted one that the account has kPerWorld there already.
-  absl::StatusOr<uint32_t> Create(uint32_t account, const std::string& world,
-                                  const std::string& name);
+  absl::StatusOr<uint32_t> Create(
+      uint32_t account, const std::string& world, const std::string& name,
+      const std::optional<protocol::Looks>& looks = std::nullopt);
 
   /// Deletes the account's character, with its skills and its bag, or says
   /// NotFound when the account has no character with that id.

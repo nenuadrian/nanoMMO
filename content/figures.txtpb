@@ -147,6 +147,7 @@ hair_colors: 0x969696FF
 
 # Short, over the top and the back of the head.
 hairs {
+  name: "Short"
   parts {
     shape: SHAPE_BALL
     bone: "Head"
@@ -157,6 +158,7 @@ hairs {
 }
 # Long, down the back of the neck as well.
 hairs {
+  name: "Long"
   parts {
     shape: SHAPE_BALL
     bone: "Head"
@@ -174,6 +176,7 @@ hairs {
 }
 # Short, with a tail tied at the back, which hangs down.
 hairs {
+  name: "Tied back"
   parts {
     shape: SHAPE_BALL
     bone: "Head"
@@ -201,6 +204,7 @@ hairs {
 }
 # Short, with a beard along the jaw and the chin.
 hairs {
+  name: "Short, with a beard"
   parts {
     shape: SHAPE_BALL
     bone: "Head"
@@ -218,6 +222,7 @@ hairs {
 }
 # Bald, with a beard.
 hairs {
+  name: "Bald, with a beard"
   parts {
     shape: SHAPE_BALL
     bone: "Head"
@@ -227,4 +232,4 @@ hairs {
   }
 }
 # Bald.
-hairs {}
+hairs { name: "Bald" }

@@ -145,6 +145,19 @@ message Player {
   // While they use a skill on another player, in a duel or at war, the player
   // they picked, by their id, in place of a monster.
   uint32 target_player = 16;
+  // How they chose to look, so that everyone draws them so. A character made
+  // before there were looks to choose has none, and their id picks theirs.
+  Looks looks = 17;
+}
+
+// How a player looks under what they wear, as they chose it, making their
+// character: places in the rig's builds and in the figures file's lists of
+// skins, hair colours and ways to wear the hair.
+message Looks {
+  uint32 build = 1;
+  uint32 skin = 2;
+  uint32 hair_color = 3;
+  uint32 hair = 4;
 }
 
 message Monster {
@@ -342,10 +355,11 @@ message LoginRequest {
   bool new_account = 3;
   bool list_worlds = 4;
   string session = 5;
-  // A new character in the world, with the name.
+  // A new character in the world, with the name, and the looks.
   bool create_character = 6;
   string world = 7;
   string name = 8;
+  Looks looks = 13;
   // The character to delete, or to enter its world as, by its id.
   bool delete_character = 9;
   bool enter = 10;
@@ -369,6 +383,8 @@ message CharacterListing {
   repeated uint32 wearing = 7;
   // One that's never entered its world, where it gets the starting kit.
   bool fresh = 8;
+  // How it looks, unless it's from before there were looks to choose.
+  Looks looks = 9;
 }
 
 message WorldListing {

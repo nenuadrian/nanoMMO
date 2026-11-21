@@ -32,6 +32,9 @@ protocol::Player ToProtocol(uint32_t id, const Player& player) {
   sent.set_x(player.x);
   sent.set_z(player.z);
   sent.set_name(player.name);
+  if (player.looks) {
+    *sent.mutable_looks() = *player.looks;
+  }
   sent.set_yaw(player.yaw);
   sent.set_motion(ToProtocol(player.motion));
   const int level = LevelFor(player.experience).number;
@@ -121,6 +124,7 @@ protocol::World YouIn(uint32_t id, const Player& player, uint32_t seed,
   protocol::Player* here = you.add_players();
   *here = ToProtocol(id, player);
   here->clear_name();
+  here->clear_looks();
   here->clear_level();
   here->clear_max_health();
   here->clear_weapon();

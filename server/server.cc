@@ -1305,8 +1305,8 @@ void Server::ShowEvents(const std::vector<Event>& happened) {
 void Server::Broadcast() {
   ZoneScoped;
   // Names, kinds, levels, weapons and the most health a unit can have change
-  // now and then, and NPCs never do, so they go out once a second, and the
-  // clients keep them in between.
+  // now and then, and looks and NPCs never do, so they go out once a second,
+  // and the clients keep them in between.
   const bool full = broadcasts_ == 0;
   broadcasts_ = (broadcasts_ + 1) % kFullEvery;
   for (const auto& [id, copy] : copies_.all()) {
@@ -1331,6 +1331,7 @@ void Server::BroadcastCopy(const Copy& copy, bool full) {
       protocol::Player entry = ToProtocol(id, player);
       if (!full) {
         entry.clear_name();
+        entry.clear_looks();
         entry.clear_level();
         entry.clear_max_health();
         entry.clear_weapon();
