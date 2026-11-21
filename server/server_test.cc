@@ -1400,6 +1400,10 @@ TEST_F(ServerTest, GuildsGoToWarAndTheirPlayersKillEachOther) {
     return !bob.notices().empty() && bob.notices().back() == killed &&
            alice.notices().back() == killed;
   }));
+  // Which the metrics count, as it goes to the saver.
+  EXPECT_TRUE(absl::StrContains(
+      prometheus::TextSerializer().Serialize(metrics_.registry()->Collect()),
+      "nanommo_war_kills_total 1\n"));
 
   // The kill goes into Redis with the save, for the saver, which adds it to
   // the war's score in MySQL. Both see the score as the world next reads it,

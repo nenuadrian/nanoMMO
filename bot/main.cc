@@ -8,6 +8,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -130,7 +131,7 @@ class Swarm {
   Swarm(asio::io_context& io, asio::ssl::context& tls, std::string login,
         std::string host, asio::ip::tcp::resolver::results_type server,
         int count, std::chrono::milliseconds ramp, int first, bool udp,
-        nanommo::BotMetrics& metrics, const nanommo::Content& content)
+        bool war, nanommo::BotMetrics& metrics, const nanommo::Content& content)
       : io_(io),
         tls_(tls),
         login_(std::move(login)),
@@ -139,6 +140,7 @@ class Swarm {
         count_(count),
         first_(first),
         udp_(udp),
+        war_(war),
         gap_(count > 0 ? ramp / count : ramp),
         metrics_(metrics),
         content_(content),
@@ -153,13 +155,32 @@ class Swarm {
   }
 
  private:
+  // At war, the bots with odd numbers are Red, and the even ones Blue, and the
+  // first of each founds and leads it, and asks the rest of its side in.
+  std::optional<nanommo::Side> SideOf(int number) const {
+    if (!war_) {
+      return std::nullopt;
+    }
+    const bool red = number % 2 == 1;
+    nanommo::Side side{.guild = red ? "Red" : "Blue",
+                       .enemy = red ? "Blue" : "Red"};
+    if (number - first_ < 2) {
+      side.leads = true;
+      for (int other = number + 2; other < first_ + count_; other += 2) {
+        side.recruits.push_back("bot" + std::to_string(other));
+      }
+    }
+    return side;
+  }
+
   void Add() {
     if (static_cast<int>(bots_.size()) >= count_) {
       return;
     }
     const int number = first_ + static_cast<int>(bots_.size());
-    auto bot = std::make_unique<nanommo::Bot>(
-        io_, tls_, static_cast<uint32_t>(number), udp_, content_);
+    auto bot =
+        std::make_unique<nanommo::Bot>(io_, tls_, static_cast<uint32_t>(number),
+                                       udp_, content_, SideOf(number));
     const auto start = std::chrono::steady_clock::now();
     const absl::StatusOr<std::string> token = LogIn(login_, tls_, number);
     const auto now = std::chrono::steady_clock::now();
@@ -207,8 +228,9 @@ class Swarm {
       // on its sockets.
       bots_[i]->Leave();
       left_.push_back(std::move(bots_[i]));
-      bots_[i] = std::make_unique<nanommo::Bot>(
-          io_, tls_, static_cast<uint32_t>(number), udp_, content_);
+      bots_[i] = std::make_unique<nanommo::Bot>(io_, tls_,
+                                                static_cast<uint32_t>(number),
+                                                udp_, content_, SideOf(number));
       bots_[i]->Start(next, token);
       ++moved;
     }
@@ -251,8 +273,9 @@ class Swarm {
       // on its sockets.
       bots_[i]->Leave();
       left_.push_back(std::move(bots_[i]));
-      bots_[i] = std::make_unique<nanommo::Bot>(
-          io_, tls_, static_cast<uint32_t>(number), udp_, content_);
+      bots_[i] = std::make_unique<nanommo::Bot>(io_, tls_,
+                                                static_cast<uint32_t>(number),
+                                                udp_, content_, SideOf(number));
       bots_[i]->Start(server_, *token);
       retry.next = now + kGrace;
       ++rejoined;
@@ -313,6 +336,7 @@ class Swarm {
   int count_;
   int first_;
   bool udp_;
+  bool war_;
   std::chrono::milliseconds gap_;
   nanommo::BotMetrics& metrics_;
   const nanommo::Content& content_;
@@ -349,6 +373,8 @@ int main(int argc, char* argv[]) {
   }
   const auto ramp = std::chrono::seconds(ramp_seconds);
   const std::string transport = argc > 6 ? argv[6] : "udp";
+  // war sends the bots to war, in two guilds.
+  const bool war = argc > 7 && std::string_view(argv[7]) == "war";
 
   absl::StatusOr<asio::ssl::context> tls =
       nanommo::ClientTls(nanommo::FileSetting("NANOMMO_TLS_CA", "tls/ca.crt"));
@@ -381,9 +407,9 @@ int main(int argc, char* argv[]) {
   std::cout << "nanommo bot: starting " << count << " bots against " << host
             << ", logging in on " << login << ", over " << ramp.count()
             << " s, from bot" << first << ", worlds over " << transport
-            << std::endl;
+            << (war ? ", at war" : "") << std::endl;
   Swarm swarm(io, *tls, login, host, server, count, ramp, first,
-              transport == "udp", metrics, *content);
+              transport == "udp", war, metrics, *content);
 
   asio::signal_set signals(io, SIGINT, SIGTERM);
   signals.async_wait([&io](std::error_code, int) { io.stop(); });

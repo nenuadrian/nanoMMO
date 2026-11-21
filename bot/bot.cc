@@ -73,7 +73,7 @@ std::string RandomWords(std::mt19937& random) {
 }  // namespace
 
 Bot::Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp,
-         const Content& content)
+         const Content& content, std::optional<Side> side)
     : stream_(io, tls),
       udp_socket_(io),
       timer_(io),
@@ -81,7 +81,8 @@ Bot::Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp,
       tick_timer_(io),
       random_(seed),
       udp_(udp),
-      content_(content) {}
+      content_(content),
+      side_(std::move(side)) {}
 
 void Bot::Start(const asio::ip::tcp::resolver::results_type& server,
                 const std::string& token) {
@@ -209,9 +210,18 @@ void Bot::Receive(std::string_view bytes) {
     quests_ = world.quests();
     return;
   }
-  // A bot founds no guild, and doesn't say yes to one that asks it, nor to a
-  // duel.
-  if (world.has_guild() || world.has_invite() || world.has_duel()) {
+  // A bot doesn't say yes to a duel, nor to a guild that asks it in, unless
+  // it's at war and that's its side's guild. It keeps its guild's news, for
+  // the war.
+  if (world.has_guild()) {
+    guild_ = world.guild();
+    return;
+  }
+  if (world.has_invite()) {
+    asked_in_ = side_ && world.invite().guild() == side_->guild;
+    return;
+  }
+  if (world.has_duel()) {
     return;
   }
   parts_.Add(world);
@@ -219,6 +229,16 @@ void Bot::Receive(std::string_view bytes) {
   // at the body for as long as it holds its input.
   if (hunting_ != 0 && Dead(world, hunting_)) {
     hunting_ = 0;
+    WanderIn(kRethink);
+  }
+  // And so does one at war once the enemy it's after is dead.
+  if (enemy_ != 0 &&
+      std::ranges::any_of(world.players(),
+                          [this](const protocol::Player& player) {
+                            return player.id() == enemy_ &&
+                                   player.motion() == protocol::MOTION_DEAD;
+                          })) {
+    enemy_ = 0;
     WanderIn(kRethink);
   }
   const uint32_t parts = std::max(world.parts(), 1u);
@@ -276,6 +296,24 @@ void Bot::Receive(std::string_view bytes) {
 
 void Bot::Wander() {
   hunting_ = 0;
+  enemy_ = 0;
+  // At war, a bot does one thing at a time about its guild, with its keys as
+  // they are: says yes to its side's, once it's asked, or as its leader,
+  // founds it, takes it to war and asks the rest of its side in.
+  if (side_) {
+    std::optional<protocol::GuildAction> action;
+    if (asked_in_) {
+      asked_in_ = false;
+      action.emplace().set_accept(true);
+    } else {
+      action = Enlist(*side_, guild_, recruit_);
+    }
+    if (action) {
+      protocol::Input keys = keys_;
+      *keys.mutable_guild() = *action;
+      Send(keys);
+    }
+  }
   // A dead bot comes back as soon as it can, as most players do.
   if (dead_) {
     if (can_respawn_) {
@@ -283,6 +321,21 @@ void Bot::Wander() {
       respawn.set_respawn(true);
       Send(respawn);
     }
+    WanderIn(std::chrono::seconds(1));
+    return;
+  }
+  // In its guild, it goes for the nearest enemy it can see, before anything
+  // else, and the server runs it up to them.
+  if (side_ && guild_.name() == side_->guild) {
+    enemy_ = NearestEnemy(*side_, parts_.world(), x_, z_);
+  }
+  if (enemy_ != 0) {
+    trip_.reset();
+    errand_.reset();
+    protocol::Input attack;
+    attack.set_attack(true);
+    attack.set_target_player(enemy_);
+    Send(attack);
     WanderIn(std::chrono::seconds(1));
     return;
   }
@@ -380,6 +433,7 @@ void Bot::Send(const protocol::Input& input) {
   keys_.set_run(input.run());
   keys_.set_attack(input.attack());
   keys_.set_target(input.target());
+  keys_.set_target_player(input.target_player());
   // With the newest world it has whole, as the client does.
   protocol::Input with = input;
   with.set_seen(parts_.whole());

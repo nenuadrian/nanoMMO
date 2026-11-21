@@ -44,6 +44,9 @@ class Metrics {
   /// isn't this instance's any more, or their trade couldn't be saved.
   void AddDropped(const char* why);
 
+  /// Kills in a guild war, which go to the saver, for their wars' scores.
+  void AddWarKills(std::size_t count);
+
   const std::shared_ptr<prometheus::Registry>& registry() const {
     return registry_;
   }
@@ -60,6 +63,7 @@ class Metrics {
   prometheus::Family<prometheus::Counter>& stories_;
   prometheus::Histogram& story_seconds_;
   prometheus::Family<prometheus::Counter>& dropped_;
+  prometheus::Counter& war_kills_;
 };
 
 /// The login server's: how long it took to answer each request, by what came

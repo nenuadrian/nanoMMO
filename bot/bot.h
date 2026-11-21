@@ -3,6 +3,7 @@
 
 #include <array>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <optional>
@@ -18,6 +19,7 @@
 #include "asio/steady_timer.hpp"
 #include "bot/quests.h"
 #include "bot/wander.h"
+#include "bot/war.h"
 #include "content/content.h"
 #include "protocol/framing.h"
 #include "protocol/nanommo.pb.h"
@@ -29,9 +31,9 @@ namespace nanommo {
 class Bot {
  public:
   /// Finds the NPCs that talk through their kinds in the content, and what
-  /// its items do through the items.
+  /// its items do through the items. A bot with a side is at war.
   Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp,
-      const Content& content);
+      const Content& content, std::optional<Side> side = std::nullopt);
 
   Bot(const Bot&) = delete;
   Bot& operator=(const Bot&) = delete;
@@ -101,11 +103,15 @@ class Bot {
   std::vector<uint32_t> skills_;
   int health_ = 0;
   int max_health_ = 0;
+  /// At war, the enemy it's after, by their id.
+  uint32_t enemy_ = 0;
   /// Whether the bot's dead, and if so, whether its wait is over.
   bool dead_ = false;
   bool can_respawn_ = false;
   /// Whether it's running out of a monster's skill on its way.
   bool stepping_out_ = false;
+  /// At war, whether its side's guild has asked it in.
+  bool asked_in_ = false;
   protocol::Inventory bag_;
   /// When it last drank something, which it does once its cooldown's over.
   std::chrono::steady_clock::time_point drank_;
@@ -116,6 +122,11 @@ class Bot {
   /// What the trip's for, if it's for a quest.
   std::optional<Errand> errand_;
   std::optional<protocol::Move> move_;
+  /// At war, its side, its guild as the server last sent it, and the recruit
+  /// its leader asks next.
+  std::optional<Side> side_;
+  protocol::Guild guild_;
+  std::size_t recruit_ = 0;
 };
 
 }  // namespace nanommo

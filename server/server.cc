@@ -1068,6 +1068,9 @@ void Server::Tick() {
   }
   const std::vector<WarKill> kills = copies_.TakeWarKills();
   TellKills(kills);
+  // Counted as they go to the saver, so that the wars' scores in MySQL can be
+  // checked against what the worlds saw.
+  metrics_.AddWarKills(kills.size());
   const std::vector<Event> happened = copies_.TakeEvents();
   RecordEvents(happened);
   std::array<std::size_t, kLands.size()> in_land{};

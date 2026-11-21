@@ -72,7 +72,12 @@ Metrics::Metrics()
       dropped_(prometheus::BuildCounter()
                    .Name("nanommo_players_dropped_total")
                    .Help("Players let go of without saving them, by why")
-                   .Register(*registry_)) {
+                   .Register(*registry_)),
+      war_kills_(prometheus::BuildCounter()
+                     .Name("nanommo_war_kills_total")
+                     .Help("Kills in guild wars, handed to the saver")
+                     .Register(*registry_)
+                     .Add({})) {
   // The version goes in a label, the way Prometheus gives its own, so that
   // a query can tell the worlds a deploy has reached from the others.
   prometheus::BuildGauge()
@@ -125,6 +130,10 @@ void Metrics::ObserveStory(std::chrono::nanoseconds time) {
 
 void Metrics::AddDropped(const char* why) {
   dropped_.Add({{"why", why}}).Increment();
+}
+
+void Metrics::AddWarKills(std::size_t count) {
+  war_kills_.Increment(static_cast<double>(count));
 }
 
 LoginMetrics::LoginMetrics()
