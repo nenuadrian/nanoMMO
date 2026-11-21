@@ -544,6 +544,44 @@ protocol::Duel World::DuelOf(uint32_t id) const {
 
 std::set<uint32_t> World::TakeDuelNews() { return duels_.TakeNews(); }
 
+void World::SetGuild(uint32_t id, uint32_t guild) {
+  const auto found = players_.find(id);
+  if (found != players_.end()) {
+    found->second.guild = guild;
+  }
+}
+
+void World::SetWars(const std::vector<War>& wars) {
+  wars_.clear();
+  for (const War& war : wars) {
+    wars_[war.challenger] = war;
+    wars_[war.challenged] = war;
+  }
+}
+
+bool World::Hostile(uint32_t id, uint32_t other) const {
+  const auto player = players_.find(id);
+  const auto them = players_.find(other);
+  if (player == players_.end() || them == players_.end() || other == id) {
+    return false;
+  }
+  return other == duels_.Opponent(id) ||
+         WarBetween(player->second, them->second) != nullptr;
+}
+
+const War* World::WarBetween(const Player& player, const Player& other) const {
+  // Nobody's at war with a player in no guild, whose guild is 0.
+  const auto war = wars_.find(player.guild);
+  if (war == wars_.end() || war->second.Against(player.guild) != other.guild) {
+    return nullptr;
+  }
+  return &war->second;
+}
+
+std::vector<WarKill> World::TakeWarKills() {
+  return std::exchange(war_kills_, {});
+}
+
 void World::Dress(Player& player) const {
   const items::Weapon* before = player.stats.weapon;
   // Whether the skill they're using has landed its first blow, with the
@@ -622,10 +660,11 @@ void World::Pick(uint32_t id, uint32_t monster, uint32_t player) {
   if (found == players_.end()) {
     return;
   }
-  // Their opponent goes in place of a monster, and anyone else is nobody.
-  const bool opponent = player != 0 && player == duels_.Opponent(id);
-  found->second.target = opponent ? 0 : monster;
-  found->second.target_player = opponent ? player : 0;
+  // A player they may hurt goes in place of a monster, and anyone else is
+  // nobody.
+  const bool hostile = player != 0 && Hostile(id, player);
+  found->second.target = hostile ? 0 : monster;
+  found->second.target_player = hostile ? player : 0;
 }
 
 void World::SetBehind(uint32_t id, std::chrono::nanoseconds behind) {
@@ -974,8 +1013,8 @@ std::optional<Place> World::Target(const Player& player, float reach) const {
   if (player.target_player == 0) {
     return Within(monsters_, player.target, player, reach);
   }
-  // A duel opponent is where the player saw them, as for their blows, so
-  // that's what they aim at, and run up to.
+  // A player is where the player saw them, as for their blows, so that's
+  // what they aim at, and run up to.
   if (!Within(players_, player.target_player, player, kAnyDistance)) {
     return std::nullopt;
   }
@@ -1105,21 +1144,27 @@ void World::Land(uint32_t id, Player& player, const skills::Effect& effect,
       Hurt(id, player, monster_id, monster, damage);
     }
   }
-  // In a duel, their opponent too, when it's for them or all around, but a
-  // player isn't pushed or thrown, as their own keys move them. A player can
-  // run from a blow as fast as the one who swung, so it's checked against
-  // where the player's client drew them, a moment in the past. A monster's hit
-  // where it is, above, as it's pushed and thrown from there: it stands still
-  // to swing, and comes to whoever hurt it, so where a client drew it a moment
-  // ago is near enough.
-  if (const uint32_t other = duels_.Opponent(id); other != 0) {
-    Player& them = players_.at(other);
+  // The players they may hurt too, their opponent in a duel and enemies at
+  // war, each when it's for them or all around, but a player isn't pushed or
+  // thrown, as their own keys move them. A player can run from a blow as fast
+  // as the one who swung, so it's checked against where the player's client
+  // drew them, a moment in the past. A monster's hit where it is, above, as
+  // it's pushed and thrown from there: it stands still to swing, and comes to
+  // whoever hurt it, so where a client drew it a moment ago is near enough.
+  // Most blows are by players in neither a duel nor a war, who can't hurt a
+  // player.
+  if (duels_.Opponent(id) == 0 && !wars_.contains(player.guild)) {
+    return;
+  }
+  for (auto& [other, them] : players_) {
+    if ((!effect.all() && other != player.target_player) ||
+        them.motion == Motion::kDead || !Hostile(id, other)) {
+      continue;
+    }
     const Place seen = Seen(player, other);
-    if ((effect.all() || other == player.target_player) &&
-        them.motion != Motion::kDead &&
-        Distance(player, seen) <= effect.reach() &&
+    if (Distance(player, seen) <= effect.reach() &&
         InArc(player, seen, effect.arc())) {
-      Hurt(other, them, damage);
+      Hurt(id, other, them, damage);
     }
   }
 }
@@ -1283,7 +1328,28 @@ void World::Reward(uint32_t id, Player& player, const Monster& monster) {
   Count(id, player, monster);
 }
 
-void World::Hurt(uint32_t id, Player& player, int damage) {
+void World::Hurt(uint32_t from, uint32_t id, Player& player, int damage) {
+  // At war, a blow kills, as a monster's does, but gives no experience, and
+  // nothing drops. The kill counts for the killer's side.
+  if (from != duels_.Opponent(id)) {
+    const int taken = std::min(damage, player.health);
+    player.health -= taken;
+    Record(Event::Kind::kHurt, id, player).amount =
+        static_cast<uint32_t>(taken);
+    if (player.health > 0) {
+      return;
+    }
+    player.motion = Motion::kDead;
+    player.respawn = kRespawnTime;
+    player.way.clear();
+    Record(Event::Kind::kDeath, id, player);
+    const Player& killer = players_.at(from);
+    war_kills_.push_back({.war = WarBetween(killer, player)->id,
+                          .killer = from,
+                          .victim = id,
+                          .guild = killer.guild});
+    return;
+  }
   // Nobody dies in a duel: the blow that would leave them nothing leaves them
   // one, and they've lost.
   const int taken = std::min(damage, player.health - 1);

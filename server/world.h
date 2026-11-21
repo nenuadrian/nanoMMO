@@ -24,6 +24,7 @@
 #include "server/inventory.h"
 #include "server/trades.h"
 #include "server/walking.h"
+#include "server/wars.h"
 #include "terrain/lands.h"
 #include "terrain/paths.h"
 #include "terrain/terrain.h"
@@ -44,6 +45,9 @@ struct Stats {
 
 struct Player {
   std::string name;
+  /// The guild they're in, by its id, or 0 for none, which the server tells
+  /// the world, as it's in MySQL.
+  uint32_t guild = 0;
   float x = 0.0f;
   float z = 0.0f;
   /// In radians, around the vertical. Zero faces along z, towards the camera.
@@ -69,12 +73,12 @@ struct Player {
   /// The monster the player picked, by its id, which their swings and skills
   /// go for, or 0 for none.
   uint32_t target = 0;
-  /// In a duel, the player they picked, by their id, in place of a monster:
-  /// their opponent, as nobody else can be. Players and monsters have ids of
-  /// their own, so it goes beside the monster.
+  /// The player they picked, by their id, in place of a monster: their
+  /// opponent in a duel, or an enemy at war, as nobody else can be. Players
+  /// and monsters have ids of their own, so it goes beside the monster.
   uint32_t target_player = 0;
   /// How far in the past their client draws everyone else, which their blows
-  /// on a duel opponent are checked at.
+  /// on another player are checked at.
   std::chrono::nanoseconds behind{0};
   /// The skill the player's using, by its id in the skills file, and how far
   /// into it they are.
@@ -338,12 +342,12 @@ class World {
   void SetInput(uint32_t id, float x, float z, bool run, bool attack = false);
 
   /// The monster, by its id, that the player's swings and skills go for from
-  /// now on, or 0 for none. Or in a duel, their opponent, by their id, in its
-  /// place: a player who isn't is no target.
+  /// now on, or 0 for none. Or a player they may hurt, by their id, in its
+  /// place: anyone else is no target.
   void Pick(uint32_t id, uint32_t monster, uint32_t player = 0);
 
   /// The player's client draws everyone else this long ago, so their blows
-  /// on a duel opponent are checked against where the opponent was then.
+  /// on another player are checked against where that player was then.
   /// Inputs believes Inputs::kMostRewind of what a client says, at most.
   void SetBehind(uint32_t id, std::chrono::nanoseconds behind);
 
@@ -436,6 +440,21 @@ class World {
   /// ended since the last time, which it hands over.
   std::set<uint32_t> TakeDuelNews();
 
+  /// The player's guild, by its id, or 0 for none.
+  void SetGuild(uint32_t id, uint32_t guild);
+
+  /// The wars between the world's guilds, in place of those before. Members
+  /// of two guilds at war can hurt each other anywhere.
+  void SetWars(const std::vector<War>& wars);
+
+  /// Whether the player may hurt the other: their opponent in a duel that's
+  /// started, or a member of the guild at war with theirs.
+  bool Hostile(uint32_t id, uint32_t other) const;
+
+  /// The players killed by an enemy at war since the last time, which it
+  /// hands over.
+  std::vector<WarKill> TakeWarKills();
+
   uint32_t Spawn(Monster monster);
 
   /// NPCs have ids of their own, apart from the monsters'.
@@ -468,8 +487,7 @@ class World {
   /// Runs the player along their way, a step at a time.
   void Follow(Player& player, std::chrono::nanoseconds time);
   /// Where what the player picked is, while it's alive and within reach: the
-  /// monster, or in a duel, their opponent, where the player saw them. Or
-  /// nothing.
+  /// monster, or the player they may hurt, where they saw them. Or nothing.
   std::optional<Place> Target(const Player& player, float reach) const;
   /// Where the player's client drew the other player, as far behind as it
   /// draws everyone, from the history: or where they are, for one that's not
@@ -506,9 +524,13 @@ class World {
   static bool Fly(Monster& monster, std::chrono::nanoseconds time);
   void Hurt(uint32_t id, Player& player, uint32_t monster_id, Monster& monster,
             int damage);
-  /// A blow on the player from their opponent in a duel. One that would leave
-  /// them no health leaves them one, and they've lost.
-  void Hurt(uint32_t id, Player& player, int damage);
+  /// A blow on the player from another who may hurt them, by their id. From
+  /// an enemy at war, it can kill them, as a monster's can. From their
+  /// opponent in a duel, one that would leave them no health leaves them one,
+  /// and they've lost.
+  void Hurt(uint32_t from, uint32_t id, Player& player, int damage);
+  /// The war between the two players' guilds, or nullptr.
+  const War* WarBetween(const Player& player, const Player& other) const;
   /// Gives the player back as much of the health as they're missing.
   void Heal(uint32_t id, Player& player, int health);
   /// The player's part in the monster's death: its experience, what it drops
@@ -562,6 +584,10 @@ class World {
   /// Between the players here, as both have to be.
   Trades trades_;
   Duels duels_;
+  /// The wars between the world's guilds, each by both its sides, as a guild
+  /// is in one at a time.
+  std::map<uint32_t, War> wars_;
+  std::vector<WarKill> war_kills_;
   /// How long the world's run, a step at a time, which its history goes by.
   std::chrono::nanoseconds clock_{0};
   /// Where each player here has been, after each step, for the last second.
