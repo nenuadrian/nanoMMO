@@ -122,6 +122,13 @@ std::string Some(const items::Item& item, uint32_t count) {
   return absl::StrCat(vowel ? "an " : "a ", item.name());
 }
 
+// The same, by the item's id, or "something" for one the items file doesn't
+// have.
+std::string Some(const ItemTable& items, uint32_t item, uint32_t count) {
+  const auto found = items.by_id.find(item);
+  return found != items.by_id.end() ? Some(found->second, count) : "something";
+}
+
 // "A", "A and B", or "A, B and C".
 std::string List(const std::vector<std::string>& things) {
   std::string list;
@@ -197,10 +204,12 @@ World::World(uint32_t seed, Terrain terrain,
       random_(seed) {}
 
 void World::Join(uint32_t id, Player player) {
-  // What they picked, and the way they walked, were another land's.
+  // What they picked, the way they walked, and what they were making, were
+  // another land's.
   player.target = 0;
   player.target_player = 0;
   player.way.clear();
+  player.crafting = 0;
   // Saved somewhere that's sea now, such as on a terrain from another seed.
   if (!terrain_.Walkable(player.x, player.z)) {
     player.x = 0.0f;
@@ -329,6 +338,43 @@ absl::Status World::UseItem(uint32_t id, uint32_t slot) {
   return player.inventory.TakeOne(place);
 }
 
+absl::Status World::Craft(uint32_t id, uint32_t recipe) {
+  const auto player = players_.find(id);
+  const auto found = content_->recipes.find(recipe);
+  if (player == players_.end() || found == content_->recipes.end()) {
+    return absl::NotFoundError("There's no such recipe.");
+  }
+  const recipes::Recipe& making = found->second;
+  if (player->second.motion == Motion::kDead) {
+    return absl::FailedPreconditionError("You can't, while you're dead.");
+  }
+  if (player->second.crafting != 0) {
+    return absl::AlreadyExistsError("You're making something already.");
+  }
+  if (LevelFor(player->second.experience).number <
+      static_cast<int>(making.level())) {
+    return absl::FailedPreconditionError(absl::StrCat(
+        "You can make ",
+        Some(content_->items, making.output().item(), making.output().count()),
+        " from level ", making.level(), "."));
+  }
+  // The same check as once it's made, so that it says now what's missing.
+  if (const absl::StatusOr<Inventory> bag = Made(id, player->second, making);
+      !bag.ok()) {
+    return bag.status();
+  }
+  player->second.crafting = recipe;
+  player->second.crafted = std::chrono::nanoseconds::zero();
+  return absl::OkStatus();
+}
+
+void World::StopCrafting(uint32_t id) {
+  const auto found = players_.find(id);
+  if (found != players_.end()) {
+    Interrupt(id, found->second);
+  }
+}
+
 absl::Status World::AskToTrade(uint32_t id, std::string_view name) {
   const auto player = players_.find(id);
   const auto other = std::ranges::find_if(players_, [name](const auto& entry) {
@@ -361,6 +407,11 @@ absl::Status World::AskToTrade(uint32_t id, std::string_view name) {
     notices_.push_back(
         {.player = id,
          .text = absl::StrCat("You asked ", asked, " to trade.")});
+  } else {
+    // A trade holds what each offers, which may be what they're making
+    // something from, so both stop.
+    Interrupt(id, player->second);
+    Interrupt(other->first, other->second);
   }
   return absl::OkStatus();
 }
@@ -492,6 +543,9 @@ absl::Status World::AnswerDuel(uint32_t id, bool yes) {
         absl::StrCat("You're too far away to duel ", challenger.name, "."));
   }
   duels_.Accept(id, {.x = challenger.x, .z = challenger.z});
+  // Both stop what they were making, to fight.
+  Interrupt(id, players_.at(id));
+  Interrupt(asker, players_.at(asker));
   return absl::OkStatus();
 }
 
@@ -917,6 +971,13 @@ void World::Act(uint32_t id, Player& player, std::chrono::nanoseconds time) {
   // can't use yet goes. A swing or a skill at the monster they picked, out of
   // reach, runs them up to it first, unless they walk off themselves.
   const bool walking = player.input_x != 0.0f || player.input_z != 0.0f;
+  // What they're making goes on while they stand still, and moving, a swing
+  // or a skill stops it.
+  if (walking || !player.way.empty() || player.input_skill != 0) {
+    Interrupt(id, player);
+  } else {
+    Make(id, player, time);
+  }
   // The keys, a swing or a skill call off a walk the player asked for.
   if (walking || player.input_skill != 0) {
     player.way.clear();
@@ -1329,6 +1390,8 @@ void World::Reward(uint32_t id, Player& player, const Monster& monster) {
 }
 
 void World::Hurt(uint32_t from, uint32_t id, Player& player, int damage) {
+  // A blow stops what they're making, as moving does.
+  Interrupt(id, player);
   // At war, a blow kills, as a monster's does, but gives no experience, and
   // nothing drops. The kill counts for the killer's side.
   if (from != duels_.Opponent(id)) {
@@ -1472,6 +1535,87 @@ uint32_t World::Give(Inventory& bag, uint32_t item, uint32_t count) {
     fitted += each - bag.Add(content_->items, stack);
   }
   return fitted;
+}
+
+absl::StatusOr<Inventory> World::Made(uint32_t id, const Player& player,
+                                      const recipes::Recipe& recipe) {
+  const recipes::ItemCount& output = recipe.output();
+  const std::string made = Some(content_->items, output.item(), output.count());
+  // Into a copy, so that it's all of it or none, which goes into the bag as
+  // one change, and one save.
+  Inventory bag = player.inventory;
+  for (const recipes::ItemCount& input : recipe.inputs()) {
+    // From the first slot on, as many as it takes, a stack at a time.
+    uint32_t left = input.count();
+    for (uint32_t slot = 0; slot < kBagSlots && left > 0; ++slot) {
+      const items::Stack* stack = bag.At(InBag(slot));
+      if (stack == nullptr || stack->item() != input.item() ||
+          trades_.Holds(id, InBag(slot))) {
+        continue;
+      }
+      const uint32_t taken = std::min(left, CountOf(*stack));
+      // Take refuses a stack shorter than it says, and then nothing's made.
+      if (absl::Status took = bag.Take(InBag(slot), taken); !took.ok()) {
+        return took;
+      }
+      left -= taken;
+    }
+    if (left > 0) {
+      return absl::FailedPreconditionError(absl::StrCat(
+          "You need ", Some(content_->items, input.item(), input.count()),
+          " in your bag to make ", made, "."));
+    }
+  }
+  // As loot is, each one of what doesn't stack with a serial of its own.
+  if (Give(bag, output.item(), output.count()) < output.count()) {
+    return absl::ResourceExhaustedError(
+        absl::StrCat("Your bag is full. Make room for ", made, " first."));
+  }
+  return bag;
+}
+
+void World::Make(uint32_t id, Player& player, std::chrono::nanoseconds time) {
+  // No recipe has the id 0, which is making nothing.
+  const auto found = content_->recipes.find(player.crafting);
+  if (found == content_->recipes.end()) {
+    return;
+  }
+  player.crafted += time;
+  const recipes::Recipe& recipe = found->second;
+  if (player.crafted < std::chrono::seconds(recipe.seconds())) {
+    return;
+  }
+  player.crafting = 0;
+  const std::string made =
+      Some(content_->items, recipe.output().item(), recipe.output().count());
+  // Their bag may have changed since they started, so it's checked again.
+  absl::StatusOr<Inventory> bag = Made(id, player, recipe);
+  if (!bag.ok()) {
+    notices_.push_back({.player = id,
+                        .text = absl::StrCat("You couldn't make ", made, ". ",
+                                             bag.status().message())});
+    return;
+  }
+  player.inventory = *std::move(bag);
+  Event& crafted = Record(Event::Kind::kCraft, id, player);
+  crafted.item = recipe.output().item();
+  crafted.count = recipe.output().count();
+  notices_.push_back(
+      {.player = id, .text = absl::StrCat("You made ", made, ".")});
+}
+
+void World::Interrupt(uint32_t id, Player& player) {
+  const auto found = content_->recipes.find(player.crafting);
+  if (found == content_->recipes.end()) {
+    return;
+  }
+  const recipes::ItemCount& output = found->second.output();
+  notices_.push_back(
+      {.player = id,
+       .text = absl::StrCat(
+           "You stopped making ",
+           Some(content_->items, output.item(), output.count()), ".")});
+  player.crafting = 0;
 }
 
 std::vector<Notice> World::TakeNotices() { return std::exchange(notices_, {}); }
@@ -1647,6 +1791,8 @@ void World::Hit(Monster& monster) {
 }
 
 void World::Hit(uint32_t id, Player& player, const Monster& monster, int blow) {
+  // As a player's blow does, it stops what they're making.
+  Interrupt(id, player);
   // What the player wears takes the blow, down to one.
   const int damage = std::max(blow - player.stats.armour, 1);
   player.health = std::max(player.health - damage, 0);

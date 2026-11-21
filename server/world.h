@@ -118,6 +118,10 @@ struct Player {
   bool input_attack = false;
   /// A skill the player asked for, which waits until they're free.
   uint32_t input_skill = 0;
+  /// What the player's making, by its recipe's id in the recipes file, or 0
+  /// for nothing, and how long they've been at it.
+  uint32_t crafting = 0;
+  std::chrono::nanoseconds crafted{0};
 };
 
 /// How long a blow's push takes, fast at first and slowing, as a shove does.
@@ -257,7 +261,8 @@ struct Event {
     kUse,
     kHit,
     kHurt,
-    kHeal
+    kHeal,
+    kCraft
   };
   Kind kind = Kind::kKill;
   std::string player;
@@ -273,7 +278,7 @@ struct Event {
   uint32_t monster = 0;
   /// The monster the player hit, by its id in the world.
   uint32_t monster_id = 0;
-  /// An item dropped, given for a quest, or used, and how many.
+  /// An item dropped, given for a quest, used or made, and how many.
   uint32_t item = 0;
   uint32_t count = 0;
   uint32_t quest = 0;
@@ -384,6 +389,16 @@ class World {
 
   /// Throws away all of what's at the place, unless they offer it in a trade.
   absl::Status DestroyItem(uint32_t id, const protocol::Place& place);
+
+  /// The player starts making the recipe, wherever they are, which takes its
+  /// seconds, if they're of its level and their bag has all it takes, outside
+  /// what they offer in a trade, and room for what it makes. Or the error says
+  /// why not, in words for the player. Moving, a swing or a skill, a blow, a
+  /// trade or a duel stops it, and they lose nothing.
+  absl::Status Craft(uint32_t id, uint32_t recipe);
+
+  /// Stops what the player's making, if anything, and they lose nothing.
+  void StopCrafting(uint32_t id);
 
   /// The player uses one of what's in the slot of their bag, such as drinks a
   /// potion, unless they offer it in a trade, or the error says why not, in
@@ -542,6 +557,16 @@ class World {
   /// Puts count of the item into the bag, each with rolls of its own, and
   /// returns how many fitted.
   uint32_t Give(Inventory& bag, uint32_t item, uint32_t count);
+  /// The player's bag with the recipe made: all it takes taken from the bag,
+  /// outside what they offer in a trade, and what it makes given. Or why not,
+  /// in words for the player.
+  absl::StatusOr<Inventory> Made(uint32_t id, const Player& player,
+                                 const recipes::Recipe& recipe);
+  /// What the player's making goes on, and once it's taken its recipe's
+  /// seconds, it's made.
+  void Make(uint32_t id, Player& player, std::chrono::nanoseconds time);
+  /// Stops what the player's making, if anything, and says so.
+  void Interrupt(uint32_t id, Player& player);
   /// The monster the player's just killed, for each of their quests that
   /// asks for its kind, until they've killed as many as it asks.
   void Count(uint32_t id, Player& player, const Monster& monster);

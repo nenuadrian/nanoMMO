@@ -36,12 +36,14 @@ std::string_view Name(Event::Kind kind) {
       return "hurt";
     case Event::Kind::kHeal:
       return "heal";
+    case Event::Kind::kCraft:
+      return "craft";
   }
   return "";
 }
 
 // The name of what the event's about: the monster killed, or that killed the
-// player, the item, or the quest.
+// player, the item, such as one made, or the quest.
 std::string What(const Event& event, const Content& content) {
   switch (event.kind) {
     case Event::Kind::kKill:
@@ -53,7 +55,8 @@ std::string What(const Event& event, const Content& content) {
     }
     case Event::Kind::kLoot:
     case Event::Kind::kPrize:
-    case Event::Kind::kUse: {
+    case Event::Kind::kUse:
+    case Event::Kind::kCraft: {
       const auto item = content.items.by_id.find(event.item);
       return item != content.items.by_id.end() ? item->second.name() : "";
     }
@@ -105,6 +108,7 @@ bool ForAnalytics(Event::Kind kind) {
     case Event::Kind::kTake:
     case Event::Kind::kTurnIn:
     case Event::Kind::kUse:
+    case Event::Kind::kCraft:
       return true;
     case Event::Kind::kHit:
     case Event::Kind::kHurt:

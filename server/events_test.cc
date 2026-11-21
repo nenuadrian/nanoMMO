@@ -38,11 +38,20 @@ TEST(Events, MakesARowForClickHouse) {
   EXPECT_EQ(json["item"], 7);
   EXPECT_EQ(json["count"], 1);
   EXPECT_EQ(json["quest"], 0);
+
+  // What a player made, by its name too.
+  const nanommo::Event crafted{
+      .kind = nanommo::Event::Kind::kCraft, .item = 13, .count = 1};
+  const nlohmann::json made = nlohmann::json::parse(nanommo::Row(
+      crafted, content, "Ember", absl::FromUnixMillis(1'793'318'400'123)));
+  EXPECT_EQ(made["kind"], "craft");
+  EXPECT_EQ(made["what"], "Bone Sword");
 }
 
 TEST(Events, KeepsTheKillsForTheAnalyticsAndNotTheBlows) {
   EXPECT_TRUE(nanommo::ForAnalytics(nanommo::Event::Kind::kKill));
   EXPECT_TRUE(nanommo::ForAnalytics(nanommo::Event::Kind::kUse));
+  EXPECT_TRUE(nanommo::ForAnalytics(nanommo::Event::Kind::kCraft));
   EXPECT_FALSE(nanommo::ForAnalytics(nanommo::Event::Kind::kHit));
   EXPECT_FALSE(nanommo::ForAnalytics(nanommo::Event::Kind::kHeal));
 }

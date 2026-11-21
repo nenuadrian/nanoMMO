@@ -162,6 +162,7 @@ std::optional<protocol::Event> ForPlayers(const Event& event) {
     case Event::Kind::kTake:
     case Event::Kind::kTurnIn:
     case Event::Kind::kUse:
+    case Event::Kind::kCraft:
       return std::nullopt;
   }
   return std::nullopt;
