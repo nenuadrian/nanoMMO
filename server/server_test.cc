@@ -269,6 +269,10 @@ class ServerTest : public ::testing::Test {
       for (const nanommo::Redis::Entry& trade : Trades()) {
         EXPECT_TRUE(redis_->Command({"XDEL", "trades", trade.id}).ok());
       }
+      // And their kills in a war.
+      for (const nanommo::Redis::Entry& kill : WarKills()) {
+        EXPECT_TRUE(redis_->Command({"XDEL", "war_kills", kill.id}).ok());
+      }
     }
     // Their characters go with them, and their memberships with those, but
     // not the guilds.
@@ -326,6 +330,19 @@ class ServerTest : public ::testing::Test {
              .value_or(std::vector<nanommo::Redis::Entry>())) {
       if (std::ranges::find(trade.fields, world_) != trade.fields.end()) {
         ours.push_back(std::move(trade));
+      }
+    }
+    return ours;
+  }
+
+  // The kills in this world's wars, which the server leaves for the saver.
+  std::vector<nanommo::Redis::Entry> WarKills() {
+    std::vector<nanommo::Redis::Entry> ours;
+    for (nanommo::Redis::Entry& kill :
+         redis_->Read({"XREAD", "COUNT", "1000", "STREAMS", "war_kills", "0-0"})
+             .value_or(std::vector<nanommo::Redis::Entry>())) {
+      if (std::ranges::find(kill.fields, world_) != kill.fields.end()) {
+        ours.push_back(std::move(kill));
       }
     }
     return ours;
@@ -1321,6 +1338,133 @@ TEST_F(ServerTest, ADuelBlowLandsWhereTheClientDrewThemUpToTheMost) {
   const int64_t from = alice.world().sent();
   ASSERT_TRUE(RunUntil([&] { return alice.world().sent() - from >= 500'000; }));
   EXPECT_EQ(landed(), 1);
+}
+
+TEST_F(ServerTest, GuildsGoToWarAndTheirPlayersKillEachOther) {
+  // Each joins with a sword in hand, which Space swings, and bob with ten
+  // health, which her first blow takes.
+  ASSERT_TRUE(players_->Save(world_, {{bob_, {.health = 10}}}).ok());
+  const nanommo::Content swords{.items = nanommo::testing::Sword(),
+                                .skills = nanommo::testing::WithStrike({})};
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> arena =
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1, swords,
+                              metrics_, *tokens_, *players_, *guilds_, *events_,
+                              *storyteller_);
+  ASSERT_TRUE(arena.ok()) << arena.status();
+  TestPlayer alice(io_, *client_tls_, (*arena)->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, (*arena)->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] {
+    return alice.guild() && bob.guild() && alice.Sees(bob_) && bob.Sees(alice_);
+  }));
+  // Each leads a guild of their own.
+  nanommo::protocol::Input input;
+  input.mutable_guild()->set_create("Iron Wolves");
+  alice.Send(input);
+  input.mutable_guild()->set_create("Stone Bears");
+  bob.Send(input);
+  ASSERT_TRUE(RunUntil([&] {
+    return alice.guild()->name() == "Iron Wolves" &&
+           bob.guild()->name() == "Stone Bears";
+  }));
+
+  // Alice asks Stone Bears to war, which bob hears in his guild's chat, and
+  // he asks back, which is a yes.
+  input.mutable_guild()->set_war("stone bears");
+  alice.Send(input);
+  const std::string asked =
+      "Iron Wolves asks Stone Bears to war. Your leader types /war Iron "
+      "Wolves to say yes.";
+  ASSERT_TRUE(RunUntil(
+      [&] { return !bob.notices().empty() && bob.notices().back() == asked; }));
+  input.mutable_guild()->set_war("Iron Wolves");
+  bob.Send(input);
+  ASSERT_TRUE(RunUntil([&] {
+    return alice.guild()->war().enemy() == "Stone Bears" &&
+           bob.guild()->war().enemy() == "Iron Wolves";
+  }));
+  const std::string started =
+      "Iron Wolves and Stone Bears are at war, for 30 minutes.";
+  EXPECT_EQ(alice.notices().back(), started);
+  EXPECT_EQ(bob.notices().back(), started);
+  EXPECT_GT(alice.guild()->war().left(), 1790u);
+
+  // She picks him and swings, and her blow kills him, which both guilds hear.
+  nanommo::protocol::Input swing;
+  swing.set_attack(true);
+  swing.set_target_player(bob_);
+  alice.Send(swing);
+  const std::string killed =
+      absl::StrCat(names_[alice_], " killed ", names_[bob_], ".");
+  ASSERT_TRUE(RunUntil([&] {
+    return !bob.notices().empty() && bob.notices().back() == killed &&
+           alice.notices().back() == killed;
+  }));
+
+  // The kill goes into Redis with the save, for the saver, which adds it to
+  // the war's score in MySQL. Both see the score as the world next reads it,
+  // within five seconds.
+  const std::vector<nanommo::Redis::Entry> kills = WarKills();
+  ASSERT_EQ(kills.size(), 1u);
+  const std::vector<std::string>& fields = kills.front().fields;
+  const auto field = [&fields](std::string_view name) {
+    const auto found = std::ranges::find(fields, name);
+    return found != fields.end() && found + 1 != fields.end() ? *(found + 1)
+                                                              : "";
+  };
+  EXPECT_EQ(field("killer"), absl::StrCat(alice_));
+  EXPECT_EQ(field("victim"), absl::StrCat(bob_));
+  EXPECT_EQ(field("guild"), absl::StrCat(guilds_->Of(alice_)->guild));
+  ASSERT_TRUE(players_->Flush().ok());
+  const auto scored = [&] {
+    return alice.guild()->war().kills() == 1 &&
+           bob.guild()->war().enemy_kills() == 1;
+  };
+  EXPECT_TRUE(RunUntil(scored) || RunUntil(scored));
+  EXPECT_EQ(bob.guild()->war().kills(), 0u);
+}
+
+TEST_F(ServerTest, AWarStartedElsewhereTakesEffectUntilItsTimeIsUp) {
+  TestPlayer alice(io_, *client_tls_, server_->port(), Token(alice_));
+  TestPlayer bob(io_, *client_tls_, server_->port(), Token(bob_));
+  ASSERT_TRUE(RunUntil([&] { return alice.guild() && bob.guild(); }));
+  nanommo::protocol::Input input;
+  input.mutable_guild()->set_create("Iron Wolves");
+  alice.Send(input);
+  input.mutable_guild()->set_create("Stone Bears");
+  bob.Send(input);
+  ASSERT_TRUE(RunUntil([&] {
+    return alice.guild()->name() == "Iron Wolves" &&
+           bob.guild()->name() == "Stone Bears";
+  }));
+
+  // The two go to war on another instance, as during a handover, and this
+  // one has it once it next reads the wars, within five seconds.
+  ASSERT_TRUE(guilds_->AskToWar(world_, alice_, "Stone Bears").ok());
+  const absl::StatusOr<nanommo::War> war =
+      guilds_->AskToWar(world_, bob_, "Iron Wolves");
+  ASSERT_TRUE(war.ok()) << war.status();
+  const auto at_war = [&] {
+    return alice.guild()->war().enemy() == "Stone Bears" &&
+           bob.guild()->war().enemy() == "Iron Wolves";
+  };
+  ASSERT_TRUE(RunUntil(at_war) || RunUntil(at_war));
+
+  // Its time is up, and both hear it's over, as it is.
+  ASSERT_TRUE(database_
+                  ->Run("UPDATE guild_wars SET ends_at = NOW() - INTERVAL 1 "
+                        "SECOND WHERE id = ?",
+                        {absl::StrCat(war->id)})
+                  .ok());
+  const std::string over =
+      "The war between Iron Wolves and Stone Bears is over.";
+  const auto ended = [&] {
+    return !alice.notices().empty() && alice.notices().back() == over &&
+           !bob.notices().empty() && bob.notices().back() == over &&
+           alice.guild()->war().enemy().empty() &&
+           bob.guild()->war().enemy().empty();
+  };
+  EXPECT_TRUE(RunUntil(ended) || RunUntil(ended));
 }
 
 TEST_F(ServerTest, AppliesNumberedInputsOneATickInOrder) {

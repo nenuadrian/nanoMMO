@@ -85,6 +85,21 @@ std::set<uint32_t> Copies::TakeDuelNews() {
   return news;
 }
 
+void Copies::SetWars(const std::vector<War>& wars) {
+  wars_ = wars;
+  for (auto& [id, copy] : copies_) {
+    copy.world.SetWars(wars_);
+  }
+}
+
+std::vector<WarKill> Copies::TakeWarKills() {
+  std::vector<WarKill> kills;
+  for (auto& [id, copy] : copies_) {
+    std::ranges::move(copy.world.TakeWarKills(), std::back_inserter(kills));
+  }
+  return kills;
+}
+
 int Copies::players() const {
   int count = 0;
   for (const auto& [id, copy] : copies_) {
@@ -129,6 +144,7 @@ uint32_t Copies::For(int land, uint32_t id) {
                                                       paths_[land]),
                                        .owner = owner})
                    .first->second;
+  copy.world.SetWars(wars_);
   SpawnMonsters(copy.world, land, content_->monsters);
   SpawnNpcs(copy.world, land, content_->npcs);
   copy.npc_cells = CellsOf(copy.world.npcs());

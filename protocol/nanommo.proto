@@ -90,13 +90,13 @@ message Input {
   // Something to do about a duel with another player. Sent once, like a
   // trade's.
   DuelAction duel = 19;
-  // In a duel, the player the player picked, by their id, in place of a
-  // monster: their opponent, as nobody else can be. It comes with each input,
-  // like the monster.
+  // The player the player picked, by their id, in place of a monster: their
+  // opponent in a duel, or an enemy at war, as nobody else can be. It comes
+  // with each input, like the monster.
   uint32 target_player = 20;
   // The moment on the server's clock, in microseconds, that the client drew
-  // everyone else at as it sent this, a moment in the past: a blow on a duel
-  // opponent is checked against where they were then.
+  // everyone else at as it sent this, a moment in the past: a blow on another
+  // player, in a duel or at war, is checked against where they were then.
   int64 drawn = 21;
 }
 
@@ -140,8 +140,8 @@ message Player {
   uint32 casts = 14;
   // The name of the guild they're in, which comes with their name.
   string guild = 15;
-  // While they use a skill in a duel, the player they picked, by their id, in
-  // place of a monster.
+  // While they use a skill on another player, in a duel or at war, the player
+  // they picked, by their id, in place of a monster.
   uint32 target_player = 16;
 }
 
@@ -424,6 +424,9 @@ message GuildAction {
     uint32 kick = 9;
     // The leader ends the guild, for everyone in it.
     bool disband = 10;
+    // The leader asks the guild of that name in this world to war, or says
+    // yes to it asking first.
+    string war = 11;
   }
 }
 
@@ -440,6 +443,20 @@ message Guild {
   Rank rank = 2;
   // Who's in it, the highest rank first, and by name.
   repeated GuildMember members = 3;
+  // While it's at war, the war.
+  GuildWar war = 4;
+}
+
+// Your guild's war with another, as the world last read it from MySQL, a few
+// seconds behind the game.
+message GuildWar {
+  // The other guild, by its name.
+  string enemy = 1;
+  // How many of their players yours have killed, and of yours they have.
+  uint32 kills = 2;
+  uint32 enemy_kills = 3;
+  // How long it had left, in seconds, until it ends.
+  uint32 left = 4;
 }
 
 // One of a guild's players, for its roster.

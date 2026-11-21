@@ -78,6 +78,10 @@ constexpr std::chrono::seconds kDuelRefill{1};
 // renewals that fail.
 constexpr std::chrono::seconds kRenewEvery{1};
 
+// As often as the saver flushes the wars' scores, so that a war started on
+// the other instance during a handover, or whose time is up, takes effect.
+constexpr std::chrono::seconds kReadWarsEvery{5};
+
 Progress ProgressOf(const Player& player) {
   Progress progress{.x = player.x,
                     .z = player.z,
@@ -307,6 +311,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   const absl::StatusOr<Membership> membership = guilds_.Of(*id);
   if (membership.ok()) {
     members_[*id] = *membership;
+    WorldOf(*id)->SetGuild(*id, membership->guild);
     // The rest of the guild sees them online.
     RefreshGuild(membership->guild);
   } else if (!absl::IsNotFound(membership.status())) {
@@ -658,6 +663,9 @@ void Server::Guild(uint32_t id, const protocol::GuildAction& action) {
     case protocol::GuildAction::kDisband:
       Disband(id);
       break;
+    case protocol::GuildAction::kWar:
+      AskToWar(id, action.war());
+      break;
     case protocol::GuildAction::kSay:
     case protocol::GuildAction::ACTION_NOT_SET:
       break;
@@ -671,6 +679,7 @@ void Server::Found(uint32_t id, const std::string& name) {
     return;
   }
   members_[id] = *founded;
+  WorldOf(id)->SetGuild(id, founded->guild);
   guild_news_.insert(id);
   std::cout << WorldOf(id)->players().at(id).name << " founded "
             << founded->name << std::endl;
@@ -717,6 +726,7 @@ void Server::Join(uint32_t id) {
     return;
   }
   members_[id] = *joined;
+  WorldOf(id)->SetGuild(id, joined->guild);
   RefreshGuild(joined->guild);
   TellGuild(joined->guild, absl::StrCat(WorldOf(id)->players().at(id).name,
                                         " joined ", joined->name, "."));
@@ -729,6 +739,7 @@ void Server::QuitGuild(uint32_t id) {
     return;
   }
   members_.erase(id);
+  WorldOf(id)->SetGuild(id, 0);
   guild_news_.insert(id);
   RefreshGuild(left->guild);
   std::string news = absl::StrCat(WorldOf(id)->players().at(id).name, " left ",
@@ -772,6 +783,7 @@ void Server::Kick(uint32_t id, uint32_t player) {
   }
   // If they're playing here, they hear it, and lose the name over their head.
   if (members_.erase(player) > 0) {
+    WorldOf(player)->SetGuild(player, 0);
     guild_news_.insert(player);
     Notify(player,
            absl::StrCat("You were removed from ", kicked->guild_name, "."));
@@ -796,9 +808,99 @@ void Server::Disband(uint32_t id) {
     if (member.second.guild != ended->guild) {
       return false;
     }
+    WorldOf(member.first)->SetGuild(member.first, 0);
     guild_news_.insert(member.first);
     return true;
   });
+}
+
+void Server::AskToWar(uint32_t id, const std::string& name) {
+  const absl::StatusOr<War> war = guilds_.AskToWar(name_, id, name);
+  if (!war.ok()) {
+    Refuse(id, war.status());
+    return;
+  }
+  // Asked: the other guild's players here hear it in their chat.
+  if (war->id == 0) {
+    TellGuild(war->challenged,
+              absl::StrCat(war->challenger_name, " asks ", war->challenged_name,
+                           " to war. Your leader types /war ",
+                           war->challenger_name, " to say yes."),
+              protocol::CHANNEL_GUILD);
+    Notify(id, absl::StrCat("You asked ", war->challenged_name, " to war."));
+    return;
+  }
+  // Started: each copy of each land has it at once, and both guilds hear.
+  std::cout << war->challenger_name << " and " << war->challenged_name
+            << " went to war" << std::endl;
+  wars_.push_back(*war);
+  copies_.SetWars(wars_);
+  const std::string news = absl::StrCat(
+      war->challenger_name, " and ", war->challenged_name, " are at war, for ",
+      Guilds::kWarLength.count(), " minutes.");
+  for (const uint32_t guild : {war->challenger, war->challenged}) {
+    TellGuild(guild, news, protocol::CHANNEL_GUILD);
+    RefreshGuild(guild);
+  }
+}
+
+void Server::ReadWars() {
+  const auto now = std::chrono::steady_clock::now();
+  if (now - wars_read_ < kReadWarsEvery) {
+    return;
+  }
+  wars_read_ = now;
+  absl::StatusOr<std::vector<War>> read = guilds_.Wars(name_);
+  if (!read.ok()) {
+    std::cerr << "couldn't read the wars: " << read.status() << "\n";
+    return;
+  }
+  // A war that's gone is over, and both guilds hear so. One that's started
+  // since, as on another instance, or whose score has moved, goes to both
+  // with their next news.
+  for (const War& war : wars_) {
+    if (std::ranges::find(*read, war.id, &War::id) != read->end()) {
+      continue;
+    }
+    const std::string news =
+        absl::StrCat("The war between ", war.challenger_name, " and ",
+                     war.challenged_name, " is over.");
+    for (const uint32_t guild : {war.challenger, war.challenged}) {
+      TellGuild(guild, news, protocol::CHANNEL_GUILD);
+      RefreshGuild(guild);
+    }
+  }
+  for (const War& war : *read) {
+    const auto before = std::ranges::find(wars_, war.id, &War::id);
+    if (before == wars_.end() ||
+        before->challenger_kills != war.challenger_kills ||
+        before->challenged_kills != war.challenged_kills) {
+      RefreshGuild(war.challenger);
+      RefreshGuild(war.challenged);
+    }
+  }
+  wars_ = *std::move(read);
+  copies_.SetWars(wars_);
+}
+
+void Server::TellKills(const std::vector<WarKill>& kills) {
+  for (const WarKill& kill : kills) {
+    const std::string news = absl::StrCat(
+        WorldOf(kill.killer)->players().at(kill.killer).name, " killed ",
+        WorldOf(kill.victim)->players().at(kill.victim).name, ".");
+    std::cout << news << std::endl;
+    TellGuild(kill.guild, news, protocol::CHANNEL_GUILD);
+    if (const War* war = WarOf(kill.guild); war != nullptr) {
+      TellGuild(war->Against(kill.guild), news, protocol::CHANNEL_GUILD);
+    }
+  }
+}
+
+const War* Server::WarOf(uint32_t guild) const {
+  const auto war = std::ranges::find_if(wars_, [guild](const War& war) {
+    return war.challenger == guild || war.challenged == guild;
+  });
+  return war != wars_.end() ? &*war : nullptr;
 }
 
 void Server::GuildSay(uint32_t id, const std::string& text) {
@@ -844,10 +946,11 @@ void Server::RefreshGuild(uint32_t guild) {
   }
 }
 
-void Server::TellGuild(uint32_t guild, const std::string& text) {
+void Server::TellGuild(uint32_t guild, const std::string& text,
+                       protocol::Channel channel) {
   for (const auto& [id, membership] : members_) {
     if (membership.guild == guild) {
-      Notify(id, text);
+      Notify(id, text, channel);
     }
   }
 }
@@ -956,12 +1059,15 @@ void Server::Tick() {
   }
   const auto start = std::chrono::steady_clock::now();
   ApplyInputs();
+  ReadWars();
   copies_.Step(interval_);
   for (const Notice& notice : copies_.TakeNotices()) {
     if (sessions_.contains(notice.player)) {
       Notify(notice.player, notice.text, notice.channel);
     }
   }
+  const std::vector<WarKill> kills = copies_.TakeWarKills();
+  TellKills(kills);
   const std::vector<Event> happened = copies_.TakeEvents();
   RecordEvents(happened);
   std::array<std::size_t, kLands.size()> in_land{};
@@ -974,7 +1080,7 @@ void Server::Tick() {
     metrics_.SetPlayers(kLands[land].name, in_land[land]);
     metrics_.SetCopies(kLands[land].name, copies_of[land]);
   }
-  SaveChanged();
+  SaveChanged(kills);
   RenewLeases();
   Broadcast();
   ShowEvents(happened);
@@ -1005,7 +1111,7 @@ void Server::ApplyInputs() {
   inputs_.Apply([this](uint32_t id) { return WorldOf(id); });
 }
 
-void Server::SaveChanged() {
+void Server::SaveChanged(const std::vector<WarKill>& kills) {
   ZoneScoped;
   const auto start = std::chrono::steady_clock::now();
   std::vector<uint32_t> everyone;
@@ -1015,9 +1121,11 @@ void Server::SaveChanged() {
     }
   }
   // Those whose leases aren't this instance's any more go, and the rest are
-  // saved without them.
-  for (absl::StatusOr<std::set<uint32_t>> lost = Save(everyone);
-       lost.ok() && !lost->empty(); lost = Save(everyone)) {
+  // saved without them, with the kills.
+  for (absl::StatusOr<std::set<uint32_t>> lost =
+           Save(everyone, std::nullopt, kills);
+       lost.ok() && !lost->empty();
+       lost = Save(everyone, std::nullopt, kills)) {
     for (const uint32_t id : *lost) {
       Drop(id, "lease", "their lease isn't this instance's any more");
     }
@@ -1051,7 +1159,8 @@ void Server::RenewLeases() {
 }
 
 absl::StatusOr<std::set<uint32_t>> Server::Save(
-    const std::vector<uint32_t>& ids, const std::optional<Traded>& traded) {
+    const std::vector<uint32_t>& ids, const std::optional<Traded>& traded,
+    const std::vector<WarKill>& kills) {
   std::map<uint32_t, Progress> changed;
   std::map<uint32_t, protocol::Inventory> bags;
   std::map<uint32_t, std::string> leases;
@@ -1073,7 +1182,7 @@ absl::StatusOr<std::set<uint32_t>> Server::Save(
     }
   }
   const absl::StatusOr<std::set<uint32_t>> lost =
-      players_.Save(name_, changed, bags, leases, traded);
+      players_.Save(name_, changed, bags, leases, traded, kills);
   if (!lost.ok()) {
     std::cerr << "couldn't save " << changed.size()
               << " players: " << lost.status() << "\n";
@@ -1400,6 +1509,18 @@ void Server::SendGuilds() {
       }
       guild->mutable_members()->Add(roster->second.begin(),
                                     roster->second.end());
+      // Each side's kills, from theirs.
+      if (const War* war = WarOf(member->second.guild); war != nullptr) {
+        const bool challenger = war->challenger == member->second.guild;
+        protocol::GuildWar* shown = guild->mutable_war();
+        shown->set_enemy(challenger ? war->challenged_name
+                                    : war->challenger_name);
+        shown->set_kills(challenger ? war->challenger_kills
+                                    : war->challenged_kills);
+        shown->set_enemy_kills(challenger ? war->challenged_kills
+                                          : war->challenger_kills);
+        shown->set_left(static_cast<uint32_t>(war->left.count()));
+      }
     }
     std::string frame = Frame(news);
     metrics_.AddBytesSent(frame.size());

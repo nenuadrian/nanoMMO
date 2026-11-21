@@ -95,10 +95,20 @@ class Server {
   void SetRank(uint32_t id, uint32_t player, protocol::Rank rank);
   void Kick(uint32_t id, uint32_t player);
   void Disband(uint32_t id);
+  /// The leader asks the guild of that name to war, or says yes to it.
+  void AskToWar(uint32_t id, const std::string& name);
+  /// Reads the world's wars from MySQL, every few seconds, and tells the
+  /// guilds whose war has started, scored or ended.
+  void ReadWars();
+  /// Both guilds hear of each kill in their war.
+  void TellKills(const std::vector<WarKill>& kills);
+  /// The war the guild's in, or nullptr.
+  const War* WarOf(uint32_t guild) const;
   /// To the guild's players in this world, at once, over TCP.
   void GuildSay(uint32_t id, const std::string& text);
   /// Sends each of the guild's players here a line from the server.
-  void TellGuild(uint32_t guild, const std::string& text);
+  void TellGuild(uint32_t guild, const std::string& text,
+                 protocol::Channel channel = protocol::CHANNEL_WORLD);
   /// Sends each of the guild's players here its roster with the next news.
   void RefreshGuild(uint32_t guild);
   /// Tells the player why their guild action failed: in the error's words
@@ -111,8 +121,9 @@ class Server {
   /// Each player's next numbered input, one a tick, before the world steps.
   void ApplyInputs();
   void Tick();
-  /// Everyone who's changed since they were last saved, once a tick.
-  void SaveChanged();
+  /// Everyone who's changed since they were last saved, once a tick, with
+  /// the tick's war kills.
+  void SaveChanged(const std::vector<WarKill>& kills = {});
   /// Keeps this instance's leases on its players, once a second.
   void RenewLeases();
   /// Those of the players who've changed since they were last saved, into
@@ -120,10 +131,11 @@ class Server {
   /// done, and a player as they leave. Only while this instance has their
   /// leases: it returns the players whose leases it's lost, when it saved
   /// none of them, or an error when Redis couldn't take it, which it's said.
-  /// A trade's record goes in with them.
+  /// A trade's record goes in with them, and so do war kills.
   absl::StatusOr<std::set<uint32_t>> Save(
       const std::vector<uint32_t>& ids,
-      const std::optional<Traded>& traded = std::nullopt);
+      const std::optional<Traded>& traded = std::nullopt,
+      const std::vector<WarKill>& kills = {});
   /// Closes the player's session without saving them, as another instance
   /// has them, or what they have here can't be saved, and says why. They're
   /// counted by the kind of why: "lease" or "trade".
@@ -200,6 +212,10 @@ class Server {
   std::map<uint32_t, Membership> members_;
   /// The players whose guild we've to send them.
   std::set<uint32_t> guild_news_;
+  /// The world's wars, as MySQL had them when we last read them, and when
+  /// that was.
+  std::vector<War> wars_;
+  std::chrono::steady_clock::time_point wars_read_;
   /// Each player's numbered inputs that haven't been applied yet, and the
   /// last one that has.
   Inputs inputs_;

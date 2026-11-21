@@ -36,6 +36,8 @@ constexpr char kSaving[] = "players:saving";
 constexpr char kItemsSaving[] = "items:saving";
 // The trades that aren't in MySQL yet, oldest first.
 constexpr char kTrades[] = "trades";
+// The war kills that aren't on their wars' scores in MySQL yet, oldest first.
+constexpr char kWarKills[] = "war_kills";
 
 std::string Key(const std::string& world, uint32_t id) {
   return absl::StrCat("player:", world, ":", id);
@@ -443,8 +445,8 @@ absl::StatusOr<std::set<uint32_t>> Players::Save(
     const std::string& world, const std::map<uint32_t, Progress>& changed,
     const std::map<uint32_t, protocol::Inventory>& bags,
     const std::map<uint32_t, std::string>& leases,
-    const std::optional<Traded>& traded) {
-  if (changed.empty() && !traded) {
+    const std::optional<Traded>& traded, const std::vector<WarKill>& kills) {
+  if (changed.empty() && !traded && kills.empty()) {
     return std::set<uint32_t>();
   }
   Span span = StartChildSpan("save players", SpanKind::kInternal);
@@ -473,7 +475,9 @@ absl::StatusOr<std::set<uint32_t>> Players::Save(
       items_unsaved.push_back(Key(world, id));
     }
   }
-  commands.push_back(unsaved);
+  if (unsaved.size() > 2) {
+    commands.push_back(unsaved);
+  }
   if (items_unsaved.size() > 2) {
     commands.push_back(items_unsaved);
   }
@@ -494,6 +498,14 @@ absl::StatusOr<std::set<uint32_t>> Players::Save(
       added.insert(added.end(),
                    {"traceparent", Traceparent(publishing.context())});
     }
+  }
+  // Each war kill goes to the saver in a stream of its own, with the players
+  // it changed, for its war's score.
+  for (const WarKill& kill : kills) {
+    commands.push_back({"XADD", kWarKills, "*", "war", absl::StrCat(kill.war),
+                        "world", world, "killer", absl::StrCat(kill.killer),
+                        "victim", absl::StrCat(kill.victim), "guild",
+                        absl::StrCat(kill.guild)});
   }
   // Another instance that's taken a player has saved them since, and its
   // saves are the ones to keep.
@@ -525,18 +537,21 @@ absl::StatusOr<int> Players::Flush() {
   if (const absl::Status back = PutBack(); !back.ok()) {
     return back;
   }
-  // As many as are unsaved now, and as many trades: whoever changes meanwhile
-  // waits for next time.
+  // As many as are unsaved now, and as many trades and war kills: whoever
+  // changes meanwhile waits for next time.
   const absl::StatusOr<std::vector<std::vector<std::string>>> counts =
-      redis_.Pipeline({{"SCARD", kUnsaved}, {"XLEN", kTrades}});
+      redis_.Pipeline(
+          {{"SCARD", kUnsaved}, {"XLEN", kTrades}, {"XLEN", kWarKills}});
   int left = 0;
   int trades_left = 0;
+  int kills_left = 0;
   if (!counts.ok() || !absl::SimpleAtoi(counts->at(0).at(0), &left) ||
-      !absl::SimpleAtoi(counts->at(1).at(0), &trades_left)) {
+      !absl::SimpleAtoi(counts->at(1).at(0), &trades_left) ||
+      !absl::SimpleAtoi(counts->at(2).at(0), &kills_left)) {
     return absl::UnavailableError("couldn't count the unsaved players");
   }
   int saved = 0;
-  while (left > 0 || trades_left > 0) {
+  while (left > 0 || trades_left > 0 || kills_left > 0) {
     // The oldest trades go first, each with both its players, so that MySQL
     // has a trade's record and both bags from after it, or none of it.
     std::vector<Redis::Entry> trades;
@@ -551,6 +566,19 @@ absl::StatusOr<int> Players::Flush() {
       trades = *std::move(oldest);
       trades_left =
           trades.empty() ? 0 : trades_left - static_cast<int>(trades.size());
+    }
+    // And the oldest war kills, which go onto their wars' scores with it.
+    std::vector<Redis::Entry> kills;
+    if (kills_left > 0) {
+      absl::StatusOr<std::vector<Redis::Entry>> oldest = redis_.Read(
+          {"XREAD", "COUNT", absl::StrCat(std::min(kills_left, kBatch)),
+           "STREAMS", kWarKills, "0-0"});
+      if (!oldest.ok()) {
+        return oldest.status();
+      }
+      kills = *std::move(oldest);
+      kills_left =
+          kills.empty() ? 0 : kills_left - static_cast<int>(kills.size());
     }
     // The batch's statements in MySQL go under it.
     const Span saving = StartSavingTrades(trades, read);
@@ -598,7 +626,7 @@ absl::StatusOr<int> Players::Flush() {
                  ? 0
                  : left - static_cast<int>(popped->front().size());
     }
-    if (keys.empty()) {
+    if (keys.empty() && kills.empty()) {
       break;
     }
 
@@ -715,7 +743,14 @@ absl::StatusOr<int> Players::Flush() {
       trade_values.push_back(trade.id.substr(0, trade.id.find('-')));
       recorded.push_back(trade.id);
     }
-    if (rows == 0 && trades.empty()) {
+    // Each war's kills, by the side that made them: the killer's guild.
+    std::map<std::pair<std::string, std::string>, int> scored;
+    std::vector<std::string> counted = {"XDEL", kWarKills};
+    for (const Redis::Entry& kill : kills) {
+      ++scored[{FieldOf(kill, "war"), FieldOf(kill, "guild")}];
+      counted.push_back(kill.id);
+    }
+    if (rows == 0 && trades.empty() && kills.empty()) {
       redis_.Command({"DEL", kSaving, kItemsSaving}).IgnoreError();
       continue;
     }
@@ -766,6 +801,18 @@ absl::StatusOr<int> Players::Flush() {
       if (result.ok() && !trade_values.empty()) {
         result = database_.Run(trades_sql, trade_values);
       }
+      // Each war's kills go onto its count for the side that made them.
+      for (auto score = scored.begin(); result.ok() && score != scored.end();
+           ++score) {
+        const auto& [war, guild] = score->first;
+        const std::string count = absl::StrCat(score->second);
+        result = database_.Run(
+            "UPDATE guild_wars SET "
+            "challenger_kills = challenger_kills + IF(challenger = ?, ?, 0), "
+            "challenged_kills = challenged_kills + IF(challenged = ?, ?, 0) "
+            "WHERE id = ?",
+            {guild, count, guild, count, war});
+      }
       return result.status();
     });
     if (!written.ok()) {
@@ -780,6 +827,10 @@ absl::StatusOr<int> Players::Flush() {
       redis_.Pipeline({recorded, {"DEL", kSaving, kItemsSaving}}).IgnoreError();
     } else {
       redis_.Command({"DEL", kSaving, kItemsSaving}).IgnoreError();
+    }
+    // The kills are on their wars' scores, so they leave the stream.
+    if (!kills.empty()) {
+      redis_.Command(counted).IgnoreError();
     }
     saved += rows;
   }

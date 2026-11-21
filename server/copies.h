@@ -75,6 +75,14 @@ class Copies {
   /// down, started or ended since the last time.
   std::set<uint32_t> TakeDuelNews();
 
+  /// The wars between the world's guilds, for each of them, and each made
+  /// after.
+  void SetWars(const std::vector<War>& wars);
+
+  /// The players killed by an enemy at war, in any of them, since the last
+  /// time.
+  std::vector<WarKill> TakeWarKills();
+
   /// In all the copies.
   int players() const;
 
@@ -94,6 +102,7 @@ class Copies {
   uint32_t next_ = 1;
   /// The copy each player's in, by their ids.
   std::map<uint32_t, uint32_t> where_;
+  std::vector<War> wars_;
 };
 
 }  // namespace nanommo

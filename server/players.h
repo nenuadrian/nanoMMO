@@ -8,6 +8,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -100,20 +101,22 @@ class Players {
   /// to another can't write over what that one saves. Returns the players
   /// whose leases aren't, when it saved none of it. A trade's record goes into
   /// the trades stream with its two bags, for the saver to take to MySQL with
-  /// them.
+  /// them, and each war kill into the war_kills stream, for its war's score.
   absl::StatusOr<std::set<uint32_t>> Save(
       const std::string& world, const std::map<uint32_t, Progress>& changed,
       const std::map<uint32_t, protocol::Inventory>& bags = {},
       const std::map<uint32_t, std::string>& leases = {},
-      const std::optional<Traded>& traded = std::nullopt);
+      const std::optional<Traded>& traded = std::nullopt,
+      const std::vector<WarKill>& kills = {});
 
   /// Takes the unsaved players of all the worlds from Redis to MySQL, a batch
   /// at a time, each in a transaction with the bags that changed, and returns
   /// how many it saved. The trades that are waiting go first, each in a batch
-  /// with both its players, into the trades table. A batch stays in Redis, in
-  /// a set of its own, until MySQL has it, so that one a flush took and
-  /// didn't save, as its saver died, goes back with the unsaved players as
-  /// the next flush starts. There's one saver at a time.
+  /// with both its players, into the trades table, and the war kills, which
+  /// each batch adds to their wars' scores. A batch stays in Redis, in a set
+  /// of its own, until MySQL has it, so that one a flush took and didn't save,
+  /// as its saver died, goes back with the unsaved players as the next flush
+  /// starts. There's one saver at a time.
   absl::StatusOr<int> Flush();
 
   /// How many players are marked unsaved in Redis, waiting for a flush, or in
