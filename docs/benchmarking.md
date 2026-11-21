@@ -102,6 +102,7 @@ The experiments, and how long each fault lasts by default:
 | `mysql-pause` | MySQL hangs | 15 |
 | `mysql-slow` | MySQL answers `DELAY` milliseconds late, 50, through netem in its network | 60 |
 | `saver-kill` | MySQL hangs, the bots leave, and the saver's killed as it waits with them; the report counts the bots whose rows in MySQL differ from Redis, `stale_in_mysql` | 8 |
+| `war-replay` | The bots go to war, in two guilds, for a minute; MySQL answers `DELAY` milliseconds late, 200; the bots leave; and Redis hangs once the saver has taken a batch with kills, before it can take them out of the stream. The report has `war_kills`: the kills the worlds counted in the run, and what the wars' scores came to | 10 |
 | `login-pause` | The login server hangs | 20 |
 | `consul-down` | Consul stops, and starts again | 30 |
 | `telemetry-pause` | Alloy hangs, so no logs or spans get through | 60 |

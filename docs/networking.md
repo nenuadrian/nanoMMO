@@ -251,9 +251,9 @@ newest world's.
 The client runs on the player's machine, so anything it sends can be made up. `nanommo_cheat` is
 the server's red-team client: a player without a window, who breaks the client's rules one way at a
 time and prints what it gets for it (`cheat/main.cc`). It runs beside the servers, with an account
-of its own: `nanommo_cheat <name> <password> <cheat>`, and for a trade or a duel, the partner, who
-runs `take` for a trade, and for a duel says yes in their client, or runs `duel`:
-`nanommo_cheat <name> <password> <cheat> <partner>`.
+of its own: `nanommo_cheat <name> <password> <cheat>`, and for a trade, a duel or a war, the
+partner, who runs `take` for a trade, for a duel says yes in their client, or runs `duel`, and for a
+war runs `feed`: `nanommo_cheat <name> <password> <cheat> <partner>`.
 
 | Cheat | What it sends | What it gets |
 |---|---|---|
@@ -266,9 +266,11 @@ runs `take` for a trade, and for a duel says yes in their client, or runs `duel`
 | `run` | Its sword offered, and once the partner's ready, its own ready, and it leaves at once | Nothing, from 0.75.0: a trade saves both bags, together, as it's done, and a player who leaves is saved as they go, so it comes back without the sword (`ServerTest.ATradeAndALeaveLeaveOneSword`). Before, it left before the tick that would have saved its bag, and came back to the bag Redis had from before the trade: three swords from two |
 | `twice` | A hello to the world's second instance too, with a token of its own, each second for twenty seconds until it's let in, and its sword traded away on the first, which it leaves. On the second, which loaded its bag before the trade, a move of the sword into the bag | Nothing, from 0.79.0: a character plays on one instance at a time, the one that has their lease, so the second turns it away, and the trade goes as it should (`ServerTest.ACharacterPlaysOnOneInstanceAtATime`). Should the first stall for longer than a lease, the second can take it, and the first can't save it any more, and drops it (`ServerTest.AnInstanceDropsAPlayerWhoseLeaseItsLost`). Before, each instance saved it as it had it, and the second saved its bag from before the trade over the trade: three swords from two |
 | `stale` | In a duel, with each input, that its client drew everyone a second before its newest world, where a client says 100 milliseconds, to hit its opponent where they were a second ago | No more than 200 milliseconds back, from 0.82.0, which the server believes at most (`Inputs.AClaimFurtherBackThanTheMostIsTheMost`), so its blows land within reach of where its opponent was then, and not of where they were a second ago (`ServerTest.ADuelBlowLandsWhereTheClientDrewThemUpToTheMost`). It prints what it says, with how far off its opponent was then and is now, and each blow that lands. That's 100 milliseconds more than a client beside the server says, 0.31 metres on a runner |
+| `farm` | In a war with the partner, a friend in the other guild, who runs `feed`: stands still until it's killed, comes back as soon as it can and walks back. `farm` picks them and swings each tick | 2 kills of 17 scored in six and a half minutes, from 0.92.0: a victim scores for a war once every five minutes at most (`Wars.AVictimScoresOnceEveryFiveMinutes`). The kills still happen. Before, each one scored: 15 to 0 in six minutes, 2.6 a minute, for as long as the war lasts |
 
-`walk`, `fight`, `swing`, `take` and `duel` keep the rules, to compare with. Why the server
+`walk`, `fight`, `swing`, `take`, `duel` and `feed` keep the rules, to compare with. Why the server
 checks everything is [decision 25](decisions/0025-the-server-checks-what-a-client-asks-for.md), how
 a trade is checked and saved, [decision 28](decisions/0028-a-trade-is-checked-against-the-bags-and-saved-as-one.md),
-and why a character plays on one instance at a time,
-[decision 31](decisions/0031-a-character-is-leased-to-one-instance-at-a-time.md).
+why a character plays on one instance at a time,
+[decision 31](decisions/0031-a-character-is-leased-to-one-instance-at-a-time.md), and why a victim
+scores once every five minutes, [decision 42](decisions/0042-a-war-kill-counts-once-and-nobody-leaves-a-war.md).

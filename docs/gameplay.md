@@ -402,6 +402,8 @@ characters, and a character is in one guild at most.
   been asked. Not now says no, so that another can ask.
 - When the leader leaves, the highest rank left leads, and of those, who joined first. The last one
   out ends the guild, and its name is free again. Deleting a character leaves its guild, in the same transaction.
+- While the guild is at war, nobody leaves it, nobody's removed from it, and it isn't disbanded,
+  until the war's over (see [Guild wars](#guild-wars)).
 - A player's guild shows under their name, in angle brackets, and in their frame across from their
   name. It comes with their name, once a second.
 - A guild's lines are green in the chat, after `[Guild]`. They go to its players in the world at
@@ -523,6 +525,13 @@ at war, for 30 minutes."
   middle of their land, at full health, after ten seconds. A kill gives no experience and drops
   nothing, and it's the killing blow's player's alone. A duellist an enemy kills loses the duel.
 - Each kill is a line in both guilds' chat, green, after `[Guild]`: "arthur killed mordred."
+- A player scores for the war once every five minutes at most (`Scoring::kOnceEvery`), whoever
+  kills them. Killed again sooner, they die, and both guilds hear of it, but the score doesn't
+  move, so two friends on either side can't run up a score with one feeding the other kills.
+- Nobody leaves a guild at war, so that a losing side can't dodge the war, nor disband to take the
+  war and its kills with it. While the war lasts, a member can't leave, nobody can be removed, the
+  leader can't disband the guild, and a character in it can't be deleted: "Nobody leaves a guild at
+  war until the war's over." Once it's over, they can.
 - The guild window shows the war under the guild's name: the enemy, in red, the kills both ways,
   from your side, and how long it has left. The score comes from MySQL, so it's a few seconds behind
   the game, as the roster's levels are.
@@ -535,6 +544,8 @@ who may hurt whom: a duel opponent, or a player of the guild at war with yours. 
 locks both guilds' rows, the lower id first, before the leader's own. The server reads the world's
 wars again every five seconds, in the tick, so that a war accepted on the other instance during a
 handover, or one whose time is up, takes effect: a war can go on for up to five seconds past its half
-hour. Each kill goes to the saver with the tick's save, for the war's score
-([Saving players](saving.md#guild-wars)). Why wars take two guilds, last half an hour and kill is
-[decision 41](decisions/0041-guilds-at-war-hurt-each-other-anywhere.md).
+hour. Each kill that scores goes to the saver with the tick's save, as a row of its own for the
+war's score ([Saving players](saving.md#guild-wars)). Why wars take two guilds, last half an hour and
+kill is [decision 41](decisions/0041-guilds-at-war-hurt-each-other-anywhere.md), and why a kill
+counts once, a victim scores once every five minutes, and nobody leaves a war is
+[decision 42](decisions/0042-a-war-kill-counts-once-and-nobody-leaves-a-war.md).

@@ -7,6 +7,27 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.92.0 (2026-11-21)
+
+- A war's score counts each kill once. Each kill has an id of its own, and the saver inserts it as
+  a row of `war_kills`, from V15, with `INSERT IGNORE`, so a batch it reads again, as one MySQL
+  committed while Redis hung, adds nothing. A war's score is how many of its rows each side has.
+  `guild_wars`' `challenger_kills` and `challenged_kills` aren't written any more, and stay for
+  0.91.0's servers.
+- A player scores for a war once every five minutes at most, whoever kills them, so that friends
+  on either side can't farm a war's score. The kill still happens.
+- While a guild is at war, nobody leaves it, nobody's removed from it, it can't be disbanded, and a
+  character in it can't be deleted, until the war's over.
+- The worlds count the war kills they hand the saver, `nanommo_war_kills_total`.
+- `nanommo_bot` takes `war` after its transport, which sends half the bots into each of two
+  guilds, Red and Blue, whose first bots found them, take them to war and ask the rest in. The two
+  sides fight each other.
+- `bench/chaos.sh war-replay` has Redis hang once the saver has a batch of war kills, and compares
+  the kills the worlds counted with the scores. Before the fix, three runs out of three counted
+  some twice: 196 kills scored 200, 264 scored 265, 267 scored 281.
+- The red-team client's `farm` and `feed` farm a war's score: fifteen kills scored 15 to 0 in six
+  minutes before, and seventeen scored 2 to 0 in six and a half after.
+
 ## 0.91.0 (2026-11-21)
 
 - Guild wars. A guild's leader asks another guild in the world to war with `/war` and its name,

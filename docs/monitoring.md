@@ -5,8 +5,9 @@
 Each world serves its metrics for Prometheus at http://localhost:9464/metrics: the players online in each land,
 how long each tick takes, how long saving the players takes in each tick, the bytes it sends, the
 messages it receives, the lines of chat, said or refused, and the stories asked for, told, refused
-or failed, with how long each one took, and the players it dropped without saving them, by why
-(`nanommo_players_dropped_total`). The bots serve theirs on
+or failed, with how long each one took, the players it dropped without saving them, by why
+(`nanommo_players_dropped_total`), and the war kills it handed the saver, for their wars' scores
+(`nanommo_war_kills_total`), which the scores in MySQL should add up to. The bots serve theirs on
 port 9465: how old the world on a player's screen would be, by transport, and how long each bot's
 login took, by what came of it, timeouts too (`nanommo_bot_login_duration_seconds`). The saver
 serves its on port 9466: `nanommo_duplicate_items`, the serials that more than one item in MySQL
@@ -47,12 +48,16 @@ the servers count kills and save quests as they would players'. A bot that stops
 getting closer, at the sea or a lake, gives up on its trip. Each one logs in as bot1, bot2 and so on,
 and creates its account the first time. It takes the login server's
 host, the game server's host, how many bots, how many seconds to spread their arrival over, the
-number of its first bot, so that several swarms can play on one server, and the transport for the
-worlds, `udp` or `tcp`, UDP by default:
+number of its first bot, so that several swarms can play on one server, the transport for the
+worlds, `udp` or `tcp`, UDP by default, and `war`, which sends the swarm to war: the bots with odd
+numbers are in Red, and the even ones in Blue, whose first bots found them, take them to war and ask
+the rest in, by name, and in their guild, a bot goes for the nearest enemy it can see, before
+monsters and quests (`bot/war.h`):
 
 ```bash
 ./build/bin/nanommo_bot localhost localhost 100 10
 ./build/bin/nanommo_bot localhost localhost 100 10 101 tcp
+./build/bin/nanommo_bot localhost localhost 100 30 1 udp war
 ```
 
 About sixty times a second, like a client's frames, the bots look at how old their newest world is,

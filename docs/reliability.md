@@ -112,6 +112,29 @@ cap is for.
 Not every experiment found a bug. Frozen telemetry did nothing, as episode 87 meant, and saying so
 is part of the result.
 
+### A war's kills counted twice
+
+Episode 92's experiment, `war-replay`, checks what the saver does with a batch it reads twice. The
+100 bots go to war, in two guilds, for a minute; MySQL answers 200 milliseconds late, so that a
+flush waits on it for a couple of seconds; the bots leave; and as soon as the saver has taken a
+batch with kills still in the stream, Redis hangs for ten seconds. MySQL commits the batch, and the
+saver can't take its kills out of the stream after, so the next flush reads them again. The bots
+leave first so that no kill happens, or fails to be saved, while Redis is gone, and the report
+compares the kills the worlds counted, `nanommo_war_kills_total`, with what the scores in MySQL
+came to, once the saver's caught up.
+
+| Run | Before: 0.92.0's step 2, kills added to counts | After: step 3, a row for each kill |
+|---|---|---|
+| 1 | 196 kills, a score of 200 | 294 kills, a score of 294 |
+| 2 | 264 kills, 265 | 274 kills, 274 |
+| 3 | 267 kills, 281 | 275 kills, 275 |
+
+Three times out of three, the batch Redis hung on was counted twice. After the fix, the saver
+read kills again just as often, and MySQL skipped 30 it had already over the three runs, by
+`INSERT IGNORE`'s warnings, so the scores matched the kills. A trade's record would have been
+counted twice the same way, had it not had an id of its own from the start
+([Saving players](saving.md#guild-wars)).
+
 ### What changed
 
 - Redis answers each call within 250 milliseconds, and MySQL each read and write within three
@@ -129,6 +152,8 @@ is part of the result.
   has, both bags from before it or both from after.
 - A login gives up after five seconds, and the bots count theirs, by result, from outside.
 - The login server gives the worlds it listed in the last half a minute when Consul doesn't answer.
+- From episode 92, each war kill has an id of its own, and is a row in MySQL, which a batch read
+  again inserts once, as a trade's record is.
 
 ### Known, and not fixed yet
 

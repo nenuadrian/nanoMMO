@@ -186,9 +186,8 @@ docker compose exec redis redis-cli KEYS 'guild_invite:*'
 
 A war between two guilds ([Gameplay](gameplay.md#guild-wars)) changes both, so it's in MySQL too,
 in `guild_wars`, from V14: the world, the guild that asked, `challenger`, and the one that said
-yes, `challenged`, when it started and when it ends, and how many of the other side's players each
-side has killed, `challenger_kills` and `challenged_kills`. A war's rows go with either guild, and
-an ended war stays on record.
+yes, `challenged`, and when it started and when it ends. A war's rows go with either guild, and
+an ended war stays on record. Its kills are rows of their own, in `war_kills`, from V15 (below).
 
 - An ask is in Redis, as `war_ask:<world>:<guild>:<enemy>`, holding who asked, set with `SET ... NX
   EX 60`, as an invitation is, so a guild asks another once until it's answered, and the ask runs
@@ -199,18 +198,43 @@ an ended war stays on record.
   is at war, as a guild is in one at a time. A test has two leaders say yes at once, each to the
   other's ask, on two connections, and the second finds the first's war.
 - The world server reads the world's wars that haven't ended every five seconds, in the tick, with
-  each side's name and kills.
+  each side's name and score.
+- Leaving a guild, removing someone from it and disbanding it each check, in their transaction,
+  after the guild's row is locked, that it isn't at war (`NotAtWar` in `server/guilds.cc`), and are
+  refused while it is. The yes locks both guilds' rows, so a war can't start between the check and
+  the change. Deleting a character leaves its guild the same way, so it's refused too.
 
-Each kill in a war goes into another stream, `war_kills`, in the same script as the tick's save:
-the war, the world, the killer, the one killed and the killer's guild, whose side it counts for.
-In each batch, the saver reads the oldest kills, up to 500, as it reads the trades, adds each war's
-to its counts, by the killer's guild, a statement for each war and side, in the batch's
-transaction, and takes them out of the stream once MySQL has them. So a war's score is a few
-seconds behind the game: the saver's flush, every five seconds, and the world's next read of the
-wars. A kill whose save Redis doesn't take, as when it can't be reached, isn't counted.
+Each kill in a war that scores goes into another stream, `war_kills`, in the same script as the
+tick's save: an id of its own, which the world server gives it as it takes it from the world
+(`RandomHex`, as a trade's record has), the war, the world, the killer, the one killed and the
+killer's guild, whose side it counts for. In each batch, the saver reads the oldest kills, up to
+500, as it reads the trades, inserts each as a row of `war_kills`, with the millisecond Redis took
+it, in the batch's transaction, and takes them out of the stream once MySQL has them. A war's
+score is how many of its rows each side has, by the killer's guild, which a key on the war and the
+guild counts. So it's a few seconds behind the game: the saver's flush, every five seconds, and the
+world's next read of the wars. A kill whose save Redis doesn't take, as when it can't be reached,
+isn't counted.
+
+Like the trades, the kills reach MySQL at least once. A batch that MySQL committed without the
+saver hearing so, or whose kills the saver couldn't take out of the stream after, as when Redis
+hangs in between, is read again by the next flush. Before episode 92, the saver added each batch's
+kills to counts in `guild_wars`, `challenger_kills` and `challenged_kills`, so a batch read again
+was counted again: `bench/chaos.sh war-replay` has Redis hang just then, and the scores came to more
+than the kills the worlds counted, three times out of three ([Reliability](reliability.md#a-wars-kills-counted-twice)).
+Now `INSERT IGNORE` skips a kill whose id is there already, and one whose war has gone since, so
+each kill counts once. The counts' columns aren't written any more, and stay, as the servers of
+0.91.0 read them until they're replaced. A kill from one of those, during a deploy, has no id, and
+goes by its entry's in the stream.
+
+A player scores for a war once every five minutes at most: the world server remembers when each
+victim last scored, by the war, and hands the saver only the kills that score
+(`Scoring`, `server/wars.h`). It's the instance's memory, so the next instance starts with none.
+`nanommo_war_kills_total` counts the kills each world hands the saver, which is what the scores in
+MySQL should add up to.
 
 ```bash
 docker compose exec mysql mysql -unanommo -pnanommo nanommo -e 'SELECT * FROM guild_wars'
+docker compose exec mysql mysql -unanommo -pnanommo nanommo -e 'SELECT * FROM war_kills'
 docker compose exec redis redis-cli KEYS 'war_ask:*'
 docker compose exec redis redis-cli XRANGE war_kills - +
 ```
