@@ -16,6 +16,10 @@
 #   mysql-slow 60       MySQL answers DELAY milliseconds late (50), by netem
 #   saver-kill 8        MySQL hangs, the bots leave, the saver takes them to
 #                       it, and it's killed mid-flush
+#   war-replay 10       the bots go to war, MySQL answers DELAY milliseconds
+#                       late (200), the bots leave, and Redis hangs once the
+#                       saver has taken their last kills, before it can take
+#                       them out of the stream
 #   login-pause 20      the login server hangs
 #   consul-down 30      Consul stops, and starts again
 #   telemetry-pause 60  Alloy hangs, so no spans or logs get through
@@ -141,11 +145,11 @@ wait_steady() {
 # the probes' measure their logins as much as their worlds. They join the
 # stack as it is: without --no-deps, Compose would start what they depend on,
 # or make it again if its configuration had changed, in the middle of an
-# experiment.
+# experiment. A fifth argument, war, sends them to war, in two guilds.
 start_bots() {
-  BOTS=$1 RAMP=$2 BOTS_FIRST=$3 docker compose --progress quiet run -d --rm \
-    --no-deps --use-aliases --label nanommo.bench=true \
-    --label "nanommo.chaos=$4" bots >/dev/null
+  docker compose --progress quiet run -d --rm --no-deps --use-aliases \
+    --label nanommo.bench=true --label "nanommo.chaos=$4" \
+    bots login server "$1" "$2" "$3" udp ${5:-} >/dev/null
 }
 
 stop_bots() {
@@ -236,6 +240,7 @@ case $experiment in
   mysql-pause) seconds=${2:-15} ;;
   mysql-slow) seconds=${2:-60} ;;
   saver-kill) seconds=${2:-8} ;;
+  war-replay) seconds=${2:-10} ;;
   login-pause) seconds=${2:-20} ;;
   consul-down) seconds=${2:-30} ;;
   telemetry-pause) seconds=${2:-60} ;;
@@ -255,9 +260,23 @@ trap 'exit 130' INT TERM
 docker compose --progress quiet build bots netem
 netem=$(docker compose config --format json | jq -r .name)-netem
 expected=$bots
+# The war kills the worlds counted, and the wars' scores in MySQL, which the
+# saver adds them to.
+counted() { query 'sum(nanommo_war_kills_total)'; }
+scored() {
+  docker compose exec -T mysql mysql -unanommo -pnanommo -N -B nanommo \
+    -e "SELECT COALESCE(SUM(challenger_kills + challenged_kills), 0)
+        FROM guild_wars" 2>/dev/null
+}
+war=""
+if [[ $experiment == war-replay ]]; then
+  war=war
+  counted_from=$(counted)
+  scored_from=$(scored)
+fi
 if [[ -z $(docker ps -q --filter label=nanommo.chaos=swarm) ]]; then
-  say "starting $bots bots, over $ramp s"
-  start_bots "$bots" "$ramp" 1 swarm
+  say "starting $bots bots, over $ramp s${war:+, at war}"
+  start_bots "$bots" "$ramp" 1 swarm $war
 fi
 swarm_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
   "$(docker ps -q --filter label=nanommo.chaos=swarm | head -1)")
@@ -268,7 +287,11 @@ before=$(wait_steady) || {
   exit 1
 }
 
-if ((probes > 0)) && [[ $experiment != saver-kill ]]; then
+# A minute of the war first, so that the guilds are full, and killing.
+if [[ $experiment == war-replay ]]; then
+  sleep 60
+fi
+if ((probes > 0)) && [[ $experiment != saver-kill && $experiment != war-replay ]]; then
   start_bots "$probes" "$seconds" 1001 probes
   expected=$((bots + probes))
 fi
@@ -294,6 +317,19 @@ case $experiment in
     pause mysql
     stop_bots swarm
     expected=0
+    ;;
+  war-replay)
+    # MySQL answers late, so each flush waits on it, and the bots leave. Once
+    # the saver has taken a batch, with kills still in the stream, Redis
+    # hangs: MySQL commits the batch, and the saver can't take its kills out
+    # of the stream, so the flush after reads them again.
+    delay mysql "${DELAY:-200}"
+    stop_bots swarm
+    expected=0
+    docker compose exec -T redis timeout 30 sh -c '
+      until [ "$(redis-cli SCARD players:saving)" -gt 0 ] &&
+        [ "$(redis-cli XLEN war_kills)" -gt 0 ]; do sleep 0.01; done' || true
+    pause redis
     ;;
 esac
 sleep "$seconds"
@@ -328,6 +364,16 @@ if [[ $experiment == saver-kill ]]; then
   stale=$(paste <(echo "$rows") <(echo "$newer") | awk -F'\t' '
     $5 != "" && ($2 - $5 > 0.01 || $5 - $2 > 0.01 || $3 - $6 > 0.01 ||
       $6 - $3 > 0.01 || $4 != $7) { n++ } END { print n + 0 }')
+fi
+
+# Once the saver's caught up, the war kills the worlds counted in the run,
+# and what the wars' scores came to, which should be the same.
+kills=null
+if [[ $experiment == war-replay ]]; then
+  sleep 10
+  kills=$(jq -n --argjson counted "$(($(counted) - counted_from))" \
+    --argjson scored "$(($(scored) - scored_from))" \
+    '{counted: $counted, scored: $scored}')
 fi
 
 say "injected $injected, restored $restored_at, steady again $recovered"
@@ -423,7 +469,7 @@ jq -n \
   --argjson recovered_after "$recovered_after" \
   --argjson ticks "$ticks" --argjson dropped "$dropped" \
   --argjson logins "$logins" --argjson bot_logins "$bot_logins" \
-  --argjson stale "$stale" \
+  --argjson stale "$stale" --argjson kills "$kills" \
   --argjson spans_dropped "$spans_dropped" --argjson alerts "$alerts" \
   --argjson errors "$errors" --argjson timeline "$timeline" \
   --argjson failed "$failed_traces" --argjson slow "$slow_traces" \
@@ -442,6 +488,7 @@ jq -n \
     world_age_p99_max_s: $age, bots_connected_fewest: $fewest,
     bots_connected_after: $connected,
     logins: $logins, bot_logins: $bot_logins, saver_behind_max_s: $behind, stale_in_mysql: $stale,
+    war_kills: $kills,
     duplicates_max: $copies, spans_dropped: $spans_dropped,
     stderr_lines: $errors, alerts: $alerts,
     error_traces: {count: ($failed | length), first: $failed[:5]},
@@ -450,4 +497,6 @@ jq -n \
   tee >(jq -r '"chaos: \(.experiment) \(.seconds) s: " +
     (.ticks | to_entries | map("\(.key) missed \(.value.missed) ticks") | join(", ")) +
     "; world age p99 up to \(.world_age_p99_max_s) s; dropped \(.players_dropped);" +
-    " recovered after \(.recovered_after_s) s"' >&2)
+    " recovered after \(.recovered_after_s) s" +
+    (if .war_kills then "; the worlds counted \(.war_kills.counted) war kills," +
+      " and the scores came to \(.war_kills.scored)" else "" end)' >&2)
