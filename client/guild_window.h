@@ -13,9 +13,13 @@ namespace nanommo {
 /// What a rank is called: Leader, Officer or Member.
 const char* RankName(protocol::Rank rank);
 
+/// How long a war has left, in minutes and seconds, such as 29:05.
+std::string TimeLeft(uint32_t seconds);
+
 /// Your guild, in a window of its own, which G opens and closes: a name to
 /// found one with while you're in none, and its name and your rank once you
-/// are, with a name to ask someone in by, for an officer or the leader.
+/// are, its war while it's in one, and a name to ask someone in by, for an
+/// officer or the leader.
 class GuildWindow {
  public:
   bool* mutable_visible() { return &visible_; }
@@ -47,6 +51,10 @@ class GuildWindow {
   /// When it came, in ImGui's seconds.
   double invited_at_ = 0.0;
   bool disbanding_ = false;
+  /// How long the war had left as its news came, in seconds, and when that
+  /// was, in ImGui's seconds, which it counts down from.
+  uint32_t war_left_ = 0;
+  double war_news_at_ = 0.0;
 };
 
 }  // namespace nanommo

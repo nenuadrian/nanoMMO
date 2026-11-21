@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <map>
+#include <string_view>
 #include <vector>
 
 #include "client/animator.h"
@@ -22,9 +23,11 @@ bool HasNameplate(const Figure& figure);
 
 /// Over each figure, its name, and its level and health, but for an NPC's.
 /// Under a monster's health, its skill on its way, if it has one: a bar that
-/// fills as its shape does, in its colour, and its name.
+/// fills as its shape does, in its colour, and its name. The names of the
+/// players in the guild at war with yours, by its name, are red.
 void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
-                    const std::map<uint32_t, Telegraph>& telegraphs = {});
+                    const std::map<uint32_t, Telegraph>& telegraphs = {},
+                    std::string_view enemy = {});
 
 }  // namespace nanommo
 

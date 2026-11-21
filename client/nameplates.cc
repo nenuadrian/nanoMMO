@@ -8,7 +8,10 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
+
+#include "client/picking.h"
 
 namespace nanommo {
 
@@ -19,6 +22,7 @@ constexpr ImU32 kLevel = IM_COL32(190, 190, 190, 255);
 constexpr ImU32 kYourName = IM_COL32(255, 210, 80, 255);
 constexpr ImU32 kMonsterName = IM_COL32(255, 140, 120, 255);
 constexpr ImU32 kNpcName = IM_COL32(150, 230, 140, 255);
+constexpr ImU32 kEnemyName = IM_COL32(255, 80, 70, 255);
 constexpr ImU32 kGuild = IM_COL32(205, 190, 150, 255);
 constexpr float kGuildScale = 0.85f;
 // A quest's mark, over an NPC's name, in gold, and twice its size.
@@ -46,10 +50,13 @@ void DrawShadowedText(ImDrawList* draw, float size, ImVec2 at, ImU32 color,
 }
 
 // Yours stands out from the other players', so that you can find yourself in
-// a crowd.
-ImU32 NameColor(const Figure& figure) {
+// a crowd, and an enemy's is red, as they can hurt you.
+ImU32 NameColor(const Figure& figure, std::string_view enemy) {
   if (figure.monster) {
     return kMonsterName;
+  }
+  if (Enemy(figure, enemy)) {
+    return kEnemyName;
   }
   return figure.you ? kYourName : IM_COL32_WHITE;
 }
@@ -67,7 +74,8 @@ bool HasNameplate(const Figure& figure) {
 }
 
 void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
-                    const std::map<uint32_t, Telegraph>& telegraphs) {
+                    const std::map<uint32_t, Telegraph>& telegraphs,
+                    std::string_view enemy) {
   ImDrawList* draw = ImGui::GetBackgroundDrawList();
   ImFont* font = ImGui::GetFont();
   const float font_size = ImGui::GetFontSize() * 1.4f;
@@ -154,7 +162,7 @@ void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
     const float left = at.x - (level_width + name_size.x) / 2;
     DrawShadowedText(draw, font_size, {left, top}, kLevel, level);
     DrawShadowedText(draw, font_size, {left + level_width, top},
-                     NameColor(figure), figure.name);
+                     NameColor(figure, enemy), figure.name);
   }
 }
 

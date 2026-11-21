@@ -130,3 +130,26 @@ TEST(Picking, FindsTheGroundUnderTheMouse) {
                .direction = {0.0f, 1.0f, 0.0f}};
   EXPECT_FALSE(nanommo::PickGround(board, up));
 }
+
+TEST(Picking, PicksAPlayerInTheGuildAtWarWithYoursAsAMonster) {
+  // A guildmate ahead, then a player of the guild at war with ours.
+  std::vector<nanommo::Figure> figures(2);
+  figures[0].id = 7;
+  figures[0].guild = "Iron Wolves";
+  figures[0].position = {0.0f, 0.0f, -4.0f};
+  figures[1].id = 8;
+  figures[1].guild = "Stone Bears";
+  figures[1].position = {0.0f, 0.0f, -6.0f};
+  const Ray ahead{.position = {0.0f, 0.5f, 0.0f},
+                  .direction = {0.0f, 0.0f, -1.0f}};
+
+  // Out of a war, neither is picked, and in one, the enemy is, past the
+  // guildmate in front of them, until they're dead.
+  EXPECT_EQ(nanommo::PickMonster(figures, ahead), nullptr);
+  EXPECT_FALSE(nanommo::Enemy(figures[0], "Stone Bears"));
+  EXPECT_TRUE(nanommo::Enemy(figures[1], "Stone Bears"));
+  EXPECT_EQ(nanommo::PickMonster(figures, ahead, 0, "Stone Bears"),
+            &figures[1]);
+  figures[1].to = nanommo::protocol::MOTION_DEAD;
+  EXPECT_EQ(nanommo::PickMonster(figures, ahead, 0, "Stone Bears"), nullptr);
+}

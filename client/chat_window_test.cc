@@ -18,6 +18,12 @@ TEST(ChatWindow, AsksToTradeWithThePlayerNamedAfterSlashTrade) {
   EXPECT_EQ(nanommo::TradeName("/trader"), std::nullopt);
 }
 
+TEST(ChatWindow, AsksTheGuildNamedAfterSlashWarToWar) {
+  EXPECT_EQ(nanommo::WarName("/war Stone Bears"), "Stone Bears");
+  EXPECT_EQ(nanommo::WarName("war Stone Bears"), std::nullopt);
+  EXPECT_EQ(nanommo::WarName("/warlock"), std::nullopt);
+}
+
 TEST(ChatWindow, AsksToDuelOrAnswersAfterSlashDuel) {
   const auto duel = [](std::string_view typed) {
     return nanommo::DuelLine(typed).value_or(nanommo::protocol::DuelAction());

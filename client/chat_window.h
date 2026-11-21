@@ -22,6 +22,10 @@ std::optional<std::string> GuildLine(std::string_view typed);
 /// starts with /trade and a space, or nothing, for any other line.
 std::optional<std::string> TradeName(std::string_view typed);
 
+/// The guild a line typed in the chat asks to war, by its name, when it starts
+/// with /war and a space, or nothing, for any other line.
+std::optional<std::string> WarName(std::string_view typed);
+
 /// What a line typed in the chat does about a duel, when it starts with /duel
 /// and a space: yes or no to the one who asked, yield, or, with a name, asks
 /// that player. Nothing, for any other line.

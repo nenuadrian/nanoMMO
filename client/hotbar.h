@@ -27,9 +27,10 @@ class Hotbar {
   /// Draws each skill with its icon and its key, and how long until it's
   /// ready, or, while the player doesn't know it, the level it needs, or Learn
   /// once they've reached it. A skill that hits one monster is red while
-  /// they've picked none, by its id in target, or in a duel, the player in
-  /// target_player, as the server runs them up to the one they picked, however
-  /// far. Returns the skill the player used, with its key or a click.
+  /// they've picked none, by its id in target, or the player in target_player,
+  /// an opponent in a duel or an enemy at war, as the server runs them up to
+  /// the one they picked, however far. Returns the skill the player used, with
+  /// its key or a click.
   std::optional<uint32_t> Build(const std::vector<Figure>& figures,
                                 const protocol::World& world, uint32_t target,
                                 uint32_t target_player = 0);

@@ -112,7 +112,7 @@ add_executable(nanommo_client_tests
   login_screen_test.cc
   loading_test.cc death_screen_test.cc gate_test.cc map_test.cc
   theme_test.cc compass_test.cc predicted_bag_test.cc chat_window_test.cc
-  trade_window_test.cc duel_window_test.cc inbox_test.cc
+  guild_window_test.cc trade_window_test.cc duel_window_test.cc inbox_test.cc
   round_trip_test.cc prediction_test.cc interpolation_test.cc
   daylight_test.cc ambience_test.cc
 )

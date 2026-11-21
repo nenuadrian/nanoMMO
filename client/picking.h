@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <string_view>
 #include <vector>
 
 #include "client/animator.h"
@@ -18,14 +19,18 @@ namespace nanommo {
 const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray,
                       Vector3 you);
 
+/// Whether the figure is another player in the guild at war with yours, by
+/// its name, or none for no war.
+bool Enemy(const Figure& figure, std::string_view enemy);
+
 /// The nearest living monster along the ray, or in a duel, the opponent, by
-/// their id, whom the player picks as they would a monster. Or nullptr, if
-/// there's neither.
+/// their id, or a player in the guild at war with yours, whom the player
+/// picks as they would a monster. Or nullptr, if there's none of them.
 const Figure* PickMonster(const std::vector<Figure>& figures, const Ray& ray,
-                          uint32_t opponent = 0);
+                          uint32_t opponent = 0, std::string_view enemy = {});
 
 /// Whether the figure is the one the player picked: the monster, by its id,
-/// or in a duel, the player, by theirs, as each has ids of their own.
+/// or the player, in a duel or at war, by theirs, as each has ids of their own.
 bool Picked(const Figure& figure, uint32_t target, uint32_t target_player);
 
 /// Where the ray first meets the ground, if it does within the farthest

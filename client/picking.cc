@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <string_view>
 #include <vector>
 
 #include "content/npcs.h"
@@ -64,10 +65,16 @@ const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray,
   });
 }
 
+bool Enemy(const Figure& figure, std::string_view enemy) {
+  return !figure.monster && !figure.npc && !figure.you && !enemy.empty() &&
+         figure.guild == enemy;
+}
+
 const Figure* PickMonster(const std::vector<Figure>& figures, const Ray& ray,
-                          uint32_t opponent) {
-  return Pick(figures, ray, [opponent](const Figure& figure) {
-    return (figure.monster || Picked(figure, 0, opponent)) &&
+                          uint32_t opponent, std::string_view enemy) {
+  return Pick(figures, ray, [opponent, enemy](const Figure& figure) {
+    return (figure.monster || Picked(figure, 0, opponent) ||
+            Enemy(figure, enemy)) &&
            figure.to != protocol::MOTION_DEAD;
   });
 }

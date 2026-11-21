@@ -449,12 +449,18 @@ int main(int argc, char* argv[]) {
           })) {
         target = 0;
       }
-      // And the player, while we're duelling them.
+      // And the player, while we're duelling them, or they're alive in the
+      // guild at war with ours.
       const nanommo::protocol::Duel& duel = connection->duel();
       const uint32_t opponent = duel.state() == nanommo::protocol::DUEL_FIGHTING
                                     ? duel.opponent_id()
                                     : 0;
-      if (target_player != opponent) {
+      const std::string enemy = connection->guild().war().enemy();
+      if (target_player != opponent &&
+          std::ranges::none_of(figures, [&](const nanommo::Figure& f) {
+            return f.id == target_player && nanommo::Enemy(f, enemy) &&
+                   f.to != nanommo::protocol::MOTION_DEAD;
+          })) {
         target_player = 0;
       }
       renderer.set_figures(std::move(figures));
@@ -511,8 +517,9 @@ int main(int argc, char* argv[]) {
         }
       }
       // A click on someone to talk to opens their window, one on a monster,
-      // or in a duel on our opponent, picks it, and one on neither lets go of
-      // what we'd picked. The cursor says which a click would do.
+      // or on our opponent in a duel or an enemy at war, picks it, and one on
+      // neither lets go of what we'd picked. The cursor says which a click
+      // would do.
       if (!ImGui::GetIO().WantCaptureMouse && !dead) {
         const Ray ray =
             GetScreenToWorldRay(GetMousePosition(), camera.camera());
@@ -520,7 +527,7 @@ int main(int argc, char* argv[]) {
             nanommo::PickNpc(renderer.figures(), ray, here);
         const nanommo::Figure* monster =
             npc == nullptr
-                ? nanommo::PickMonster(renderer.figures(), ray, opponent)
+                ? nanommo::PickMonster(renderer.figures(), ray, opponent, enemy)
                 : nullptr;
         if (npc != nullptr) {
           pointing = nanommo::Pointing::kNpc;
@@ -630,7 +637,8 @@ int main(int argc, char* argv[]) {
     gui.Begin(settings.ui.scale);
     if (in_world) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera(),
-                              telegraphs.shown());
+                              telegraphs.shown(),
+                              connection->guild().war().enemy());
       nanommo::DrawCombatText(combat_text, renderer.figures(),
                               renderer.camera());
       // Over the nameplates, and under the windows.
@@ -684,6 +692,9 @@ int main(int argc, char* argv[]) {
         } else if (const std::optional<std::string> trader =
                        nanommo::TradeName(*line)) {
           say.mutable_trade()->set_ask(*trader);
+        } else if (const std::optional<std::string> war =
+                       nanommo::WarName(*line)) {
+          say.mutable_guild()->set_war(*war);
         } else if (std::optional<nanommo::protocol::DuelAction> duel =
                        nanommo::DuelLine(*line)) {
           *say.mutable_duel() = *std::move(duel);

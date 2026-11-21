@@ -49,6 +49,14 @@ std::optional<std::string> TradeName(std::string_view typed) {
   return std::string(typed.substr(kCommand.size()));
 }
 
+std::optional<std::string> WarName(std::string_view typed) {
+  constexpr std::string_view kCommand = "/war ";
+  if (!typed.starts_with(kCommand)) {
+    return std::nullopt;
+  }
+  return std::string(typed.substr(kCommand.size()));
+}
+
 std::optional<protocol::DuelAction> DuelLine(std::string_view typed) {
   constexpr std::string_view kCommand = "/duel ";
   if (!typed.starts_with(kCommand)) {
@@ -179,7 +187,14 @@ std::optional<std::string> ChatWindow::Build(
       ImGui::PopFont();
       continue;
     }
-    // A line with no name is from the server.
+    // A line with no name is from the server, and one of those for the guild
+    // alone, such as a kill in its war, is green, as its players' lines are.
+    if (line.name().empty() && line.channel() == protocol::CHANNEL_GUILD) {
+      ImGui::PushStyleColor(ImGuiCol_Text, kGuild);
+      ImGui::TextWrapped("[Guild] %s", line.text().c_str());
+      ImGui::PopStyleColor();
+      continue;
+    }
     if (line.name().empty()) {
       ImGui::PushStyleColor(ImGuiCol_Text, kServer);
       ImGui::TextWrapped("%s", line.text().c_str());

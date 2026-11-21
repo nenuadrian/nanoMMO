@@ -3,9 +3,11 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "client/theme.h"
 
 namespace nanommo {
@@ -14,6 +16,9 @@ namespace {
 
 // As long as the server keeps an invitation.
 constexpr double kInvitationLife = 60.0;
+
+// As the enemies' names over their heads are.
+constexpr ImVec4 kEnemy{1.0f, 0.31f, 0.27f, 1.0f};
 
 }  // namespace
 
@@ -28,6 +33,11 @@ const char* RankName(protocol::Rank rank) {
   }
 }
 
+std::string TimeLeft(uint32_t seconds) {
+  const uint32_t past = seconds % 60;
+  return absl::StrCat(seconds / 60, past < 10 ? ":0" : ":", past);
+}
+
 void GuildWindow::Invited(protocol::GuildInvite invite) {
   invite_ = std::move(invite);
   invited_at_ = ImGui::GetTime();
@@ -36,6 +46,12 @@ void GuildWindow::Invited(protocol::GuildInvite invite) {
 std::optional<protocol::GuildAction> GuildWindow::Build(
     const protocol::Guild& yours, uint32_t you) {
   std::optional<protocol::GuildAction> action = BuildQuestion();
+  // The news comes as the war starts, or its score moves, so its time left
+  // counts down here in between.
+  if (yours.war().left() != war_left_) {
+    war_left_ = yours.war().left();
+    war_news_at_ = ImGui::GetTime();
+  }
   if (!visible_) {
     return action;
   }
@@ -62,6 +78,19 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
     } else {
       ImGui::TextUnformatted(yours.name().c_str());
       ImGui::TextDisabled("%s", RankName(yours.rank()));
+      // At war: with whom, the score from our side, and how long it has left.
+      if (yours.has_war()) {
+        const protocol::GuildWar& war = yours.war();
+        const auto since =
+            static_cast<uint32_t>(ImGui::GetTime() - war_news_at_);
+        ImGui::Spacing();
+        ImGui::TextColored(kEnemy, "At war with %s", war.enemy().c_str());
+        ImGui::Text("Kills: %u to %u", war.kills(), war.enemy_kills());
+        ImGui::TextDisabled(
+            "%s left",
+            TimeLeft(war.left() > since ? war.left() - since : 0).c_str());
+        ImGui::Spacing();
+      }
       // The roster, the highest rank first, and those playing in white.
       if (ImGui::BeginTable(
               "Roster", 3,
