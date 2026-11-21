@@ -35,6 +35,7 @@
 #include "server/storyteller.h"
 #include "server/token_bucket.h"
 #include "server/tokens.h"
+#include "server/wars.h"
 #include "server/world.h"
 
 namespace nanommo {
@@ -216,6 +217,8 @@ class Server {
   /// that was.
   std::vector<War> wars_;
   std::chrono::steady_clock::time_point wars_read_;
+  /// Which of the war kills here score.
+  Scoring scoring_;
   /// Each player's numbered inputs that haven't been applied yet, and the
   /// last one that has.
   Inputs inputs_;

@@ -208,3 +208,23 @@ TEST(Wars, ABlowOnAnEnemyIsCheckedWhereTheAttackerSawThem) {
   EXPECT_EQ(bob.health, 100 - 15);
   EXPECT_GT(bob.x, 1.6f);
 }
+
+TEST(Wars, AVictimScoresOnceEveryFiveMinutes) {
+  using std::chrono::minutes;
+  using std::chrono::seconds;
+  nanommo::Scoring scoring;
+  const auto start = std::chrono::steady_clock::now();
+  const nanommo::WarKill kill{.war = 7, .killer = 1, .victim = 2, .guild = 1};
+  EXPECT_TRUE(scoring.Scores(kill, start));
+  // Killed again, by anyone, they don't score, until five minutes on.
+  EXPECT_FALSE(scoring.Scores(kill, start + minutes(1)));
+  EXPECT_FALSE(scoring.Scores({.war = 7, .killer = 3, .victim = 2, .guild = 1},
+                              start + minutes(4) + seconds(59)));
+  EXPECT_TRUE(scoring.Scores(kill, start + minutes(5)));
+  EXPECT_FALSE(scoring.Scores(kill, start + minutes(9)));
+  // Anyone else scores, and so do they in another war.
+  EXPECT_TRUE(scoring.Scores({.war = 7, .killer = 2, .victim = 1, .guild = 2},
+                             start + minutes(9)));
+  EXPECT_TRUE(scoring.Scores({.war = 8, .killer = 1, .victim = 2, .guild = 1},
+                             start + minutes(9)));
+}

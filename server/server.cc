@@ -1068,6 +1068,11 @@ void Server::Tick() {
   }
   std::vector<WarKill> kills = copies_.TakeWarKills();
   TellKills(kills);
+  // A victim scores for a war once every five minutes at most: the kill
+  // happened, and both guilds heard, but it goes no further.
+  std::erase_if(kills, [this, start](const WarKill& kill) {
+    return !scoring_.Scores(kill, start);
+  });
   // Each has an id of its own, as a trade's record does, so that the saver
   // records it once, however many times it reads it.
   for (WarKill& kill : kills) {
