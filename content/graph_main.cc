@@ -34,14 +34,19 @@ int main(int argc, char** argv) {
   }
   std::cout << graph.node_count() << " nodes, " << graph.relationship_count()
             << " relationships\n";
-  const absl::StatusOr<std::vector<std::string>> lines =
-      nanommo::Unreachable(graph);
-  if (!lines.ok()) {
-    std::cerr << "nanommo_graph: " << lines.status().message() << '\n';
+  absl::StatusOr<std::vector<std::string>> lines = nanommo::Unreachable(graph);
+  const absl::StatusOr<std::vector<std::string>> cycles =
+      nanommo::Cycles(graph);
+  if (!lines.ok() || !cycles.ok()) {
+    std::cerr << "nanommo_graph: "
+              << (lines.ok() ? cycles.status() : lines.status()).message()
+              << '\n';
     return 1;
   }
+  lines->insert(lines->end(), cycles->begin(), cycles->end());
   for (const std::string& line : *lines) std::cout << line << '\n';
   graph.Flush();
-  // Something out of reach is an error, so a script can tell.
+  // Something out of reach, or that goes round, is an error, so a script can
+  // tell.
   return lines->empty() ? 0 : 1;
 }

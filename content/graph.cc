@@ -1,10 +1,13 @@
 #include "content/graph.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -18,10 +21,12 @@ namespace nanommo {
 namespace {
 
 // The ways a player gets from one thing to the next, which a path follows.
-// A quest's ASKS_FOR isn't one of them.
+// A quest's ASKS_FOR isn't one of them, and nor is an item's INTO a recipe,
+// as one item doesn't get a player to a recipe that takes others too: a new
+// player CRAFTS it once they reach them all.
 constexpr std::string_view kWays =
     "STARTS_IN|STARTS_WITH|KNOWS|GATE|SPAWNS|STANDS|DROPS|SUMMONS|GIVES|"
-    "REWARDS|TEACHES|NEXT|INTO|MAKES";
+    "REWARDS|TEACHES|NEXT|CRAFTS|MAKES";
 
 // Each label, and what it's called in a line of Unreachable's.
 struct Kind {
@@ -83,6 +88,53 @@ std::set<std::string> Names(const smollergraph::Result& result) {
     if (name) names.insert(smollergraph::ValueText(*name));
   }
   return names;
+}
+
+// A cell's value as a string, or nothing for Cypher's null.
+std::string Text(const smollergraph::Cell& cell) {
+  return cell.value ? smollergraph::ValueText(*cell.value) : "";
+}
+
+// The names of the nodes with the label that a new player reaches: a
+// shortest path from them to each, along the ways a player gets about, and a
+// row for each node that has one.
+absl::StatusOr<std::set<std::string>> Reached(const smollergraph::Graph& graph,
+                                              std::string_view label) {
+  absl::StatusOr<smollergraph::Result> reached = smollergraph::Execute(
+      graph,
+      absl::StrCat("MATCH p = shortestPath((s {name: '", kNewPlayer,
+                   "'})-[:", kWays, "*]->(x:", label, ")) RETURN x.name"));
+  if (!reached.ok()) return reached.status();
+  return Names(*reached);
+}
+
+// A recipe needs all it takes, where everything else needs a way in. So a
+// new player crafts each recipe once they reach every item it takes, and what
+// that makes may go into another, so it goes round, until a round crafts
+// nothing new.
+absl::Status Craft(const smollergraph::Graph& graph, Builder& add) {
+  absl::StatusOr<smollergraph::Result> inputs = smollergraph::Execute(
+      graph, "MATCH (i:Item)-[:INTO]->(r:Recipe) RETURN r.name, i.name");
+  if (!inputs.ok()) return inputs.status();
+  // What each recipe a new player hasn't crafted yet takes.
+  std::map<std::string, std::set<std::string>> takes;
+  for (const std::vector<smollergraph::Cell>& row : inputs->rows) {
+    takes[Text(row[0])].insert(Text(row[1]));
+  }
+  while (true) {
+    absl::StatusOr<std::set<std::string>> items = Reached(graph, "Item");
+    if (!items.ok()) return items.status();
+    std::vector<std::string> crafted;
+    for (const auto& [recipe, needs] : takes) {
+      if (std::ranges::includes(*items, needs)) crafted.push_back(recipe);
+    }
+    if (crafted.empty()) break;
+    for (const std::string& recipe : crafted) {
+      add.Relationship(kNewPlayer, "CRAFTS", recipe);
+      takes.erase(recipe);
+    }
+  }
+  return add.status();
 }
 
 }  // namespace
@@ -190,7 +242,8 @@ absl::Status AddContentGraph(const Content& content,
     add.Relationship(recipe.name(), "MAKES",
                      content.items.by_id.at(recipe.output().item()).name());
   }
-  return add.status();
+  if (!add.status().ok()) return add.status();
+  return Craft(graph, add);
 }
 
 absl::StatusOr<std::vector<std::string>> Unreachable(
@@ -201,17 +254,11 @@ absl::StatusOr<std::vector<std::string>> Unreachable(
     absl::StatusOr<smollergraph::Result> all = smollergraph::Execute(
         graph, absl::StrCat("MATCH (x:", kind.label, ") RETURN x.name"));
     if (!all.ok()) return all.status();
-    // A shortest path from a new player to each node with the label, along the
-    // ways a player gets about, and a row for each node that has one.
-    absl::StatusOr<smollergraph::Result> reached = smollergraph::Execute(
-        graph, absl::StrCat("MATCH p = shortestPath((s {name: '", kNewPlayer,
-                            "'})-[:", kWays, "*]->(x:", kind.label,
-                            ")) RETURN x.name"));
-    if (!reached.ok()) return reached.status();
-    const std::set<std::string> got = Names(*reached);
-    if (kind.label == "Monster") monsters = got;
+    absl::StatusOr<std::set<std::string>> got = Reached(graph, kind.label);
+    if (!got.ok()) return got.status();
+    if (kind.label == "Monster") monsters = *got;
     for (const std::string& name : Names(*all)) {
-      if (!got.contains(name)) {
+      if (!got->contains(name)) {
         lines.push_back(absl::StrCat(name, ", ", kind.called));
       }
     }
@@ -230,6 +277,37 @@ absl::StatusOr<std::vector<std::string>> Unreachable(
       lines.push_back(absl::StrCat(smollergraph::ValueText(*quest),
                                    " asks for the ", monster,
                                    ", which no new player can reach"));
+    }
+  }
+  return lines;
+}
+
+absl::StatusOr<std::vector<std::string>> Cycles(
+    const smollergraph::Graph& graph) {
+  // What each recipe leads to: a shortest path from it to each item it makes,
+  // what that goes into makes, and so on. smollerGraph's Cypher can't give a
+  // path's two ends one variable, and the shortest path from a node to itself
+  // is no path at all, so the way back is a path from the recipe to what went
+  // into it.
+  absl::StatusOr<smollergraph::Result> leads = smollergraph::Execute(
+      graph,
+      "MATCH p = shortestPath((r:Recipe)-[:MAKES|INTO*]->(i:Item)) "
+      "RETURN r.name, i.name, p");
+  if (!leads.ok()) return leads.status();
+  std::map<std::pair<std::string, std::string>, std::string> ways;
+  for (const std::vector<smollergraph::Cell>& row : leads->rows) {
+    ways[{Text(row[0]), Text(row[1])}] = Text(row[2]);
+  }
+  absl::StatusOr<smollergraph::Result> inputs = smollergraph::Execute(
+      graph, "MATCH (i:Item)-[:INTO]->(r:Recipe) RETURN i.name, r.name");
+  if (!inputs.ok()) return inputs.status();
+  std::vector<std::string> lines;
+  for (const std::vector<smollergraph::Cell>& row : inputs->rows) {
+    const std::string item = Text(row[0]);
+    const auto back = ways.find({Text(row[1]), item});
+    if (back != ways.end()) {
+      lines.push_back(absl::StrCat(item, " goes back into itself: (", item,
+                                   ")-[:INTO]->", back->second));
     }
   }
   return lines;
