@@ -98,4 +98,18 @@ absl::Status DoItem(World& land, uint32_t id,
   return absl::OkStatus();
 }
 
+absl::Status DoCraft(World& land, uint32_t id,
+                     const protocol::CraftAction& action) {
+  switch (action.action_case()) {
+    case protocol::CraftAction::kStart:
+      return land.Craft(id, action.start());
+    case protocol::CraftAction::kStop:
+      land.StopCrafting(id);
+      break;
+    case protocol::CraftAction::ACTION_NOT_SET:
+      break;
+  }
+  return absl::OkStatus();
+}
+
 }  // namespace nanommo

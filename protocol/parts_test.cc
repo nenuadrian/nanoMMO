@@ -55,6 +55,8 @@ TEST(Parts, SplitsAWorldIntoDatagrams) {
   you.set_seed(4'000'000'000);
   you.set_land(4'000'000'000);
   you.set_respawn(4'000'000'000);
+  you.mutable_crafting()->set_recipe(4'000'000'000);
+  you.mutable_crafting()->set_done(4'000'000'000);
   for (uint32_t skill = 1; skill <= 9; ++skill) {
     (*you.mutable_cooldowns())[skill] = 4'000'000'000;
   }
@@ -165,6 +167,20 @@ TEST(Parts, TakesYourWaitToComeBackFromTheNewestWorld) {
   // Back, with no wait in the world, as protobuf leaves out a zero.
   assembled.Add(MakeWorld(1, 2));
   EXPECT_EQ(assembled.world().respawn(), 0u);
+}
+
+TEST(Parts, TakesWhatYoureMakingFromTheNewestWorld) {
+  nanommo::protocol::World making = MakeWorld(1, 1);
+  making.mutable_crafting()->set_recipe(2);
+  making.mutable_crafting()->set_done(4000);
+  nanommo::Parts assembled;
+  assembled.Add(making);
+  EXPECT_EQ(assembled.world().crafting().recipe(), 2u);
+  EXPECT_EQ(assembled.world().crafting().done(), 4000u);
+
+  // Made, or stopped, it's nothing.
+  assembled.Add(MakeWorld(1, 2));
+  EXPECT_EQ(assembled.world().crafting().recipe(), 0u);
 }
 
 TEST(Parts, TakesTheSkyFromTheNewestWorld) {

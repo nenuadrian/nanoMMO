@@ -98,6 +98,8 @@ message Input {
   // everyone else at as it sent this, a moment in the past: a blow on another
   // player, in a duel or at war, is checked against where they were then.
   int64 drawn = 21;
+  // Something to make, or to stop making. Sent once, like an item's.
+  CraftAction craft = 22;
 }
 
 // A place in a land, in metres from its middle.
@@ -300,6 +302,9 @@ message World {
   Duel duel = 27;
   // The sky over your land, in every datagram, as it's so small.
   Sky sky = 28;
+  // While you're making something, what, and how far it's got, in every
+  // datagram, as how long until you can come back is.
+  Crafting crafting = 29;
 }
 
 // What's falling, or hanging in the air. Each land has its own: rain and
@@ -554,4 +559,22 @@ message Duel {
   // From the countdown on, where the one who asked stood as the other said
   // yes, which neither of you may go far from.
   Point flag = 5;
+}
+
+// What a player does about crafting. The server says why not in a line from
+// nobody.
+message CraftAction {
+  oneof action {
+    // Start making the recipe, by its id in the recipes file.
+    uint32 start = 1;
+    // Stop making it, which loses nothing.
+    bool stop = 2;
+  }
+}
+
+// What you're making: the recipe, by its id, and how long you've been at it,
+// in milliseconds, of its seconds.
+message Crafting {
+  uint32 recipe = 1;
+  uint32 done = 2;
 }

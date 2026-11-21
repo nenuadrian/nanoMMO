@@ -623,6 +623,56 @@ TEST_F(ServerTest, SendsEachPlayerTheirBagAsItChanges) {
   EXPECT_EQ(saved.revision(), alice.bag().revision());
 }
 
+TEST_F(ServerTest, APlayerMakesWhatARecipeMakes) {
+  // Two potions make a cap, in a second.
+  const nanommo::Content content{.items = nanommo::testing::Gear(),
+                                 .recipes = *nanommo::ParseRecipes(R"pb(
+                                   recipes {
+                                     id: 1
+                                     name: "Brew a Cap"
+                                     inputs { item: 2 count: 2 }
+                                     output { item: 4 count: 1 }
+                                     seconds: 1
+                                     level: 1
+                                   }
+                                 )pb")};
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> crafty =
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1, content,
+                              metrics_, *tokens_, *players_, *guilds_, *events_,
+                              *storyteller_);
+  ASSERT_TRUE(crafty.ok()) << crafty.status();
+  TestPlayer alice(io_, *client_tls_, (*crafty)->port(), Token(alice_));
+  ASSERT_TRUE(RunUntil([&] { return alice.bag().revision() > 0; }));
+
+  // What she can't make comes back as a line from nobody.
+  nanommo::protocol::Input none;
+  none.mutable_craft()->set_start(9);
+  alice.Send(none);
+  ASSERT_TRUE(RunUntil([&] { return !alice.notices().empty(); }));
+  EXPECT_EQ(alice.notices().back(), "There's no such recipe.");
+
+  // Her world says how far the cap's got, and once it's made, it's in her
+  // bag, with one potion left, and Redis has the bag she has.
+  nanommo::protocol::Input brew;
+  brew.mutable_craft()->set_start(1);
+  alice.Send(brew);
+  ASSERT_TRUE(RunUntil([&] { return alice.world().crafting().recipe() == 1; }));
+  ASSERT_TRUE(RunUntil([&] { return alice.bag().bag().contains(1); }));
+  EXPECT_EQ(alice.bag().bag().at(1).item(), 4u);
+  EXPECT_EQ(alice.bag().bag().at(0).count(), 1u);
+  ASSERT_TRUE(RunUntil([&] { return alice.notices().size() == 2; }));
+  EXPECT_EQ(alice.notices().back(), "You made a Cap.");
+  ASSERT_TRUE(RunUntil([&] { return !alice.world().has_crafting(); }));
+  const absl::StatusOr<std::vector<std::vector<std::string>>> kept =
+      redis_->Pipeline(
+          {{"HGET", absl::StrCat("player:", world_, ":", alice_), "items"}});
+  ASSERT_TRUE(kept.ok()) << kept.status();
+  nanommo::protocol::Inventory saved;
+  ASSERT_TRUE(saved.ParseFromString(kept->front().front()));
+  EXPECT_EQ(saved.revision(), alice.bag().revision());
+}
+
 TEST_F(ServerTest, SendsEachPlayerTheirQuestsAsTheyChange) {
   // A guard where new players start, who asks for bones.
   nanommo::Content content{.items = nanommo::testing::Gear(),

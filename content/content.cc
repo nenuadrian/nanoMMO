@@ -261,9 +261,12 @@ uint64_t ClientHash(const Content& content) {
     *seen.mutable_teaches() = kind.teaches();
     Add(hash, seen);
   }
-  // The clients show all of a quest.
+  // The clients show all of a quest, and of a recipe.
   for (const auto& [id, quest] : content.quests) {
     Add(hash, quest);
+  }
+  for (const auto& [id, recipe] : content.recipes) {
+    Add(hash, recipe);
   }
   // The clients show each skill's level and cooldown, and the effect is the
   // server's alone.

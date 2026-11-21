@@ -28,6 +28,7 @@
 #include "client/chat_window.h"
 #include "client/combat_text.h"
 #include "client/compass.h"
+#include "client/craft_window.h"
 #include "client/cursor.h"
 #include "client/death_screen.h"
 #include "client/duel_window.h"
@@ -179,6 +180,7 @@ int main(int argc, char* argv[]) {
   nanommo::TalkWindow talk_window;
   nanommo::TrainerWindow trainer_window(content->skills);
   nanommo::QuestWindow quest_window(*content);
+  nanommo::CraftWindow craft_window(*content);
   nanommo::Hotbar hotbar(content->skills);
   hotbar.Arrange(settings.ui.hotbar);
   nanommo::PlayerFrame player_frame;
@@ -573,6 +575,8 @@ int main(int argc, char* argv[]) {
           quest_window.Close();
         } else if (bag_window.visible()) {
           bag_window.Toggle();
+        } else if (craft_window.visible()) {
+          craft_window.Toggle();
         } else if (guild_window.visible()) {
           guild_window.Toggle();
         } else if (*character_screen.mutable_visible()) {
@@ -608,6 +612,9 @@ int main(int argc, char* argv[]) {
       }
       if (IsKeyPressed(KEY_G) && !nanommo::Typing()) {
         guild_window.Toggle();
+      }
+      if (IsKeyPressed(KEY_K) && !nanommo::Typing()) {
+        craft_window.Toggle();
       }
       character_screen.Render(renderer);
       player_frame.Render(renderer);
@@ -743,6 +750,13 @@ int main(int argc, char* argv[]) {
         *ask.mutable_item() = *item;
         connection->Send(ask);
         predicted_bag.Act(bag, *item);
+      }
+      if (const std::optional<nanommo::protocol::CraftAction> craft =
+              craft_window.Build(renderer.figures(), bag,
+                                 connection->world().crafting())) {
+        nanommo::protocol::Input ask = sent;
+        *ask.mutable_craft() = *craft;
+        connection->Send(ask);
       }
       if (std::optional<nanommo::protocol::GuildInvite> invite =
               connection->TakeInvite()) {

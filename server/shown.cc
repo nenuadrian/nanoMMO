@@ -104,6 +104,12 @@ protocol::World YouIn(uint32_t id, const Player& player, uint32_t seed,
         std::chrono::duration_cast<std::chrono::milliseconds>(player.respawn)
             .count()));
   }
+  if (player.crafting != 0) {
+    you.mutable_crafting()->set_recipe(player.crafting);
+    you.mutable_crafting()->set_done(static_cast<uint32_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(player.crafted)
+            .count()));
+  }
   you.set_seed(seed);
   you.set_land(static_cast<uint32_t>(land));
   if (acked) {

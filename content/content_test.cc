@@ -74,10 +74,14 @@ TEST(Content, HashesWhatTheClientsRead) {
       9);
   EXPECT_NE(nanommo::ClientHash(stronger), hash);
 
-  // The quest window shows all of a quest.
+  // The quest window shows all of a quest, and the crafting window all of a
+  // recipe.
   nanommo::Content quests = *nanommo::ReadContent(NANOMMO_CONTENT);
   quests.quests.at(1).set_experience(1000);
   EXPECT_NE(nanommo::ClientHash(quests), hash);
+  nanommo::Content recipes = *nanommo::ReadContent(NANOMMO_CONTENT);
+  recipes.recipes.at(2).set_seconds(9);
+  EXPECT_NE(nanommo::ClientHash(recipes), hash);
 
   // They draw a monster's skill's shape, and not what it does.
   nanommo::Content slam = *nanommo::ReadContent(NANOMMO_CONTENT);

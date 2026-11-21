@@ -17,8 +17,9 @@ namespace {
 // respawn, acked and steered, whose field numbers take two bytes, its
 // cooldowns, up to ten bytes each for the nine skills a hotbar holds, the
 // skills it knows, a byte each, after two for the field, its own player,
-// without its name, up to 60 bytes, and the sky, up to 25.
-constexpr std::size_t kRoom = 65 + 9 * 10 + 2 + 9 + 60 + 25;
+// without its name, up to 60 bytes, the sky, up to 25, and what it's making,
+// up to 15.
+constexpr std::size_t kRoom = 65 + 9 * 10 + 2 + 9 + 60 + 25 + 15;
 
 // Names, kinds, levels and weapons come once a second, and protobuf leaves
 // out a field that's empty or zero, which no name, level or kind is, so we
@@ -118,6 +119,7 @@ void Parts::Add(const protocol::World& part) {
   acked_ = part.acked();
   steered_ = part.steered();
   sky_ = part.sky();
+  crafting_ = part.crafting();
   cooldowns_ = {part.cooldowns().begin(), part.cooldowns().end()};
   skills_ = {part.skills().begin(), part.skills().end()};
   arrived_.insert(part.part());
@@ -162,6 +164,7 @@ protocol::World Parts::world() const {
   world.set_acked(acked_);
   world.set_steered(steered_);
   *world.mutable_sky() = sky_;
+  *world.mutable_crafting() = crafting_;
   world.mutable_cooldowns()->insert(cooldowns_.begin(), cooldowns_.end());
   world.mutable_skills()->Add(skills_.begin(), skills_.end());
   world.set_sent(sent_);

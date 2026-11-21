@@ -1,5 +1,6 @@
 #include "server/shown.h"
 
+#include <chrono>
 #include <optional>
 
 #include "gtest/gtest.h"
@@ -25,6 +26,15 @@ TEST(Shown, TellsAPlayerTheirOwnPartWithTheLastInputApplied) {
 
   // Before any numbered input's applied, there's none to say.
   EXPECT_EQ(nanommo::YouIn(7, player, 99, 1, std::nullopt).acked(), 0u);
+
+  // What they're making, and how far it's got, while they're making it.
+  EXPECT_FALSE(you.has_crafting());
+  player.crafting = 2;
+  player.crafted = std::chrono::milliseconds(4000);
+  const nanommo::protocol::World making =
+      nanommo::YouIn(7, player, 99, 1, std::nullopt);
+  EXPECT_EQ(making.crafting().recipe(), 2u);
+  EXPECT_EQ(making.crafting().done(), 4000u);
 }
 
 TEST(Shown, ShowsThePlayersTheBlowsAndNotTheirQuests) {

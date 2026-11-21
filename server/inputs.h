@@ -81,6 +81,11 @@ class Inputs {
 absl::Status DoItem(World& land, uint32_t id,
                     const protocol::ItemAction& action);
 
+/// Starts making a recipe, or stops, as the action asks, or says why not, in
+/// words for the player.
+absl::Status DoCraft(World& land, uint32_t id,
+                     const protocol::CraftAction& action);
+
 }  // namespace nanommo
 
 #endif  // NANOMMO_SERVER_INPUTS_H_

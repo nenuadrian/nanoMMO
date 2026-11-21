@@ -89,6 +89,9 @@ void LocalConnection::Send(const protocol::Input& input) {
   if (input.has_item()) {
     done.Update(DoItem(world_, kYou, input.item()));
   }
+  if (input.has_craft()) {
+    done.Update(DoCraft(world_, kYou, input.craft()));
+  }
   if (!done.ok()) {
     Notify(std::string(done.message()));
   }

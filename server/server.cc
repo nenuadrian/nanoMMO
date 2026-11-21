@@ -74,6 +74,11 @@ constexpr std::chrono::seconds kGuildRefill{1};
 constexpr int kDuelBurst = 3;
 constexpr std::chrono::seconds kDuelRefill{1};
 
+// Starting to make something checks the whole bag, so a player can start or
+// stop three times at once, and then once a second, as for a duel.
+constexpr int kCraftBurst = 3;
+constexpr std::chrono::seconds kCraftRefill{1};
+
 // A lease lasts ten seconds, so renewing each second keeps it through a few
 // renewals that fail.
 constexpr std::chrono::seconds kRenewEvery{1};
@@ -239,6 +244,9 @@ void Server::Accept() {
           if (input.has_duel()) {
             Duel(*id, input.duel());
           }
+          if (input.has_craft()) {
+            Craft(*id, input.craft());
+          }
         }
       };
       const auto on_close = [this, id] {
@@ -331,6 +339,7 @@ uint32_t Server::HandleHello(Session& session, const std::string& bytes) {
   item_limits_.emplace(*id, TokenBucket(kItemBurst, kItemRefill));
   guild_limits_.emplace(*id, TokenBucket(kGuildBurst, kGuildRefill));
   duel_limits_.emplace(*id, TokenBucket(kDuelBurst, kDuelRefill));
+  craft_limits_.emplace(*id, TokenBucket(kCraftBurst, kCraftRefill));
   udp_tokens_[hello.token()] = *id;
   std::cout << player->name << " joined, as player " << *id << ", with lease "
             << *lease << TraceField() << std::endl;
@@ -362,6 +371,7 @@ void Server::Leave(uint32_t id) {
   item_limits_.erase(id);
   guild_limits_.erase(id);
   duel_limits_.erase(id);
+  craft_limits_.erase(id);
   inputs_.Leave(id);
   history_.erase(id);
   seen_.erase(id);
@@ -614,6 +624,22 @@ void Server::Duel(uint32_t id, const protocol::DuelAction& action) {
     case protocol::DuelAction::ACTION_NOT_SET:
       return;
   }
+  if (!done.ok()) {
+    Notify(id, std::string(done.message()));
+  }
+}
+
+void Server::Craft(uint32_t id, const protocol::CraftAction& action) {
+  // What's made goes into the bag, which the next instance loads as it was
+  // last saved, so nothing starts here after that.
+  if (handing_over_) {
+    return;
+  }
+  if (!craft_limits_.at(id).Take(std::chrono::steady_clock::now())) {
+    Notify(id, "You're crafting too fast.");
+    return;
+  }
+  const absl::Status done = DoCraft(*WorldOf(id), id, action);
   if (!done.ok()) {
     Notify(id, std::string(done.message()));
   }

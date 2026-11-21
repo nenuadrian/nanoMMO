@@ -87,6 +87,7 @@ class Server {
   void Item(uint32_t id, const protocol::ItemAction& action);
   void Trade(uint32_t id, const protocol::TradeAction& action);
   void Duel(uint32_t id, const protocol::DuelAction& action);
+  void Craft(uint32_t id, const protocol::CraftAction& action);
   void Guild(uint32_t id, const protocol::GuildAction& action);
   void Found(uint32_t id, const std::string& name);
   /// Asks the player of that name in, if they're playing in this world.
@@ -209,6 +210,7 @@ class Server {
   std::map<uint32_t, TokenBucket> item_limits_;
   std::map<uint32_t, TokenBucket> guild_limits_;
   std::map<uint32_t, TokenBucket> duel_limits_;
+  std::map<uint32_t, TokenBucket> craft_limits_;
   /// The guild of each player here who's in one.
   std::map<uint32_t, Membership> members_;
   /// The players whose guild we've to send them.

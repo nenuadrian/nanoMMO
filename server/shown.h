@@ -20,8 +20,9 @@ protocol::Npc ToProtocol(uint32_t id, const Npc& npc);
 /// What a player's own client is told about them each tick, beside the world
 /// near them: who they are, their experience and the next level's, their
 /// skills and how long each has left to cool down, how long until they rise
-/// again, the land and its ground's seed, the last of their numbered inputs
-/// applied, if any, and where they are with it applied.
+/// again, what they're making and how far it's got, the land and its ground's
+/// seed, the last of their numbered inputs applied, if any, and where they are
+/// with it applied.
 protocol::World YouIn(uint32_t id, const Player& player, uint32_t seed,
                       int land, std::optional<uint32_t> acked);
 
