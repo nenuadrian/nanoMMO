@@ -12,6 +12,7 @@
 #include "protocol/nanommo.pb.h"
 #include "server/database.h"
 #include "server/redis.h"
+#include "server/wars.h"
 
 namespace nanommo {
 
@@ -58,13 +59,17 @@ absl::StatusOr<Left> LeaveGuild(Database& database, uint32_t player);
 /// characters are, and a character is in one guild at most. Unlike a player,
 /// whose own world saves them, a guild changes for players other than the one
 /// who acts, so it isn't in Redis: each change is a transaction. Only the
-/// invitations, which run out, are in Redis.
+/// invitations and the asks to war, which run out, are in Redis.
 class Guilds {
  public:
   /// How many characters a guild can have.
   static constexpr int kMostMembers = 100;
   /// How long an invitation waits for an answer.
   static constexpr std::chrono::seconds kInvitationLife{60};
+  /// How long a guild's ask to war waits for the other's yes.
+  static constexpr std::chrono::seconds kWarAskLife{60};
+  /// How long a war lasts, from the yes.
+  static constexpr std::chrono::minutes kWarLength{30};
 
   Guilds(Database& database, Redis& redis)
       : database_(database), redis_(redis) {}
@@ -121,7 +126,27 @@ class Guilds {
   /// online, which only a world knows.
   absl::StatusOr<std::vector<protocol::GuildMember>> Roster(uint32_t guild);
 
+  /// The leader asks the guild of that name in the world, whatever its case,
+  /// to war, and it returns the two, with no id, as the war hasn't started. Or
+  /// when that guild asked theirs first, a minute ago at most, it's a yes, and
+  /// it returns the war, which starts now. A NotFound error says there's no
+  /// guild of that name, or the one who asks is in none, PermissionDenied
+  /// that they don't lead it, InvalidArgument that it's their own,
+  /// AlreadyExists that they've asked it already, and FailedPrecondition
+  /// that either guild is at war.
+  absl::StatusOr<War> AskToWar(const std::string& world, uint32_t from,
+                               const std::string& name);
+
+  /// The world's wars that haven't ended, with each side's kills, as MySQL
+  /// has them.
+  absl::StatusOr<std::vector<War>> Wars(const std::string& world);
+
  private:
+  /// The leader of the guild the war's challenged says yes to the
+  /// challenger's ask, and the war starts, in a transaction.
+  absl::StatusOr<War> StartWar(const std::string& world, uint32_t from,
+                               War war);
+
   Database& database_;
   Redis& redis_;
 };

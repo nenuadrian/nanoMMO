@@ -1,7 +1,12 @@
 #include "server/guilds.h"
 
+#include <algorithm>
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/ascii.h"
@@ -17,6 +22,36 @@ namespace {
 // holds the guild's.
 std::string InvitationOf(uint32_t player) {
   return absl::StrCat("guild_invite:", player);
+}
+
+// A guild's ask to war another, by both their ids, which holds who asked.
+std::string WarAskOf(const std::string& world, uint32_t guild, uint32_t enemy) {
+  return absl::StrCat("war_ask:", world, ":", guild, ":", enemy);
+}
+
+// A FailedPrecondition error, in words for the leader of ours, when either
+// guild is in a war that hasn't ended, as a guild is in one at a time.
+absl::Status NeitherAtWar(Database& database, uint32_t ours, uint32_t theirs,
+                          std::string_view their_name) {
+  const std::string a = absl::StrCat(ours);
+  const std::string b = absl::StrCat(theirs);
+  const absl::StatusOr<Result> wars = database.Run(
+      "SELECT challenger, challenged FROM guild_wars WHERE ends_at > NOW() "
+      "AND (challenger IN (?, ?) OR challenged IN (?, ?))",
+      {a, b, a, b});
+  if (!wars.ok()) {
+    return wars.status();
+  }
+  for (const std::vector<std::string>& war : wars->rows) {
+    if (war[0] == a || war[1] == a) {
+      return absl::FailedPreconditionError("Your guild is at war already.");
+    }
+  }
+  if (!wars->rows.empty()) {
+    return absl::FailedPreconditionError(
+        absl::StrCat(their_name, " is at war already."));
+  }
+  return absl::OkStatus();
 }
 
 // A member's rank in the guild, with their row locked, or NotFound when they
@@ -371,6 +406,161 @@ absl::StatusOr<std::vector<protocol::GuildMember>> Guilds::Roster(
     member.set_level(static_cast<uint32_t>(LevelFor(experience).number));
   }
   return roster;
+}
+
+absl::StatusOr<War> Guilds::AskToWar(const std::string& world, uint32_t from,
+                                     const std::string& name) {
+  const absl::StatusOr<Membership> asking = Of(from);
+  if (!asking.ok()) {
+    return asking.status();
+  }
+  if (asking->rank != protocol::RANK_LEADER) {
+    return absl::PermissionDeniedError(
+        "Only the leader takes the guild to war.");
+  }
+  // MySQL compares the name without its case.
+  const absl::StatusOr<Result> found =
+      database_.Run("SELECT id, name FROM guilds WHERE world = ? AND name = ?",
+                    {world, name});
+  if (!found.ok()) {
+    return found.status();
+  }
+  if (found->rows.empty()) {
+    return absl::NotFoundError(
+        absl::StrCat("There's no guild called ", name, " in ", world, "."));
+  }
+  War war{.challenger = asking->guild, .challenger_name = asking->name};
+  if (!absl::SimpleAtoi(found->rows.front()[0], &war.challenged)) {
+    return absl::InternalError("a guild that isn't a number");
+  }
+  war.challenged_name = found->rows.front()[1];
+  if (war.challenged == war.challenger) {
+    return absl::InvalidArgumentError(
+        "Your guild can't go to war with itself.");
+  }
+  // Asking back the guild that asked is a yes, as in a duel, and they're the
+  // challenger.
+  const absl::StatusOr<std::string> asked =
+      redis_.Command({"GET", WarAskOf(world, war.challenged, war.challenger)});
+  if (asked.ok()) {
+    std::swap(war.challenger, war.challenged);
+    std::swap(war.challenger_name, war.challenged_name);
+    return StartWar(world, from, std::move(war));
+  }
+  if (!absl::IsNotFound(asked.status())) {
+    return asked.status();
+  }
+  if (const absl::Status free = NeitherAtWar(
+          database_, war.challenger, war.challenged, war.challenged_name);
+      !free.ok()) {
+    return free;
+  }
+  // NX sets it only when there's none, so a guild asks another once until
+  // it's answered, and the ask runs out by itself.
+  const absl::StatusOr<std::string> set = redis_.Command(
+      {"SET", WarAskOf(world, war.challenger, war.challenged),
+       absl::StrCat(from), "EX", absl::StrCat(kWarAskLife.count()), "NX"});
+  if (absl::IsNotFound(set.status())) {
+    return absl::AlreadyExistsError(
+        absl::StrCat("You've asked ", war.challenged_name, " already."));
+  }
+  if (!set.ok()) {
+    return set.status();
+  }
+  return war;
+}
+
+absl::StatusOr<War> Guilds::StartWar(const std::string& world, uint32_t from,
+                                     War war) {
+  const absl::Status started = database_.Transaction([&]() -> absl::Status {
+    // Both guilds' rows, the lower id first, before any member's. Two leaders
+    // saying yes at once, each to the other's ask, would otherwise each lock
+    // their own and wait for the other's.
+    for (const uint32_t guild : {std::min(war.challenger, war.challenged),
+                                 std::max(war.challenger, war.challenged)}) {
+      const absl::StatusOr<Result> locked =
+          database_.Run("SELECT id FROM guilds WHERE id = ? FOR UPDATE",
+                        {absl::StrCat(guild)});
+      if (!locked.ok()) {
+        return locked.status();
+      }
+      if (locked->rows.empty()) {
+        return absl::NotFoundError("That guild is gone.");
+      }
+    }
+    // They may have stopped leading it since we asked.
+    const absl::StatusOr<protocol::Rank> rank =
+        RankIn(database_, war.challenged, from);
+    if (absl::IsNotFound(rank.status())) {
+      return absl::NotFoundError("You're in no guild.");
+    }
+    if (!rank.ok()) {
+      return rank.status();
+    }
+    if (*rank != protocol::RANK_LEADER) {
+      return absl::PermissionDeniedError(
+          "Only the leader takes the guild to war.");
+    }
+    if (const absl::Status free = NeitherAtWar(
+            database_, war.challenged, war.challenger, war.challenger_name);
+        !free.ok()) {
+      return free;
+    }
+    const absl::StatusOr<Result> inserted = database_.Run(
+        "INSERT INTO guild_wars (world, challenger, challenged, ends_at) "
+        "VALUES (?, ?, ?, NOW() + INTERVAL ? SECOND)",
+        {world, absl::StrCat(war.challenger), absl::StrCat(war.challenged),
+         absl::StrCat(std::chrono::seconds(kWarLength).count())});
+    if (!inserted.ok()) {
+      return inserted.status();
+    }
+    war.id = static_cast<uint32_t>(inserted->insert_id);
+    return absl::OkStatus();
+  });
+  // Started, or never will be from this ask, it's spent. If deleting it fails,
+  // it runs out by itself.
+  if (!absl::IsAborted(started) && !absl::IsUnavailable(started)) {
+    redis_.Command({"DEL", WarAskOf(world, war.challenger, war.challenged)})
+        .status()
+        .IgnoreError();
+  }
+  if (!started.ok()) {
+    return started;
+  }
+  war.left = kWarLength;
+  return war;
+}
+
+absl::StatusOr<std::vector<War>> Guilds::Wars(const std::string& world) {
+  const absl::StatusOr<Result> rows = database_.Run(
+      "SELECT guild_wars.id, challenger, asking.name, challenged, asked.name, "
+      "challenger_kills, challenged_kills, "
+      "TIMESTAMPDIFF(SECOND, NOW(), ends_at) FROM guild_wars "
+      "JOIN guilds AS asking ON asking.id = guild_wars.challenger "
+      "JOIN guilds AS asked ON asked.id = guild_wars.challenged "
+      "WHERE guild_wars.world = ? AND ends_at > NOW()",
+      {world});
+  if (!rows.ok()) {
+    return rows.status();
+  }
+  std::vector<War> wars;
+  wars.reserve(rows->rows.size());
+  for (const std::vector<std::string>& row : rows->rows) {
+    War& war = wars.emplace_back();
+    int64_t left = 0;
+    if (!absl::SimpleAtoi(row[0], &war.id) ||
+        !absl::SimpleAtoi(row[1], &war.challenger) ||
+        !absl::SimpleAtoi(row[3], &war.challenged) ||
+        !absl::SimpleAtoi(row[5], &war.challenger_kills) ||
+        !absl::SimpleAtoi(row[6], &war.challenged_kills) ||
+        !absl::SimpleAtoi(row[7], &left)) {
+      return absl::InternalError("a war that isn't numbers");
+    }
+    war.challenger_name = row[2];
+    war.challenged_name = row[4];
+    war.left = std::chrono::seconds(left);
+  }
+  return wars;
 }
 
 absl::Status Guilds::Decline(uint32_t player) {

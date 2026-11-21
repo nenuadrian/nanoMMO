@@ -1,9 +1,11 @@
 #include "server/guilds.h"
 
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -66,6 +68,13 @@ class GuildsTest : public ::testing::Test {
       for (const uint32_t id : {alice_, bob_, carol_, dave_}) {
         EXPECT_TRUE(
             redis_->Command({"DEL", absl::StrCat("guild_invite:", id)}).ok());
+      }
+      // And the asks to war between its guilds that nobody answered.
+      const absl::StatusOr<std::vector<std::vector<std::string>>> asks =
+          redis_->Pipeline({{"KEYS", absl::StrCat("war_ask:", world_, ":*")}});
+      ASSERT_TRUE(asks.ok()) << asks.status();
+      for (const std::string& ask : asks->front()) {
+        EXPECT_TRUE(redis_->Command({"DEL", ask}).ok());
       }
     }
     if (database_) {
@@ -326,4 +335,137 @@ TEST_F(GuildsTest, OnlyTheLeaderDisbands) {
   EXPECT_EQ(ended->name, "Iron Wolves");
   EXPECT_TRUE(absl::IsNotFound(guilds.Of(bob_).status()));
   EXPECT_TRUE(guilds.Create(world_, dave_, "Iron Wolves").ok());
+}
+
+TEST_F(GuildsTest, AGuildAsksAnotherToWarAndAskingBackIsAYes) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  ASSERT_TRUE(guilds.Create(world_, dave_, "Stone Bears").ok());
+
+  // By its name, whatever its case, and once until it's answered.
+  const absl::StatusOr<nanommo::War> asked =
+      guilds.AskToWar(world_, alice_, "stone bears");
+  ASSERT_TRUE(asked.ok()) << asked.status();
+  EXPECT_EQ(asked->id, 0u);
+  EXPECT_EQ(asked->challenger_name, "Iron Wolves");
+  EXPECT_EQ(asked->challenged_name, "Stone Bears");
+  EXPECT_EQ(guilds.AskToWar(world_, alice_, "Stone Bears").status().message(),
+            "You've asked Stone Bears already.");
+  EXPECT_TRUE(guilds.Wars(world_)->empty());
+
+  // Stone Bears' leader asks back, and the war starts, for half an hour.
+  const absl::StatusOr<nanommo::War> war =
+      guilds.AskToWar(world_, dave_, "Iron Wolves");
+  ASSERT_TRUE(war.ok()) << war.status();
+  EXPECT_NE(war->id, 0u);
+  EXPECT_EQ(war->challenger_name, "Iron Wolves");
+  EXPECT_EQ(war->challenged_name, "Stone Bears");
+  const absl::StatusOr<std::vector<nanommo::War>> wars = guilds.Wars(world_);
+  ASSERT_TRUE(wars.ok()) << wars.status();
+  ASSERT_EQ(wars->size(), 1u);
+  EXPECT_EQ(wars->front().id, war->id);
+  EXPECT_EQ(wars->front().challenger, asked->challenger);
+  EXPECT_EQ(wars->front().challenged, asked->challenged);
+  EXPECT_EQ(wars->front().challenger_kills, 0u);
+  EXPECT_EQ(wars->front().challenged_kills, 0u);
+  EXPECT_GT(wars->front().left,
+            nanommo::Guilds::kWarLength - std::chrono::seconds(5));
+  EXPECT_LE(wars->front().left, nanommo::Guilds::kWarLength);
+}
+
+TEST_F(GuildsTest, OnlyTheLeaderTakesTheGuildToWar) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  ASSERT_TRUE(guilds.Create(world_, dave_, "Stone Bears").ok());
+  ASSERT_TRUE(guilds.Invite(alice_, bob_).ok());
+  ASSERT_TRUE(guilds.Accept(bob_).ok());
+  ASSERT_TRUE(
+      guilds.SetRank(alice_, bob_, nanommo::protocol::RANK_OFFICER).ok());
+
+  EXPECT_TRUE(absl::IsPermissionDenied(
+      guilds.AskToWar(world_, bob_, "Stone Bears").status()));
+  EXPECT_TRUE(guilds.AskToWar(world_, alice_, "Stone Bears").ok());
+}
+
+TEST_F(GuildsTest, AsksAGuildOfThatNameInItsWorldAndNotItself) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  ASSERT_TRUE(guilds.Create(other_world_, carol_, "Stone Bears").ok());
+
+  EXPECT_EQ(
+      guilds.AskToWar(world_, alice_, "Stone Bears").status().message(),
+      absl::StrCat("There's no guild called Stone Bears in ", world_, "."));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      guilds.AskToWar(world_, alice_, "Iron Wolves").status()));
+  EXPECT_TRUE(
+      absl::IsNotFound(guilds.AskToWar(world_, dave_, "Iron Wolves").status()));
+  ASSERT_TRUE(guilds.Create(world_, dave_, "Stone Bears").ok());
+  EXPECT_TRUE(guilds.AskToWar(world_, alice_, "Stone Bears").ok());
+}
+
+TEST_F(GuildsTest, AGuildIsInOneWarAtATimeUntilItsTimeIsUp) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  ASSERT_TRUE(guilds.Create(world_, alice_, "Iron Wolves").ok());
+  ASSERT_TRUE(guilds.Create(world_, dave_, "Stone Bears").ok());
+  ASSERT_TRUE(guilds.Create(world_, bob_, "Ash Hounds").ok());
+  ASSERT_TRUE(guilds.AskToWar(world_, alice_, "Stone Bears").ok());
+  const absl::StatusOr<nanommo::War> war =
+      guilds.AskToWar(world_, dave_, "Iron Wolves");
+  ASSERT_TRUE(war.ok()) << war.status();
+
+  EXPECT_EQ(guilds.AskToWar(world_, bob_, "Iron Wolves").status().message(),
+            "Iron Wolves is at war already.");
+  EXPECT_EQ(guilds.AskToWar(world_, alice_, "Ash Hounds").status().message(),
+            "Your guild is at war already.");
+
+  // Once its time is up, it's over, and either can go to war again.
+  ASSERT_TRUE(database_
+                  ->Run("UPDATE guild_wars SET ends_at = NOW() - INTERVAL 1 "
+                        "SECOND WHERE id = ?",
+                        {absl::StrCat(war->id)})
+                  .ok());
+  EXPECT_TRUE(guilds.Wars(world_)->empty());
+  EXPECT_TRUE(guilds.AskToWar(world_, bob_, "Iron Wolves").ok());
+}
+
+// Each guild asked the other, as two instances could at once, and each
+// leader says yes, at once, on two connections: both guilds' rows go in one
+// order, so one waits for the other, and finds them at war.
+TEST_F(GuildsTest, TwoYesesAtOnceStartOneWar) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  const absl::StatusOr<nanommo::Membership> wolves =
+      guilds.Create(world_, alice_, "Iron Wolves");
+  const absl::StatusOr<nanommo::Membership> bears =
+      guilds.Create(world_, dave_, "Stone Bears");
+  ASSERT_TRUE(wolves.ok() && bears.ok());
+  for (const auto& [asking, asked] : {std::pair{wolves->guild, bears->guild},
+                                      std::pair{bears->guild, wolves->guild}}) {
+    ASSERT_TRUE(redis_
+                    ->Command({"SET",
+                               absl::StrCat("war_ask:", world_, ":", asking,
+                                            ":", asked),
+                               "1", "EX", "60"})
+                    .ok());
+  }
+  std::unique_ptr<nanommo::Database> other = nanommo::testing::TestDatabase();
+  std::unique_ptr<nanommo::Redis> other_redis = nanommo::testing::TestRedis();
+  ASSERT_TRUE(other && other_redis);
+  nanommo::Guilds elsewhere(*other, *other_redis);
+
+  absl::Status wolves_said;
+  absl::Status bears_said;
+  std::thread wolves_saying([&] {
+    wolves_said = guilds.AskToWar(world_, alice_, "Stone Bears").status();
+  });
+  std::thread bears_saying([&] {
+    bears_said = elsewhere.AskToWar(world_, dave_, "Iron Wolves").status();
+  });
+  wolves_saying.join();
+  bears_saying.join();
+
+  EXPECT_NE(wolves_said.ok(), bears_said.ok())
+      << wolves_said << " " << bears_said;
+  EXPECT_TRUE(
+      absl::IsFailedPrecondition(wolves_said.ok() ? bears_said : wolves_said));
+  EXPECT_EQ(guilds.Wars(world_)->size(), 1u);
 }
