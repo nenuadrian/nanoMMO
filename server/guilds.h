@@ -49,7 +49,8 @@ struct Changed {
 
 /// The character leaves their guild. When they led it, the one who's been in
 /// it longest leads it now, an officer before a member, and the last one out
-/// ends it. A NotFound error says they're in none. It runs in a transaction
+/// ends it. A NotFound error says they're in none, and FailedPrecondition that
+/// it's at war, which nobody leaves until it's over. It runs in a transaction
 /// the caller has begun: Leave's own, or a character's deletion, which calls
 /// it too, so that a guild never goes without a leader, and only if the
 /// character goes.
@@ -113,11 +114,12 @@ class Guilds {
   /// Takes a player out of the guild of the one who asks, whose rank has to
   /// be above theirs: the leader removes officers and members, and officers
   /// members. A PermissionDenied error says it isn't, NotFound that the
-  /// player isn't in their guild.
+  /// player isn't in their guild, and FailedPrecondition that it's at war.
   absl::StatusOr<Changed> Kick(uint32_t from, uint32_t player);
 
   /// The leader ends their guild, for everyone in it, and its name is free
-  /// again. A PermissionDenied error says the one who asks doesn't lead it.
+  /// again. A PermissionDenied error says the one who asks doesn't lead it,
+  /// and FailedPrecondition that it's at war.
   /// Returns the guild that ended.
   absl::StatusOr<Membership> Disband(uint32_t from);
 

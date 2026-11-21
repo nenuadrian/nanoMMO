@@ -88,6 +88,30 @@ class GuildsTest : public ::testing::Test {
     }
   }
 
+  // Alice's Iron Wolves, with bob in it, at war with dave's Stone Bears.
+  absl::StatusOr<nanommo::War> AtWar(nanommo::Guilds& guilds) {
+    for (const absl::Status& done :
+         {guilds.Create(world_, alice_, "Iron Wolves").status(),
+          guilds.Invite(alice_, bob_).status(), guilds.Accept(bob_).status(),
+          guilds.Create(world_, dave_, "Stone Bears").status(),
+          guilds.AskToWar(world_, alice_, "Stone Bears").status()}) {
+      if (!done.ok()) {
+        return done;
+      }
+    }
+    return guilds.AskToWar(world_, dave_, "Iron Wolves");
+  }
+
+  // Its time is up.
+  absl::Status End(const nanommo::War& war) {
+    return database_
+        ->Run(
+            "UPDATE guild_wars SET ends_at = NOW() - INTERVAL 1 SECOND "
+            "WHERE id = ?",
+            {absl::StrCat(war.id)})
+        .status();
+  }
+
   std::unique_ptr<nanommo::Database> database_;
   std::unique_ptr<nanommo::Redis> redis_;
   const std::string name_ = nanommo::testing::TestName();
@@ -468,4 +492,50 @@ TEST_F(GuildsTest, TwoYesesAtOnceStartOneWar) {
   EXPECT_TRUE(
       absl::IsFailedPrecondition(wolves_said.ok() ? bears_said : wolves_said));
   EXPECT_EQ(guilds.Wars(world_)->size(), 1u);
+}
+
+// While its guild is at war, a member can't leave it, nor go with their
+// character, so that a losing side can't dodge the war. Once it's over,
+// they can.
+TEST_F(GuildsTest, NobodyLeavesAGuildAtWarUntilItsOver) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  const absl::StatusOr<nanommo::War> war = AtWar(guilds);
+  ASSERT_TRUE(war.ok()) << war.status();
+  nanommo::Characters characters(*database_);
+
+  const std::string refused =
+      "Nobody leaves a guild at war until the war's over.";
+  EXPECT_EQ(guilds.Leave(bob_).status().message(), refused);
+  EXPECT_EQ(guilds.Leave(dave_).status().message(), refused);
+  EXPECT_EQ(characters.Delete(account_, alice_).message(), refused);
+  EXPECT_TRUE(guilds.Of(alice_).ok() && guilds.Of(bob_).ok() &&
+              guilds.Of(dave_).ok());
+
+  ASSERT_TRUE(End(*war).ok());
+  EXPECT_TRUE(guilds.Leave(bob_).ok());
+  EXPECT_TRUE(guilds.Leave(dave_).ok());
+  EXPECT_TRUE(characters.Delete(account_, alice_).ok());
+}
+
+// Nor can anyone be removed from it, or the guild be disbanded, which would
+// take the war, and its kills, with it.
+TEST_F(GuildsTest, NobodysRemovedFromAGuildAtWarNorIsItDisbanded) {
+  nanommo::Guilds guilds(*database_, *redis_);
+  const absl::StatusOr<nanommo::War> war = AtWar(guilds);
+  ASSERT_TRUE(war.ok()) << war.status();
+
+  EXPECT_EQ(guilds.Kick(alice_, bob_).status().message(),
+            "Nobody's removed from a guild at war until the war's over.");
+  const std::string refused =
+      "A guild at war can't be disbanded until the war's over.";
+  EXPECT_EQ(guilds.Disband(alice_).status().message(), refused);
+  EXPECT_EQ(guilds.Disband(dave_).status().message(), refused);
+  EXPECT_TRUE(guilds.Of(bob_).ok());
+  EXPECT_EQ(guilds.Wars(world_)->size(), 1u);
+
+  ASSERT_TRUE(End(*war).ok());
+  EXPECT_TRUE(guilds.Kick(alice_, bob_).ok());
+  EXPECT_TRUE(guilds.Disband(alice_).ok());
+  EXPECT_TRUE(guilds.Disband(dave_).ok());
+  EXPECT_TRUE(absl::IsNotFound(guilds.Of(dave_).status()));
 }

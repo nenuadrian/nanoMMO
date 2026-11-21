@@ -54,6 +54,26 @@ absl::Status NeitherAtWar(Database& database, uint32_t ours, uint32_t theirs,
   return absl::OkStatus();
 }
 
+// A FailedPrecondition error, in the words given, while the guild is in a war
+// that hasn't ended. Nobody leaves a war: a losing side could dodge it, or
+// disband, which takes the war's kills with the guild. The caller has the
+// guild's row locked, as a war's yes locks it, so no war starts meanwhile.
+absl::Status NotAtWar(Database& database, uint32_t guild,
+                      std::string_view why) {
+  const std::string id = absl::StrCat(guild);
+  const absl::StatusOr<Result> wars = database.Run(
+      "SELECT id FROM guild_wars WHERE ends_at > NOW() "
+      "AND (challenger = ? OR challenged = ?)",
+      {id, id});
+  if (!wars.ok()) {
+    return wars.status();
+  }
+  if (!wars->rows.empty()) {
+    return absl::FailedPreconditionError(why);
+  }
+  return absl::OkStatus();
+}
+
 // A member's rank in the guild, with their row locked, or NotFound when they
 // aren't in it.
 absl::StatusOr<protocol::Rank> RankIn(Database& database, uint32_t guild,
@@ -335,6 +355,12 @@ absl::StatusOr<Changed> Guilds::Kick(uint32_t from, uint32_t player) {
       return absl::PermissionDeniedError(
           "The leader removes officers and members, and officers members.");
     }
+    if (const absl::Status free = NotAtWar(
+            database_, acting->guild,
+            "Nobody's removed from a guild at war until the war's over.");
+        !free.ok()) {
+      return free;
+    }
     changed.guild = acting->guild;
     changed.guild_name = acting->name;
     const absl::StatusOr<Result> named = database_.Run(
@@ -363,6 +389,12 @@ absl::StatusOr<Membership> Guilds::Disband(uint32_t from) {
     }
     if (leading->rank != protocol::RANK_LEADER) {
       return absl::PermissionDeniedError("Only the leader disbands the guild.");
+    }
+    if (const absl::Status free =
+            NotAtWar(database_, leading->guild,
+                     "A guild at war can't be disbanded until the war's over.");
+        !free.ok()) {
+      return free;
     }
     ended = *leading;
     // Its members' rows go with it.
@@ -588,6 +620,12 @@ absl::StatusOr<Left> LeaveGuild(Database& database, uint32_t player) {
   const absl::StatusOr<Membership> leaving = LockFor(database, player);
   if (!leaving.ok()) {
     return leaving.status();
+  }
+  if (const absl::Status free =
+          NotAtWar(database, leaving->guild,
+                   "Nobody leaves a guild at war until the war's over.");
+      !free.ok()) {
+    return free;
   }
   Left left;
   left.guild = leaving->guild;
