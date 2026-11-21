@@ -78,6 +78,9 @@ absl::StatusOr<Content> ReadContent(const std::string& folder) {
     read = Read(folder, "quests.txtpb", ParseQuests, content.quests);
   }
   if (read.ok()) {
+    read = Read(folder, "recipes.txtpb", ParseRecipes, content.recipes);
+  }
+  if (read.ok()) {
     read = Read(folder, "rig.txtpb", ParseRig, content.rig);
   }
   if (read.ok()) {
@@ -181,6 +184,36 @@ absl::Status CheckContent(const Content& content) {
             absl::StrCat("the ", quest.name(), " gives an item ", prize.item(),
                          " that isn't in the items file"));
       }
+    }
+  }
+  // What a recipe takes and makes is in the items file, and as many as go in
+  // a slot of the bag, so that what it makes always has room in an empty one.
+  const auto in_a_slot = [&content](const recipes::Recipe& recipe,
+                                    std::string_view verb,
+                                    const recipes::ItemCount& some) {
+    const auto item = content.items.by_id.find(some.item());
+    if (item == content.items.by_id.end()) {
+      return absl::InvalidArgumentError(
+          absl::StrCat(recipe.name(), " ", verb, " an item ", some.item(),
+                       " that isn't in the items file"));
+    }
+    if (some.count() > StackSize(item->second)) {
+      return absl::InvalidArgumentError(
+          absl::StrCat(recipe.name(), " ", verb, " ", some.count(), " of the ",
+                       item->second.name(), ", which don't fit in a slot"));
+    }
+    return absl::OkStatus();
+  };
+  for (const auto& [id, recipe] : content.recipes) {
+    absl::Status fits;
+    for (int i = 0; fits.ok() && i < recipe.inputs_size(); ++i) {
+      fits = in_a_slot(recipe, "takes", recipe.inputs(i));
+    }
+    if (fits.ok()) {
+      fits = in_a_slot(recipe, "makes", recipe.output());
+    }
+    if (!fits.ok()) {
+      return fits;
     }
   }
   return absl::OkStatus();

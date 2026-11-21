@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package nanommo.recipes;
+
+// Some of an item, by its id in the items file.
+message ItemCount {
+  uint32 item = 1;
+  uint32 count = 2;
+}
+
+// What a player can make from what's in their bag, wherever they are.
+message Recipe {
+  // From one, and a recipe keeps its id for good, as a client asks for it by
+  // its id.
+  uint32 id = 1;
+  string name = 2;
+  // What it takes, all of it, which making it uses up.
+  repeated ItemCount inputs = 3;
+  ItemCount output = 4;
+  // How long making it takes.
+  uint32 seconds = 5;
+  // The level a player needs to make it. Each player knows every recipe of
+  // their level or below.
+  uint32 level = 6;
+}
+
+message Recipes {
+  repeated Recipe recipes = 1;
+}

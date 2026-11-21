@@ -21,7 +21,7 @@ namespace {
 // A quest's ASKS_FOR isn't one of them.
 constexpr std::string_view kWays =
     "STARTS_IN|STARTS_WITH|KNOWS|GATE|SPAWNS|STANDS|DROPS|SUMMONS|GIVES|"
-    "REWARDS|TEACHES|NEXT";
+    "REWARDS|TEACHES|NEXT|INTO|MAKES";
 
 // Each label, and what it's called in a line of Unreachable's.
 struct Kind {
@@ -29,8 +29,9 @@ struct Kind {
   std::string_view called;
 };
 constexpr Kind kKinds[] = {
-    {"Land", "a land"},   {"Monster", "a monster"}, {"Npc", "an NPC"},
-    {"Quest", "a quest"}, {"Item", "an item"},      {"Skill", "a skill"},
+    {"Land", "a land"},     {"Monster", "a monster"}, {"Npc", "an NPC"},
+    {"Quest", "a quest"},   {"Item", "an item"},      {"Skill", "a skill"},
+    {"Recipe", "a recipe"},
 };
 
 // Adds the content's nodes and relationships, a name at a time, and keeps
@@ -106,6 +107,9 @@ absl::Status AddContentGraph(const Content& content,
   for (const auto& [id, skill] : content.skills.by_id) {
     add.Node(skill.name(), "Skill");
   }
+  for (const auto& [id, recipe] : content.recipes) {
+    add.Node(recipe.name(), "Recipe");
+  }
   if (!add.status().ok()) return add.status();
 
   // A new player starts in the first land, with the kit and the starting
@@ -175,6 +179,16 @@ absl::Status AddContentGraph(const Content& content,
       add.Relationship(skill.name(), "NEXT",
                        content.skills.by_id.at(skill.next()).name());
     }
+  }
+
+  // What goes into each recipe, and what it makes.
+  for (const auto& [id, recipe] : content.recipes) {
+    for (const recipes::ItemCount& input : recipe.inputs()) {
+      add.Relationship(content.items.by_id.at(input.item()).name(), "INTO",
+                       recipe.name());
+    }
+    add.Relationship(recipe.name(), "MAKES",
+                     content.items.by_id.at(recipe.output().item()).name());
   }
   return add.status();
 }

@@ -51,6 +51,11 @@ TEST(Content, ReadsTheGamesContent) {
   EXPECT_EQ(content->npcs.kinds.at(bones.giver()).name(), "Guard");
   EXPECT_EQ(bones.kill().monster(), 1u);
   EXPECT_GT(bones.kill().count(), 0u);
+  // The sword and bones make a better one.
+  const nanommo::recipes::Recipe& bind = content->recipes.at(2);
+  EXPECT_EQ(content->items.by_id.at(bind.inputs(0).item()).name(), "Sword");
+  EXPECT_EQ(content->items.by_id.at(bind.inputs(1).item()).name(), "Bone");
+  EXPECT_EQ(content->items.by_id.at(bind.output().item()).name(), "Bone Sword");
 }
 
 TEST(Content, HashesWhatTheClientsRead) {
@@ -579,6 +584,58 @@ TEST(Content, RefusesQuestsThatDontAddUp) {
   EXPECT_EQ(nanommo::CheckContent(content).message(),
             "the Bones by the Gate gives an item 99 that isn't in the items "
             "file");
+}
+
+TEST(Content, RefusesRecipesThatDontAddUp) {
+  // Twelve bones make a buckler, in five seconds, from level 1.
+  constexpr char kTakes[] = "inputs { item: 3 count: 12 } ";
+  constexpr char kMakes[] = "output { item: 12 count: 1 } ";
+  const auto carve = [](std::string_view fields) {
+    return nanommo::ParseRecipes(
+        absl::StrCat("recipes { id: 1 name: \"Carve\" ", fields, " }"));
+  };
+  EXPECT_TRUE(carve(absl::StrCat(kTakes, kMakes, "seconds: 5 level: 1")).ok());
+  EXPECT_EQ(
+      carve(absl::StrCat(kTakes, kMakes, "seconds: 5")).status().message(),
+      "Carve has no level");
+  EXPECT_EQ(carve(absl::StrCat(kTakes, kMakes, "level: 1")).status().message(),
+            "Carve takes no time");
+  EXPECT_EQ(
+      carve(absl::StrCat(kMakes, "seconds: 5 level: 1")).status().message(),
+      "Carve takes nothing");
+  EXPECT_EQ(
+      carve(absl::StrCat("inputs { item: 3 } ", kMakes, "seconds: 5 level: 1"))
+          .status()
+          .message(),
+      "Carve takes none of item 3");
+  EXPECT_EQ(
+      carve(absl::StrCat(kTakes, "output { item: 12 } seconds: 5 level: 1"))
+          .status()
+          .message(),
+      "Carve makes none of item 12");
+
+  // What it takes and makes is in the items file, a slot's worth of each.
+  nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  EXPECT_TRUE(nanommo::CheckContent(content).ok());
+  content.recipes.at(2).mutable_inputs(0)->set_item(99);
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "Bind a Bone Sword takes an item 99 that isn't in the items file");
+  content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  content.recipes.at(2).mutable_output()->set_item(99);
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "Bind a Bone Sword makes an item 99 that isn't in the items file");
+  content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  content.recipes.at(2).mutable_inputs(1)->set_count(50);
+  EXPECT_TRUE(nanommo::CheckContent(content).ok());
+  content.recipes.at(2).mutable_inputs(1)->set_count(51);
+  EXPECT_EQ(
+      nanommo::CheckContent(content).message(),
+      "Bind a Bone Sword takes 51 of the Bone, which don't fit in a slot");
+  content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  content.recipes.at(2).mutable_output()->set_count(2);
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "Bind a Bone Sword makes 2 of the Bone Sword, which don't fit in a "
+            "slot");
 }
 
 TEST(Content, RefusesSkillsThatDontAddUp) {

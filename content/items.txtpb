@@ -377,3 +377,49 @@ items {
     }
   }
 }
+items {
+  id: 12
+  name: "Bone Buckler"
+  equip {
+    slot: SLOT_OFF_HAND
+    modifiers { stat: STAT_ARMOUR amount: 1 }
+  }
+  look {
+    icon: 0xF3ED
+    tint: 0xE8E0C8FF
+    # A round shield of bone on the back of the left forearm, over the
+    # sleeve, with a knuckle of bone at its middle.
+    parts {
+      shape: SHAPE_BALL
+      bone: "LeftForeArm"
+      from_offset { x: 0.14 y: 0.08 }
+      size { x: 0.14 y: 0.022 z: 0.14 }
+      color: 0xD8CCB0FF
+    }
+    parts {
+      shape: SHAPE_BALL
+      bone: "LeftForeArm"
+      from_offset { x: 0.14 y: 0.105 }
+      size { x: 0.04 y: 0.028 z: 0.04 }
+      color: 0xA89A7CFF
+    }
+  }
+}
+items {
+  id: 13
+  name: "Bone Sword"
+  weapon {
+    reach: 1.7
+    swing_ms: 2000
+    hit_ms: 900
+    damage: 18
+  }
+  equip { slot: SLOT_MAIN_HAND }
+  look {
+    model: "sword.glb"
+    length: 1.1
+    grip: 0.1667
+    icon: 0xF715
+    tint: 0xE8E0C8FF
+  }
+}

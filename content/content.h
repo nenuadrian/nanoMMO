@@ -11,6 +11,7 @@
 #include "content/monsters.h"
 #include "content/npcs.h"
 #include "content/quests.h"
+#include "content/recipes.h"
 #include "content/rig.h"
 #include "content/skills.h"
 
@@ -25,6 +26,8 @@ struct Content {
   NpcTable npcs;
   /// By id.
   std::map<uint32_t, quests::Quest> quests;
+  /// By id.
+  std::map<uint32_t, recipes::Recipe> recipes;
   /// The skeleton every person is built on, and how it moves.
   rig::Rig rig;
   SkillTable skills;
@@ -36,8 +39,9 @@ absl::StatusOr<Content> ReadContent(const std::string& folder);
 /// What the whole folder can tell is wrong, and no single file can: a monster
 /// that drops an item the items file doesn't have, a trainer that teaches a
 /// skill the skills file doesn't have, a quest whose giver, monster or prize
-/// isn't in its file, or a part of a figure or of an item on a joint the rig
-/// doesn't have.
+/// isn't in its file, a recipe that takes or makes an item that isn't, or more
+/// of one than go in a slot, or a part of a figure or of an item on a joint
+/// the rig doesn't have.
 absl::Status CheckContent(const Content& content);
 
 /// A fingerprint of what the clients read, so that a client can tell whether

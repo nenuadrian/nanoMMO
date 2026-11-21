@@ -19,10 +19,11 @@ inline constexpr char kNewPlayer[] = "A new player";
 /// monster, kind of NPC, quest, item and skill, labelled with what it is, and
 /// a relationship for each way a player gets from one to the next, from a new
 /// player to their land, through its gates, to who's in each land, and on to
-/// what they drop, give and teach. A quest also asks for its monster, which is
-/// what it takes to finish it, not a way to get anywhere. Or says why it can't:
-/// two things with one name, which would be one node, or a name too long for
-/// a node.
+/// what they drop, give and teach. Each recipe is a node too, which what goes
+/// into it leads to, and which leads to what it makes. A quest also asks for
+/// its monster, which is what it takes to finish it, not a way to get anywhere.
+/// Or says why it can't: two things with one name, which would be one node, or
+/// a name too long for a node.
 absl::Status AddContentGraph(const Content& content,
                              smollergraph::Graph& graph);
 
