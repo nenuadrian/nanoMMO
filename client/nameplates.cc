@@ -73,9 +73,27 @@ bool HasNameplate(const Figure& figure) {
          !(figure.monster && figure.to == protocol::MOTION_DEAD);
 }
 
+bool ShowsName(const Figure& figure, const Noticed& noticed) {
+  if (noticed.pointed && *noticed.pointed == Who(figure)) {
+    return true;
+  }
+  if (Picked(figure, noticed.target, noticed.target_player)) {
+    return true;
+  }
+  const NameplateSettings& always = noticed.settings;
+  if (figure.you) {
+    return always.yours;
+  }
+  if (figure.npc) {
+    return always.npcs;
+  }
+  return figure.monster ? always.monsters : always.players;
+}
+
 void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
                     const std::map<uint32_t, Telegraph>& telegraphs,
-                    std::string_view enemy) {
+                    std::string_view enemy, const Noticed& noticed) {
+  const NameplateSettings& with = noticed.settings;
   ImDrawList* draw = ImGui::GetBackgroundDrawList();
   ImFont* font = ImGui::GetFont();
   const float font_size = ImGui::GetFontSize() * 1.4f;
@@ -83,6 +101,11 @@ void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
       Vector3Normalize(Vector3Subtract(camera.target, camera.position));
   for (const Figure& figure : figures) {
     if (!HasNameplate(figure)) {
+      continue;
+    }
+    const bool named = ShowsName(figure, noticed);
+    // An NPC's quest mark shows without its name.
+    if (!named && !(figure.npc && figure.mark != 0)) {
       continue;
     }
     const Vector3& position = figure.position;
@@ -98,8 +121,10 @@ void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
     if (figure.npc) {
       const ImVec2 size =
           font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, figure.name.c_str());
-      DrawShadowedText(draw, font_size, {at.x - size.x / 2, at.y - size.y},
-                       kNpcName, figure.name);
+      if (named) {
+        DrawShadowedText(draw, font_size, {at.x - size.x / 2, at.y - size.y},
+                         kNpcName, figure.name);
+      }
       if (figure.mark != 0) {
         const std::string mark(1, figure.mark);
         const float mark_size = font_size * kMarkScale;
@@ -114,14 +139,16 @@ void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
 
     const ImVec2 bar_min{at.x - kBar.x / 2, at.y - kBar.y};
     const ImVec2 bar_max{at.x + kBar.x / 2, at.y};
-    const float share =
-        figure.max_health > 0
-            ? std::clamp(static_cast<float>(figure.health) / figure.max_health,
-                         0.0f, 1.0f)
-            : 0.0f;
-    draw->AddRectFilled(bar_min, bar_max, kShadow);
-    draw->AddRectFilled(bar_min, {bar_min.x + kBar.x * share, bar_max.y},
-                        figure.monster ? kMonsterHealth : kPlayerHealth);
+    if (with.health) {
+      const float share = figure.max_health > 0
+                              ? std::clamp(static_cast<float>(figure.health) /
+                                               figure.max_health,
+                                           0.0f, 1.0f)
+                              : 0.0f;
+      draw->AddRectFilled(bar_min, bar_max, kShadow);
+      draw->AddRectFilled(bar_min, {bar_min.x + kBar.x * share, bar_max.y},
+                          figure.monster ? kMonsterHealth : kPlayerHealth);
+    }
     // A monster's skill on its way goes under its health, filling as its
     // shape does.
     if (const auto cast = telegraphs.find(figure.id);
@@ -141,15 +168,17 @@ void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
                        IM_COL32_WHITE, telegraph.skill.name());
     }
 
-    const std::string level = std::to_string(figure.level) + " ";
+    const std::string level =
+        with.levels ? std::to_string(figure.level) + " " : "";
     const float level_width =
         font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, level.c_str()).x;
     const ImVec2 name_size =
         font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, figure.name.c_str());
-    float top = bar_min.y - 2.0f;
+    // Over the health, or where it'd be.
+    float top = with.health ? bar_min.y - 2.0f : at.y;
     // A player's guild goes under their name, smaller, in the angle brackets
     // games put a guild in.
-    if (!figure.guild.empty()) {
+    if (with.guilds && !figure.guild.empty()) {
       const std::string guild = "<" + figure.guild + ">";
       const float guild_size = font_size * kGuildScale;
       const ImVec2 extent =

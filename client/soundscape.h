@@ -69,10 +69,6 @@ struct Gait {
 /// at its start and halfway.
 std::array<float, 2> Footfalls(const ModelAnimation& clip, int left, int right);
 
-/// Which figure is which, as players, monsters and NPCs each count their ids
-/// from one.
-uint64_t Who(const Figure& figure);
-
 /// Which figures put a foot down, from how far each has got through its walk
 /// or run since the last update.
 class Footsteps {

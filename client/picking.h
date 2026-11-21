@@ -29,6 +29,10 @@ bool Enemy(const Figure& figure, std::string_view enemy);
 const Figure* PickMonster(const std::vector<Figure>& figures, const Ray& ray,
                           uint32_t opponent = 0, std::string_view enemy = {});
 
+/// The nearest figure along the ray but you, of any kind, alive or not, such
+/// as the one under the mouse, whose name shows while it's there: or nullptr.
+const Figure* PickAnyone(const std::vector<Figure>& figures, const Ray& ray);
+
 /// Whether the figure is the one the player picked: the monster, by its id,
 /// or the player, in a duel or at war, by theirs, as each has ids of their own.
 bool Picked(const Figure& figure, uint32_t target, uint32_t target_player);

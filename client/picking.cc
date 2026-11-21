@@ -79,6 +79,10 @@ const Figure* PickMonster(const std::vector<Figure>& figures, const Ray& ray,
   });
 }
 
+const Figure* PickAnyone(const std::vector<Figure>& figures, const Ray& ray) {
+  return Pick(figures, ray, [](const Figure& figure) { return !figure.you; });
+}
+
 bool Picked(const Figure& figure, uint32_t target, uint32_t target_player) {
   if (figure.monster) {
     return target != 0 && figure.id == target;

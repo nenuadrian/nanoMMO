@@ -36,6 +36,7 @@
 #include "client/gate.h"
 #include "client/gui.h"
 #include "client/guild_window.h"
+#include "client/help_window.h"
 #include "client/hotbar.h"
 #include "client/input.h"
 #include "client/interpolation.h"
@@ -171,6 +172,7 @@ int main(int argc, char* argv[]) {
   }
   nanommo::Gui gui;
   nanommo::Menu menu;
+  nanommo::HelpWindow help_window;
   nanommo::CharacterScreen character_screen(content->items);
   nanommo::BagWindow bag_window(content->items);
   nanommo::GuildWindow guild_window;
@@ -300,6 +302,8 @@ int main(int argc, char* argv[]) {
     bool in_world = false;
     bool dead = false;
     nanommo::Pointing pointing = nanommo::Pointing::kNothing;
+    // Whoever the pointer's on, by Who, whose name shows while it's there.
+    std::optional<uint64_t> pointed;
     if (connection) {
       const Vector3 direction = camera.Relative(nanommo::Movement());
       const bool run = nanommo::Running();
@@ -537,6 +541,10 @@ int main(int argc, char* argv[]) {
         } else if (monster != nullptr) {
           pointing = nanommo::Pointing::kMonster;
         }
+        if (const nanommo::Figure* anyone =
+                nanommo::PickAnyone(renderer.figures(), ray)) {
+          pointed = nanommo::Who(*anyone);
+        }
         if (nanommo::ClickedWorld()) {
           if (npc == nullptr) {
             const bool player = monster != nullptr && !monster->monster;
@@ -569,6 +577,8 @@ int main(int argc, char* argv[]) {
           menu.Close();
         } else if (map_open) {
           map_open = false;
+        } else if (*help_window.mutable_visible()) {
+          help_window.Toggle();
         } else if (talk_window.open() || trainer_window.open() ||
                    quest_window.open()) {
           talk_window.Close();
@@ -617,6 +627,16 @@ int main(int argc, char* argv[]) {
       if (IsKeyPressed(KEY_K) && !nanommo::Typing()) {
         craft_window.Toggle();
       }
+      if (IsKeyPressed(KEY_H) && !nanommo::Typing()) {
+        help_window.Toggle();
+      }
+      if (IsKeyPressed(KEY_O) && !nanommo::Typing()) {
+        if (menu.settings_open()) {
+          menu.CloseSettings();
+        } else {
+          menu.OpenSettings();
+        }
+      }
       character_screen.Render(renderer);
       player_frame.Render(renderer);
     } else if (!entering) {
@@ -646,7 +666,11 @@ int main(int argc, char* argv[]) {
     if (in_world) {
       nanommo::DrawNameplates(renderer.figures(), renderer.camera(),
                               telegraphs.shown(),
-                              connection->guild().war().enemy());
+                              connection->guild().war().enemy(),
+                              {.settings = settings.ui.nameplates,
+                               .pointed = pointed,
+                               .target = target,
+                               .target_player = target_player});
       nanommo::DrawCombatText(combat_text, renderer.figures(),
                               renderer.camera());
       // Over the nameplates, and under the windows.
@@ -674,14 +698,17 @@ int main(int argc, char* argv[]) {
       if (hotbar.TakeRearranged()) {
         settings.ui.hotbar = hotbar.Order();
       }
-      if (land_map.DrawMinimap(renderer.figures(), target, destination,
+      if (settings.ui.minimap &&
+          land_map.DrawMinimap(renderer.figures(), target, destination,
                                nanommo::Heading(renderer.camera()),
                                settings.ui.minimap_turns
                                    ? nanommo::MinimapTurn::kWithCamera
                                    : nanommo::MinimapTurn::kNorthUp)) {
         map_open = !map_open;
       }
-      const float under = land_map.minimap_bottom();
+      // Without the minimap, what goes under it goes up into the corner.
+      const float under =
+          settings.ui.minimap ? land_map.minimap_bottom() : 0.0f;
       nanommo::DrawQuestTracker(
           *content, connection->quests(),
           under + nanommo::DrawRoundTrip(round_trip.milliseconds(), under));
@@ -735,8 +762,7 @@ int main(int argc, char* argv[]) {
       const nanommo::protocol::Inventory bag =
           predicted_bag.Shown(connection->inventory(), GetFrameTime());
       std::optional<nanommo::protocol::ItemAction> item =
-          character_screen.Build(renderer.figures(), connection->world(),
-                                 nanommo::kLands[land].name, bag);
+          character_screen.Build(renderer.figures(), connection->world(), bag);
       // A trade that opens opens the bag too, to drag what's offered from.
       if (!connection->trade().partner().empty() && !trading) {
         *bag_window.mutable_visible() = true;
@@ -782,9 +808,11 @@ int main(int argc, char* argv[]) {
         *ask.mutable_duel() = *answer;
         connection->Send(ask);
       }
+      help_window.Build();
       menu.BuildButtons(character_screen.mutable_visible(),
                         bag_window.mutable_visible(),
-                        guild_window.mutable_visible(), &map_open);
+                        guild_window.mutable_visible(), &map_open,
+                        help_window.mutable_visible());
       bool reset_hotbar = false;
       switch (menu.Build(settings, &reset_hotbar)) {
         case nanommo::Menu::Choice::kLogOut:

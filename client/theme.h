@@ -125,6 +125,13 @@ void DrawBar(ImDrawList* draw, ImVec2 min, ImVec2 max, float share, ImU32 color,
 /// green or red while something dragged over it would go there or not.
 void DrawSlot(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 edge);
 
+/// A round button, as the chat's in the bottom left and the windows' in the
+/// bottom right are: a wine-red disc in brass, with its icon, lit while the
+/// mouse is over it, and ringed in ember while what it opens is open. Its rim
+/// reaches a little past the radius, so its window wants room round it.
+void DrawRoundButton(ImDrawList* draw, ImVec2 centre, float radius,
+                     const char* icon, bool hovered, bool on = false);
+
 /// An icon in the middle of a slot, in its colour, on a glow of that colour.
 void DrawSlotIcon(ImDrawList* draw, ImVec2 min, ImVec2 max, const char* icon,
                   ImU32 color, float alpha = 1.0f);

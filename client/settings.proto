@@ -19,12 +19,26 @@ message Graphics {
   optional bool weather = 5;
 }
 
+// Whose names show over their heads always, rather than only while they're
+// pointed at or picked, and what shows with the names.
+message Nameplates {
+  optional bool monsters = 1;
+  optional bool players = 2;
+  optional bool npcs = 3;
+  optional bool yours = 4;
+  optional bool health = 5;
+  optional bool levels = 6;
+  optional bool guilds = 7;
+}
+
 // How the interface looks and is laid out.
 message Interface {
   optional float scale = 1;
   optional bool minimap_turns = 2;
   // The hotbar's skills after the swing, by their ids, in the player's order.
   repeated uint32 hotbar = 3;
+  Nameplates nameplates = 4;
+  optional bool minimap = 5;
 }
 
 // What the player sets, which the client keeps between runs.

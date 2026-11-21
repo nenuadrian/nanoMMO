@@ -12,17 +12,37 @@
 
 namespace nanommo {
 
+/// The names over heads, which show while the pointer's on someone, or they're
+/// picked, and always for those the player says, with what the player says.
+struct NameplateSettings {
+  /// Whose show always.
+  bool monsters = false;
+  bool players = false;
+  bool npcs = false;
+  bool yours = false;
+  /// What shows with a name: a health bar under it, the level before it, and
+  /// a player's guild.
+  bool health = true;
+  bool levels = true;
+  bool guilds = true;
+
+  bool operator==(const NameplateSettings&) const = default;
+};
+
 /// How the interface looks, as the player sets it.
 struct InterfaceSettings {
   /// How much bigger or smaller than its size for the screen the interface
   /// is drawn, from half to twice.
   float scale = 1.0f;
-  /// Whether the minimap turns with the camera, so that what's ahead is up,
-  /// rather than north.
+  /// Whether the minimap's in the top right, and whether it turns with the
+  /// camera, so that what's ahead is up, rather than north. The map's on M
+  /// either way.
+  bool minimap = true;
   bool minimap_turns = false;
   /// The hotbar's skills after the swing, by their ids, in the order the
   /// player dragged them into: none, for the order of their levels.
   std::vector<uint32_t> hotbar;
+  NameplateSettings nameplates;
 
   bool operator==(const InterfaceSettings&) const = default;
 };

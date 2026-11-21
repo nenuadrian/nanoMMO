@@ -89,11 +89,6 @@ std::array<float, 2> Footfalls(const ModelAnimation& clip, int left,
   return footfalls;
 }
 
-uint64_t Who(const Figure& figure) {
-  const uint64_t kind = figure.monster ? 1 : (figure.npc ? 2 : 0);
-  return kind << 32 | figure.id;
-}
-
 std::vector<uint64_t> Footsteps::Update(const std::map<uint64_t, Gait>& gaits) {
   std::vector<uint64_t> stepped;
   std::map<uint64_t, float> loops;

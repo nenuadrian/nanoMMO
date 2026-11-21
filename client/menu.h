@@ -5,10 +5,14 @@
 
 namespace nanommo {
 
+/// The keys, and what each does, as a table, for the settings' keys and the
+/// help.
+void BuildKeys();
+
 /// The game's menu, which Escape opens over the world when nothing else is
-/// open, and the settings it leads to: the interface, sound, graphics, and the
-/// keys. The sky is the server's, so there's nothing of it to set, except to
-/// turn the weather, or the day and the night, off.
+/// open, and the settings it leads to, which O opens too: the interface,
+/// sound, graphics, and the keys. The sky is the server's, so there's nothing
+/// of it to set, except to turn the weather, or the day and the night, off.
 class Menu {
  public:
   bool open() const { return open_; }
@@ -26,9 +30,10 @@ class Menu {
   /// they ask for the hotbar's own order back.
   Choice Build(Settings& settings, bool* reset_hotbar);
 
-  /// The row of buttons in the bottom right, for the windows the keys open,
-  /// with their keys in their tooltips, and this menu's.
-  void BuildButtons(bool* character, bool* bag, bool* guild, bool* map);
+  /// The row of round buttons in the bottom right, for the windows the keys
+  /// open, with their keys in their tooltips, and this menu's.
+  void BuildButtons(bool* character, bool* bag, bool* guild, bool* map,
+                    bool* help);
 
  private:
   enum class Page { kInterface, kSound, kGraphics, kKeys };

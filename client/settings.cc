@@ -89,10 +89,22 @@ absl::StatusOr<Settings> LoadSettings(const std::string& path) {
   if (ui.has_scale() && !std::isnan(ui.scale())) {
     loaded.ui.scale = std::clamp(ui.scale(), 0.5f, 2.0f);
   }
+  if (ui.has_minimap()) {
+    loaded.ui.minimap = ui.minimap();
+  }
   if (ui.has_minimap_turns()) {
     loaded.ui.minimap_turns = ui.minimap_turns();
   }
   loaded.ui.hotbar = {ui.hotbar().begin(), ui.hotbar().end()};
+  const settings::Nameplates& plates = ui.nameplates();
+  NameplateSettings& shown = loaded.ui.nameplates;
+  shown.monsters = plates.has_monsters() ? plates.monsters() : shown.monsters;
+  shown.players = plates.has_players() ? plates.players() : shown.players;
+  shown.npcs = plates.has_npcs() ? plates.npcs() : shown.npcs;
+  shown.yours = plates.has_yours() ? plates.yours() : shown.yours;
+  shown.health = plates.has_health() ? plates.health() : shown.health;
+  shown.levels = plates.has_levels() ? plates.levels() : shown.levels;
+  shown.guilds = plates.has_guilds() ? plates.guilds() : shown.guilds;
   return loaded;
 }
 
@@ -108,10 +120,20 @@ absl::Status SaveSettings(const std::string& path, const Settings& player) {
   file.mutable_graphics()->set_day_night(player.graphics.day_night);
   file.mutable_graphics()->set_weather(player.graphics.weather);
   file.mutable_ui()->set_scale(player.ui.scale);
+  file.mutable_ui()->set_minimap(player.ui.minimap);
   file.mutable_ui()->set_minimap_turns(player.ui.minimap_turns);
   for (const uint32_t skill : player.ui.hotbar) {
     file.mutable_ui()->add_hotbar(skill);
   }
+  const NameplateSettings& shown = player.ui.nameplates;
+  settings::Nameplates& plates = *file.mutable_ui()->mutable_nameplates();
+  plates.set_monsters(shown.monsters);
+  plates.set_players(shown.players);
+  plates.set_npcs(shown.npcs);
+  plates.set_yours(shown.yours);
+  plates.set_health(shown.health);
+  plates.set_levels(shown.levels);
+  plates.set_guilds(shown.guilds);
   std::string text;
   if (!google::protobuf::TextFormat::PrintToString(file, &text)) {
     return absl::InternalError("couldn't print the settings");

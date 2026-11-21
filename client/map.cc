@@ -348,8 +348,7 @@ bool LandMap::DrawMinimap(const std::vector<Figure>& figures, uint32_t target,
   const float radius = Ui(kRadius);
   const float ring = Ui(kRing);
   const float outer = radius + ring;
-  const float banner = Ui(26.0f);
-  const ImVec2 size{2.0f * outer + Ui(8.0f), 2.0f * outer + banner + Ui(36.0f)};
+  const ImVec2 size{2.0f * outer + Ui(8.0f), 2.0f * outer + Ui(36.0f)};
   ImGui::SetNextWindowPos({screen.x - Ui(kMargin), Ui(kMargin)},
                           ImGuiCond_Always, {1.0f, 0.0f});
   ImGui::SetNextWindowSize(size);
@@ -363,8 +362,7 @@ bool LandMap::DrawMinimap(const std::vector<Figure>& figures, uint32_t target,
   ImGui::PopStyleVar();
   ImDrawList* draw = ImGui::GetWindowDrawList();
   const ImVec2 corner = ImGui::GetWindowPos();
-  const ImVec2 centre{corner.x + size.x / 2.0f,
-                      corner.y + banner + Ui(6.0f) + outer};
+  const ImVec2 centre{corner.x + size.x / 2.0f, corner.y + Ui(6.0f) + outer};
   bottom_ = corner.y + size.y;
 
   // The land round you, in a disc, with a shade inside its rim.
@@ -408,21 +406,6 @@ bool LandMap::DrawMinimap(const std::vector<Figure>& figures, uint32_t target,
                   {centre.x + way.x * outer, centre.y + way.y * outer},
                   colors::kNight, Ui(2.0f));
   }
-
-  // The land's name, on a plate over the ring.
-  ImFont* title = GetFonts().title;
-  const std::string name = absl::StrCat("The ", kLands[land_].name);
-  const float name_size = Ui(14.0f);
-  const ImVec2 extent =
-      title->CalcTextSizeA(name_size, FLT_MAX, 0.0f, name.c_str());
-  const ImVec2 plate_min{centre.x - extent.x / 2.0f - Ui(16.0f), corner.y};
-  const ImVec2 plate_max{centre.x + extent.x / 2.0f + Ui(16.0f),
-                         corner.y + banner};
-  DrawPanel(draw, plate_min, plate_max, 0.98f);
-  DrawGradientText(draw, title, name_size,
-                   {centre.x - extent.x / 2.0f,
-                    (plate_min.y + plate_max.y - extent.y) / 2.0f},
-                   colors::kGoldLight, colors::kGoldDark, name.c_str());
 
   // Where you are, in metres, under the ring.
   const std::string place =
@@ -498,7 +481,6 @@ std::optional<Place> LandMap::DrawMap(const std::vector<Figure>& figures,
   draw->PushClipRect(min, max, true);
   DrawMarkers(draw, view, land_, figures, target, destination);
   draw->PopClipRect();
-  ImGui::TextDisabled("Click somewhere to walk there. M closes the map.");
   EndPanel();
   return clicked;
 }

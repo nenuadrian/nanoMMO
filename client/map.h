@@ -42,8 +42,8 @@ class LandMap {
   void Build(const Terrain& terrain, int land);
 
   /// The minimap, with the monster you picked, by its id, and where you're
-  /// walking to, if you are, under the land's name, turned to the heading the
-  /// camera looks along if the player chose that. Scrolling over it, or its
+  /// walking to, if you are, turned to the heading the camera looks along if
+  /// the player chose that. Scrolling over it, or its
   /// buttons, zoom in and out. Returns true when its map button's clicked.
   bool DrawMinimap(const std::vector<Figure>& figures, uint32_t target,
                    std::optional<Vector3> destination, float heading,

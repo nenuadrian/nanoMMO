@@ -487,6 +487,22 @@ void DrawSlot(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 edge) {
   }
 }
 
+void DrawRoundButton(ImDrawList* draw, ImVec2 centre, float radius,
+                     const char* icon, bool hovered, bool on) {
+  draw->AddCircleFilled(centre, radius,
+                        hovered || on ? colors::kCrimson : colors::kWine);
+  const ImU32 rim =
+      on ? colors::kEmber : (hovered ? colors::kGold : colors::kBrass);
+  draw->AddCircle(centre, radius, rim, 0, Ui(2.5f));
+  // The icon, a little under half as wide as the disc.
+  ImFont* font = GetFonts().text;
+  const float size = radius * 0.83f;
+  const ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0.0f, icon);
+  DrawShadowedText(draw, font, size,
+                   {centre.x - extent.x / 2.0f, centre.y - extent.y / 2.0f},
+                   colors::kGoldLight, icon);
+}
+
 void DrawSlotIcon(ImDrawList* draw, ImVec2 min, ImVec2 max, const char* icon,
                   ImU32 color, float alpha) {
   const ImVec2 middle{(min.x + max.x) / 2.0f, (min.y + max.y) / 2.0f};

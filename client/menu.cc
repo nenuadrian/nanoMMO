@@ -26,8 +26,8 @@ void SliderPercent(const char* label, float& value) {
   }
 }
 
-// The keys, and what each does, for the keys' page.
-constexpr std::array<std::pair<const char*, const char*>, 17> kKeys = {{
+// The keys, and what each does, for the keys' page and the help's.
+constexpr std::array<std::pair<const char*, const char*>, 20> kKeys = {{
     {"W A S D, or the arrows", "Walk"},
     {"Shift", "Run"},
     {"Space", "Swing what you hold"},
@@ -41,28 +41,29 @@ constexpr std::array<std::pair<const char*, const char*>, 17> kKeys = {{
     {"C", "Your character"},
     {"I", "Your bag"},
     {"G", "Your guild"},
+    {"K", "Crafting"},
+    {"H", "Help"},
+    {"O", "Settings"},
     {"Enter", "Chat"},
     {"Enter, then /g and a space", "Talk to your guild"},
     {"Escape", "Close what's open, or this menu"},
     {"Drag an item out of the bag", "Throw it away"},
 }};
 
-// A button in the bottom right row, with an icon, square.
+// In points: a round button's radius, as the chat's is, and the room round
+// the row for the buttons' rims, which the window would cut.
+constexpr float kRound = 23.0f;
+constexpr float kRimRoom = 4.0f;
+
+// A button in the bottom right row, with an icon, round, as the chat's is.
 bool BarButton(const char* id, const char* icon, bool on, const char* tip) {
-  const float size = Ui(38.0f);
-  const bool clicked = ImGui::InvisibleButton(id, {size, size});
+  const float radius = Ui(kRound);
+  const bool clicked =
+      ImGui::InvisibleButton(id, {radius * 2.0f, radius * 2.0f});
   const bool hovered = ImGui::IsItemHovered();
   const ImVec2 min = ImGui::GetItemRectMin();
-  const ImVec2 max = ImGui::GetItemRectMax();
-  ImDrawList* draw = ImGui::GetWindowDrawList();
-  DrawSlot(draw, min, max, on ? colors::kEmber : (hovered ? colors::kGold : 0));
-  ImFont* font = GetFonts().text;
-  const float icon_size = Ui(18.0f);
-  const ImVec2 extent = font->CalcTextSizeA(icon_size, FLT_MAX, 0.0f, icon);
-  DrawShadowedText(
-      draw, font, icon_size,
-      {(min.x + max.x - extent.x) / 2.0f, (min.y + max.y - extent.y) / 2.0f},
-      hovered || on ? colors::kGoldLight : colors::kPaper, icon);
+  DrawRoundButton(ImGui::GetWindowDrawList(), {min.x + radius, min.y + radius},
+                  radius, icon, hovered, on);
   if (hovered) {
     ImGui::SetTooltip("%s", tip);
   }
@@ -70,6 +71,22 @@ bool BarButton(const char* id, const char* icon, bool on, const char* tip) {
 }
 
 }  // namespace
+
+void BuildKeys() {
+  if (ImGui::BeginTable("Keys", 2, ImGuiTableFlags_RowBg)) {
+    for (const auto& [key, does] : kKeys) {
+      ImGui::TableNextRow();
+      ImGui::TableNextColumn();
+      ImGui::PushFont(GetFonts().bold, 0.0f);
+      ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGold), "%s",
+                         key);
+      ImGui::PopFont();
+      ImGui::TableNextColumn();
+      ImGui::TextUnformatted(does);
+    }
+    ImGui::EndTable();
+  }
+}
 
 Menu::Choice Menu::Build(Settings& settings, bool* reset_hotbar) {
   Choice choice = Choice::kNothing;
@@ -152,14 +169,34 @@ void Menu::BuildSettings(Settings& settings, bool* reset_hotbar) {
       ImGui::TextDisabled(
           "On top of its size for your screen, which grows with it.");
       ImGui::Spacing();
+      ImGui::Checkbox("Show the minimap", &settings.ui.minimap);
+      ImGui::BeginDisabled(!settings.ui.minimap);
       ImGui::Checkbox("Turn the minimap with the camera",
                       &settings.ui.minimap_turns);
+      ImGui::EndDisabled();
       ImGui::Spacing();
       if (GameButton("Put the hotbar back in order", {0.0f, 0.0f})) {
         settings.ui.hotbar.clear();
         *reset_hotbar = true;
       }
       ImGui::TextDisabled("Drag a skill onto another to swap them.");
+
+      // Whose names show over their heads, and what with.
+      ImGui::SeparatorText("Names over heads");
+      ImGui::TextDisabled("Each shows while you point at it, or it's picked.");
+      ImGui::TextDisabled("Always show them over:");
+      NameplateSettings& plates = settings.ui.nameplates;
+      ImGui::Checkbox("Monsters", &plates.monsters);
+      ImGui::SameLine(Ui(150.0f));
+      ImGui::Checkbox("Other players", &plates.players);
+      ImGui::Checkbox("NPCs", &plates.npcs);
+      ImGui::SameLine(Ui(150.0f));
+      ImGui::Checkbox("You", &plates.yours);
+      ImGui::TextDisabled("With them:");
+      ImGui::Checkbox("Health", &plates.health);
+      ImGui::SameLine(Ui(150.0f));
+      ImGui::Checkbox("Levels", &plates.levels);
+      ImGui::Checkbox("Guilds", &plates.guilds);
       break;
     }
     case Page::kSound:
@@ -184,19 +221,7 @@ void Menu::BuildSettings(Settings& settings, bool* reset_hotbar) {
       break;
     case Page::kKeys:
       ImGui::SeparatorText("Keys");
-      if (ImGui::BeginTable("Keys", 2, ImGuiTableFlags_RowBg)) {
-        for (const auto& [key, does] : kKeys) {
-          ImGui::TableNextRow();
-          ImGui::TableNextColumn();
-          ImGui::PushFont(GetFonts().bold, 0.0f);
-          ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGold),
-                             "%s", key);
-          ImGui::PopFont();
-          ImGui::TableNextColumn();
-          ImGui::TextUnformatted(does);
-        }
-        ImGui::EndTable();
-      }
+      BuildKeys();
       break;
   }
   ImGui::PopItemWidth();
@@ -204,22 +229,23 @@ void Menu::BuildSettings(Settings& settings, bool* reset_hotbar) {
   EndPanel();
 }
 
-void Menu::BuildButtons(bool* character, bool* bag, bool* guild, bool* map) {
+void Menu::BuildButtons(bool* character, bool* bag, bool* guild, bool* map,
+                        bool* help) {
   const ImVec2 display = ImGui::GetIO().DisplaySize;
-  ImGui::SetNextWindowPos({display.x - Ui(18.0f), display.y - Ui(18.0f)},
-                          ImGuiCond_Always, {1.0f, 1.0f});
-  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Ui(ImVec2{10.0f, 10.0f}));
-  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Ui(ImVec2{6.0f, 6.0f}));
+  // As far in from the corner as the chat's button is from its own, with room
+  // round them for their rims, and nothing behind them.
+  const float room = Ui(kRimRoom);
+  ImGui::SetNextWindowPos(
+      {display.x - Ui(18.0f) + room, display.y - Ui(18.0f) + room},
+      ImGuiCond_Always, {1.0f, 1.0f});
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {room, room});
+  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Ui(ImVec2{10.0f, 10.0f}));
   ImGui::Begin("Buttons", nullptr,
                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                    ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoNav |
                    ImGuiWindowFlags_AlwaysAutoResize |
                    ImGuiWindowFlags_NoFocusOnAppearing |
                    ImGuiWindowFlags_NoSavedSettings);
-  const ImVec2 min = ImGui::GetWindowPos();
-  const ImVec2 size = ImGui::GetWindowSize();
-  DrawPanel(ImGui::GetWindowDrawList(), min, {min.x + size.x, min.y + size.y},
-            0.9f);
   if (BarButton("##character", ICON_FA_USER, *character, "Character (C)")) {
     *character = !*character;
   }
@@ -234,6 +260,10 @@ void Menu::BuildButtons(bool* character, bool* bag, bool* guild, bool* map) {
   ImGui::SameLine();
   if (BarButton("##map", ICON_FA_MAP, *map, "Map (M)")) {
     *map = !*map;
+  }
+  ImGui::SameLine();
+  if (BarButton("##help", ICON_FA_CIRCLE_QUESTION, *help, "Help (H)")) {
+    *help = !*help;
   }
   ImGui::SameLine();
   if (BarButton("##menu", ICON_FA_BARS, open_ || settings_, "Menu (Escape)")) {

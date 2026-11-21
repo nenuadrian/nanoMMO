@@ -14,8 +14,7 @@
 namespace nanommo {
 
 /// You, as others see you, on C: standing on a lit stage, with a slot round
-/// you for each thing you wear, and your health, experience and where you are
-/// under it.
+/// you for each thing you wear, and your health and experience under it.
 class CharacterScreen {
  public:
   explicit CharacterScreen(ItemTable items) : items_(std::move(items)) {}
@@ -32,7 +31,6 @@ class CharacterScreen {
   /// returns what they do with it, as the bag's window does.
   std::optional<protocol::ItemAction> Build(const std::vector<Figure>& figures,
                                             const protocol::World& world,
-                                            const char* land,
                                             const protocol::Inventory& bag);
 
  private:

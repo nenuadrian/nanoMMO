@@ -79,6 +79,10 @@ struct Figure {
   float blend = 1.0f;
 };
 
+/// Which figure is which, as players, monsters and NPCs each count their ids
+/// from one.
+uint64_t Who(const Figure& figure);
+
 /// What a player looks like, from the looks they chose: the skin, the hair
 /// colour and the hair at those places in the figures' lists, each wrapped
 /// round to what there is, so that any looks draw as someone, and the build,

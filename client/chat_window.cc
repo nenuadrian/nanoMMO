@@ -21,6 +21,7 @@ namespace {
 constexpr float kMargin = 18.0f;
 constexpr ImVec2 kSize{440.0f, 240.0f};
 constexpr float kButton = 23.0f;
+constexpr float kRim = 4.0f;
 
 constexpr ImVec4 kName{1.0f, 0.63f, 0.29f, 1.0f};
 constexpr ImVec4 kServer{1.0f, 0.83f, 0.3f, 1.0f};
@@ -99,10 +100,15 @@ std::optional<std::string> ChatWindow::Build(
   if (!open_) {
     // A round button in the corner, with how many lines are new on it.
     const float radius = Ui(kButton);
-    ImGui::SetNextWindowPos({Ui(kMargin), display.y - Ui(kMargin)},
-                            ImGuiCond_Always, {0.0f, 1.0f});
+    // Room round the disc for its rim, which the window would cut, as far out
+    // as the disc stays in the corner, and above and to the right of it for
+    // the count of new lines.
+    const float room = Ui(kRim);
+    ImGui::SetNextWindowPos(
+        {Ui(kMargin) - room, display.y - Ui(kMargin) + room}, ImGuiCond_Always,
+        {0.0f, 1.0f});
     ImGui::SetNextWindowSize(
-        {radius * 2.0f + Ui(14.0f), radius * 2.0f + Ui(6.0f)});
+        {room + radius * 2.0f + Ui(14.0f), Ui(6.0f) + radius * 2.0f + room});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
     ImGui::Begin("Chat closed", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
@@ -111,7 +117,7 @@ std::optional<std::string> ChatWindow::Build(
                      ImGuiWindowFlags_NoSavedSettings);
     ImGui::PopStyleVar();
     const ImVec2 corner = ImGui::GetWindowPos();
-    const ImVec2 centre{corner.x + radius, corner.y + Ui(6.0f) + radius};
+    const ImVec2 centre{corner.x + room + radius, corner.y + Ui(6.0f) + radius};
     ImGui::SetCursorScreenPos({centre.x - radius, centre.y - radius});
     const bool clicked =
         ImGui::InvisibleButton("##open", {radius * 2.0f, radius * 2.0f});
@@ -120,19 +126,7 @@ std::optional<std::string> ChatWindow::Build(
       ImGui::SetTooltip("Chat (Enter)");
     }
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    draw->AddCircleFilled({centre.x + Ui(2.0f), centre.y + Ui(3.0f)},
-                          radius + Ui(2.0f), Faded(IM_COL32_BLACK, 0.45f));
-    draw->AddCircleFilled(centre, radius,
-                          hovered ? colors::kCrimson : colors::kWine);
-    draw->AddCircle(centre, radius, hovered ? colors::kGold : colors::kBrass, 0,
-                    Ui(2.5f));
-    ImFont* font = GetFonts().text;
-    const float icon = Ui(19.0f);
-    const ImVec2 extent =
-        font->CalcTextSizeA(icon, FLT_MAX, 0.0f, ICON_FA_COMMENTS);
-    DrawShadowedText(draw, font, icon,
-                     {centre.x - extent.x / 2.0f, centre.y - extent.y / 2.0f},
-                     colors::kGoldLight, ICON_FA_COMMENTS);
+    DrawRoundButton(draw, centre, radius, ICON_FA_COMMENTS, hovered);
     if (const std::size_t unread = Unread(lines, seen_); unread > 0) {
       const std::string count = unread > 99 ? "99+" : std::to_string(unread);
       ImFont* bold = GetFonts().bold;

@@ -107,6 +107,11 @@ Figure Stand(const std::map<uint32_t, Figure>& figures,
 
 }  // namespace
 
+uint64_t Who(const Figure& figure) {
+  const uint64_t kind = figure.monster ? 1 : (figure.npc ? 2 : 0);
+  return kind << 32 | figure.id;
+}
+
 Features FeaturesOf(const figures::Figures& figures,
                     const protocol::Looks& looks) {
   Features features;

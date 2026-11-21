@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cfloat>
 #include <optional>
 #include <string>
 #include <utility>
@@ -41,21 +40,11 @@ constexpr std::array<items::Slot, 4> kLeft = {
 constexpr std::array<items::Slot, 2> kRight = {items::SLOT_MAIN_HAND,
                                                items::SLOT_OFF_HAND};
 
-// A glow behind the character, from the floor up, and a ring of light on the
-// floor where it stands.
+// A glow behind the character, from the floor up, and nothing on the floor.
 void DrawStage(ImDrawList* draw, ImVec2 min, ImVec2 max) {
   draw->AddRectFilledMultiColor(
       min, max, Faded(colors::kNight, 0.9f), Faded(colors::kNight, 0.9f),
       Faded(colors::kWine, 0.9f), Faded(colors::kWine, 0.9f));
-  const ImVec2 floor{(min.x + max.x) / 2.0f, max.y - (max.y - min.y) * 0.06f};
-  const float width = (max.x - min.x) * 0.42f;
-  for (int ring = 6; ring >= 1; --ring) {
-    const float share = static_cast<float>(ring) / 6.0f;
-    draw->AddEllipseFilled(floor, {width * share * 1.4f, width * share * 0.5f},
-                           Faded(colors::kEmber, 0.05f));
-  }
-  draw->AddEllipse(floor, {width, width * 0.3f}, Faded(colors::kGoldDark, 0.8f),
-                   0.0f, 0, Ui(1.5f));
   draw->AddRect(min, max, colors::kBrass, 0.0f, 0, Ui(1.2f));
 }
 
@@ -82,7 +71,7 @@ void CharacterScreen::Render(const Renderer& renderer) {
 
 std::optional<protocol::ItemAction> CharacterScreen::Build(
     const std::vector<Figure>& figures, const protocol::World& world,
-    const char* land, const protocol::Inventory& bag) {
+    const protocol::Inventory& bag) {
   if (!visible_) {
     return std::nullopt;
   }
@@ -124,28 +113,9 @@ std::optional<protocol::ItemAction> CharacterScreen::Build(
     slots(kLeft, origin.x);
     slots(kRight, stage_max.x + gap);
 
-    // Under it, who you are, and how you are.
-    ImGui::SetCursorScreenPos({origin.x, stage_max.y + gap});
+    // Under it, how you are.
     const float width = stage_max.x + gap + slot - origin.x;
-    ImFont* title = GetFonts().title;
-    const float name_size = Ui(20.0f);
-    const ImVec2 name_extent =
-        title->CalcTextSizeA(name_size, FLT_MAX, 0.0f, you->name.c_str());
-    const ImVec2 name_at{origin.x + (width - name_extent.x) / 2.0f,
-                         stage_max.y + gap};
-    DrawGradientText(draw, title, name_size, name_at, colors::kGoldLight,
-                     colors::kGold, you->name.c_str());
-    const std::string line =
-        absl::StrCat("Level ", you->level, ", in the ", land);
-    const float line_size = Ui(15.0f);
-    ImFont* text = GetFonts().text;
-    const ImVec2 line_extent =
-        text->CalcTextSizeA(line_size, FLT_MAX, 0.0f, line.c_str());
-    DrawShadowedText(draw, text, line_size,
-                     {origin.x + (width - line_extent.x) / 2.0f,
-                      name_at.y + name_extent.y + Ui(2.0f)},
-                     colors::kMuted, line.c_str());
-    const float bars = name_at.y + name_extent.y + line_extent.y + Ui(12.0f);
+    const float bars = stage_max.y + gap;
     const std::string health =
         absl::StrCat("Health ", you->health, " / ", you->max_health);
     DrawBar(draw, {origin.x, bars}, {origin.x + width, bars + Ui(18.0f)},

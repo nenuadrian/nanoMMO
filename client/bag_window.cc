@@ -440,11 +440,6 @@ std::optional<protocol::ItemAction> BagWindow::Build(
     // Gold takes no slot, so it goes under them.
     ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGold),
                        ICON_FA_COINS " %u gold", bag.gold());
-    const std::size_t used = bag.bag().size();
-    ImGui::TextDisabled(
-        "%zu of %u slots used. Drag an item out to throw it "
-        "away.",
-        used, kBagSlots);
   }
   EndPanel();
   return action;
