@@ -241,14 +241,6 @@ void DrawPanel(ImDrawList* draw, ImVec2 min, ImVec2 max, float alpha) {
             {max.x - inset, max.y - inset}, cut * 0.75f);
   draw->PathStroke(Faded(colors::kGoldLight, 0.12f * alpha), ImDrawFlags_Closed,
                    std::max(1.0f, Ui(0.8f)));
-
-  // A gem at each of the top corners, where the corner's cut.
-  const float gem = Ui(4.0f);
-  for (const ImVec2 at : {ImVec2{min.x + cut * 0.5f, min.y + cut * 0.5f},
-                          ImVec2{max.x - cut * 0.5f, min.y + cut * 0.5f}}) {
-    DrawDiamond(draw, at, gem, Faded(colors::kEmber, alpha),
-                Faded(colors::kGold, alpha));
-  }
 }
 
 void DrawDivider(ImDrawList* draw, ImVec2 left, float width) {

@@ -14,7 +14,8 @@ inline constexpr float kRunSpeed = 3.1f;
 void Walk(const Terrain& terrain, float& x, float& z, float to_x, float to_z);
 
 /// Walks from x, z for that many seconds, along the direction, at the walk's
-/// speed or the run's, inside the land's edge and on land. The server walks a
+/// speed or the run's, no faster on a diagonal, inside the land's edge and on
+/// land. The server walks a
 /// player with it each tick, and the client walks you with it before the
 /// server answers, so both have to come out the same.
 void WalkAlong(const Terrain& terrain, float& x, float& z, float direction_x,

@@ -7,6 +7,14 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.90.2 (2026-11-21)
+
+- Walking diagonally is smooth again. The server walks a diagonal no faster than a straight line,
+  but the client walked you with W and D as they were, about 41% faster, before the server
+  answered, so each world it sent pulled you back. `WalkAlong`, which both use, keeps the direction
+  to a length of one now, so the client's guess and the server come out the same.
+- The windows' panels lose the gems at their top corners, as the website's did.
+
 ## 0.90.1 (2026-11-20)
 
 - The game builds with its own httplib again, 0.65.0, set up for ThreadSanitizer. smollerGraph's

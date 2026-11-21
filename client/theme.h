@@ -74,8 +74,7 @@ void ApplyTheme(float scale);
 void PathPanel(ImDrawList* draw, ImVec2 min, ImVec2 max, float cut);
 
 /// A panel, as every window has: dark, in a shape with its corners cut, a red
-/// glow under its title, trimmed in brass with a thin light inside it, and a
-/// gem at its top corners.
+/// glow under its title, and trimmed in brass with a thin light inside it.
 void DrawPanel(ImDrawList* draw, ImVec2 min, ImVec2 max, float alpha = 0.96f);
 
 /// A diamond, filled, with an outline.
