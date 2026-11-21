@@ -46,6 +46,15 @@
 //     before the newest world, to compare with.
 //   stale: the same, but saying it drew them a second before, to hit where
 //     they were rather than where they are.
+//
+// The war is with the partner too, a friend in the other guild: each founds
+// a guild of its own, and asks the other's to war until they're at war.
+//
+//   feed: stands still until it's killed, comes back as soon as it can, and
+//     walks back to the partner, to be killed again.
+//   farm: picks the partner and swings each tick, and the server runs it up
+//     to them, to run up its guild's score. It prints each kill, and the
+//     war's score each time it moves.
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -87,6 +96,9 @@ constexpr auto kEachWay = std::chrono::seconds(3);
 // says it drew them at, and how long before it stale says.
 constexpr auto kDrawn = std::chrono::milliseconds(100);
 constexpr auto kStale = std::chrono::milliseconds(1000);
+// The guilds of farm and feed, at war with each other.
+constexpr char kFarmers[] = "Farmers";
+constexpr char kFeeders[] = "Feeders";
 
 absl::StatusOr<nanommo::protocol::LoginReply> Ask(
     asio::ssl::context& tls, const nanommo::protocol::LoginRequest& request) {
@@ -163,6 +175,17 @@ const nanommo::protocol::Player* Us(const nanommo::protocol::World& world) {
   return Player(world, world.you());
 }
 
+// The player the world has with the name, once it has their name.
+const nanommo::protocol::Player* Named(const nanommo::protocol::World& world,
+                                       const std::string& name) {
+  for (const nanommo::protocol::Player& player : world.players()) {
+    if (player.name() == name) {
+      return &player;
+    }
+  }
+  return nullptr;
+}
+
 // The monster the world has with the id, if it has it.
 const nanommo::protocol::Monster* Monster(const nanommo::protocol::World& world,
                                           uint32_t id) {
@@ -204,7 +227,9 @@ enum class Cheat {
   kRun,
   kTwice,
   kDuel,
-  kStale
+  kStale,
+  kFeed,
+  kFarm
 };
 
 // An input that moves what's in one place to another.
@@ -579,6 +604,98 @@ int Duel(Cheat cheat, const std::string& partner,
   return 0;
 }
 
+// The war, with the partner, in the other guild. Each founds a guild of its
+// own, and asks the partner's to war each second until they're at war, as
+// the second to ask says yes. Then feed stands still, comes back once it's
+// killed, as soon as it can, and walks back to the partner, and farm picks
+// the partner and swings each tick, printing each kill, and the war's score
+// as it moves, a few seconds behind. Returns what main does.
+int War(Cheat cheat, const std::string& partner,
+        std::unique_ptr<nanommo::Connection> connection) {
+  const bool farming = cheat == Cheat::kFarm;
+  const std::string ours = farming ? kFarmers : kFeeders;
+  const std::string theirs = farming ? kFeeders : kFarmers;
+  uint32_t sequence = 0;
+  int kills = 0;
+  bool dead = false;
+  uint32_t score = 0;
+  std::chrono::steady_clock::time_point asked;
+  std::chrono::steady_clock::time_point tick;
+  std::chrono::steady_clock::time_point started;
+  std::cout << std::fixed << std::setprecision(1);
+  while (connection->connected()) {
+    connection->Poll();
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    const auto now = std::chrono::steady_clock::now();
+    const nanommo::protocol::Guild& guild = connection->guild();
+    if (guild.war().enemy() != theirs) {
+      if (now - asked >= std::chrono::seconds(1)) {
+        nanommo::protocol::Input ask;
+        if (guild.name().empty()) {
+          ask.mutable_guild()->set_create(ours);
+        } else {
+          ask.mutable_guild()->set_war(theirs);
+        }
+        connection->Send(ask);
+        asked = now;
+      }
+      started = now;
+      continue;
+    }
+    const nanommo::protocol::World& world = connection->world();
+    const nanommo::protocol::Player* us = Us(world);
+    const nanommo::protocol::Player* them = Named(world, partner);
+    if (us == nullptr || them == nullptr) {
+      continue;
+    }
+    const double minutes =
+        std::chrono::duration<double>(now - started).count() / 60;
+    if (!farming) {
+      const bool died = us->motion() == nanommo::protocol::MOTION_DEAD;
+      if (died && world.respawn() == 0 && now >= tick) {
+        nanommo::protocol::Input respawn;
+        respawn.set_respawn(true);
+        connection->Send(respawn);
+        tick = now + std::chrono::seconds(1);
+      } else if (!died && dead) {
+        nanommo::protocol::Input back;
+        back.mutable_walk_to()->set_x(them->x());
+        back.mutable_walk_to()->set_z(them->z());
+        connection->Send(back);
+        std::cout << "cheat: " << partner << " killed " << us->name()
+                  << ", who walks back" << std::endl;
+      }
+      dead = died;
+      continue;
+    }
+    if (now >= tick) {
+      tick = now + kTick;
+      nanommo::protocol::Input input;
+      input.set_target_player(them->id());
+      input.set_attack(true);
+      input.set_sequence(++sequence);
+      input.set_seen(connection->whole());
+      connection->Send(input);
+    }
+    const bool killed = them->motion() == nanommo::protocol::MOTION_DEAD;
+    if (killed && !dead) {
+      ++kills;
+      std::cout << "cheat: farm killed " << partner << ", " << kills
+                << (kills == 1 ? " time" : " times") << " in " << minutes
+                << " minutes" << std::endl;
+    }
+    dead = killed;
+    if (guild.war().kills() != score) {
+      score = guild.war().kills();
+      std::cout << "cheat: after " << minutes << " minutes, the war's score is "
+                << score << " to " << guild.war().enemy_kills() << ", "
+                << score / minutes << " a minute" << std::endl;
+    }
+  }
+  std::cout << "cheat: the server closed the connection" << std::endl;
+  return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -586,7 +703,7 @@ int main(int argc, char** argv) {
       "usage: nanommo_cheat <name> <password> "
       "<walk|speed|teleport|reach|fight|rapid|swing|cancel>\n"
       "       nanommo_cheat <name> <password> "
-      "<take|swap|run|twice|duel|stale> <partner>\n";
+      "<take|swap|run|twice|duel|stale|feed|farm> <partner>\n";
   if (argc != 4 && argc != 5) {
     std::cerr << usage;
     return 2;
@@ -623,6 +740,10 @@ int main(int argc, char** argv) {
     cheat = Cheat::kDuel;
   } else if (named == "stale") {
     cheat = Cheat::kStale;
+  } else if (named == "feed") {
+    cheat = Cheat::kFeed;
+  } else if (named == "farm") {
+    cheat = Cheat::kFarm;
   } else {
     std::cerr << usage;
     return 2;
@@ -630,8 +751,9 @@ int main(int argc, char** argv) {
   const bool trades = cheat == Cheat::kTake || cheat == Cheat::kSwap ||
                       cheat == Cheat::kRun || cheat == Cheat::kTwice;
   const bool duels = cheat == Cheat::kDuel || cheat == Cheat::kStale;
-  // A trade or a duel needs a partner, and nothing else does.
-  if ((trades || duels) != (argc == 5)) {
+  const bool wars = cheat == Cheat::kFeed || cheat == Cheat::kFarm;
+  // A trade, a duel or a war needs a partner, and nothing else does.
+  if ((trades || duels || wars) != (argc == 5)) {
     std::cerr << usage;
     return 2;
   }
@@ -672,6 +794,9 @@ int main(int argc, char** argv) {
   }
   if (duels) {
     return Duel(cheat, argv[4], *std::move(connection));
+  }
+  if (wars) {
+    return War(cheat, argv[4], *std::move(connection));
   }
 
   nanommo::Speedometer speed;
