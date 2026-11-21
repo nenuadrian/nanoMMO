@@ -27,7 +27,7 @@ void SliderPercent(const char* label, float& value) {
 }
 
 // The keys, and what each does, for the keys' page and the help's.
-constexpr std::array<std::pair<const char*, const char*>, 20> kKeys = {{
+constexpr std::array<std::pair<const char*, const char*>, 21> kKeys = {{
     {"W A S D, or the arrows", "Walk"},
     {"Shift", "Run"},
     {"Space", "Swing what you hold"},
@@ -40,6 +40,7 @@ constexpr std::array<std::pair<const char*, const char*>, 20> kKeys = {{
     {"M", "The map"},
     {"C", "Your character"},
     {"I", "Your bag"},
+    {"T", "Your quests"},
     {"G", "Your guild"},
     {"K", "Crafting"},
     {"H", "Help"},
@@ -229,8 +230,8 @@ void Menu::BuildSettings(Settings& settings, bool* reset_hotbar) {
   EndPanel();
 }
 
-void Menu::BuildButtons(bool* character, bool* bag, bool* guild, bool* map,
-                        bool* help) {
+void Menu::BuildButtons(bool* character, bool* bag, bool* quests, bool* guild,
+                        bool* map, bool* help) {
   const ImVec2 display = ImGui::GetIO().DisplaySize;
   // As far in from the corner as the chat's button is from its own, with room
   // round them for their rims, and nothing behind them.
@@ -252,6 +253,10 @@ void Menu::BuildButtons(bool* character, bool* bag, bool* guild, bool* map,
   ImGui::SameLine();
   if (BarButton("##bag", ICON_FA_BAG_SHOPPING, *bag, "Bag (I)")) {
     *bag = !*bag;
+  }
+  ImGui::SameLine();
+  if (BarButton("##quests", ICON_FA_SCROLL, *quests, "Quests (T)")) {
+    *quests = !*quests;
   }
   ImGui::SameLine();
   if (BarButton("##guild", ICON_FA_SHIELD_HALVED, *guild, "Guild (G)")) {

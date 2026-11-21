@@ -230,6 +230,7 @@ protocol::Quests QuestsOf(const Progress& progress) {
   quests.mutable_on()->insert(progress.quests.begin(), progress.quests.end());
   quests.mutable_done()->Add(progress.quests_done.begin(),
                              progress.quests_done.end());
+  quests.set_revision(progress.quests_revision);
   return quests;
 }
 
@@ -373,6 +374,7 @@ absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
   }
   player.quests = {quests.on().begin(), quests.on().end()};
   player.quests_done = {quests.done().begin(), quests.done().end()};
+  player.quests_revision = quests.revision();
   player.inventory = Inventory(*std::move(bag));
   if (!absl::SimpleAtof(saved[0], &player.x) ||
       !absl::SimpleAtof(saved[1], &player.z) ||
@@ -729,8 +731,9 @@ absl::StatusOr<int> Players::Flush() {
           add(Worn(static_cast<items::Slot>(slot)), stack);
         }
       }
-      // The quests go with the row, as JSON, and a hash with none, from before
-      // quests or of a player on none, leaves MySQL's.
+      // The quests go with the row, as JSON, and a hash without them, from
+      // before quests, leaves MySQL's. Once they've changed, they have their
+      // revision, so a player who's given up all they were on saves as that.
       protocol::Quests quests;
       std::string json;
       if (!hash[10].empty() && quests.ParseFromString(hash[10])) {

@@ -37,6 +37,30 @@ class QuestWindow {
   std::vector<uint32_t> quests_;
 };
 
+/// The player's quests, on T: those they're on, and those they've done, each
+/// with who gave it, what it asks for, how far they've got, and what it gives,
+/// and a way to give one up, wherever they are.
+class QuestLog {
+ public:
+  explicit QuestLog(const Content& content) : content_(content) {}
+
+  bool visible() const { return visible_; }
+  bool* mutable_visible() { return &visible_; }
+  void Toggle() { visible_ = !visible_; }
+
+  /// Draws the window, while it's open. Returns the input that gives up the
+  /// quest picked, once the player says they're sure.
+  std::optional<protocol::Input> Build(const protocol::Quests& yours);
+
+ private:
+  const Content& content_;
+  bool visible_ = false;
+  // The quest shown, by its id, and whether we're asking if they're sure
+  // they want to give it up.
+  uint32_t picked_ = 0;
+  bool giving_up_ = false;
+};
+
 /// Marks each NPC who has a quest for the player: '?' for one they've done,
 /// to turn in, over '!' for one they can take.
 void MarkQuestGivers(std::vector<Figure>& figures, const Content& content,

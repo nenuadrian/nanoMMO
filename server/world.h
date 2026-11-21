@@ -384,6 +384,11 @@ class World {
   /// their bag, or the error says why not, in words for the player.
   absl::Status TurnIn(uint32_t id, uint32_t npc, uint32_t quest);
 
+  /// Gives up a quest the player's on, wherever they are, with what they've
+  /// killed for it, so that its giver gives it again. A NotFound error says
+  /// they're not on it.
+  absl::Status GiveUp(uint32_t id, uint32_t quest);
+
   /// Moves the player's items around, as Inventory::Move does, wearing them
   /// and taking them off, or the error says why not, in words for the player.
   /// Nothing goes to or from a place they offer in a trade.

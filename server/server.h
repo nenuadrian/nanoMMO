@@ -84,6 +84,7 @@ class Server {
   void Learn(uint32_t id, const protocol::Learn& learn);
   void TakeQuest(uint32_t id, const protocol::Quest& quest);
   void TurnIn(uint32_t id, const protocol::Quest& quest);
+  void GiveUp(uint32_t id, uint32_t quest);
   void Item(uint32_t id, const protocol::ItemAction& action);
   void Trade(uint32_t id, const protocol::TradeAction& action);
   void Duel(uint32_t id, const protocol::DuelAction& action);

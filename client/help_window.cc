@@ -104,6 +104,9 @@ void HelpWindow::Build() {
           "A ? over them means you've done it: click them again to turn it "
           "in, for your prize.");
       Line("The quests you're on show in the top right, under the minimap.");
+      Line(
+          "T opens your quests: how far you've got with each, what it gives, "
+          "and a way to give one up, which its giver then gives again.");
       break;
     case Page::kGuilds:
       ImGui::SeparatorText("Guilds and duels");

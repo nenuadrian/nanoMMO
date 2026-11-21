@@ -819,6 +819,16 @@ absl::Status World::TakeQuest(uint32_t id, uint32_t npc, uint32_t quest) {
   return absl::OkStatus();
 }
 
+absl::Status World::GiveUp(uint32_t id, uint32_t quest) {
+  const auto player = players_.find(id);
+  if (player == players_.end() || !player->second.quests.contains(quest)) {
+    return absl::NotFoundError("You're not on that quest.");
+  }
+  player->second.quests.erase(quest);
+  ++player->second.quests_revision;
+  return absl::OkStatus();
+}
+
 absl::Status World::TurnIn(uint32_t id, uint32_t npc, uint32_t quest) {
   const auto player = players_.find(id);
   const auto giver = npcs_.find(npc);

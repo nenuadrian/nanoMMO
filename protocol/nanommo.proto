@@ -100,6 +100,9 @@ message Input {
   int64 drawn = 21;
   // Something to make, or to stop making. Sent once, like an item's.
   CraftAction craft = 22;
+  // A quest to give up, by its id in the quests file, sent once: what was
+  // killed for it goes with it, and its giver gives it again.
+  uint32 give_up = 23;
 }
 
 // A place in a land, in metres from its middle.

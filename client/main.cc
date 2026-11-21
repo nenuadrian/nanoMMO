@@ -182,6 +182,7 @@ int main(int argc, char* argv[]) {
   nanommo::TalkWindow talk_window;
   nanommo::TrainerWindow trainer_window(content->skills);
   nanommo::QuestWindow quest_window(*content);
+  nanommo::QuestLog quest_log(*content);
   nanommo::CraftWindow craft_window(*content);
   nanommo::Hotbar hotbar(content->skills);
   hotbar.Arrange(settings.ui.hotbar);
@@ -579,6 +580,8 @@ int main(int argc, char* argv[]) {
           map_open = false;
         } else if (*help_window.mutable_visible()) {
           help_window.Toggle();
+        } else if (quest_log.visible()) {
+          quest_log.Toggle();
         } else if (talk_window.open() || trainer_window.open() ||
                    quest_window.open()) {
           talk_window.Close();
@@ -629,6 +632,9 @@ int main(int argc, char* argv[]) {
       }
       if (IsKeyPressed(KEY_H) && !nanommo::Typing()) {
         help_window.Toggle();
+      }
+      if (IsKeyPressed(KEY_T) && !nanommo::Typing()) {
+        quest_log.Toggle();
       }
       if (IsKeyPressed(KEY_O) && !nanommo::Typing()) {
         if (menu.settings_open()) {
@@ -756,6 +762,12 @@ int main(int argc, char* argv[]) {
         ask.MergeFrom(*quest);
         connection->Send(ask);
       }
+      if (const std::optional<nanommo::protocol::Input> given_up =
+              quest_log.Build(connection->quests())) {
+        nanommo::protocol::Input ask = sent;
+        ask.MergeFrom(*given_up);
+        connection->Send(ask);
+      }
       // What the player does with their items, in either window, goes with
       // what we sent last, like a line of chat.
       // The bag as it'll be, with what we've just done in it already.
@@ -809,10 +821,10 @@ int main(int argc, char* argv[]) {
         connection->Send(ask);
       }
       help_window.Build();
-      menu.BuildButtons(character_screen.mutable_visible(),
-                        bag_window.mutable_visible(),
-                        guild_window.mutable_visible(), &map_open,
-                        help_window.mutable_visible());
+      menu.BuildButtons(
+          character_screen.mutable_visible(), bag_window.mutable_visible(),
+          quest_log.mutable_visible(), guild_window.mutable_visible(),
+          &map_open, help_window.mutable_visible());
       bool reset_hotbar = false;
       switch (menu.Build(settings, &reset_hotbar)) {
         case nanommo::Menu::Choice::kLogOut:

@@ -37,6 +37,10 @@ struct Progress {
   /// ones they've done, by their ids.
   std::map<uint32_t, uint32_t> quests;
   std::set<uint32_t> quests_done;
+  /// Their quests' revision, which goes up with each change to them. Saved
+  /// with them, it tells a player who's given up all they were on from a hash
+  /// from before there were quests, which leaves MySQL's.
+  uint32_t quests_revision = 0;
 
   bool operator==(const Progress&) const = default;
 };

@@ -97,7 +97,8 @@ Progress ProgressOf(const Player& player) {
                     .skills = player.skills,
                     .items_revision = player.inventory.revision(),
                     .quests = player.quests,
-                    .quests_done = player.quests_done};
+                    .quests_done = player.quests_done,
+                    .quests_revision = player.quests_revision};
   // The dead come back in the middle, at full health, so that's what we keep.
   if (player.motion == Motion::kDead) {
     progress.x = 0.0f;
@@ -231,6 +232,9 @@ void Server::Accept() {
           }
           if (input.has_turn_in()) {
             TurnIn(*id, input.turn_in());
+          }
+          if (input.give_up() != 0) {
+            GiveUp(*id, input.give_up());
           }
           if (input.has_item()) {
             Item(*id, input.item());
@@ -500,6 +504,17 @@ void Server::TurnIn(uint32_t id, const protocol::Quest& quest) {
   }
   std::cout << land.players().at(id).name << " turned in quest "
             << quest.quest() << std::endl;
+}
+
+void Server::GiveUp(uint32_t id, uint32_t quest) {
+  World& land = *WorldOf(id);
+  const absl::Status given_up = land.GiveUp(id, quest);
+  if (!given_up.ok()) {
+    Notify(id, std::string(given_up.message()));
+    return;
+  }
+  std::cout << land.players().at(id).name << " gave up quest " << quest
+            << std::endl;
 }
 
 void Server::Item(uint32_t id, const protocol::ItemAction& action) {
