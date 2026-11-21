@@ -1416,6 +1416,7 @@ TEST_F(ServerTest, GuildsGoToWarAndTheirPlayersKillEachOther) {
     return found != fields.end() && found + 1 != fields.end() ? *(found + 1)
                                                               : "";
   };
+  EXPECT_EQ(field("id").size(), 64u);
   EXPECT_EQ(field("killer"), absl::StrCat(alice_));
   EXPECT_EQ(field("victim"), absl::StrCat(bob_));
   EXPECT_EQ(field("guild"), absl::StrCat(guilds_->Of(alice_)->guild));

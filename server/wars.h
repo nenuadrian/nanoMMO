@@ -29,8 +29,10 @@ struct War {
 
 /// A player killed by an enemy at war, for the war's score: the war, the
 /// killer and the one they killed, by their ids, and the killer's guild, whose
-/// side it counts for.
+/// side it counts for. The server gives it an id of its own, so that the saver
+/// records it once, however many times it's handed it.
 struct WarKill {
+  std::string id;
   uint32_t war = 0;
   uint32_t killer = 0;
   uint32_t victim = 0;

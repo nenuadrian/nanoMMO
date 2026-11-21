@@ -112,8 +112,8 @@ class Players {
   /// Takes the unsaved players of all the worlds from Redis to MySQL, a batch
   /// at a time, each in a transaction with the bags that changed, and returns
   /// how many it saved. The trades that are waiting go first, each in a batch
-  /// with both its players, into the trades table, and the war kills, which
-  /// each batch adds to their wars' scores. A batch stays in Redis, in a set
+  /// with both its players, into the trades table, and the war kills, a row
+  /// each, into the war_kills table. A batch stays in Redis, in a set
   /// of its own, until MySQL has it, so that one a flush took and didn't save,
   /// as its saver died, goes back with the unsaved players as the next flush
   /// starts. There's one saver at a time.

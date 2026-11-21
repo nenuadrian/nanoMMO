@@ -9,6 +9,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -22,7 +23,9 @@
 #include "server/characters.h"
 #include "server/inventory.h"
 #include "server/test_services.h"
+#include "server/tokens.h"
 #include "server/tracing.h"
+#include "server/wars.h"
 
 namespace {
 
@@ -614,57 +617,115 @@ TEST_F(PlayersTest, TheSaverCarriesOnATradesTrace) {
   EXPECT_TRUE(database_->Run("DELETE FROM trades WHERE id = ?", {name_}).ok());
 }
 
-TEST_F(PlayersTest, AFlushAddsTheWarKillsToEachSidesScore) {
-  nanommo::Players players(*database_, *redis_);
-  // Two guilds in Ember, at war, named after the test's account.
-  std::vector<std::string> guilds;
-  for (const char* side : {"a", "b"}) {
-    const absl::StatusOr<nanommo::Result> guild = database_->Run(
-        "INSERT INTO guilds (world, name) VALUES ('Ember', ?)", {name_ + side});
-    ASSERT_TRUE(guild.ok()) << guild.status();
-    guilds.push_back(std::to_string(guild->insert_id));
+// Two guilds in Ember, named after the test's account, at war, and the
+// account's character in Ember killing the one in Frost for either side.
+class WarKillsTest : public PlayersTest {
+ protected:
+  void SetUp() override {
+    PlayersTest::SetUp();
+    if (IsSkipped() || HasFatalFailure()) {
+      return;
+    }
+    for (const char* side : {"a", "b"}) {
+      const absl::StatusOr<nanommo::Result> guild =
+          database_->Run("INSERT INTO guilds (world, name) VALUES ('Ember', ?)",
+                         {name_ + side});
+      ASSERT_TRUE(guild.ok()) << guild.status();
+      guilds_.push_back(std::to_string(guild->insert_id));
+    }
+    const absl::StatusOr<nanommo::Result> started = database_->Run(
+        "INSERT INTO guild_wars (world, challenger, challenged, ends_at) "
+        "VALUES ('Ember', ?, ?, NOW() + INTERVAL 30 MINUTE)",
+        guilds_);
+    ASSERT_TRUE(started.ok()) << started.status();
+    war_ = static_cast<uint32_t>(started->insert_id);
   }
-  const absl::StatusOr<nanommo::Result> started = database_->Run(
-      "INSERT INTO guild_wars (world, challenger, challenged, ends_at) "
-      "VALUES ('Ember', ?, ?, NOW() + INTERVAL 30 MINUTE)",
-      guilds);
-  ASSERT_TRUE(started.ok()) << started.status();
-  const auto war = static_cast<uint32_t>(started->insert_id);
-  const auto kill = [&](const std::string& guild) {
-    uint32_t side = 0;
-    EXPECT_TRUE(absl::SimpleAtoi(guild, &side));
-    return nanommo::WarKill{
-        .war = war, .killer = id_, .victim = frost_, .guild = side};
-  };
 
+  void TearDown() override {
+    if (database_) {
+      EXPECT_TRUE(database_
+                      ->Run("DELETE FROM guilds WHERE world = 'Ember' AND "
+                            "name IN (?, ?)",
+                            {name_ + "a", name_ + "b"})
+                      .ok());
+    }
+    PlayersTest::TearDown();
+  }
+
+  // A kill for the challenger's side, 0, or the other's, 1, with an id of
+  // its own, as the server gives it.
+  nanommo::WarKill Kill(int side) const {
+    uint32_t guild = 0;
+    EXPECT_TRUE(absl::SimpleAtoi(guilds_[side], &guild));
+    return {.id = nanommo::RandomHex(),
+            .war = war_,
+            .killer = id_,
+            .victim = frost_,
+            .guild = guild};
+  }
+
+  // Each side's score, as MySQL has it: the war's rows that are its.
+  std::vector<std::string> Score() const {
+    const absl::StatusOr<nanommo::Result> score = database_->Run(
+        "SELECT (SELECT COUNT(*) FROM war_kills WHERE war = ? AND guild = ?), "
+        "(SELECT COUNT(*) FROM war_kills WHERE war = ? AND guild = ?)",
+        {std::to_string(war_), guilds_[0], std::to_string(war_), guilds_[1]});
+    EXPECT_TRUE(score.ok()) << score.status();
+    return score.ok() ? score->rows.front() : std::vector<std::string>();
+  }
+
+  // The war's kills in the stream, which the saver hasn't taken out yet.
+  std::vector<nanommo::Redis::Entry> Waiting() const {
+    std::vector<nanommo::Redis::Entry> ours;
+    for (nanommo::Redis::Entry& entry :
+         redis_->Read({"XREAD", "COUNT", "1000", "STREAMS", "war_kills", "0-0"})
+             .value_or(std::vector<nanommo::Redis::Entry>())) {
+      if (std::ranges::find(entry.fields, std::to_string(war_)) !=
+          entry.fields.end()) {
+        ours.push_back(std::move(entry));
+      }
+    }
+    return ours;
+  }
+
+  std::vector<std::string> guilds_;
+  uint32_t war_ = 0;
+};
+
+TEST_F(WarKillsTest, AFlushAddsTheWarKillsToEachSidesScore) {
+  nanommo::Players players(*database_, *redis_);
   // The challenger's side kills twice, in a save with a player's, and the
   // other side once, in a save of its own.
   ASSERT_TRUE(players
                   .Save("Ember", {{id_, {.x = 1.0f}}}, {}, {}, std::nullopt,
-                        {kill(guilds[0]), kill(guilds[0])})
+                        {Kill(0), Kill(0)})
                   .ok());
-  ASSERT_TRUE(
-      players.Save("Ember", {}, {}, {}, std::nullopt, {kill(guilds[1])}).ok());
+  ASSERT_TRUE(players.Save("Ember", {}, {}, {}, std::nullopt, {Kill(1)}).ok());
   ASSERT_TRUE(players.Flush().ok());
-  const absl::StatusOr<nanommo::Result> score = database_->Run(
-      "SELECT challenger_kills, challenged_kills FROM guild_wars WHERE id = ?",
-      {std::to_string(war)});
-  ASSERT_TRUE(score.ok()) << score.status();
-  EXPECT_EQ(score->rows, (std::vector<std::vector<std::string>>{{"2", "1"}}));
-
+  EXPECT_EQ(Score(), (std::vector<std::string>{"2", "1"}));
   // And they're out of the stream.
-  const absl::StatusOr<std::vector<nanommo::Redis::Entry>> waiting =
-      redis_->Read({"XREAD", "COUNT", "1000", "STREAMS", "war_kills", "0-0"});
-  ASSERT_TRUE(waiting.ok()) << waiting.status();
-  for (const nanommo::Redis::Entry& entry : *waiting) {
-    EXPECT_EQ(std::ranges::find(entry.fields, std::to_string(war)),
-              entry.fields.end());
+  EXPECT_TRUE(Waiting().empty());
+}
+
+// The saver commits a batch's kills, and can't take them out of the stream,
+// as when Redis hangs in between, so it reads them again: they score once.
+TEST_F(WarKillsTest, KillsTheSaverReadsAgainScoreOnce) {
+  nanommo::Players players(*database_, *redis_);
+  ASSERT_TRUE(
+      players.Save("Ember", {}, {}, {}, std::nullopt, {Kill(0), Kill(1)}).ok());
+  const std::vector<nanommo::Redis::Entry> read = Waiting();
+  ASSERT_EQ(read.size(), 2u);
+  ASSERT_TRUE(players.Flush().ok());
+  ASSERT_EQ(Score(), (std::vector<std::string>{"1", "1"}));
+
+  for (const nanommo::Redis::Entry& kill : read) {
+    std::vector<std::string> again = {"XADD", "war_kills", "*"};
+    again.insert(again.end(), kill.fields.begin(), kill.fields.end());
+    ASSERT_TRUE(redis_->Command(again).ok());
   }
-  EXPECT_TRUE(database_
-                  ->Run("DELETE FROM guilds WHERE world = 'Ember' AND name IN "
-                        "(?, ?)",
-                        {name_ + "a", name_ + "b"})
-                  .ok());
+  ASSERT_TRUE(players.Flush().ok());
+  EXPECT_EQ(Score(), (std::vector<std::string>{"1", "1"}));
+  EXPECT_TRUE(Waiting().empty());
 }
 
 TEST_F(PlayersTest, CountsTheSerialsHeldTwice) {

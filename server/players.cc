@@ -502,10 +502,10 @@ absl::StatusOr<std::set<uint32_t>> Players::Save(
   // Each war kill goes to the saver in a stream of its own, with the players
   // it changed, for its war's score.
   for (const WarKill& kill : kills) {
-    commands.push_back({"XADD", kWarKills, "*", "war", absl::StrCat(kill.war),
-                        "world", world, "killer", absl::StrCat(kill.killer),
-                        "victim", absl::StrCat(kill.victim), "guild",
-                        absl::StrCat(kill.guild)});
+    commands.push_back(
+        {"XADD", kWarKills, "*", "id", kill.id, "war", absl::StrCat(kill.war),
+         "world", world, "killer", absl::StrCat(kill.killer), "victim",
+         absl::StrCat(kill.victim), "guild", absl::StrCat(kill.guild)});
   }
   // Another instance that's taken a player has saved them since, and its
   // saves are the ones to keep.
@@ -743,11 +743,27 @@ absl::StatusOr<int> Players::Flush() {
       trade_values.push_back(trade.id.substr(0, trade.id.find('-')));
       recorded.push_back(trade.id);
     }
-    // Each war's kills, by the side that made them: the killer's guild.
-    std::map<std::pair<std::string, std::string>, int> scored;
+    // Each war kill is a row of its own, by the id the world server gave it,
+    // from the millisecond Redis took it, as a trade's record is. IGNORE
+    // skips one that's in MySQL already, from a batch MySQL committed that
+    // the saver reads again, and one whose war has gone since. A kill from a
+    // server before 0.92.0, during a deploy, has no id, and goes by its
+    // entry's.
+    std::string kills_sql =
+        "INSERT IGNORE INTO war_kills (id, war, world, killer, victim, guild, "
+        "killed_at) VALUES ";
+    std::vector<std::string> kill_values;
     std::vector<std::string> counted = {"XDEL", kWarKills};
     for (const Redis::Entry& kill : kills) {
-      ++scored[{FieldOf(kill, "war"), FieldOf(kill, "guild")}];
+      absl::StrAppend(&kills_sql, kill_values.empty() ? "" : ", ",
+                      "(COALESCE(NULLIF(?, ''), ?), ?, ?, ?, ?, ?, "
+                      "FROM_UNIXTIME(? / 1000))");
+      kill_values.push_back(FieldOf(kill, "id"));
+      kill_values.push_back(kill.id);
+      for (const char* field : {"war", "world", "killer", "victim", "guild"}) {
+        kill_values.push_back(FieldOf(kill, field));
+      }
+      kill_values.push_back(kill.id.substr(0, kill.id.find('-')));
       counted.push_back(kill.id);
     }
     if (rows == 0 && trades.empty() && kills.empty()) {
@@ -801,17 +817,8 @@ absl::StatusOr<int> Players::Flush() {
       if (result.ok() && !trade_values.empty()) {
         result = database_.Run(trades_sql, trade_values);
       }
-      // Each war's kills go onto its count for the side that made them.
-      for (auto score = scored.begin(); result.ok() && score != scored.end();
-           ++score) {
-        const auto& [war, guild] = score->first;
-        const std::string count = absl::StrCat(score->second);
-        result = database_.Run(
-            "UPDATE guild_wars SET "
-            "challenger_kills = challenger_kills + IF(challenger = ?, ?, 0), "
-            "challenged_kills = challenged_kills + IF(challenged = ?, ?, 0) "
-            "WHERE id = ?",
-            {guild, count, guild, count, war});
+      if (result.ok() && !kill_values.empty()) {
+        result = database_.Run(kills_sql, kill_values);
       }
       return result.status();
     });

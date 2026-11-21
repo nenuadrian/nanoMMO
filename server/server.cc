@@ -1066,8 +1066,13 @@ void Server::Tick() {
       Notify(notice.player, notice.text, notice.channel);
     }
   }
-  const std::vector<WarKill> kills = copies_.TakeWarKills();
+  std::vector<WarKill> kills = copies_.TakeWarKills();
   TellKills(kills);
+  // Each has an id of its own, as a trade's record does, so that the saver
+  // records it once, however many times it reads it.
+  for (WarKill& kill : kills) {
+    kill.id = RandomHex();
+  }
   // Counted as they go to the saver, so that the wars' scores in MySQL can be
   // checked against what the worlds saw.
   metrics_.AddWarKills(kills.size());

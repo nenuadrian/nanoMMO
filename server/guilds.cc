@@ -532,9 +532,14 @@ absl::StatusOr<War> Guilds::StartWar(const std::string& world, uint32_t from,
 }
 
 absl::StatusOr<std::vector<War>> Guilds::Wars(const std::string& world) {
+  // Each side's score is how many of the war's kills are its, which the key
+  // on the war and the guild counts.
   const absl::StatusOr<Result> rows = database_.Run(
       "SELECT guild_wars.id, challenger, asking.name, challenged, asked.name, "
-      "challenger_kills, challenged_kills, "
+      "(SELECT COUNT(*) FROM war_kills WHERE war = guild_wars.id "
+      "AND guild = challenger), "
+      "(SELECT COUNT(*) FROM war_kills WHERE war = guild_wars.id "
+      "AND guild = challenged), "
       "TIMESTAMPDIFF(SECOND, NOW(), ends_at) FROM guild_wars "
       "JOIN guilds AS asking ON asking.id = guild_wars.challenger "
       "JOIN guilds AS asked ON asked.id = guild_wars.challenged "

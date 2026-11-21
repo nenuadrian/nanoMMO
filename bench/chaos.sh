@@ -260,13 +260,12 @@ trap 'exit 130' INT TERM
 docker compose --progress quiet build bots netem
 netem=$(docker compose config --format json | jq -r .name)-netem
 expected=$bots
-# The war kills the worlds counted, and the wars' scores in MySQL, which the
-# saver adds them to.
+# The war kills the worlds counted, and the wars' scores in MySQL, a row for
+# each kill the saver recorded.
 counted() { query 'sum(nanommo_war_kills_total)'; }
 scored() {
   docker compose exec -T mysql mysql -unanommo -pnanommo -N -B nanommo \
-    -e "SELECT COALESCE(SUM(challenger_kills + challenged_kills), 0)
-        FROM guild_wars" 2>/dev/null
+    -e "SELECT COUNT(*) FROM war_kills" 2>/dev/null
 }
 war=""
 if [[ $experiment == war-replay ]]; then
