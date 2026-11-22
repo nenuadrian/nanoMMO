@@ -92,8 +92,8 @@ Features FeaturesOf(const figures::Figures& figures,
 
 class Animator {
  public:
-  /// Monsters and NPCs come by kind, so the animator looks up their names and
-  /// looks in the content.
+  /// Monsters and NPCs come by kind, so the animator looks up their names, in
+  /// the player's language, and their looks in the content.
   explicit Animator(Content content = Content())
       : content_(std::move(content)) {}
 

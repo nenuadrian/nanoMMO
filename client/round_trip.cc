@@ -7,8 +7,9 @@
 #include <iterator>
 #include <string>
 
-#include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "client/theme.h"
+#include "client/translations.h"
 
 namespace nanommo {
 
@@ -39,8 +40,8 @@ float DrawRoundTrip(float milliseconds, float top) {
   if (milliseconds == 0.0f) {
     return 0.0f;
   }
-  const std::string text =
-      absl::StrCat(static_cast<int>(std::lround(milliseconds)), " ms");
+  const std::string text = absl::Substitute(
+      Tr("$0 ms"), static_cast<int>(std::lround(milliseconds)));
   ImFont* font = GetFonts().bold;
   const float size = Ui(13.0f);
   const ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0.0f, text.c_str());

@@ -12,8 +12,10 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/substitute.h"
 #include "client/atmosphere.h"
 #include "client/theme.h"
+#include "client/translations.h"
 #include "extras/IconsFontAwesome6.h"
 #include "terrain/lands.h"
 
@@ -34,9 +36,13 @@ constexpr float kTop = 14.0f;
 // Nearer the middle than this share of each half, a mark says how far it is.
 constexpr float kNear = 0.12f;
 
-// The compass's points, every eighth of a turn from north.
-constexpr std::array<const char*, 8> kPoints = {"N", "NE", "E", "SE",
-                                                "S", "SW", "W", "NW"};
+// The compass's points, every eighth of a turn from north, translated as
+// they're shown, in the compass's context, as a letter alone could be many
+// things.
+constexpr std::array<const char*, 8> kPoints = {
+    N_("compass", "N"),  N_("compass", "NE"), N_("compass", "E"),
+    N_("compass", "SE"), N_("compass", "S"),  N_("compass", "SW"),
+    N_("compass", "W"),  N_("compass", "NW")};
 
 // Things fade out towards the compass's ends, from three quarters of the way.
 float EdgeFade(float at) {
@@ -198,7 +204,7 @@ void DrawCompass(float heading, const std::vector<CompassMark>& marks) {
                        : (cardinal ? colors::kGoldLight : colors::kMuted);
       DrawCentred(draw, fonts.title, cardinal ? Ui(22.0f) : Ui(14.0f),
                   {x, (min.y + max.y) / 2.0f}, Faded(color, alpha),
-                  kPoints[degrees / 45]);
+                  Tr("compass", kPoints[degrees / 45]));
     } else {
       const float tall = degrees % 15 == 0 ? Ui(9.0f) : Ui(5.0f);
       const ImU32 color =
@@ -245,8 +251,8 @@ void DrawCompass(float heading, const std::vector<CompassMark>& marks) {
       draw->AddTriangleFilled({tip, y}, {back, y - Ui(5.0f)},
                               {back, y + Ui(5.0f)}, Faded(mark.color, 0.8f));
     } else if (&mark == nearest) {
-      const std::string distance =
-          std::to_string(static_cast<int>(std::lround(mark.distance))) + " m";
+      const std::string distance = absl::Substitute(
+          Tr("$0 m"), static_cast<int>(std::lround(mark.distance)));
       DrawCentred(draw, fonts.bold, Ui(13.0f), {x, max.y + Ui(9.0f)},
                   Faded(colors::kPaper, 0.9f), distance.c_str());
     }

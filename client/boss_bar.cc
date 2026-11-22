@@ -10,7 +10,9 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "client/theme.h"
+#include "client/translations.h"
 
 namespace nanommo {
 
@@ -81,7 +83,8 @@ void DrawBossBar(const Figure& boss, const MonsterTable& monsters) {
     }
   }
 
-  const std::string phase = absl::StrCat("Phase ", boss.phase, " of ", phases);
+  const std::string phase =
+      absl::Substitute(Tr("Phase $0 of $1"), boss.phase, phases);
   ImFont* bold = GetFonts().bold;
   const ImVec2 extent =
       bold->CalcTextSizeA(Ui(13.0f), FLT_MAX, 0.0f, phase.c_str());

@@ -13,8 +13,12 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
+#include "absl/strings/substitute.h"
+#include "client/names.h"
 #include "client/scene.h"
 #include "client/theme.h"
+#include "client/translations.h"
 #include "extras/IconsFontAwesome6.h"
 #include "protocol/limits.h"
 #include "protocol/version.h"
@@ -112,14 +116,14 @@ bool Arrow(const char* id, float width, float way) {
 }
 
 // One of a few, by its name, between an arrow back and an arrow on, which go
-// round them, under its label. With only one, there's nothing to choose, so
-// it isn't shown.
+// round them, under its label, in the player's language. With only one,
+// there's nothing to choose, so it isn't shown.
 void Stepper(const char* label, const std::vector<std::string>& names,
              uint32_t* at) {
   if (names.size() < 2) {
     return;
   }
-  ImGui::TextDisabled("%s", label);
+  ImGui::TextDisabled("%s", Tr(label));
   const auto count = static_cast<uint32_t>(names.size());
   *at %= count;
   ImGui::PushID(label);
@@ -159,14 +163,15 @@ google::protobuf::RepeatedField<uint32_t> Shirts() {
 }
 
 // Colours, as 0xRRGGBBAA, each a round swatch to click, with gold round the
-// one picked, under its label, unless there's only one.
+// one picked, under its label, in the player's language, unless there's only
+// one.
 void Swatches(const char* label,
               const google::protobuf::RepeatedField<uint32_t>& palette,
               uint32_t* at) {
   if (palette.size() < 2) {
     return;
   }
-  ImGui::TextDisabled("%s", label);
+  ImGui::TextDisabled("%s", Tr(label));
   *at %= static_cast<uint32_t>(palette.size());
   ImGui::PushID(label);
   const float size = Ui(34.0f);
@@ -198,8 +203,8 @@ void Swatches(const char* label,
   ImGui::PopID();
 }
 
-// What each build or way to wear the hair is called, or, without a name,
-// its number.
+// What each build or way to wear the hair is called, in the player's
+// language, or, without a name, its number.
 template <typename Named>
 std::vector<std::string> NamesOf(
     const google::protobuf::RepeatedPtrField<Named>& each) {
@@ -207,7 +212,7 @@ std::vector<std::string> NamesOf(
   names.reserve(each.size());
   for (int i = 0; i < each.size(); ++i) {
     names.push_back(each[i].name().empty() ? absl::StrCat(i + 1)
-                                           : each[i].name());
+                                           : NameOf(each[i]));
   }
   return names;
 }
@@ -358,13 +363,13 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildAccount() {
                           {0.5f, 0.5f});
   ImGui::SetNextWindowSize({Ui(380.0f), 0.0f});
   BeginPanel("Your account", nullptr, kWindowFlags);
-  ImGui::TextDisabled("Name");
+  ImGui::TextDisabled("%s", Tr("Name"));
   if (ImGui::IsWindowAppearing()) {
     ImGui::SetKeyboardFocusHere();
   }
   ImGui::SetNextItemWidth(-FLT_MIN);
   ImGui::InputText("##name", username_.data(), username_.size());
-  ImGui::TextDisabled("Password");
+  ImGui::TextDisabled("%s", Tr("Password"));
   ImGui::SetNextItemWidth(-FLT_MIN);
   const bool enter = ImGui::InputText(
       "##password", password_.data(), password_.size(),
@@ -410,16 +415,19 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildWorlds() {
 
   for (int i = 0; i < count; ++i) {
     const protocol::WorldListing& world = worlds_[i];
-    std::string line = absl::StrCat(world.players(), " playing");
+    // Translators: How many are playing in the world.
+    std::vector<std::string> line = {absl::Substitute(
+        TrN("$0 playing", "$0 playing", world.players()), world.players())};
     if (const int yours = CountIn(world.name()); yours > 0) {
-      absl::StrAppend(&line, ", ", yours, " of your characters");
+      line.push_back(absl::Substitute(Tr("$0 of your characters"), yours));
     }
     if (world.content() != content_) {
-      absl::StrAppend(&line, ", other content");
+      line.push_back(Tr("other content"));
     }
     ImGui::PushID(i);
     bool twice = false;
-    if (Row("##world", world.name(), line, i == selected_world_, &twice)) {
+    if (Row("##world", world.name(), absl::StrJoin(line, ", "),
+            i == selected_world_, &twice)) {
       selected_world_ = i;
     }
     pick = pick || twice;
@@ -427,8 +435,8 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildWorlds() {
   }
   if (count == 0) {
     // A world is a nanommo_server, which Consul lists once it's started.
-    ImGui::TextDisabled("No worlds are up.");
-    ImGui::TextDisabled("Start nanommo_server, then Refresh.");
+    ImGui::TextDisabled("%s", Tr("No worlds are up."));
+    ImGui::TextDisabled("%s", Tr("Start nanommo_server, then Refresh."));
   }
   ImGui::Spacing();
   const float third = (ImGui::GetContentRegionAvail().x -
@@ -454,9 +462,9 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildWorlds() {
     // A client draws what the world sends from its own content, so with
     // other content, it would draw the wrong things, or nothing.
     if (picked.content() != content_) {
-      error_ = absl::StrCat(picked.name(),
-                            " has other content than this client, so they "
-                            "can't play together.");
+      error_ = absl::Substitute(Tr("$0 has other content than this client, so "
+                                   "they can't play together."),
+                                picked.name());
     } else {
       world_ = picked;
       error_.clear();
@@ -507,8 +515,10 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCharacters() {
   ImGui::End();
 
   if (character != nullptr) {
-    DrawStage(character->name(), absl::StrCat("Level ", character->level(),
-                                              ", in the ", character->land()));
+    // Translators: $0 is their level, and $1 the land they're in.
+    DrawStage(character->name(),
+              absl::Substitute(Tr("Level $0, in the $1"), character->level(),
+                               LandName(character->land())));
   }
 
   // The characters, and a way to make a new one, on the right.
@@ -521,8 +531,10 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCharacters() {
   const bool refresh = ImGui::IsWindowAppearing();
   for (const protocol::CharacterListing* each : here) {
     ImGui::PushID(static_cast<int>(each->id()));
+    // Translators: $0 is their level, and $1 the land they're in.
     if (Row("##character", each->name(),
-            absl::StrCat("Level ", each->level(), ", ", each->land()),
+            absl::Substitute(Tr("Level $0, $1"), each->level(),
+                             LandName(each->land())),
             each->id() == picked_)) {
       picked_ = each->id();
       deleting_ = false;
@@ -530,7 +542,7 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCharacters() {
     ImGui::PopID();
   }
   if (here.empty()) {
-    ImGui::TextDisabled("Nobody yet.");
+    ImGui::TextDisabled("%s", Tr("Nobody yet."));
   }
   ImGui::Spacing();
   // The login server would turn a fifth away, so we don't ask it to.
@@ -538,8 +550,10 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCharacters() {
       static_cast<int>(here.size()) < kCharactersPerWorld &&
       GameButton("New character", {-1.0f, Ui(kActionHeight)}, here.empty());
   if (static_cast<int>(here.size()) >= kCharactersPerWorld) {
-    ImGui::TextDisabled("%d is the most a world has room for.",
-                        kCharactersPerWorld);
+    ImGui::TextDisabled(
+        "%s", absl::Substitute(Tr("$0 is the most a world has room for."),
+                               kCharactersPerWorld)
+                  .c_str());
   }
   ShowErrorText(error_);
   EndPanel();
@@ -558,8 +572,10 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCharacters() {
       ImGui::SameLine();
       deleting_ = GameButton("Delete", action);
     } else {
-      ImGui::TextColored({1.0f, 0.7f, 0.4f, 1.0f}, "Delete %s for good?",
-                         character->name().c_str());
+      ImGui::TextColored(
+          {1.0f, 0.7f, 0.4f, 1.0f}, "%s",
+          absl::Substitute(Tr("Delete $0 for good?"), character->name())
+              .c_str());
       delete_it = GameButton("Delete", action, true);
       ImGui::SameLine();
       if (GameButton("Keep", action)) {
@@ -606,8 +622,8 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCreate() {
   const bool back = GameButton("«  Characters", {0.0f, 0.0f});
   ImGui::End();
 
-  DrawStage(new_name_[0] != '\0' ? new_name_.data() : "A new character",
-            absl::StrCat("Level 1, new to ", world_->name()));
+  DrawStage(new_name_[0] != '\0' ? new_name_.data() : Tr("A new character"),
+            absl::Substitute(Tr("Level 1, new to $0"), world_->name()));
 
   // Their name, and how they look, on the right. Each change shows on the
   // stage straight away.
@@ -616,13 +632,13 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCreate() {
   ImGui::SetNextWindowSize({Ui(380.0f), 0.0f});
   BeginPanel("A new character###create", nullptr,
              kWindowFlags | ImGuiWindowFlags_NoNav);
-  ImGui::TextDisabled("Name");
+  ImGui::TextDisabled("%s", Tr("Name"));
   if (ImGui::IsWindowAppearing()) {
     ImGui::SetKeyboardFocusHere();
   }
   ImGui::SetNextItemWidth(-FLT_MIN);
   const bool named = ImGui::InputTextWithHint(
-      "##name", "Their name", new_name_.data(), new_name_.size(),
+      "##name", Tr("Their name"), new_name_.data(), new_name_.size(),
       ImGuiInputTextFlags_EnterReturnsTrue);
   ImGui::Spacing();
   uint32_t build = looks_.build();

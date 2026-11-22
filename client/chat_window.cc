@@ -10,7 +10,9 @@
 #include <string>
 #include <string_view>
 
+#include "absl/strings/substitute.h"
 #include "client/theme.h"
+#include "client/translations.h"
 #include "extras/IconsFontAwesome6.h"
 
 namespace nanommo {
@@ -123,7 +125,7 @@ std::optional<std::string> ChatWindow::Build(
         ImGui::InvisibleButton("##open", {radius * 2.0f, radius * 2.0f});
     const bool hovered = ImGui::IsItemHovered();
     if (hovered) {
-      ImGui::SetTooltip("Chat (Enter)");
+      ImGui::SetTooltip("%s", Tr("Chat (Enter)"));
     }
     ImDrawList* draw = ImGui::GetWindowDrawList();
     DrawRoundButton(draw, centre, radius, ICON_FA_COMMENTS, hovered);
@@ -185,7 +187,8 @@ std::optional<std::string> ChatWindow::Build(
     // alone, such as a kill in its war, is green, as its players' lines are.
     if (line.name().empty() && line.channel() == protocol::CHANNEL_GUILD) {
       ImGui::PushStyleColor(ImGuiCol_Text, kGuild);
-      ImGui::TextWrapped("[Guild] %s", line.text().c_str());
+      ImGui::TextWrapped(
+          "%s", absl::Substitute(Tr("[Guild] $0"), line.text()).c_str());
       ImGui::PopStyleColor();
       continue;
     }
@@ -202,7 +205,8 @@ std::optional<std::string> ChatWindow::Build(
     }
     ImGui::PushFont(GetFonts().bold, 0.0f);
     if (guild) {
-      ImGui::Text("[Guild] %s:", line.name().c_str());
+      ImGui::TextUnformatted(
+          absl::Substitute(Tr("[Guild] $0:"), line.name()).c_str());
     } else {
       ImGui::TextColored(kName, "%s:", line.name().c_str());
     }
@@ -226,7 +230,7 @@ std::optional<std::string> ChatWindow::Build(
   ImGui::SetNextItemWidth(-FLT_MIN);
   std::optional<std::string> said;
   if (ImGui::InputTextWithHint(
-          "##say", "Press Enter to chat, /g for your guild", typing_.data(),
+          "##say", Tr("Press Enter to chat, /g for your guild"), typing_.data(),
           typing_.size(), ImGuiInputTextFlags_EnterReturnsTrue) &&
       typing_[0] != '\0') {
     said = typing_.data();

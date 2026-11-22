@@ -11,6 +11,7 @@
 #include <string_view>
 #include <vector>
 
+#include "client/names.h"
 #include "client/picking.h"
 
 namespace nanommo {
@@ -162,10 +163,11 @@ void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
           cast_min, {cast_min.x + kBar.x * telegraph.Filled(), cast_max.y},
           IM_COL32(color.r, color.g, color.b, 255));
       const float cast_size = font_size * kCastScale;
-      const ImVec2 extent = font->CalcTextSizeA(cast_size, FLT_MAX, 0.0f,
-                                                telegraph.skill.name().c_str());
+      const char* skill = NameOf(figure.kind, telegraph.skill);
+      const ImVec2 extent =
+          font->CalcTextSizeA(cast_size, FLT_MAX, 0.0f, skill);
       DrawShadowedText(draw, cast_size, {at.x - extent.x / 2, cast_max.y + 1},
-                       IM_COL32_WHITE, telegraph.skill.name());
+                       IM_COL32_WHITE, skill);
     }
 
     const std::string level =

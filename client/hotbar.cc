@@ -15,10 +15,13 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/substitute.h"
 #include "client/icon.h"
 #include "client/input.h"
+#include "client/names.h"
 #include "client/picking.h"
 #include "client/theme.h"
+#include "client/translations.h"
 
 namespace nanommo {
 
@@ -246,20 +249,23 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
     }
     if (hovered && !dragging) {
       if (effect.weapon()) {
-        ImGui::SetTooltip("%s\nA swing of what you hold.",
-                          skill.name().c_str());
+        ImGui::SetTooltip("%s\n%s", NameOf(skill),
+                          Tr("A swing of what you hold."));
       } else {
         ImGui::SetTooltip(
-            "%s\nFrom a trainer, at level %u. Ready again after %u s.",
-            skill.name().c_str(), skill.level(), skill.cooldown_ms() / 1000);
+            "%s\n%s", NameOf(skill),
+            absl::Substitute(
+                Tr("From a trainer, at level $0. Ready again after $1 s."),
+                skill.level(), skill.cooldown_ms() / 1000)
+                .c_str());
       }
     }
     const auto left = world.cooldowns().find(skill.id());
     if (!known) {
-      DrawCentered(draw, GetFonts().bold,
-                   {(min.x + max.x) / 2, max.y - Ui(11.0f)}, Ui(13.0f),
-                   reached ? colors::kGold : colors::kMuted,
-                   reached ? "Learn" : "Lv " + std::to_string(skill.level()));
+      DrawCentered(
+          draw, GetFonts().bold, {(min.x + max.x) / 2, max.y - Ui(11.0f)},
+          Ui(13.0f), reached ? colors::kGold : colors::kMuted,
+          reached ? Tr("Learn") : absl::Substitute(Tr("Lv $0"), skill.level()));
     } else if (left != world.cooldowns().end() && skill.cooldown_ms() > 0) {
       DrawCooldown(draw, min, max,
                    std::min(static_cast<float>(left->second) /
@@ -271,7 +277,8 @@ std::optional<uint32_t> Hotbar::Build(const std::vector<Figure>& figures,
     // Shift for the row above.
     const int index = static_cast<int>(slot - first);
     const std::string label =
-        swing ? "Space" : (above ? "s" : "") + std::to_string(index % kRow + 1);
+        swing ? Tr("Space")
+              : (above ? "s" : "") + std::to_string(index % kRow + 1);
     DrawShadowedText(draw, GetFonts().bold, Ui(13.0f),
                      {min.x + Ui(5.0f), min.y + Ui(2.0f)}, colors::kPaper,
                      label.c_str());

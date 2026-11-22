@@ -12,8 +12,11 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "client/icon.h"
+#include "client/names.h"
 #include "client/theme.h"
+#include "client/translations.h"
 #include "extras/IconsFontAwesome6.h"
 
 namespace nanommo {
@@ -25,9 +28,19 @@ constexpr ImVec4 kTitle{1.0f, 0.82f, 0.3f, 1.0f};
 // "3 Skeletons", by the monster's kind.
 std::string Monsters(const Content& content, const quests::Kill& kill) {
   const auto kind = content.monsters.kinds.find(kill.monster());
-  const std::string name =
-      kind != content.monsters.kinds.end() ? kind->second.name() : "monster";
-  return std::to_string(kill.count()) + " " + name + "s";
+  if (kind == content.monsters.kinds.end()) {
+    return absl::Substitute(TrN("$0 monster", "$0 monsters", kill.count()),
+                            kill.count());
+  }
+  return NameOf(kind->second, kill.count());
+}
+
+// What a quest gives, an item's icon and name and how many: "Health Potion
+// x2".
+std::string Prize(const items::Item& item, uint32_t count) {
+  // Translators: An item's name, and how many of it.
+  return absl::StrCat(Icon(item.look().icon()), "  ",
+                      absl::Substitute(Tr("$0 x$1"), NameOf(item), count));
 }
 
 }  // namespace
@@ -56,22 +69,25 @@ std::optional<protocol::Input> QuestWindow::Build(
     const quests::Quest& quest = content_.quests.at(id);
     ImGui::PushID(static_cast<int>(id));
     ImGui::PushFont(GetFonts().title, 17.0f);
-    ImGui::TextColored(kTitle, "%s", quest.name().c_str());
+    ImGui::TextColored(kTitle, "%s", NameOf(quest));
     ImGui::PopFont();
-    ImGui::TextWrapped("%s", quest.text().c_str());
+    ImGui::TextWrapped("%s", TextOf(quest));
     ImGui::Spacing();
-    ImGui::Text("%s  Kill %s", ICON_FA_SKULL,
-                Monsters(content_, quest.kill()).c_str());
-    ImGui::Text("%s  %u experience", ICON_FA_STAR, quest.experience());
+    ImGui::Text(
+        "%s  %s", ICON_FA_SKULL,
+        absl::Substitute(Tr("Kill $0"), Monsters(content_, quest.kill()))
+            .c_str());
+    ImGui::Text(
+        "%s  %s", ICON_FA_STAR,
+        absl::Substitute(Tr("$0 experience"), quest.experience()).c_str());
     for (const quests::Prize& prize : quest.prizes()) {
-      const items::Item& item = content_.items.by_id.at(prize.item());
-      ImGui::Text("%s  %s x%u", Icon(item.look().icon()).c_str(),
-                  item.name().c_str(), prize.count());
+      ImGui::TextUnformatted(
+          Prize(content_.items.by_id.at(prize.item()), prize.count()).c_str());
     }
     ImGui::Spacing();
     const auto on = yours.on().find(id);
     if (std::ranges::find(yours.done(), id) != yours.done().end()) {
-      ImGui::TextDisabled("Done");
+      ImGui::TextDisabled("%s", Tr("Done"));
     } else if (on == yours.on().end()) {
       if (GameButton("Take the quest", {0.0f, 0.0f}, true)) {
         ask.emplace();
@@ -79,7 +95,10 @@ std::optional<protocol::Input> QuestWindow::Build(
         ask->mutable_take()->set_quest(id);
       }
     } else if (on->second < quest.kill().count()) {
-      ImGui::TextDisabled("%u of %u killed", on->second, quest.kill().count());
+      ImGui::TextDisabled("%s",
+                          absl::Substitute(Tr("$0 of $1 killed"), on->second,
+                                           quest.kill().count())
+                              .c_str());
     } else if (GameButton("Turn it in", {0.0f, 0.0f}, true)) {
       ask.emplace();
       ask->mutable_turn_in()->set_npc(*npc_);
@@ -124,7 +143,7 @@ std::optional<protocol::Input> QuestLog::Build(const protocol::Quests& yours) {
 
   // The quests, down the left.
   ImGui::BeginChild("List", {Ui(230.0f), 0.0f});
-  ImGui::SeparatorText("On");
+  ImGui::SeparatorText(Tr("On"));
   for (const auto& [id, kills] : on) {
     if (!known(id)) {
       continue;
@@ -132,18 +151,18 @@ std::optional<protocol::Input> QuestLog::Build(const protocol::Quests& yours) {
     const quests::Quest& quest = content_.quests.at(id);
     const bool finished = kills >= quest.kill().count();
     const std::string label = absl::StrCat(finished ? ICON_FA_CHECK "  " : "",
-                                           quest.name(), "##", id);
+                                           NameOf(quest), "###quest", id);
     if (ImGui::Selectable(label.c_str(), picked_ == id)) {
       picked_ = id;
       giving_up_ = false;
     }
   }
   if (on.empty()) {
-    ImGui::TextDisabled("None yet.");
+    ImGui::TextDisabled("%s", Tr("None yet."));
   }
   if (!done.empty()) {
     ImGui::Spacing();
-    ImGui::SeparatorText("Done");
+    ImGui::SeparatorText(Tr("Done"));
     for (const uint32_t id : done) {
       if (!known(id)) {
         continue;
@@ -151,7 +170,7 @@ std::optional<protocol::Input> QuestLog::Build(const protocol::Quests& yours) {
       ImGui::PushStyleColor(ImGuiCol_Text,
                             ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
       const std::string label =
-          absl::StrCat(content_.quests.at(id).name(), "##done", id);
+          absl::StrCat(NameOf(content_.quests.at(id)), "###done", id);
       if (ImGui::Selectable(label.c_str(), picked_ == id)) {
         picked_ = id;
         giving_up_ = false;
@@ -165,24 +184,26 @@ std::optional<protocol::Input> QuestLog::Build(const protocol::Quests& yours) {
   // The one picked, on the right.
   ImGui::BeginChild("Quest");
   if (!known(picked_)) {
-    ImGui::TextDisabled("Someone with a ! over them has a quest for you.");
+    ImGui::TextDisabled("%s",
+                        Tr("Someone with a ! over them has a quest for you."));
     ImGui::EndChild();
     EndPanel();
     return ask;
   }
   const quests::Quest& quest = content_.quests.at(picked_);
   const auto giver = content_.npcs.kinds.find(quest.giver());
-  const std::string from =
-      giver != content_.npcs.kinds.end() ? giver->second.name() : "someone";
+  const char* from = giver != content_.npcs.kinds.end() ? NameOf(giver->second)
+                                                        : Tr("someone");
   ImGui::PushFont(GetFonts().title, 19.0f);
-  ImGui::TextColored(kTitle, "%s", quest.name().c_str());
+  ImGui::TextColored(kTitle, "%s", NameOf(quest));
   ImGui::PopFont();
-  ImGui::TextDisabled("From %s", from.c_str());
+  ImGui::TextDisabled("%s", absl::Substitute(Tr("From $0"), from).c_str());
   ImGui::Spacing();
-  ImGui::TextWrapped("%s", quest.text().c_str());
+  ImGui::TextWrapped("%s", TextOf(quest));
   ImGui::Spacing();
-  ImGui::Text("%s  Kill %s", ICON_FA_SKULL,
-              Monsters(content_, quest.kill()).c_str());
+  ImGui::Text("%s  %s", ICON_FA_SKULL,
+              absl::Substitute(Tr("Kill $0"), Monsters(content_, quest.kill()))
+                  .c_str());
   const auto kills = on.find(picked_);
   if (kills != on.end()) {
     // How far they've got, as a bar.
@@ -196,31 +217,35 @@ std::optional<protocol::Input> QuestLog::Build(const protocol::Quests& yours) {
             colors::kGoldDark, IM_COL32(90, 58, 10, 255), count.c_str());
     ImGui::Dummy({width, Ui(22.0f)});
   }
-  ImGui::Text("%s  %u experience", ICON_FA_STAR, quest.experience());
+  ImGui::Text(
+      "%s  %s", ICON_FA_STAR,
+      absl::Substitute(Tr("$0 experience"), quest.experience()).c_str());
   for (const quests::Prize& prize : quest.prizes()) {
     const auto item = content_.items.by_id.find(prize.item());
     if (item == content_.items.by_id.end()) {
       continue;
     }
-    ImGui::Text("%s  %s x%u", Icon(item->second.look().icon()).c_str(),
-                item->second.name().c_str(), prize.count());
+    ImGui::TextUnformatted(Prize(item->second, prize.count()).c_str());
   }
   ImGui::Spacing();
   if (kills == on.end()) {
-    ImGui::TextDisabled("Turned in.");
+    ImGui::TextDisabled("%s", Tr("Turned in."));
   } else {
     if (kills->second >= quest.kill().count()) {
-      ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGood),
-                         ICON_FA_CHECK "  Done: take it back to %s.",
-                         from.c_str());
+      ImGui::TextColored(
+          ImGui::ColorConvertU32ToFloat4(colors::kGood), ICON_FA_CHECK "  %s",
+          absl::Substitute(Tr("Done: take it back to $0."), from).c_str());
     }
     ImGui::Spacing();
     if (!giving_up_) {
       giving_up_ = GameButton("Give up", {Ui(160.0f), 0.0f});
     } else {
-      ImGui::TextColored({1.0f, 0.7f, 0.4f, 1.0f},
-                         "Give up %s? What you've killed for it goes too.",
-                         quest.name().c_str());
+      ImGui::TextColored(
+          {1.0f, 0.7f, 0.4f, 1.0f}, "%s",
+          absl::Substitute(
+              Tr("Give up $0? What you've killed for it goes too."),
+              NameOf(quest))
+              .c_str());
       if (GameButton("Give up", {Ui(160.0f), 0.0f}, true)) {
         ask.emplace();
         ask->set_give_up(picked_);
@@ -276,7 +301,7 @@ void DrawQuestTracker(const Content& content, const protocol::Quests& yours,
                      text.c_str());
     y += extent.y + Ui(2.0f);
   };
-  line(fonts.title, Ui(16.0f), colors::kGold, "Quests");
+  line(fonts.title, Ui(16.0f), colors::kGold, Tr("Quests"));
   y += Ui(4.0f);
   // In the order of their ids, as a protobuf map has none.
   const std::map<uint32_t, uint32_t> on(yours.on().begin(), yours.on().end());
@@ -285,12 +310,15 @@ void DrawQuestTracker(const Content& content, const protocol::Quests& yours,
     if (quest == content.quests.end()) {
       continue;
     }
-    line(fonts.bold, Ui(17.0f), colors::kGoldLight, quest->second.name());
+    line(fonts.bold, Ui(17.0f), colors::kGoldLight, NameOf(quest->second));
     const std::string wanted = Monsters(content, quest->second.kill());
     // Done, it says so, until it's turned in.
     if (kills >= quest->second.kill().count()) {
+      // Translators: How many they've killed, of so many of a kind of
+      // monster, such as 3 Skeletons.
       line(fonts.text, Ui(16.0f), colors::kGood,
-           absl::StrCat(ICON_FA_CHECK " ", kills, " / ", wanted, ", done"));
+           absl::StrCat(ICON_FA_CHECK " ",
+                        absl::Substitute(Tr("$0 / $1, done"), kills, wanted)));
     } else {
       line(fonts.text, Ui(16.0f), colors::kPaper,
            absl::StrCat(kills, " / ", wanted));

@@ -114,8 +114,12 @@ const char* TrN(std::string_view context, const char* one, const char* many,
 const char* TrLabel(const char* label);
 
 /// Marks a string for the template without translating it, as gettext's N_
-/// does, for a table that's translated where it's shown.
+/// does, for a table that's translated where it's shown, and in a context,
+/// which Tr is given there too.
 constexpr const char* N_(const char* text) { return text; }
+constexpr const char* N_(const char* /*context*/, const char* text) {
+  return text;
+}
 
 }  // namespace nanommo
 

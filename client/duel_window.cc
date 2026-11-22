@@ -7,7 +7,9 @@
 #include <optional>
 #include <string>
 
+#include "absl/strings/substitute.h"
 #include "client/theme.h"
+#include "client/translations.h"
 
 namespace nanommo {
 
@@ -40,7 +42,7 @@ std::optional<protocol::DuelAction> DuelWindow::Build(
   if (duel.state() == protocol::DUEL_COUNTDOWN) {
     shout(std::to_string(CountdownSeconds(duel.countdown())), 1.0f);
   } else if (duel.state() == protocol::DUEL_FIGHTING && fighting < kFight) {
-    shout("Fight!", static_cast<float>(1.0 - fighting / kFight));
+    shout(Tr("Fight!"), static_cast<float>(1.0 - fighting / kFight));
   }
   if (duel.state() != protocol::DUEL_ASKED ||
       ImGui::GetTime() - answered_ < kAnswering) {
@@ -53,7 +55,8 @@ std::optional<protocol::DuelAction> DuelWindow::Build(
   BeginPanel("Duel?", &open,
              ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
                  ImGuiWindowFlags_NoSavedSettings);
-  ImGui::Text("%s asks you to duel.", duel.opponent().c_str());
+  ImGui::TextUnformatted(
+      absl::Substitute(Tr("$0 asks you to duel."), duel.opponent()).c_str());
   ImGui::Spacing();
   if (GameButton("Duel", {Ui(150.0f), 0.0f}, true)) {
     action.emplace().set_accept(true);

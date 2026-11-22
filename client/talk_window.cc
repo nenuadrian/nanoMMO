@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "client/theme.h"
+#include "client/translations.h"
 
 namespace nanommo {
 
@@ -28,7 +29,8 @@ std::optional<protocol::Talk> TalkWindow::Build() {
   bool open = true;
   BeginPanel(name_.c_str(), &open,
              ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
-  ImGui::TextWrapped("Give me a few words, and I'll tell you a story.");
+  ImGui::TextWrapped("%s",
+                     Tr("Give me a few words, and I'll tell you a story."));
   // So that the player can type straight away.
   if (focus_) {
     ImGui::SetKeyboardFocusHere();
@@ -36,7 +38,7 @@ std::optional<protocol::Talk> TalkWindow::Build() {
   }
   ImGui::SetNextItemWidth(-FLT_MIN);
   const bool entered = ImGui::InputTextWithHint(
-      "##words", "dragon, castle, gold", words_.data(), words_.size(),
+      "##words", Tr("dragon, castle, gold"), words_.data(), words_.size(),
       ImGuiInputTextFlags_EnterReturnsTrue);
   const bool asked = GameButton("Tell me a story", {-1.0f, 0.0f}, true);
   std::optional<protocol::Talk> talk;

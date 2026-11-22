@@ -9,8 +9,11 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "client/icon.h"
+#include "client/names.h"
 #include "client/theme.h"
+#include "client/translations.h"
 
 namespace nanommo {
 
@@ -35,7 +38,7 @@ std::string Named(const ItemTable& items, uint32_t id) {
     return "?";
   }
   return absl::StrCat(Icon(item->second.look().icon()), "  ",
-                      item->second.name());
+                      NameOf(item->second));
 }
 
 }  // namespace
@@ -89,7 +92,7 @@ std::optional<protocol::CraftAction> CraftWindow::Build(
     }
     ImGui::PushID(static_cast<int>(id));
     ImGui::PushFont(GetFonts().title, 17.0f);
-    ImGui::TextColored(kTitle, "%s", recipe.name().c_str());
+    ImGui::TextColored(kTitle, "%s", NameOf(recipe));
     ImGui::PopFont();
     for (const recipes::ItemCount& input : recipe.inputs()) {
       const uint32_t have = HowMany(bag, input.item());
@@ -97,9 +100,11 @@ std::optional<protocol::CraftAction> CraftWindow::Build(
           have >= input.count() ? kEnough : kShort, "%s  %u / %u",
           Named(content_.items, input.item()).c_str(), have, input.count());
     }
-    ImGui::Text("Makes %s x%u, in %u s",
-                Named(content_.items, recipe.output().item()).c_str(),
-                recipe.output().count(), recipe.seconds());
+    ImGui::TextUnformatted(
+        absl::Substitute(Tr("Makes $0 x$1, in $2 s"),
+                         Named(content_.items, recipe.output().item()),
+                         recipe.output().count(), recipe.seconds())
+            .c_str());
     if (GameButton("Craft", {Ui(90.0f), Ui(28.0f)}, true,
                    making.recipe() == 0 && CanMake(recipe, bag, level))) {
       asked.emplace();
@@ -123,8 +128,8 @@ void CraftWindow::DrawProgress(const protocol::Crafting& making) const {
     return;
   }
   const auto item = content_.items.by_id.find(recipe->second.output().item());
-  const std::string name =
-      item != content_.items.by_id.end() ? item->second.name() : "";
+  const char* name =
+      item != content_.items.by_id.end() ? NameOf(item->second) : "";
   ImDrawList* draw = ImGui::GetBackgroundDrawList();
   const ImVec2 display = ImGui::GetIO().DisplaySize;
   const float width = Ui(kBarWidth);
@@ -135,7 +140,7 @@ void CraftWindow::DrawProgress(const protocol::Crafting& making) const {
   DrawPanel(draw, {min.x - around, min.y - around},
             {max.x + around, max.y + around});
   DrawBar(draw, min, max, MadeShare(recipe->second, making.done()),
-          colors::kFlame, colors::kCrimson, name.c_str());
+          colors::kFlame, colors::kCrimson, name);
 }
 
 }  // namespace nanommo

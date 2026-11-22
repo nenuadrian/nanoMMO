@@ -9,7 +9,9 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/substitute.h"
 #include "client/nameplates.h"
+#include "client/translations.h"
 
 namespace nanommo {
 
@@ -50,7 +52,7 @@ void CombatText::Add(const protocol::Event& event, uint32_t you) {
       popup.color = kHeal;
       break;
     case protocol::EVENT_LEVEL:
-      popup.text = "Level " + std::to_string(event.amount());
+      popup.text = absl::Substitute(Tr("Level $0"), event.amount());
       popup.color = kLevel;
       popup.scale *= kLevelScale;
       break;

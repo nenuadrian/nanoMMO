@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+#include "client/names.h"
+
 namespace nanommo {
 
 namespace {
@@ -82,7 +84,7 @@ Figure Stand(const std::map<uint32_t, Figure>& figures,
   const auto kind = table.kinds.find(npc.kind());
   if (kind != table.kinds.end()) {
     const npcs::Look& look = kind->second.look();
-    figure.name = kind->second.name();
+    figure.name = NameOf(kind->second);
     figure.color = GetColor(look.color());
     figure.features = Features{.skin = look.skin(),
                                .hair_color = look.hair_color(),
@@ -163,7 +165,7 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
     figure.phase = monster.phase();
     const auto kind = content_.monsters.kinds.find(monster.kind());
     if (kind != content_.monsters.kinds.end()) {
-      figure.name = kind->second.name();
+      figure.name = NameOf(kind->second);
       const monsters::Look& look = kind->second.look();
       figure.color = look.has_tint() ? GetColor(look.tint()) : WHITE;
       figure.height = look.height();

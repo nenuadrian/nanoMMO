@@ -6,7 +6,9 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/strings/substitute.h"
 #include "client/theme.h"
+#include "client/translations.h"
 
 namespace nanommo {
 
@@ -52,7 +54,7 @@ bool DeathScreen::Build(bool dead, uint32_t wait_ms) const {
   draw->AddRectFilledMultiColor({screen.x - edge, 0.0f}, screen, clear, red,
                                 red, clear);
   ImFont* title = GetFonts().title;
-  const char* words = "You died";
+  const char* words = Tr("You died");
   const float size = Ui(72.0f);
   const ImVec2 extent = title->CalcTextSizeA(size, FLT_MAX, 0.0f, words);
   const float top = screen.y * 0.2f;
@@ -70,8 +72,10 @@ bool DeathScreen::Build(bool dead, uint32_t wait_ms) const {
   // Whole seconds, rounded up, so that it says 1 until it's time.
   const uint32_t seconds = (wait_ms + 999) / 1000;
   const bool ready = wait_ms == 0;
+  // GameButton translates Respawn, and what's already in the player's language
+  // stays as it is.
   const std::string label =
-      ready ? "Respawn" : "Respawn in " + std::to_string(seconds);
+      ready ? N_("Respawn") : absl::Substitute(Tr("Respawn in $0"), seconds);
   const bool clicked = GameButton(label.c_str(), Ui(kButton), true, ready);
   ImGui::End();
   return clicked && ready;

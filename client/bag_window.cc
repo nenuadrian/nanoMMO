@@ -13,8 +13,11 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "client/icon.h"
+#include "client/names.h"
 #include "client/theme.h"
+#include "client/translations.h"
 #include "extras/IconsFontAwesome6.h"
 #include "protocol/places.h"
 #include "server/inventory.h"
@@ -78,13 +81,34 @@ const items::Item* Find(const ItemTable& items, uint32_t id) {
 const char* StatName(items::Stat stat) {
   switch (stat) {
     case items::STAT_DAMAGE:
-      return "damage";
+      return Tr("damage");
     case items::STAT_HEALTH:
-      return "health";
+      return Tr("health");
     case items::STAT_ARMOUR:
-      return "armour";
+      return Tr("armour");
     default:
-      return "nothing";
+      return Tr("nothing");
+  }
+}
+
+// A slot's name, as the bag shows it, in the player's language. The content's
+// SlotName is the servers' too, which say it in English.
+const char* SlotShown(items::Slot slot) {
+  switch (slot) {
+    case items::SLOT_MAIN_HAND:
+      return Tr("main hand");
+    case items::SLOT_OFF_HAND:
+      return Tr("off hand");
+    case items::SLOT_HEAD:
+      return Tr("head");
+    case items::SLOT_BODY:
+      return Tr("body");
+    case items::SLOT_LEGS:
+      return Tr("legs");
+    case items::SLOT_FEET:
+      return Tr("feet");
+    default:
+      return Tr("nowhere");
   }
 }
 
@@ -146,28 +170,28 @@ std::vector<std::string> ItemLines(const ItemTable& items,
                                    const items::Stack& stack) {
   const items::Item* item = Find(items, stack.item());
   if (item == nullptr) {
-    return {"An item this client doesn't know"};
+    return {Tr("An item this client doesn't know")};
   }
-  std::vector<std::string> lines = {item->name()};
+  std::vector<std::string> lines = {NameOf(*item)};
   if (item->has_equip()) {
-    lines.push_back(absl::StrCat("Worn: ", SlotName(item->equip().slot())));
+    lines.push_back(
+        absl::Substitute(Tr("Worn: $0"), SlotShown(item->equip().slot())));
   }
   for (const items::Modifier& modifier : item->equip().modifiers()) {
     lines.push_back(Added(modifier));
   }
   for (const items::Modifier& roll : stack.rolls()) {
-    lines.push_back(absl::StrCat(Added(roll), ", rolled"));
+    lines.push_back(absl::Substitute(Tr("$0, rolled"), Added(roll)));
   }
   if (item->has_use()) {
-    std::string use = absl::StrCat("Use: heals ", item->use().heal());
-    if (item->use().cooldown_ms() > 0) {
-      absl::StrAppend(&use, ", one every ", item->use().cooldown_ms() / 1000,
-                      " s");
-    }
-    lines.push_back(use);
+    const items::Use& use = item->use();
+    lines.push_back(use.cooldown_ms() > 0
+                        ? absl::Substitute(Tr("Use: heals $0, one every $1 s"),
+                                           use.heal(), use.cooldown_ms() / 1000)
+                        : absl::Substitute(Tr("Use: heals $0"), use.heal()));
   }
   if (StackSize(*item) > 1) {
-    lines.push_back(absl::StrCat("Stacks up to ", StackSize(*item)));
+    lines.push_back(absl::Substitute(Tr("Stacks up to $0"), StackSize(*item)));
   }
   return lines;
 }
@@ -307,8 +331,7 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
     ImGui::BeginTooltip();
     if (stack == nullptr) {
       ImGui::TextDisabled(
-          "%s", place.has_worn() ? std::string(SlotName(place.worn())).c_str()
-                                 : "Empty");
+          "%s", place.has_worn() ? SlotShown(place.worn()) : Tr("Empty"));
     } else {
       const std::vector<std::string> lines = ItemLines(items, *stack);
       ImGui::PushFont(GetFonts().title, 15.0f);
@@ -319,7 +342,7 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
         ImGui::TextDisabled("%s", lines[i].c_str());
       }
       if (locked) {
-        ImGui::TextDisabled("Offered in the trade");
+        ImGui::TextDisabled("%s", Tr("Offered in the trade"));
       }
     }
     ImGui::EndTooltip();
@@ -327,21 +350,22 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
 
   if (stack != nullptr && !locked && ImGui::BeginPopupContextItem("menu")) {
     if (place.has_bag() && item != nullptr && item->has_use() &&
-        ImGui::MenuItem("Use")) {
+        ImGui::MenuItem(TrLabel("Use"))) {
       action.emplace().set_use(place.bag());
     }
     if (place.has_bag() && item != nullptr && item->has_equip() &&
-        ImGui::MenuItem("Wear")) {
+        ImGui::MenuItem(TrLabel("Wear"))) {
       action = MoveTo(place, Worn(item->equip().slot()));
     }
     const std::optional<uint32_t> empty = FirstEmptySlot(bag);
     // Greyed out when the bag has no room for it.
     if (place.has_worn() &&
-        ImGui::MenuItem("Take off", nullptr, false, empty.has_value()) &&
+        ImGui::MenuItem(TrLabel("Take off"), nullptr, false,
+                        empty.has_value()) &&
         empty) {
       action = MoveTo(place, InBag(*empty));
     }
-    if (ImGui::MenuItem("Throw away")) {
+    if (ImGui::MenuItem(TrLabel("Throw away"))) {
       *action.emplace().mutable_destroy() = place;
     }
     ImGui::EndPopup();
@@ -438,8 +462,10 @@ std::optional<protocol::ItemAction> BagWindow::Build(
     }
     ImGui::PopStyleVar();
     // Gold takes no slot, so it goes under them.
-    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGold),
-                       ICON_FA_COINS " %u gold", bag.gold());
+    ImGui::TextColored(
+        ImGui::ColorConvertU32ToFloat4(colors::kGold), ICON_FA_COINS " %s",
+        absl::Substitute(TrN("$0 gold", "$0 gold", bag.gold()), bag.gold())
+            .c_str());
   }
   EndPanel();
   return action;
@@ -466,13 +492,13 @@ std::optional<protocol::ItemAction> BagWindow::BuildThrowAway(
   BeginPanel("Throw away?", &open,
              ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
                  ImGuiWindowFlags_NoSavedSettings);
-  const std::string name = item != nullptr ? item->name() : "this item";
-  if (stack->count() > 1) {
-    ImGui::Text("Throw away all %u of the %s, for good?", stack->count(),
-                name.c_str());
-  } else {
-    ImGui::Text("Throw away the %s, for good?", name.c_str());
-  }
+  const char* name = item != nullptr ? NameOf(*item) : Tr("this item");
+  ImGui::TextUnformatted(
+      absl::Substitute(
+          TrN("Throw away the $1, for good?",
+              "Throw away all $0 of the $1, for good?", CountOf(*stack)),
+          CountOf(*stack), name)
+          .c_str());
   ImGui::Spacing();
   if (GameButton("Throw away", {Ui(150.0f), 0.0f}, true)) {
     *action.emplace().mutable_destroy() = place;

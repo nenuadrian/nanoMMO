@@ -14,9 +14,12 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "client/atmosphere.h"
 #include "client/ground.h"
+#include "client/names.h"
 #include "client/theme.h"
+#include "client/translations.h"
 #include "extras/IconsFontAwesome6.h"
 
 namespace nanommo {
@@ -396,10 +399,11 @@ bool LandMap::DrawMinimap(const std::vector<Figure>& figures, uint32_t target,
       DrawDiamond(draw, at, Ui(10.0f), colors::kWine, colors::kGold);
       ImFont* font = GetFonts().title;
       const float letter = Ui(13.0f);
-      const ImVec2 extent = font->CalcTextSizeA(letter, FLT_MAX, 0.0f, "N");
+      const char* north = Tr("compass", "N");
+      const ImVec2 extent = font->CalcTextSizeA(letter, FLT_MAX, 0.0f, north);
       draw->AddText(font, letter,
                     {at.x - extent.x / 2.0f, at.y - extent.y / 2.0f},
-                    colors::kGoldLight, "N");
+                    colors::kGoldLight, north);
       continue;
     }
     draw->AddLine({centre.x + way.x * radius, centre.y + way.y * radius},
@@ -434,7 +438,7 @@ bool LandMap::DrawMinimap(const std::vector<Figure>& figures, uint32_t target,
   }
   const bool map = RingButton("##map", on_ring(45.0f), ICON_FA_MAP);
   if (ImGui::IsItemHovered()) {
-    ImGui::SetTooltip("Map (M)");
+    ImGui::SetTooltip("%s", Tr("Map (M)"));
   }
   // Scrolling over the disc zooms, as it would a map.
   ImGui::SetCursorScreenPos({centre.x - radius, centre.y - radius});
@@ -457,7 +461,9 @@ std::optional<Place> LandMap::DrawMap(const std::vector<Figure>& figures,
   const float size = std::min(screen.x, screen.y) * 0.72f;
   ImGui::SetNextWindowPos({screen.x / 2, screen.y / 2}, ImGuiCond_Always,
                           {0.5f, 0.5f});
-  const std::string title = std::string("The ") + kLands[land_].name + "###Map";
+  // Translators: $0 is the land's name, which this makes a title.
+  const std::string title = absl::StrCat(
+      absl::Substitute(Tr("The $0"), LandName(kLands[land_].name)), "###Map");
   BeginPanel(title.c_str(), open,
              ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
                  ImGuiWindowFlags_NoSavedSettings);

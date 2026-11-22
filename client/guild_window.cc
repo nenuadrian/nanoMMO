@@ -8,7 +8,9 @@
 #include <utility>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "client/theme.h"
+#include "client/translations.h"
 
 namespace nanommo {
 
@@ -25,11 +27,11 @@ constexpr ImVec4 kEnemy{1.0f, 0.31f, 0.27f, 1.0f};
 const char* RankName(protocol::Rank rank) {
   switch (rank) {
     case protocol::RANK_LEADER:
-      return "Leader";
+      return Tr("Leader");
     case protocol::RANK_OFFICER:
-      return "Officer";
+      return Tr("Officer");
     default:
-      return "Member";
+      return Tr("Member");
   }
 }
 
@@ -64,11 +66,12 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
     const float width = Ui(280.0f);
     const bool named = name_[0] != '\0';
     if (yours.name().empty()) {
-      ImGui::TextUnformatted("You're in no guild. Found one:");
-      ImGui::TextDisabled("3 to 24 letters, one space between words.");
+      ImGui::TextUnformatted(Tr("You're in no guild. Found one:"));
+      ImGui::TextDisabled("%s",
+                          Tr("3 to 24 letters, one space between words."));
       ImGui::SetNextItemWidth(width);
       const bool entered = ImGui::InputTextWithHint(
-          "##name", "Its name", name_.data(), name_.size(),
+          "##name", Tr("Its name"), name_.data(), name_.size(),
           ImGuiInputTextFlags_EnterReturnsTrue);
       if ((GameButton("Found the guild", {width, 0.0f}, true, named) ||
            entered) &&
@@ -84,11 +87,18 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
         const auto since =
             static_cast<uint32_t>(ImGui::GetTime() - war_news_at_);
         ImGui::Spacing();
-        ImGui::TextColored(kEnemy, "At war with %s", war.enemy().c_str());
-        ImGui::Text("Kills: %u to %u", war.kills(), war.enemy_kills());
+        ImGui::TextColored(
+            kEnemy, "%s",
+            absl::Substitute(Tr("At war with $0"), war.enemy()).c_str());
+        ImGui::TextUnformatted(absl::Substitute(Tr("Kills: $0 to $1"),
+                                                war.kills(), war.enemy_kills())
+                                   .c_str());
+        // Translators: $0 is the time the war has left, as 29:59.
         ImGui::TextDisabled(
-            "%s left",
-            TimeLeft(war.left() > since ? war.left() - since : 0).c_str());
+            "%s", absl::Substitute(
+                      Tr("$0 left"),
+                      TimeLeft(war.left() > since ? war.left() - since : 0))
+                      .c_str());
         ImGui::Spacing();
       }
       // The roster, the highest rank first, and those playing in white.
@@ -96,9 +106,9 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
               "Roster", 3,
               ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp,
               {width, 0.0f})) {
-        ImGui::TableSetupColumn("Name");
-        ImGui::TableSetupColumn("Rank");
-        ImGui::TableSetupColumn("Level");
+        ImGui::TableSetupColumn(TrLabel("Name"));
+        ImGui::TableSetupColumn(TrLabel("Rank"));
+        ImGui::TableSetupColumn(TrLabel("Level"));
         ImGui::TableHeadersRow();
         const bool leader = yours.rank() == protocol::RANK_LEADER;
         for (const protocol::GuildMember& member : yours.members()) {
@@ -115,14 +125,14 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
           if (member.id() != you && yours.rank() > member.rank() &&
               ImGui::BeginPopupContextItem("Member")) {
             if (leader && member.rank() == protocol::RANK_MEMBER &&
-                ImGui::MenuItem("Make an officer")) {
+                ImGui::MenuItem(TrLabel("Make an officer"))) {
               action.emplace().set_promote(member.id());
             }
             if (leader && member.rank() == protocol::RANK_OFFICER &&
-                ImGui::MenuItem("Make a member")) {
+                ImGui::MenuItem(TrLabel("Make a member"))) {
               action.emplace().set_demote(member.id());
             }
-            if (ImGui::MenuItem("Remove from the guild")) {
+            if (ImGui::MenuItem(TrLabel("Remove from the guild"))) {
               action.emplace().set_kick(member.id());
             }
             ImGui::EndPopup();
@@ -140,15 +150,16 @@ std::optional<protocol::GuildAction> GuildWindow::Build(
       const auto online = std::ranges::count_if(
           yours.members(),
           [](const protocol::GuildMember& member) { return member.online(); });
-      ImGui::TextDisabled("%d of %d playing now.", static_cast<int>(online),
-                          yours.members_size());
+      ImGui::TextDisabled("%s", absl::Substitute(Tr("$0 of $1 playing now."),
+                                                 online, yours.members_size())
+                                    .c_str());
       // Officers and the leader ask players in, by name.
       if (yours.rank() != protocol::RANK_MEMBER) {
         ImGui::Spacing();
         ImGui::SetNextItemWidth(width);
         const bool entered = ImGui::InputTextWithHint(
-            "##player", "Someone playing here", player_.data(), player_.size(),
-            ImGuiInputTextFlags_EnterReturnsTrue);
+            "##player", Tr("Someone playing here"), player_.data(),
+            player_.size(), ImGuiInputTextFlags_EnterReturnsTrue);
         const bool someone = player_[0] != '\0';
         if ((GameButton("Ask them in", {width, 0.0f}, false, someone) ||
              entered) &&
@@ -187,7 +198,9 @@ std::optional<protocol::GuildAction> GuildWindow::BuildDisband(
   BeginPanel("Disband?", &open,
              ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
                  ImGuiWindowFlags_NoSavedSettings);
-  ImGui::Text("Disband %s, for everyone in it, for good?", guild.c_str());
+  ImGui::TextUnformatted(
+      absl::Substitute(Tr("Disband $0, for everyone in it, for good?"), guild)
+          .c_str());
   ImGui::Spacing();
   if (GameButton("Disband", {Ui(150.0f), 0.0f}, true)) {
     action.emplace().set_disband(true);
@@ -216,8 +229,9 @@ std::optional<protocol::GuildAction> GuildWindow::BuildQuestion() {
   BeginPanel("Join a guild?", &open,
              ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
                  ImGuiWindowFlags_NoSavedSettings);
-  ImGui::Text("%s asks you to join %s.", invite_->from().c_str(),
-              invite_->guild().c_str());
+  ImGui::TextUnformatted(absl::Substitute(Tr("$0 asks you to join $1."),
+                                          invite_->from(), invite_->guild())
+                             .c_str());
   ImGui::Spacing();
   if (GameButton("Join", {Ui(150.0f), 0.0f}, true)) {
     action.emplace().set_accept(true);

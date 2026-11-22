@@ -10,9 +10,857 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);\n"
 
+#: client/bag_window.cc
+msgid "damage"
+msgstr "daune"
+
+#: client/bag_window.cc
+msgid "health"
+msgstr "viață"
+
+#: client/bag_window.cc
+msgid "armour"
+msgstr "armură"
+
+#: client/bag_window.cc
+msgid "nothing"
+msgstr "nimic"
+
+#: client/bag_window.cc
+msgid "main hand"
+msgstr "mâna principală"
+
+#: client/bag_window.cc
+msgid "off hand"
+msgstr "mâna cealaltă"
+
+#: client/bag_window.cc
+msgid "head"
+msgstr "cap"
+
+#: client/bag_window.cc
+msgid "body"
+msgstr "trup"
+
+#: client/bag_window.cc
+msgid "legs"
+msgstr "picioare"
+
+# To check: the slot for shoes and boots; or "încălțăminte"?
+#: client/bag_window.cc
+msgid "feet"
+msgstr "tălpi"
+
+#: client/bag_window.cc
+msgid "nowhere"
+msgstr "nicăieri"
+
+#: client/bag_window.cc
+msgid "An item this client doesn't know"
+msgstr "Un obiect pe care acest client nu-l cunoaște"
+
+# Where it's worn: the slot's name, as main hand.
+#: client/bag_window.cc
+msgid "Worn: $0"
+msgstr "Loc: $0"
+
+# To check: a bonus the item rolled when it dropped.
+#: client/bag_window.cc
+msgid "$0, rolled"
+msgstr "$0, la noroc"
+
+#: client/bag_window.cc
+msgid "Use: heals $0, one every $1 s"
+msgstr "Folosire: vindecă $0, câte una la $1 s"
+
+#: client/bag_window.cc
+msgid "Use: heals $0"
+msgstr "Folosire: vindecă $0"
+
+#: client/bag_window.cc
+msgid "Stacks up to $0"
+msgstr "Până la $0 într-un loc"
+
+#: client/bag_window.cc
+msgid "Empty"
+msgstr "Gol"
+
+#: client/bag_window.cc
+msgid "Offered in the trade"
+msgstr "Oferit la schimb"
+
+#: client/bag_window.cc
+msgid "Use"
+msgstr "Folosire"
+
+# To check: or "Echipare", which suits a sword too?
+#: client/bag_window.cc
+msgid "Wear"
+msgstr "Îmbrăcare"
+
+#: client/bag_window.cc
+msgid "Take off"
+msgstr "Scoatere"
+
+#: client/bag_window.cc
+msgid "Throw away"
+msgstr "Aruncare"
+
+#: client/bag_window.cc
+msgid "Bag"
+msgstr "Rucsac"
+
+# To check: galbeni, the old gold coins; or "$0 aur"?
+#: client/bag_window.cc client/trade_window.cc
+msgid "$0 gold"
+msgid_plural "$0 gold"
+msgstr[0] "$0 galben"
+msgstr[1] "$0 galbeni"
+msgstr[2] "$0 de galbeni"
+
+#: client/bag_window.cc
+msgid "Throw away?"
+msgstr "Aruncare?"
+
+#: client/bag_window.cc
+msgid "this item"
+msgstr "acest obiect"
+
+# The item's name in quotes, as it can't take an article.
+#: client/bag_window.cc
+msgid "Throw away the $1, for good?"
+msgid_plural "Throw away all $0 of the $1, for good?"
+msgstr[0] "Se aruncă „$1” pentru totdeauna?"
+msgstr[1] "Se aruncă toate cele $0 bucăți de „$1” pentru totdeauna?"
+msgstr[2] "Se aruncă toate cele $0 de bucăți de „$1” pentru totdeauna?"
+
+#: client/bag_window.cc client/guild_window.cc client/quest_window.cc
+msgid "Keep it"
+msgstr "Păstrare"
+
+#: client/boss_bar.cc
+msgid "Phase $0 of $1"
+msgstr "Faza $0 din $1"
+
+#: client/character_screen.cc
+msgid "Character"
+msgstr "Personaj"
+
+#: client/character_screen.cc
+msgid "Health $0 / $1"
+msgstr "Viață $0 / $1"
+
+#: client/character_screen.cc
+msgid "Experience $0 / $1"
+msgstr "Experiență $0 / $1"
+
+#: client/chat_window.cc
+msgid "Chat (Enter)"
+msgstr "Chat (Enter)"
+
+#: client/chat_window.cc client/help_window.cc client/menu.cc
+msgid "Chat"
+msgstr "Chat"
+
+#: client/chat_window.cc
+msgid "[Guild] $0"
+msgstr "[Breaslă] $0"
+
+#: client/chat_window.cc
+msgid "[Guild] $0:"
+msgstr "[Breaslă] $0:"
+
+#: client/chat_window.cc
+msgid "Press Enter to chat, /g for your guild"
+msgstr "Enter pentru chat, /g pentru breaslă"
+
+#: client/combat_text.cc client/player_frame.cc
+msgid "Level $0"
+msgstr "Nivelul $0"
+
+#: client/compass.cc client/map.cc
+msgctxt "compass"
+msgid "N"
+msgstr "N"
+
+#: client/compass.cc
+msgctxt "compass"
+msgid "NE"
+msgstr "NE"
+
+#: client/compass.cc
+msgctxt "compass"
+msgid "E"
+msgstr "E"
+
+#: client/compass.cc
+msgctxt "compass"
+msgid "SE"
+msgstr "SE"
+
+#: client/compass.cc
+msgctxt "compass"
+msgid "S"
+msgstr "S"
+
+#: client/compass.cc
+msgctxt "compass"
+msgid "SW"
+msgstr "SV"
+
+#: client/compass.cc
+msgctxt "compass"
+msgid "W"
+msgstr "V"
+
+#: client/compass.cc
+msgctxt "compass"
+msgid "NW"
+msgstr "NV"
+
+#: client/compass.cc
+msgid "$0 m"
+msgstr "$0 m"
+
+# To check: or "Făurire"?
+#: client/craft_window.cc client/menu.cc
+msgid "Crafting"
+msgstr "Meșteșug"
+
+#: client/craft_window.cc
+msgid "Makes $0 x$1, in $2 s"
+msgstr "Face $0 x$1, în $2 s"
+
+#: client/craft_window.cc
+msgid "Craft"
+msgstr "Făurire"
+
+#: client/craft_window.cc
+msgid "Stop"
+msgstr "Oprire"
+
+# To check: the death screen's title; or "Moarte", which is shorter?
+#: client/death_screen.cc
+msgid "You died"
+msgstr "Personajul a murit"
+
+#: client/death_screen.cc
+msgid "Respawn"
+msgstr "Renaștere"
+
+#: client/death_screen.cc
+msgid "Respawn in $0"
+msgstr "Renaștere în $0"
+
+#: client/duel_window.cc
+msgid "Fight!"
+msgstr "La luptă!"
+
+#: client/duel_window.cc
+msgid "Duel?"
+msgstr "Duel?"
+
+#: client/duel_window.cc
+msgid "$0 asks you to duel."
+msgstr "Provocare la duel de la $0."
+
+#: client/duel_window.cc
+msgid "Duel"
+msgstr "Accept"
+
+#: client/duel_window.cc client/guild_window.cc
+msgid "Not now"
+msgstr "Nu acum"
+
+#: client/guild_window.cc
+msgid "Leader"
+msgstr "Lider"
+
+#: client/guild_window.cc
+msgid "Officer"
+msgstr "Ofițer"
+
+#: client/guild_window.cc
+msgid "Member"
+msgstr "Membru"
+
+#: client/guild_window.cc
+msgid "Guild"
+msgstr "Breaslă"
+
+#: client/guild_window.cc
+msgid "You're in no guild. Found one:"
+msgstr "Fără breaslă deocamdată. Se poate întemeia una:"
+
+#: client/guild_window.cc
+msgid "3 to 24 letters, one space between words."
+msgstr "Între 3 și 24 de litere, cu un spațiu între cuvinte."
+
+#: client/guild_window.cc
+msgid "Its name"
+msgstr "Numele ei"
+
+#: client/guild_window.cc
+msgid "Found the guild"
+msgstr "Întemeierea breslei"
+
+#: client/guild_window.cc
+msgid "At war with $0"
+msgstr "În război cu $0"
+
+#: client/guild_window.cc
+msgid "Kills: $0 to $1"
+msgstr "Uciși: $0 la $1"
+
+#. $0 is the time the war has left, as 29:59.
+#: client/guild_window.cc
+msgid "$0 left"
+msgstr "Mai sunt $0"
+
+#: client/guild_window.cc client/login_screen.cc
+msgid "Name"
+msgstr "Nume"
+
+#: client/guild_window.cc
+msgid "Rank"
+msgstr "Rang"
+
+#: client/guild_window.cc
+msgid "Level"
+msgstr "Nivel"
+
+#: client/guild_window.cc
+msgid "Make an officer"
+msgstr "Avansare la ofițer"
+
+#: client/guild_window.cc
+msgid "Make a member"
+msgstr "Retrogradare la membru"
+
+#: client/guild_window.cc
+msgid "Remove from the guild"
+msgstr "Excludere din breaslă"
+
+#: client/guild_window.cc
+msgid "$0 of $1 playing now."
+msgstr "$0 din $1 joacă acum."
+
+#: client/guild_window.cc
+msgid "Someone playing here"
+msgstr "Cineva care joacă aici"
+
+#: client/guild_window.cc
+msgid "Ask them in"
+msgstr "Invitare"
+
+#: client/guild_window.cc
+msgid "Leave the guild"
+msgstr "Ieșire din breaslă"
+
+#: client/guild_window.cc
+msgid "Disband the guild"
+msgstr "Desființarea breslei"
+
+#: client/guild_window.cc
+msgid "Disband?"
+msgstr "Desființare?"
+
+#: client/guild_window.cc
+msgid "Disband $0, for everyone in it, for good?"
+msgstr "Se desființează breasla $0, pentru toți cei din ea, pentru totdeauna?"
+
+#: client/guild_window.cc
+msgid "Disband"
+msgstr "Desființare"
+
+#: client/guild_window.cc
+msgid "Join a guild?"
+msgstr "Intrare într-o breaslă?"
+
+#: client/guild_window.cc
+msgid "$0 asks you to join $1."
+msgstr "Invitație de la $0 în breasla $1."
+
+#: client/guild_window.cc
+msgid "Join"
+msgstr "Accept"
+
+#: client/help_window.cc client/menu.cc
+msgid "Help"
+msgstr "Ajutor"
+
+#: client/help_window.cc
+msgid "Moving"
+msgstr "Deplasare"
+
+#: client/help_window.cc
+msgid "Fighting"
+msgstr "Luptă"
+
+#: client/help_window.cc
+msgid "Items"
+msgstr "Obiecte"
+
+#: client/help_window.cc client/quest_window.cc
+msgid "Quests"
+msgstr "Misiuni"
+
+#: client/help_window.cc
+msgid "Guilds and duels"
+msgstr "Bresle și dueluri"
+
+#: client/help_window.cc client/menu.cc
+msgid "Keys"
+msgstr "Taste"
+
+#: client/help_window.cc
+msgid "W A S D, or the arrows, walk, and Shift runs."
+msgstr "Cu W A S D sau cu săgețile se merge, iar cu Shift se aleargă."
+
+#: client/help_window.cc
+msgid "Double-click the ground, or click a place on the map (M), and you walk there, round what's in the way."
+msgstr "Un dublu clic pe pământ sau un clic pe un loc de pe hartă (M) duce personajul până acolo, ocolind ce-i stă în cale."
+
+#: client/help_window.cc
+msgid "Q and E, or the right button held down, turn the camera, and the mouse wheel zooms in and out."
+msgstr "Q și E, sau butonul din dreapta ținut apăsat, rotesc camera, iar rotița mouse-ului apropie și depărtează."
+
+#: client/help_window.cc
+msgid "A gate takes you to another land."
+msgstr "O poartă duce într-un alt ținut."
+
+#: client/help_window.cc
+msgid "Click a monster to pick it. Its name and health show over it, and in the frame at the top."
+msgstr "Un monstru se alege cu un clic. Numele și viața lui apar deasupra lui și în chenarul de sus."
+
+#: client/help_window.cc
+msgid "Space swings what you hold at the monster you picked. Too far away, you run up to it first."
+msgstr "Space lovește monstrul ales cu ce e în mână. Dacă e prea departe, personajul aleargă întâi până la el."
+
+#: client/help_window.cc
+msgid "1 to 9 use the skills on the hotbar, and with Shift, those on its second row. Trainers teach you more of them."
+msgstr "Tastele de la 1 la 9 folosesc abilitățile din bara de abilități, iar cu Shift, pe cele de pe al doilea rând. De la antrenori se învață mai multe."
+
+#: client/help_window.cc
+msgid "A monster's attack shows on the ground before it lands, filling as it comes: step out of its shape."
+msgstr "Atacul unui monstru apare pe pământ înainte să lovească și se umple pe măsură ce vine: din forma lui trebuie ieșit la timp."
+
+#: client/help_window.cc
+msgid "When you die, wait for the count, then click Respawn."
+msgstr "După moarte, se așteaptă numărătoarea, apoi se dă clic pe Renaștere."
+
+#: client/help_window.cc
+msgid "What a monster drops goes into your bag (I)."
+msgstr "Ce lasă în urmă un monstru ajunge în rucsac (I)."
+
+#: client/help_window.cc
+msgid "Double-click an item to use it, wear it, or take it off. Or drag it onto your character (C)."
+msgstr "Cu dublu clic, un obiect se folosește, se îmbracă sau se scoate. Sau se trage pe personaj (C)."
+
+#: client/help_window.cc
+msgid "Drag an item out of the bag to throw it away."
+msgstr "Un obiect tras afară din rucsac se aruncă."
+
+#: client/help_window.cc
+msgid "Crafting (K) makes something from what's in your bag, over a few seconds. Moving, or being hit, stops it, and nothing's lost."
+msgstr "Meșteșugul (K) face ceva din ce e în rucsac, în câteva secunde. Mișcarea sau o lovitură îl oprește, și nu se pierde nimic."
+
+#: client/help_window.cc
+msgid "To trade with someone, type /trade and their name in the chat."
+msgstr "Pentru un schimb cu cineva, se scrie în chat /trade și numele lui."
+
+#: client/help_window.cc
+msgid "Someone with a ! over them has a quest for you. Click them to take it."
+msgstr "Cine are un ! deasupra are o misiune de oferit, care se ia cu un clic pe el."
+
+#: client/help_window.cc
+msgid "A ? over them means you've done it: click them again to turn it in, for your prize."
+msgstr "Un ? deasupra înseamnă că misiunea e terminată: se predă cu încă un clic pe el, pentru răsplată."
+
+#: client/help_window.cc
+msgid "The quests you're on show in the top right, under the minimap."
+msgstr "Misiunile în curs apar în dreapta sus, sub harta mică."
+
+#: client/help_window.cc
+msgid "T opens your quests: how far you've got with each, what it gives, and a way to give one up, which its giver then gives again."
+msgstr "T deschide misiunile: cât s-a avansat cu fiecare, ce aduce și cum se renunță la una, pe care cel care a dat-o o oferă apoi din nou."
+
+#: client/help_window.cc
+msgid "G opens your guild: found one, ask people in, and see who's online."
+msgstr "G deschide breasla: de acolo se întemeiază una, se invită oameni și se vede cine e conectat."
+
+#: client/help_window.cc
+msgid "To ask someone to a duel, type /duel and their name in the chat."
+msgstr "Pentru un duel cu cineva, se scrie în chat /duel și numele lui."
+
+#: client/help_window.cc
+msgid "A guild's leader can type /war and another guild's name, to ask it to war for 30 minutes. Its players' names are red, and you can fight them anywhere."
+msgstr "Liderul unei bresle poate scrie /war și numele altei bresle, ca s-o provoace la război pentru 30 de minute. Numele jucătorilor ei apar cu roșu și pot fi atacați oriunde."
+
+#: client/help_window.cc
+msgid "Enter opens the chat, and Enter again sends what you typed."
+msgstr "Enter deschide chatul, iar încă un Enter trimite mesajul."
+
+#: client/help_window.cc
+msgid "/g and a space first talks to your guild."
+msgstr "Cu /g și un spațiu la început, mesajul ajunge la breaslă."
+
+#: client/help_window.cc
+msgid "/trade, /duel or /war and a name asks for a trade, a duel or a war."
+msgstr "/trade, /duel sau /war și un nume cer un schimb, un duel sau un război."
+
+#: client/hotbar.cc
+msgid "A swing of what you hold."
+msgstr "O lovitură cu ce e în mână."
+
+#: client/hotbar.cc
+msgid "From a trainer, at level $0. Ready again after $1 s."
+msgstr "De la un antrenor, la nivelul $0. Gata din nou după $1 s."
+
+#: client/hotbar.cc client/trainer_window.cc
+msgid "Learn"
+msgstr "Învățare"
+
+#: client/hotbar.cc
+msgid "Lv $0"
+msgstr "Nv. $0"
+
+#: client/hotbar.cc client/menu.cc
+msgid "Space"
+msgstr "Space"
+
+#: client/local_connection.cc
+msgid "You're playing offline: the world is yours alone, and nothing is saved."
+msgstr "Joc offline: lumea are un singur jucător și nu se salvează nimic."
+
+#: client/local_connection.cc
+msgid "The stories come from a server's storyteller, and there's none offline."
+msgstr "Poveștile vin de la povestitorul unui server, iar offline nu e niciunul."
+
+#: client/local_connection.cc
+msgid "Guilds are kept by the servers, so there are none offline."
+msgstr "Breslele sunt ținute de servere, așa că offline nu există."
+
+#: client/local_connection.cc
+msgid "A trade takes another player, and there's nobody else offline."
+msgstr "Un schimb are nevoie de alt jucător, iar offline nu mai e nimeni."
+
+#: client/local_connection.cc
+msgid "A duel takes another player, and there's nobody else offline."
+msgstr "Un duel are nevoie de alt jucător, iar offline nu mai e nimeni."
+
+#: client/local_connection.cc
+msgid "The gates lead to the servers' other lands, and there are none offline."
+msgstr "Porțile duc spre celelalte ținuturi ale serverelor, iar offline nu există."
+
+#: client/login_screen.cc
+msgid "Your account"
+msgstr "Cont"
+
+#: client/login_screen.cc
+msgid "Password"
+msgstr "Parolă"
+
+#: client/login_screen.cc
+msgid "Log in"
+msgstr "Conectare"
+
+#: client/login_screen.cc
+msgid "Make an account"
+msgstr "Cont nou"
+
+#: client/login_screen.cc
+msgid "Choose a world"
+msgstr "Alegerea lumii"
+
+#. How many are playing in the world.
+#: client/login_screen.cc
+msgid "$0 playing"
+msgid_plural "$0 playing"
+msgstr[0] "$0 jucător"
+msgstr[1] "$0 jucători"
+msgstr[2] "$0 de jucători"
+
+#: client/login_screen.cc
+msgid "$0 of your characters"
+msgstr "$0 dintre personajele contului"
+
+#: client/login_screen.cc
+msgid "other content"
+msgstr "alt conținut"
+
+#: client/login_screen.cc
+msgid "No worlds are up."
+msgstr "Nu e pornită nicio lume."
+
+#: client/login_screen.cc
+msgid "Start nanommo_server, then Refresh."
+msgstr "Se pornește nanommo_server, apoi se apasă Reîncărcare."
+
+#: client/login_screen.cc client/menu.cc
+msgid "Log out"
+msgstr "Deconectare"
+
+#: client/login_screen.cc
+msgid "Refresh"
+msgstr "Reîncărcare"
+
+#: client/login_screen.cc
+msgid "Continue"
+msgstr "Continuare"
+
+#: client/login_screen.cc
+msgid "$0 has other content than this client, so they can't play together."
+msgstr "$0 are alt conținut decât acest client, așa că nu pot juca împreună."
+
+#: client/login_screen.cc
+msgid "«  Worlds"
+msgstr "«  Lumi"
+
+# Without "în": the land's name has its article, as a title, and "în Pajiștile" isn't Romanian.
+#. $0 is their level, and $1 the land they're in.
+#: client/login_screen.cc
+msgid "Level $0, in the $1"
+msgstr "Nivelul $0, $1"
+
+#. $0 is their level, and $1 the land they're in.
+#: client/login_screen.cc
+msgid "Level $0, $1"
+msgstr "Nivelul $0, $1"
+
+#: client/login_screen.cc
+msgid "Nobody yet."
+msgstr "Nimeni încă."
+
+#: client/login_screen.cc
+msgid "New character"
+msgstr "Personaj nou"
+
+#: client/login_screen.cc
+msgid "$0 is the most a world has room for."
+msgstr "Într-o lume încap cel mult $0."
+
+#: client/login_screen.cc
+msgid "Enter the world"
+msgstr "Intrare în lume"
+
+#: client/login_screen.cc
+msgid "Delete"
+msgstr "Ștergere"
+
+#: client/login_screen.cc
+msgid "Delete $0 for good?"
+msgstr "Se șterge personajul $0 pentru totdeauna?"
+
+#: client/login_screen.cc
+msgid "Keep"
+msgstr "Păstrare"
+
+#: client/login_screen.cc
+msgid "«  Characters"
+msgstr "«  Personaje"
+
+#: client/login_screen.cc
+msgid "A new character"
+msgstr "Un personaj nou"
+
+#: client/login_screen.cc
+msgid "Level 1, new to $0"
+msgstr "Nivelul 1, nou în $0"
+
+#: client/login_screen.cc
+msgid "Their name"
+msgstr "Numele personajului"
+
+#: client/login_screen.cc
+msgid "Build"
+msgstr "Statură"
+
+#: client/login_screen.cc
+msgid "Skin"
+msgstr "Piele"
+
+#: client/login_screen.cc
+msgid "Hair"
+msgstr "Păr"
+
+#: client/login_screen.cc
+msgid "Hair colour"
+msgstr "Culoarea părului"
+
+#: client/login_screen.cc
+msgid "Shirt"
+msgstr "Cămașă"
+
+#: client/login_screen.cc
+msgid "Random"
+msgstr "La întâmplare"
+
+#: client/login_screen.cc
+msgid "Create"
+msgstr "Creare"
+
+#: client/main.cc
+msgid "Traveller"
+msgstr "Călător"
+
+#: client/main.cc
+msgid "Couldn't reach the server: $0"
+msgstr "Nu am putut ajunge la server: $0"
+
+#: client/main.cc
+msgid "Lost the connection to the server."
+msgstr "S-a pierdut legătura cu serverul."
+
+#: client/main.cc
+msgid "Offline"
+msgstr "Offline"
+
+# The lands' names are titles already, with their articles.
+#. $0 is the land's name, which this makes a title.
+#: client/main.cc client/map.cc
+msgid "The $0"
+msgstr "$0"
+
+#: client/main.cc
+msgid "Entering the world"
+msgstr "Intrare în lume"
+
+#: client/map.cc client/menu.cc
+msgid "Map (M)"
+msgstr "Hartă (M)"
+
+#: client/menu.cc
+msgid "W A S D, or the arrows"
+msgstr "W A S D sau săgețile"
+
+#: client/menu.cc
+msgid "Walk"
+msgstr "Mers"
+
+#: client/menu.cc
+msgid "Shift"
+msgstr "Shift"
+
+#: client/menu.cc
+msgid "Run"
+msgstr "Alergare"
+
+#: client/menu.cc
+msgid "Swing what you hold"
+msgstr "Lovitură cu ce e în mână"
+
+#: client/menu.cc
+msgid "1 to 9, and with Shift"
+msgstr "De la 1 la 9, și cu Shift"
+
+#: client/menu.cc
+msgid "The hotbar's two rows of skills"
+msgstr "Cele două rânduri ale barei de abilități"
+
+#: client/menu.cc
+msgid "Click a monster"
+msgstr "Clic pe un monstru"
+
+#: client/menu.cc
+msgid "Pick it, to fight"
+msgstr "Alegerea lui, pentru luptă"
+
+#: client/menu.cc
+msgid "Double-click the ground"
+msgstr "Dublu clic pe pământ"
+
+#: client/menu.cc
+msgid "Walk there"
+msgstr "Mers până acolo"
+
+#: client/menu.cc
+msgid "Click someone"
+msgstr "Clic pe cineva"
+
+#: client/menu.cc
+msgid "Talk, learn or take a quest"
+msgstr "Discuție, învățare sau o misiune"
+
+#: client/menu.cc
+msgid "Q and E, or hold the right button"
+msgstr "Q și E, sau butonul din dreapta ținut apăsat"
+
+#: client/menu.cc
+msgid "Turn the camera"
+msgstr "Rotirea camerei"
+
+#: client/menu.cc
+msgid "Mouse wheel"
+msgstr "Rotița mouse-ului"
+
+#: client/menu.cc
+msgid "Zoom in and out"
+msgstr "Apropiere și depărtare"
+
+#: client/menu.cc
+msgid "The map"
+msgstr "Harta"
+
+#: client/menu.cc
+msgid "Your character"
+msgstr "Personajul"
+
+#: client/menu.cc
+msgid "Your bag"
+msgstr "Rucsacul"
+
+#: client/menu.cc
+msgid "Your quests"
+msgstr "Misiunile"
+
+#: client/menu.cc
+msgid "Your guild"
+msgstr "Breasla"
+
 #: client/menu.cc
 msgid "Settings"
 msgstr "Setări"
+
+#: client/menu.cc
+msgid "Enter"
+msgstr "Enter"
+
+#: client/menu.cc
+msgid "Enter, then /g and a space"
+msgstr "Enter, apoi /g și un spațiu"
+
+#: client/menu.cc
+msgid "Talk to your guild"
+msgstr "Mesaj către breaslă"
+
+#: client/menu.cc
+msgid "Escape"
+msgstr "Escape"
+
+#: client/menu.cc
+msgid "Close what's open, or this menu"
+msgstr "Închiderea ferestrei deschise sau a meniului"
+
+#: client/menu.cc
+msgid "Drag an item out of the bag"
+msgstr "Un obiect tras afară din rucsac"
+
+#: client/menu.cc
+msgid "Throw it away"
+msgstr "Aruncarea lui"
+
+#: client/menu.cc
+msgid "Menu"
+msgstr "Meniu"
+
+#: client/menu.cc
+msgid "Back to the game"
+msgstr "Înapoi în joc"
+
+#: client/menu.cc
+msgid "Quit"
+msgstr "Ieșire din joc"
 
 #: client/menu.cc
 msgid "Interface"
@@ -25,10 +873,6 @@ msgstr "Sunet"
 #: client/menu.cc
 msgid "Graphics"
 msgstr "Grafică"
-
-#: client/menu.cc
-msgid "Keys"
-msgstr "Taste"
 
 #: client/menu.cc
 msgid "Language"
@@ -149,3 +993,591 @@ msgstr "Vremea"
 #: client/menu.cc
 msgid "Day and night"
 msgstr "Zi și noapte"
+
+#: client/menu.cc
+msgid "Character (C)"
+msgstr "Personaj (C)"
+
+#: client/menu.cc
+msgid "Bag (I)"
+msgstr "Rucsac (I)"
+
+#: client/menu.cc
+msgid "Quests (T)"
+msgstr "Misiuni (T)"
+
+#: client/menu.cc
+msgid "Guild (G)"
+msgstr "Breaslă (G)"
+
+#: client/menu.cc
+msgid "Help (H)"
+msgstr "Ajutor (H)"
+
+#: client/menu.cc
+msgid "Menu (Escape)"
+msgstr "Meniu (Escape)"
+
+#: client/player_frame.cc
+msgid "Experience: $0 / $1"
+msgstr "Experiență: $0 / $1"
+
+#: client/quest_window.cc
+msgid "$0 monster"
+msgid_plural "$0 monsters"
+msgstr[0] "$0 monstru"
+msgstr[1] "$0 monștri"
+msgstr[2] "$0 de monștri"
+
+#. An item's name, and how many of it.
+#: client/quest_window.cc
+msgid "$0 x$1"
+msgstr "$0 x$1"
+
+#: client/quest_window.cc
+msgid "Kill $0"
+msgstr "De ucis: $0"
+
+# "$0 experiență" would need "de" from 20 on.
+#: client/quest_window.cc
+msgid "$0 experience"
+msgstr "Experiență: $0"
+
+#: client/quest_window.cc
+msgid "Done"
+msgstr "Gata"
+
+# To check: the player's answers are in the first person, as "Sunt gata"; or "Preluare" and "Predare"?
+#: client/quest_window.cc
+msgid "Take the quest"
+msgstr "Accept misiunea"
+
+#: client/quest_window.cc
+msgid "$0 of $1 killed"
+msgstr "Uciși: $0 din $1"
+
+#: client/quest_window.cc
+msgid "Turn it in"
+msgstr "Predau misiunea"
+
+#: client/quest_window.cc
+msgid "On"
+msgstr "În curs"
+
+#: client/quest_window.cc
+msgid "None yet."
+msgstr "Niciuna încă."
+
+#: client/quest_window.cc
+msgid "Someone with a ! over them has a quest for you."
+msgstr "Cine are un ! deasupra are o misiune de oferit."
+
+#: client/quest_window.cc
+msgid "someone"
+msgstr "cineva"
+
+#: client/quest_window.cc
+msgid "From $0"
+msgstr "De la $0"
+
+#: client/quest_window.cc
+msgid "Turned in."
+msgstr "Predată."
+
+#: client/quest_window.cc
+msgid "Done: take it back to $0."
+msgstr "Gata: de predat la $0."
+
+#: client/quest_window.cc
+msgid "Give up"
+msgstr "Renunțare"
+
+#: client/quest_window.cc
+msgid "Give up $0? What you've killed for it goes too."
+msgstr "Renunțare la „$0”? Uciderile făcute pentru ea se pierd."
+
+#. How many they've killed, of so many of a kind of monster, such as 3 Skeletons.
+#: client/quest_window.cc
+msgid "$0 / $1, done"
+msgstr "$0 / $1, gata"
+
+#: client/round_trip.cc
+msgid "$0 ms"
+msgstr "$0 ms"
+
+#: client/talk_window.cc
+msgid "Give me a few words, and I'll tell you a story."
+msgstr "Câteva cuvinte, și din ele fac o poveste."
+
+# The storyteller tells its stories in English, so the words it's given stay English.
+#: client/talk_window.cc
+msgid "dragon, castle, gold"
+msgstr "dragon, castle, gold"
+
+#: client/talk_window.cc
+msgid "Tell me a story"
+msgstr "Vreau o poveste"
+
+#: client/trade_window.cc
+msgid "Trade with $0"
+msgstr "Schimb cu $0"
+
+#: client/trade_window.cc
+msgid "You offer"
+msgstr "Oferta mea"
+
+#: client/trade_window.cc
+msgid "gold"
+msgstr "galbeni"
+
+#: client/trade_window.cc
+msgid "$0 offers"
+msgstr "$0 oferă"
+
+#: client/trade_window.cc
+msgid "Not ready"
+msgstr "Nu sunt gata"
+
+#: client/trade_window.cc
+msgid "Ready"
+msgstr "Sunt gata"
+
+#: client/trade_window.cc
+msgid "$0 is ready."
+msgstr "$0 e gata."
+
+#: client/trade_window.cc
+msgid "$0 isn't ready yet."
+msgstr "$0 nu e gata încă."
+
+#: client/trainer_window.cc
+msgid "I can teach you these, once you're ready for them."
+msgstr "Acestea se învață de la mine, fiecare la vremea ei."
+
+#: client/trainer_window.cc
+msgid "Known"
+msgstr "Învățată"
+
+#: client/trainer_window.cc
+msgid "From level $0"
+msgstr "De la nivelul $0"
+
+# Each land's name with its article, as a title: "The $0" is just "$0".
+#. A land's name, which "The $0" makes a title.
+#: terrain/lands.h
+msgctxt "land"
+msgid "Meadows"
+msgstr "Pajiștile"
+
+#. A land's name, which "The $0" makes a title.
+#: terrain/lands.h
+msgctxt "land"
+msgid "Ashlands"
+msgstr "Ținutul Cenușii"
+
+#. A land's name, which "The $0" makes a title.
+#: terrain/lands.h
+msgctxt "land"
+msgid "Crypt"
+msgstr "Cripta"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 1"
+msgid "Sword"
+msgstr "Sabie"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 2"
+msgid "Health Potion"
+msgstr "Poțiune de viață"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 3"
+msgid "Bone"
+msgstr "Os"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 4"
+msgid "Leather Cap"
+msgstr "Căciulă de piele"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 5"
+msgid "Leather Tunic"
+msgstr "Tunică de piele"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 6"
+msgid "Ash Blade"
+msgstr "Lamă de cenușă"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 7"
+msgid "Ash Buckler"
+msgstr "Scut de cenușă"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 8"
+msgid "Linen Shirt"
+msgstr "Cămașă de in"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 9"
+msgid "Cloth Trousers"
+msgstr "Pantaloni de pânză"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 10"
+msgid "Plain Shoes"
+msgstr "Pantofi simpli"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 11"
+msgid "Leather Boots"
+msgstr "Cizme de piele"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 12"
+msgid "Bone Buckler"
+msgstr "Scut de os"
+
+#. An item's name.
+#: content/items.txtpb
+msgctxt "item 13"
+msgid "Bone Sword"
+msgstr "Sabie de os"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 1"
+msgid "Thrust"
+msgstr "Împunsătură"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 2"
+msgid "Kick"
+msgstr "Lovitură de picior"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 3"
+msgid "Second Wind"
+msgstr "Suflu nou"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 4"
+msgid "Whirlwind"
+msgstr "Vârtej"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 5"
+msgid "Strike"
+msgstr "Lovitură"
+
+# To check: the skills' names, here and below.
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 6"
+msgid "Earthsplitter"
+msgstr "Despică-Pământ"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 7"
+msgid "Frost Nova"
+msgstr "Nova de gheață"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 8"
+msgid "Searing Arc"
+msgstr "Arc arzător"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 9"
+msgid "Stormcaller"
+msgstr "Chemarea furtunii"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 15"
+msgid "Return Cut"
+msgstr "Tăietură întoarsă"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 16"
+msgid "Overhead Cut"
+msgstr "Tăietură de sus"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 10"
+msgid "Phantom Rush"
+msgstr "Năvala fantomei"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 12"
+msgid "Skyrend"
+msgstr "Sfâșie-Cer"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 11"
+msgid "Tempest Flurry"
+msgstr "Rafala furtunii"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 13"
+msgid "Cyclone"
+msgstr "Ciclon"
+
+#. A skill's name.
+#: content/skills.txtpb
+msgctxt "skill 14"
+msgid "Severing Moon"
+msgstr "Luna tăioasă"
+
+#. A kind of monster's name.
+#: content/monsters.txtpb
+msgctxt "monster 1"
+msgid "Skeleton"
+msgstr "Schelet"
+
+#. So many of a kind of monster, as a quest asks for: $0 is how many.
+#: content/monsters.txtpb
+msgctxt "monster 1"
+msgid "$0 Skeleton"
+msgid_plural "$0 Skeletons"
+msgstr[0] "$0 Schelet"
+msgstr[1] "$0 Schelete"
+msgstr[2] "$0 de Schelete"
+
+#. A kind of monster's name.
+#: content/monsters.txtpb
+msgctxt "monster 2"
+msgid "Ash Skeleton"
+msgstr "Schelet de cenușă"
+
+#. So many of a kind of monster, as a quest asks for: $0 is how many.
+#: content/monsters.txtpb
+msgctxt "monster 2"
+msgid "$0 Ash Skeleton"
+msgid_plural "$0 Ash Skeletons"
+msgstr[0] "$0 Schelet de cenușă"
+msgstr[1] "$0 Schelete de cenușă"
+msgstr[2] "$0 de Schelete de cenușă"
+
+#. A monster's skill.
+#: content/monsters.txtpb
+msgctxt "monster 2 skill 1"
+msgid "Ground Slam"
+msgstr "Izbitură în pământ"
+
+#. A kind of monster's name.
+#: content/monsters.txtpb
+msgctxt "monster 3"
+msgid "Crypt Skeleton"
+msgstr "Schelet de criptă"
+
+#. So many of a kind of monster, as a quest asks for: $0 is how many.
+#: content/monsters.txtpb
+msgctxt "monster 3"
+msgid "$0 Crypt Skeleton"
+msgid_plural "$0 Crypt Skeletons"
+msgstr[0] "$0 Schelet de criptă"
+msgstr[1] "$0 Schelete de criptă"
+msgstr[2] "$0 de Schelete de criptă"
+
+# To check: a sweep, as of a scythe.
+#. A monster's skill.
+#: content/monsters.txtpb
+msgctxt "monster 3 skill 1"
+msgid "Bone Sweep"
+msgstr "Seceriș de oase"
+
+#. A kind of monster's name.
+#: content/monsters.txtpb
+msgctxt "monster 4"
+msgid "Bone Colossus"
+msgstr "Colosul de oase"
+
+#. A monster's skill.
+#: content/monsters.txtpb
+msgctxt "monster 4 skill 1"
+msgid "Bone Storm"
+msgstr "Furtună de oase"
+
+#. A monster's skill.
+#: content/monsters.txtpb
+msgctxt "monster 4 skill 2"
+msgid "Colossal Slam"
+msgstr "Izbitură colosală"
+
+#. A monster's skill.
+#: content/monsters.txtpb
+msgctxt "monster 4 skill 3"
+msgid "Grave Sweep"
+msgstr "Seceriș de morminte"
+
+#. A monster's skill.
+#: content/monsters.txtpb
+msgctxt "monster 4 skill 4"
+msgid "Bone Lance"
+msgstr "Lance de os"
+
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 1"
+msgid "Guard"
+msgstr "Străjer"
+
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 2"
+msgid "Merchant"
+msgstr "Negustor"
+
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 3"
+msgid "Healer"
+msgstr "Tămăduitor"
+
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 4"
+msgid "Ash Warden"
+msgstr "Paznicul cenușii"
+
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 5"
+msgid "Storyteller"
+msgstr "Povestitor"
+
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 6"
+msgid "Trainer"
+msgstr "Antrenor"
+
+#. A quest's name.
+#: content/quests.txtpb
+msgctxt "quest 1"
+msgid "Bones by the Gate"
+msgstr "Oase lângă poartă"
+
+#. What a quest's giver says, giving it.
+#: content/quests.txtpb
+msgctxt "quest 1"
+msgid "Skeletons climb out of the ground around the gate, and they don't stay down for long. Put three of them back, and I'll see you're paid for it."
+msgstr "Scheletele ies din pământ în jurul porții și nu stau mult culcate. Trei dintre ele trimise înapoi în pământ, și am grijă să vină și plata."
+
+#. A quest's name.
+#: content/quests.txtpb
+msgctxt "quest 2"
+msgid "Ash and Bone"
+msgstr "Cenușă și os"
+
+#. What a quest's giver says, giving it.
+#: content/quests.txtpb
+msgctxt "quest 2"
+msgid "The lava keeps something burning in the bones out here. Five Ash Skeletons, and the Ashlands owe you a shield."
+msgstr "Lava ține ceva aprins în oasele de pe-aici. Cinci Schelete de cenușă, și Ținutul Cenușii plătește cu un scut."
+
+#. A quest's name.
+#: content/quests.txtpb
+msgctxt "quest 3"
+msgid "Rest for the Crypt"
+msgstr "Odihnă pentru Criptă"
+
+#. What a quest's giver says, giving it.
+#: content/quests.txtpb
+msgctxt "quest 3"
+msgid "Whoever was buried in the Crypt deserves to rest. Four of its skeletons, and I'll make sure you have something to drink on the way back."
+msgstr "Oricine a fost îngropat în Criptă merită să se odihnească. Patru dintre scheletele ei, și am grijă să fie ceva de băut la întoarcere."
+
+#. A recipe's name.
+#: content/recipes.txtpb
+msgctxt "recipe 1"
+msgid "Carve a Bone Buckler"
+msgstr "Cioplirea unui scut de os"
+
+#. A recipe's name.
+#: content/recipes.txtpb
+msgctxt "recipe 2"
+msgid "Bind a Bone Sword"
+msgstr "Legarea unei săbii de os"
+
+#. A recipe's name.
+#: content/recipes.txtpb
+msgctxt "recipe 3"
+msgid "Temper an Ash Blade"
+msgstr "Călirea unei lame de cenușă"
+
+#. A way to wear the hair.
+#: content/figures.txtpb
+msgctxt "hair"
+msgid "Short"
+msgstr "Scurt"
+
+#. A way to wear the hair.
+#: content/figures.txtpb
+msgctxt "hair"
+msgid "Long"
+msgstr "Lung"
+
+#. A way to wear the hair.
+#: content/figures.txtpb
+msgctxt "hair"
+msgid "Tied back"
+msgstr "Prins la spate"
+
+#. A way to wear the hair.
+#: content/figures.txtpb
+msgctxt "hair"
+msgid "Short, with a beard"
+msgstr "Scurt, cu barbă"
+
+#. A way to wear the hair.
+#: content/figures.txtpb
+msgctxt "hair"
+msgid "Bald, with a beard"
+msgstr "Chel, cu barbă"
+
+#. A way to wear the hair.
+#: content/figures.txtpb
+msgctxt "hair"
+msgid "Bald"
+msgstr "Chel"
+
+#. A build, a character's shape.
+#: content/rig.txtpb
+msgctxt "build"
+msgid "Slight"
+msgstr "Zvelt"
+
+#. A build, a character's shape.
+#: content/rig.txtpb
+msgctxt "build"
+msgid "Broad"
+msgstr "Robust"

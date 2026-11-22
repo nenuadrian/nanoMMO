@@ -17,6 +17,7 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "client/ambience.h"
 #include "client/animator.h"
 #include "client/atmosphere.h"
@@ -48,6 +49,7 @@
 #include "client/map.h"
 #include "client/menu.h"
 #include "client/nameplates.h"
+#include "client/names.h"
 #include "client/picking.h"
 #include "client/player_frame.h"
 #include "client/postprocess.h"
@@ -250,8 +252,8 @@ int main(int argc, char* argv[]) {
     // on the screen first.
     if (entering && loading.covered()) {
       if (offline) {
-        connection =
-            std::make_unique<nanommo::LocalConnection>(*content, "Traveller");
+        connection = std::make_unique<nanommo::LocalConnection>(
+            *content, nanommo::Tr("Traveller"));
       } else if (const std::optional<nanommo::protocol::WorldListing>& world =
                      login_screen.world()) {
         std::cout << "nanommo client: entering " << world->name() << " as "
@@ -261,8 +263,9 @@ int main(int argc, char* argv[]) {
         if (entered.ok()) {
           connection = *std::move(entered);
         } else {
-          login_screen.ShowError(absl::StrCat("Couldn't reach the server: ",
-                                              entered.status().message()));
+          login_screen.ShowError(
+              absl::Substitute(nanommo::Tr("Couldn't reach the server: $0"),
+                               entered.status().message()));
         }
       }
       entering.reset();
@@ -289,7 +292,8 @@ int main(int argc, char* argv[]) {
           // The instance we're on has stopped ticking, so there's nothing left
           // to play here.
           connection.reset();
-          login_screen.ShowError("Lost the connection to the server.");
+          login_screen.ShowError(
+              nanommo::Tr("Lost the connection to the server."));
         }
       }
       // We go over once the next instance has sent us our world, so that the
@@ -302,12 +306,14 @@ int main(int argc, char* argv[]) {
         } else if (!next->connected()) {
           next.reset();
           connection.reset();
-          login_screen.ShowError("Lost the connection to the server.");
+          login_screen.ShowError(
+              nanommo::Tr("Lost the connection to the server."));
         }
       }
       if (connection && !next && !connection->connected()) {
         connection.reset();
-        login_screen.ShowError("Lost the connection to the server.");
+        login_screen.ShowError(
+            nanommo::Tr("Lost the connection to the server."));
       }
     }
 
@@ -856,8 +862,9 @@ int main(int argc, char* argv[]) {
         absl::StatusOr<nanommo::protocol::LoginReply> reply =
             servers->Ask(*request);
         if (!reply.ok()) {
-          login_screen.ShowError(absl::StrCat("Couldn't reach the server: ",
-                                              reply.status().message()));
+          login_screen.ShowError(
+              absl::Substitute(nanommo::Tr("Couldn't reach the server: $0"),
+                               reply.status().message()));
         } else {
           // A token for the character picked: into its world, behind the
           // loading screen. Anything else, the screen shows.
@@ -875,7 +882,7 @@ int main(int argc, char* argv[]) {
     // logging out starts a world afresh.
     if (offline && !connection && !entering) {
       entering = "offline";
-      world_name = "Offline";
+      world_name = nanommo::Tr("Offline");
       loading.Cover();
     }
     // Back on the login screen, there's nothing to cover.
@@ -890,11 +897,13 @@ int main(int argc, char* argv[]) {
           shown < nanommo::kLands.size() ? static_cast<int>(shown) : 0;
       nanommo::DrawLoadingScreen(
           loading.cover(), nanommo::kLooks[arriving].atmosphere.sky,
-          absl::StrCat("The ", nanommo::kLands[arriving].name), world_name);
+          absl::Substitute(nanommo::Tr("The $0"),
+                           nanommo::LandName(nanommo::kLands[arriving].name)),
+          world_name);
     } else {
       nanommo::DrawLoadingScreen(loading.cover(),
                                  nanommo::kLooks[land].atmosphere.sky,
-                                 world_name, "Entering the world");
+                                 world_name, nanommo::Tr("Entering the world"));
     }
     nanommo::UpdateCursor(pointing);
     // Once a slider lets go, so that a drag across one writes once.

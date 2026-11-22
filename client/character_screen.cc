@@ -9,9 +9,10 @@
 #include <utility>
 #include <vector>
 
-#include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "client/bag_window.h"
 #include "client/theme.h"
+#include "client/translations.h"
 #include "protocol/places.h"
 
 namespace nanommo {
@@ -117,14 +118,14 @@ std::optional<protocol::ItemAction> CharacterScreen::Build(
     const float width = stage_max.x + gap + slot - origin.x;
     const float bars = stage_max.y + gap;
     const std::string health =
-        absl::StrCat("Health ", you->health, " / ", you->max_health);
+        absl::Substitute(Tr("Health $0 / $1"), you->health, you->max_health);
     DrawBar(draw, {origin.x, bars}, {origin.x + width, bars + Ui(18.0f)},
             you->max_health > 0
                 ? static_cast<float>(you->health) / you->max_health
                 : 0.0f,
             colors::kHealth, colors::kHealthDark, health.c_str());
-    const std::string experience = absl::StrCat(
-        "Experience ", world.experience(), " / ", world.next_level());
+    const std::string experience = absl::Substitute(
+        Tr("Experience $0 / $1"), world.experience(), world.next_level());
     DrawBar(draw, {origin.x, bars + Ui(24.0f)},
             {origin.x + width, bars + Ui(42.0f)},
             world.next_level() > 0 ? static_cast<float>(world.experience()) /

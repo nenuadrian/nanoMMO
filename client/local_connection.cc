@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "client/translations.h"
 #include "protocol/clock.h"
 #include "server/monsters.h"
 #include "server/npcs.h"
@@ -47,8 +48,8 @@ LocalConnection::LocalConnection(const Content& content, std::string name)
   std::cout << "nanommo client: offline, with " << world_.monsters().size()
             << " monsters and " << world_.npcs().size() << " NPCs\n";
   Notify(
-      "You're playing offline: the world is yours alone, and nothing is "
-      "saved.");
+      Tr("You're playing offline: the world is yours alone, and nothing is "
+         "saved."));
 }
 
 void LocalConnection::Poll() {
@@ -100,17 +101,18 @@ void LocalConnection::Send(const protocol::Input& input) {
   }
   if (input.has_talk()) {
     Notify(
-        "The stories come from a server's storyteller, and there's none "
-        "offline.");
+        Tr("The stories come from a server's storyteller, and there's none "
+           "offline."));
   }
   if (input.has_guild()) {
-    Notify("Guilds are kept by the servers, so there are none offline.");
+    Notify(Tr("Guilds are kept by the servers, so there are none offline."));
   }
   if (input.has_trade()) {
-    Notify("A trade takes another player, and there's nobody else offline.");
+    Notify(
+        Tr("A trade takes another player, and there's nobody else offline."));
   }
   if (input.has_duel()) {
-    Notify("A duel takes another player, and there's nobody else offline.");
+    Notify(Tr("A duel takes another player, and there's nobody else offline."));
   }
 }
 
@@ -142,8 +144,8 @@ void LocalConnection::Tick() {
   });
   if (in_gate && !in_gate_) {
     Notify(
-        "The gates lead to the servers' other lands, and there are none "
-        "offline.");
+        Tr("The gates lead to the servers' other lands, and there are none "
+           "offline."));
   }
   in_gate_ = in_gate;
   Show();

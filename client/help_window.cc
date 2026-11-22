@@ -3,20 +3,23 @@
 #include <imgui.h>
 
 #include <array>
-#include <utility>
+#include <string>
 
+#include "absl/strings/str_cat.h"
 #include "client/menu.h"
 #include "client/theme.h"
+#include "client/translations.h"
 #include "extras/IconsFontAwesome6.h"
 
 namespace nanommo {
 
 namespace {
 
-// A line of a page, after a dot, wrapped to the page.
+// A line of a page, in the player's language, after a dot, wrapped to the
+// page.
 void Line(const char* text) {
   ImGui::Bullet();
-  ImGui::TextWrapped("%s", text);
+  ImGui::TextWrapped("%s", Tr(text));
 }
 
 }  // namespace
@@ -35,19 +38,26 @@ void HelpWindow::Build() {
     EndPanel();
     return;
   }
-  static constexpr std::array<std::pair<Page, const char*>, 7> kPages = {{
-      {Page::kMoving, ICON_FA_PERSON_WALKING "  Moving"},
-      {Page::kFighting, ICON_FA_HAND_FIST "  Fighting"},
-      {Page::kItems, ICON_FA_BAG_SHOPPING "  Items"},
-      {Page::kQuests, ICON_FA_SCROLL "  Quests"},
-      {Page::kGuilds, ICON_FA_SHIELD_HALVED "  Guilds and duels"},
-      {Page::kChat, ICON_FA_COMMENTS "  Chat"},
-      {Page::kKeys, ICON_FA_KEYBOARD "  Keys"},
+  // Each with its English name as its ID, as the settings' pages are.
+  struct Tab {
+    Page page;
+    const char* icon;
+    const char* name;
+  };
+  static constexpr std::array<Tab, 7> kPages = {{
+      {Page::kMoving, ICON_FA_PERSON_WALKING, N_("Moving")},
+      {Page::kFighting, ICON_FA_HAND_FIST, N_("Fighting")},
+      {Page::kItems, ICON_FA_BAG_SHOPPING, N_("Items")},
+      {Page::kQuests, ICON_FA_SCROLL, N_("Quests")},
+      {Page::kGuilds, ICON_FA_SHIELD_HALVED, N_("Guilds and duels")},
+      {Page::kChat, ICON_FA_COMMENTS, N_("Chat")},
+      {Page::kKeys, ICON_FA_KEYBOARD, N_("Keys")},
   }};
   ImGui::BeginChild("Pages", {Ui(190.0f), 0.0f});
-  for (const auto& [page, name] : kPages) {
+  for (const auto& [page, icon, name] : kPages) {
     ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, {0.0f, 0.5f});
-    if (ImGui::Selectable(name, page_ == page, 0, {0.0f, Ui(34.0f)})) {
+    const std::string label = absl::StrCat(icon, "  ", Tr(name), "###", name);
+    if (ImGui::Selectable(label.c_str(), page_ == page, 0, {0.0f, Ui(34.0f)})) {
       page_ = page;
     }
     ImGui::PopStyleVar();
@@ -57,7 +67,7 @@ void HelpWindow::Build() {
   ImGui::BeginChild("Page");
   switch (page_) {
     case Page::kMoving:
-      ImGui::SeparatorText("Moving");
+      ImGui::SeparatorText(Tr("Moving"));
       Line("W A S D, or the arrows, walk, and Shift runs.");
       Line(
           "Double-click the ground, or click a place on the map (M), and you "
@@ -68,7 +78,7 @@ void HelpWindow::Build() {
       Line("A gate takes you to another land.");
       break;
     case Page::kFighting:
-      ImGui::SeparatorText("Fighting");
+      ImGui::SeparatorText(Tr("Fighting"));
       Line(
           "Click a monster to pick it. Its name and health show over it, and "
           "in the frame at the top.");
@@ -84,7 +94,7 @@ void HelpWindow::Build() {
       Line("When you die, wait for the count, then click Respawn.");
       break;
     case Page::kItems:
-      ImGui::SeparatorText("Items");
+      ImGui::SeparatorText(Tr("Items"));
       Line("What a monster drops goes into your bag (I).");
       Line(
           "Double-click an item to use it, wear it, or take it off. Or drag "
@@ -96,7 +106,7 @@ void HelpWindow::Build() {
       Line("To trade with someone, type /trade and their name in the chat.");
       break;
     case Page::kQuests:
-      ImGui::SeparatorText("Quests");
+      ImGui::SeparatorText(Tr("Quests"));
       Line(
           "Someone with a ! over them has a quest for you. Click them to "
           "take it.");
@@ -109,7 +119,7 @@ void HelpWindow::Build() {
           "and a way to give one up, which its giver then gives again.");
       break;
     case Page::kGuilds:
-      ImGui::SeparatorText("Guilds and duels");
+      ImGui::SeparatorText(Tr("Guilds and duels"));
       Line(
           "G opens your guild: found one, ask people in, and see who's "
           "online.");
@@ -120,7 +130,7 @@ void HelpWindow::Build() {
           "fight them anywhere.");
       break;
     case Page::kChat:
-      ImGui::SeparatorText("Chat");
+      ImGui::SeparatorText(Tr("Chat"));
       Line("Enter opens the chat, and Enter again sends what you typed.");
       Line("/g and a space first talks to your guild.");
       Line(
@@ -128,7 +138,7 @@ void HelpWindow::Build() {
           "war.");
       break;
     case Page::kKeys:
-      ImGui::SeparatorText("Keys");
+      ImGui::SeparatorText(Tr("Keys"));
       BuildKeys();
       break;
   }

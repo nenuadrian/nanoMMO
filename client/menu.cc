@@ -30,29 +30,30 @@ void SliderPercent(const char* label, float& value) {
   }
 }
 
-// The keys, and what each does, for the keys' page and the help's.
+// The keys, and what each does, for the keys' page and the help's, translated
+// as they're shown. A key's letter is the same in any language.
 constexpr std::array<std::pair<const char*, const char*>, 21> kKeys = {{
-    {"W A S D, or the arrows", "Walk"},
-    {"Shift", "Run"},
-    {"Space", "Swing what you hold"},
-    {"1 to 9, and with Shift", "The hotbar's two rows of skills"},
-    {"Click a monster", "Pick it, to fight"},
-    {"Double-click the ground", "Walk there"},
-    {"Click someone", "Talk, learn or take a quest"},
-    {"Q and E, or hold the right button", "Turn the camera"},
-    {"Mouse wheel", "Zoom in and out"},
-    {"M", "The map"},
-    {"C", "Your character"},
-    {"I", "Your bag"},
-    {"T", "Your quests"},
-    {"G", "Your guild"},
-    {"K", "Crafting"},
-    {"H", "Help"},
-    {"O", "Settings"},
-    {"Enter", "Chat"},
-    {"Enter, then /g and a space", "Talk to your guild"},
-    {"Escape", "Close what's open, or this menu"},
-    {"Drag an item out of the bag", "Throw it away"},
+    {N_("W A S D, or the arrows"), N_("Walk")},
+    {N_("Shift"), N_("Run")},
+    {N_("Space"), N_("Swing what you hold")},
+    {N_("1 to 9, and with Shift"), N_("The hotbar's two rows of skills")},
+    {N_("Click a monster"), N_("Pick it, to fight")},
+    {N_("Double-click the ground"), N_("Walk there")},
+    {N_("Click someone"), N_("Talk, learn or take a quest")},
+    {N_("Q and E, or hold the right button"), N_("Turn the camera")},
+    {N_("Mouse wheel"), N_("Zoom in and out")},
+    {"M", N_("The map")},
+    {"C", N_("Your character")},
+    {"I", N_("Your bag")},
+    {"T", N_("Your quests")},
+    {"G", N_("Your guild")},
+    {"K", N_("Crafting")},
+    {"H", N_("Help")},
+    {"O", N_("Settings")},
+    {N_("Enter"), N_("Chat")},
+    {N_("Enter, then /g and a space"), N_("Talk to your guild")},
+    {N_("Escape"), N_("Close what's open, or this menu")},
+    {N_("Drag an item out of the bag"), N_("Throw it away")},
 }};
 
 // In points: a round button's radius, as the chat's is, and the room round
@@ -60,7 +61,8 @@ constexpr std::array<std::pair<const char*, const char*>, 21> kKeys = {{
 constexpr float kRound = 23.0f;
 constexpr float kRimRoom = 4.0f;
 
-// A button in the bottom right row, with an icon, round, as the chat's is.
+// A button in the bottom right row, with an icon, round, as the chat's is, and
+// a tooltip in the player's language.
 bool BarButton(const char* id, const char* icon, bool on, const char* tip) {
   const float radius = Ui(kRound);
   const bool clicked =
@@ -70,7 +72,7 @@ bool BarButton(const char* id, const char* icon, bool on, const char* tip) {
   DrawRoundButton(ImGui::GetWindowDrawList(), {min.x + radius, min.y + radius},
                   radius, icon, hovered, on);
   if (hovered) {
-    ImGui::SetTooltip("%s", tip);
+    ImGui::SetTooltip("%s", Tr(tip));
   }
   return clicked;
 }
@@ -84,10 +86,10 @@ void BuildKeys() {
       ImGui::TableNextColumn();
       ImGui::PushFont(GetFonts().bold, 0.0f);
       ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGold), "%s",
-                         key);
+                         Tr(key));
       ImGui::PopFont();
       ImGui::TableNextColumn();
-      ImGui::TextUnformatted(does);
+      ImGui::TextUnformatted(Tr(does));
     }
     ImGui::EndTable();
   }

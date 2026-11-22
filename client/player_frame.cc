@@ -9,8 +9,10 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "client/picking.h"
 #include "client/theme.h"
+#include "client/translations.h"
 #include "extras/IconsFontAwesome6.h"
 
 namespace nanommo {
@@ -153,8 +155,10 @@ void PlayerFrame::Draw(const std::vector<Figure>& figures,
   ImGui::InvisibleButton("##experience", {experience_max.x - experience_min.x,
                                           experience_max.y - experience_min.y});
   if (ImGui::IsItemHovered()) {
-    ImGui::SetTooltip("Experience: %u / %u", world.experience(),
-                      world.next_level());
+    ImGui::SetTooltip(
+        "%s", absl::Substitute(Tr("Experience: $0 / $1"), world.experience(),
+                               world.next_level())
+                  .c_str());
   }
   ImGui::End();
 }
@@ -197,7 +201,7 @@ void DrawTargetFrame(const std::vector<Figure>& figures, uint32_t target,
   DrawGradientText(
       draw, GetFonts().title, Ui(15.0f), {inner, plate_min.y + Ui(6.0f)},
       IM_COL32(255, 170, 150, 255), colors::kEmber, picked->name.c_str());
-  const std::string level = absl::StrCat("Level ", picked->level);
+  const std::string level = absl::Substitute(Tr("Level $0"), picked->level);
   ImFont* bold = GetFonts().bold;
   const ImVec2 level_extent =
       bold->CalcTextSizeA(Ui(13.0f), FLT_MAX, 0.0f, level.c_str());

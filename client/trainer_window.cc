@@ -9,8 +9,11 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/substitute.h"
 #include "client/icon.h"
+#include "client/names.h"
 #include "client/theme.h"
+#include "client/translations.h"
 
 namespace nanommo {
 
@@ -43,20 +46,21 @@ std::optional<protocol::Learn> TrainerWindow::Build(
   bool open = true;
   BeginPanel(name_.c_str(), &open,
              ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
-  ImGui::TextWrapped("I can teach you these, once you're ready for them.");
+  ImGui::TextWrapped("%s",
+                     Tr("I can teach you these, once you're ready for them."));
   ImGui::Separator();
   std::optional<protocol::Learn> learn;
   for (const uint32_t id : teaches_) {
     const skills::Skill& skill = skills_.by_id.at(id);
     ImGui::PushID(static_cast<int>(id));
     ImGui::AlignTextToFramePadding();
-    ImGui::Text("%s  %s", Icon(skill.look().icon()).c_str(),
-                skill.name().c_str());
+    ImGui::Text("%s  %s", Icon(skill.look().icon()).c_str(), NameOf(skill));
     ImGui::SameLine(Ui(kButtons));
     if (std::ranges::find(world.skills(), id) != world.skills().end()) {
-      ImGui::TextDisabled("Known");
+      ImGui::TextDisabled("%s", Tr("Known"));
     } else if (level < static_cast<int>(skill.level())) {
-      ImGui::TextDisabled("From level %u", skill.level());
+      ImGui::TextDisabled(
+          "%s", absl::Substitute(Tr("From level $0"), skill.level()).c_str());
     } else if (GameButton("Learn", {Ui(90.0f), Ui(28.0f)}, true)) {
       learn.emplace();
       learn->set_npc(*npc_);

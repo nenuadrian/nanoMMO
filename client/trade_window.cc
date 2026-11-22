@@ -10,8 +10,10 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "client/bag_window.h"
 #include "client/theme.h"
+#include "client/translations.h"
 #include "extras/IconsFontAwesome6.h"
 
 namespace nanommo {
@@ -64,7 +66,8 @@ std::optional<protocol::TradeAction> TradeWindow::Build(
                           ImGuiCond_FirstUseEver, {0.5f, 0.5f});
   bool open = true;
   // The same window, whoever it's with.
-  const std::string title = absl::StrCat("Trade with ", partner, "###Trade");
+  const std::string title =
+      absl::StrCat(absl::Substitute(Tr("Trade with $0"), partner), "###Trade");
   if (BeginPanel(title.c_str(), &open,
                  ImGuiWindowFlags_AlwaysAutoResize |
                      ImGuiWindowFlags_NoSavedSettings)) {
@@ -77,7 +80,7 @@ std::optional<protocol::TradeAction> TradeWindow::Build(
     bool changed = false;
     const std::vector<uint32_t> offered = PlacesOf(yours);
     ImGui::BeginGroup();
-    ImGui::TextUnformatted("You offer");
+    ImGui::TextUnformatted(Tr("You offer"));
     for (std::size_t i = 0; i < SlotsFor(offered.size()); ++i) {
       if (i % kColumns != 0) {
         ImGui::SameLine();
@@ -113,7 +116,7 @@ std::optional<protocol::TradeAction> TradeWindow::Build(
                        ICON_FA_COINS);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(Ui(110.0f));
-    ImGui::InputScalar("gold##yours", ImGuiDataType_U32, &gold_);
+    ImGui::InputScalar(TrLabel("gold##yours"), ImGuiDataType_U32, &gold_);
     typing_ = ImGui::IsItemActive();
     if (ImGui::IsItemDeactivatedAfterEdit()) {
       offer.set_gold(gold_);
@@ -127,7 +130,7 @@ std::optional<protocol::TradeAction> TradeWindow::Build(
     // Theirs, to look at.
     ImGui::SameLine(0.0f, Ui(kBetween));
     ImGui::BeginGroup();
-    ImGui::Text("%s offers", partner);
+    ImGui::TextUnformatted(absl::Substitute(Tr("$0 offers"), partner).c_str());
     const std::vector<uint32_t> places = PlacesOf(theirs);
     for (std::size_t i = 0; i < SlotsFor(places.size()); ++i) {
       if (i % kColumns != 0) {
@@ -139,8 +142,11 @@ std::optional<protocol::TradeAction> TradeWindow::Build(
                 theirs.ready() ? colors::kGood : 0);
       ImGui::PopID();
     }
-    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGold),
-                       ICON_FA_COINS " %u gold", theirs.gold());
+    ImGui::TextColored(
+        ImGui::ColorConvertU32ToFloat4(colors::kGold), ICON_FA_COINS " %s",
+        absl::Substitute(TrN("$0 gold", "$0 gold", theirs.gold()),
+                         theirs.gold())
+            .c_str());
     ImGui::EndGroup();
     ImGui::PopStyleVar();
 
@@ -152,10 +158,11 @@ std::optional<protocol::TradeAction> TradeWindow::Build(
     }
     ImGui::SameLine();
     if (theirs.ready()) {
-      ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGood),
-                         "%s is ready.", partner);
+      ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colors::kGood), "%s",
+                         absl::Substitute(Tr("$0 is ready."), partner).c_str());
     } else {
-      ImGui::TextDisabled("%s isn't ready yet.", partner);
+      ImGui::TextDisabled(
+          "%s", absl::Substitute(Tr("$0 isn't ready yet."), partner).c_str());
     }
   }
   EndPanel();
