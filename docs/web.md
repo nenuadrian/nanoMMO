@@ -77,7 +77,7 @@ certificate, such as Caddy's or Let's Encrypt's, takes `wss://` on 443 and passe
 | The page | A window | The game's own, `client/web/shell.html`, in place of Emscripten's: the canvas fills the window, and the page can't scroll, so Space and the arrows reach the game |
 | Drawing | OpenGL 3.3, and GLSL 3.30 | WebGL 2, and GLSL ES 3.00: `LoadGlsl` gives each shader its version line and precisions |
 | The frame | Our loop, with raylib waiting for the next frame in `WindowShouldClose` | Asyncify turns that wait into one that hands back to the browser, which draws the page |
-| Files | Read from beside the program | Preloaded into the page's own file system, at the same paths: the content, the fonts and the models |
+| Files | Read from beside the program | Preloaded into the page's own file system, at the same paths: the content, the fonts, the translations and the models |
 | A texture read back | In its own format | As RGBA bytes, the only way WebGL 2 reads pixels (`FBO_READ_TEXTURE_AS_RGBA`) |
 | The bones' matrices | Transposed by OpenGL, with its flag | Transposed on the CPU, by our patch to raylib, as raylib 6.2 does for one matrix there but not for an array |
 | The music | The licensed track in `assets/music`, when it's there | Left out, as its licence doesn't let us hand out the file |

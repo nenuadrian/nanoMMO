@@ -4,7 +4,9 @@
 
 The code follows [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
 clang-format lays it out, and cpplint checks the rest. `docker build --target lint .` runs both, as
-CI does.
+CI does, and `scripts/po.py check`, which checks the translations: that the template and each
+language's file are up to date, and that each translation is one the client can show (see
+[Translations](translations.md#the-workflow)).
 
 ## Checking the code
 

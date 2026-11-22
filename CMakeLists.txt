@@ -313,7 +313,7 @@ if(DOXYGEN_FOUND AND NOT EMSCRIPTEN)
     docs/island.md docs/worlds.md docs/networking.md docs/accounts.md
     docs/saving.md docs/website.md docs/monitoring.md docs/benchmarking.md
     docs/reliability.md docs/postmortems/README.md docs/postmortems
-    docs/deployment.md docs/web.md docs/checks.md docs/releases.md
+    docs/deployment.md docs/web.md docs/translations.md docs/checks.md docs/releases.md
     docs/decisions/README.md docs/decisions
     protocol content terrain server gateway bot client cheat cinema)
 endif()

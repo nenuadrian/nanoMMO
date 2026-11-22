@@ -684,7 +684,8 @@ bag's line on throwing things away, and the map's on clicking a place to walk th
 longer counts the slots used.
 
 O opens the settings, as Settings in the menu does, and closes them again. Their Interface page has
-the interface's size, "Show the minimap", which can take the minimap off the screen, and whether it
+the language, English or Romanian (see [Translations](translations.md)), the interface's size, "Show
+the minimap", which can take the minimap off the screen, and whether it
 turns with the camera (see [The map and the minimap](graphics.md#the-map-and-the-minimap)), the
 hotbar's order, and the names over heads (above). The client keeps whether the minimap shows as
 `Interface`'s `minimap`, 5.

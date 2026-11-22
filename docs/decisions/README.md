@@ -105,6 +105,7 @@ The records by what they're about, each group in the order they were written.
 | [0029](0029-the-client-in-a-browser-with-emscripten.md) | The client in a browser, with Emscripten and WebGL 2 | Accepted | 76 |
 | [0030](0030-offline-the-client-runs-the-worlds-rules.md) | Offline, the client runs the world's rules itself | Accepted | 78 |
 | [0044](0044-looks-are-chosen-once-and-names-show-over-whoever-is-pointed-at-or-picked.md) | Looks are chosen once, as places in the content's lists, and names show over whoever's pointed at or picked | Accepted | 94 |
+| [0045](0045-translate-the-client-with-gettext-po-files-at-display-and-keep-the-content-english.md) | The client translates with gettext's PO files, as it shows each string, and the content stays English | Accepted | 95 |
 
 ### Gameplay and content
 

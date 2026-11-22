@@ -57,6 +57,9 @@ skills (see [Skills](gameplay.md#skills)) and three recipes (see [Crafting](game
   in before the end, or taken out, changes the looks of everyone who chose one after it. A
   character from before there were looks to choose has the looks its id picks, by how many each
   list has, so any new one changes most of theirs.
+- The names, and the quests' words, are English, which `ClientHash` hashes and the servers say.
+  The client translates each as it shows it, by its kind and id, such as `item 8`, so a language
+  changes nothing in the content (see [Translations](translations.md#how-it-works)).
 - Monsters with a fixed home, camps of monsters and NPCs name their kind by id, and their land by
   name. A quest names its giver's kind of NPC, the kind of monster it asks for and its prizes by id,
   and a recipe what it takes and makes.

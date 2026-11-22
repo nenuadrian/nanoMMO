@@ -165,9 +165,10 @@ says which land you're in, the land's (`client/loading.h`).
 
 The interface is ImGui's, in a look of nanoMMO's own (`client/theme.h`): the colours of its videos
 and its website, the near black of a fire gone low, its reds and embers, gold, and the cream of old
-paper for words, with titles in Cinzel and the rest in Alegreya Sans. Both fonts are under the SIL
-Open Font License, in `assets/fonts` with their licences, and the build copies them next to the
-client.
+paper for words, with titles in Cinzel and the rest in Alegreya Sans. Cinzel has no ș, ț or ă,
+which Romanian needs, so ImGui takes those, and any other letter Cinzel hasn't got, from Alegreya
+Sans Bold, merged into it (see [Translations](translations.md)). Both fonts are under the SIL Open
+Font License, in `assets/fonts` with their licences, and the build copies them next to the client.
 
 - It's drawn at a scale: the window's height over 1080 points, so it's the same share of a 1080p
   window as of a 4K one, and the window can be dragged to any size, but never below three quarters, times the player's own size, from 75 to

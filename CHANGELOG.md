@@ -7,6 +7,39 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.95.0 (2026-11-22)
+
+- The client speaks Romanian. The settings' Interface page has Language: English, Română, and
+  Pseudo, each by its own name, and the interface changes as soon as one's picked. The client
+  keeps it as `Interface.language`, 6, in `settings.txtpb`: none is English.
+- Translations are gettext's PO files, in `po/`: the template, `nanommo.pot`, and `ro.po`, which
+  translates all of it without addressing the player, as "tu" or as "dumneavoastră". The client
+  reads them itself (`Catalog`, in `client/translations.h`), with contexts, plurals and fuzzy
+  entries, and asks for each string in English, through `Tr`, `TrN` for a plural, `TrLabel` for an
+  ImGui label, and `N_` to mark one in a table. What isn't translated shows in English. The build
+  copies `po/` next to the client, and the web build preloads it.
+- A plural takes as many forms as its language has, by the PO file's `Plural-Forms`, three in
+  Romanian, "1 galben", "3 galbeni", "20 de galbeni", where the client used to put an s on the end.
+  The sentences with a name or a number in them have placeholders, `$0` to `$9`, which
+  `absl::Substitute` fills in, in the translation's order, in place of printf's and the pieces
+  `absl::StrCat` glued together. A translation with a placeholder its English hasn't got shows in
+  English.
+- The content's names, and the quests' words, stay English in the content and in `ClientHash`, and
+  the client translates each as it shows it, by its kind and id, such as `item 8`
+  (`client/names.h`). A widget keeps its English label as its ID, so a window doesn't move as the
+  language changes.
+- Cinzel, the titles' face, has no ș, ț or ă, so Alegreya Sans Bold is merged into it for the
+  letters it lacks.
+- Pseudo is made from the template: each string with its letters marked and a third longer, in
+  brackets, so that one that isn't translated, or doesn't fit, shows on the screen.
+- `scripts/po.py` writes the template from the client's sources and the content (`extract`), merges
+  it into each language as msgmerge would, with what's changed fuzzy and what's gone obsolete
+  (`update`), and checks them (`check`), which CI's lint stage runs: the template and each language
+  up to date, each file readable, each plural with its language's forms, each translation with its
+  English's placeholders, no `##`, and no ş or ţ for Romanian's ș and ț.
+- The server's sentences, such as a login server's error or a world's line in the chat, stay
+  English until 0.96.0.
+
 ## 0.94.2 (2026-11-22)
 
 - The API docs link each class, function and file to its code, highlighted, at the line that
