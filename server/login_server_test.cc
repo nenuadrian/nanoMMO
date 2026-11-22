@@ -8,6 +8,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "gtest/gtest.h"
+#include "protocol/limits.h"
 #include "protocol/version.h"
 #include "server/characters.h"
 #include "server/test_services.h"
@@ -131,7 +132,7 @@ TEST_F(LoginTest, RefusesATakenNameAndTooManyCharacters) {
   ASSERT_TRUE(Create(session, name + "_0").ok());
   EXPECT_EQ(Create(session, name + "_0").error(),
             "Someone in Ember is called that already.");
-  for (int i = 1; i < nanommo::Characters::kPerWorld; ++i) {
+  for (int i = 1; i < nanommo::kCharactersPerWorld; ++i) {
     ASSERT_TRUE(Create(session, name + "_" + std::to_string(i)).ok());
   }
   EXPECT_EQ(Create(session, name + "_9").error(),
@@ -146,7 +147,7 @@ TEST_F(LoginTest, RefusesATakenNameAndTooManyCharacters) {
   gone.set_character(Create(session, name + "_0").characters(0).id());
   const auto after = Ask(gone);
   ASSERT_TRUE(after.ok()) << after.error();
-  EXPECT_EQ(after.characters_size(), nanommo::Characters::kPerWorld - 1);
+  EXPECT_EQ(after.characters_size(), nanommo::kCharactersPerWorld - 1);
   EXPECT_TRUE(Create(session, name + "_9").ok());
 }
 

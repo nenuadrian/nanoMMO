@@ -8,6 +8,7 @@
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "protocol/limits.h"
 #include "server/accounts.h"
 #include "server/guilds.h"
 #include "server/levels.h"
@@ -18,7 +19,7 @@ absl::StatusOr<std::vector<protocol::CharacterListing>> Characters::List(
     uint32_t account) {
   const absl::StatusOr<Result> rows = database_.Run(
       "SELECT id, name, world, experience, land, COALESCE(weapon, 0), "
-      "items_revision IS NULL, build, skin, hair_color, hair "
+      "items_revision IS NULL, build, skin, hair_color, hair, shirt "
       "FROM players WHERE account_id = ? ORDER BY id",
       {absl::StrCat(account)});
   if (!rows.ok()) {
@@ -61,6 +62,15 @@ absl::StatusOr<std::vector<protocol::CharacterListing>> Characters::List(
       looks.set_skin(skin);
       looks.set_hair_color(hair_color);
       looks.set_hair(hair);
+      // And the colour of their clothes, unless they're from before there was
+      // one to choose.
+      uint32_t shirt = 0;
+      if (!row[11].empty()) {
+        if (!absl::SimpleAtoi(row[11], &shirt)) {
+          return absl::InternalError("looks that aren't numbers");
+        }
+        looks.set_shirt(shirt);
+      }
     }
   }
   for (protocol::CharacterListing& character : characters) {
@@ -110,7 +120,7 @@ absl::StatusOr<uint32_t> Characters::Create(
   // round to what there is: a look that's out of range draws as one there
   // is, the same for everyone, so there's nothing in it to cheat with.
   std::vector<std::string> values = {absl::StrCat(account), world, name};
-  const char* chosen = "NULL, NULL, NULL, NULL";
+  const char* chosen = "NULL, NULL, NULL, NULL, NULL";
   if (looks) {
     for (const uint32_t look :
          {looks->build(), looks->skin(), looks->hair_color(), looks->hair()}) {
@@ -119,16 +129,25 @@ absl::StatusOr<uint32_t> Characters::Create(
       }
       values.push_back(absl::StrCat(look));
     }
-    chosen = "?, ?, ?, ?";
+    chosen = "?, ?, ?, ?, NULL";
+    // A 0.94.0 client sends no colour for their clothes, and their id picks
+    // it, as it did then.
+    if (looks->has_shirt()) {
+      if (looks->shirt() > kMostLook) {
+        return absl::InvalidArgumentError("That isn't a look there is.");
+      }
+      values.push_back(absl::StrCat(looks->shirt()));
+      chosen = "?, ?, ?, ?, ?";
+    }
   }
-  values.insert(values.end(),
-                {absl::StrCat(account), world, absl::StrCat(kPerWorld)});
+  values.insert(values.end(), {absl::StrCat(account), world,
+                               absl::StrCat(kCharactersPerWorld)});
   // Counting and inserting in one statement, so that two at once can't both
   // fit in the last place. The unique key on the world and the name says
   // whether it's taken.
   const absl::StatusOr<Result> inserted = database_.Run(
       absl::StrCat("INSERT INTO players (account_id, world, name, x, z, build, "
-                   "skin, hair_color, hair) SELECT ?, ?, ?, 0, 0, ",
+                   "skin, hair_color, hair, shirt) SELECT ?, ?, ?, 0, 0, ",
                    chosen,
                    " FROM DUAL WHERE (SELECT COUNT(*) FROM players WHERE "
                    "account_id = ? AND world = ?) < ?"),
@@ -141,8 +160,9 @@ absl::StatusOr<uint32_t> Characters::Create(
     return inserted.status();
   }
   if (inserted->insert_id == 0) {
-    return absl::ResourceExhaustedError(absl::StrCat(
-        "You have ", kPerWorld, " characters in ", world, " already."));
+    return absl::ResourceExhaustedError(
+        absl::StrCat("You have ", kCharactersPerWorld, " characters in ", world,
+                     " already."));
   }
   return static_cast<uint32_t>(inserted->insert_id);
 }

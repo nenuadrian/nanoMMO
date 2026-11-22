@@ -127,6 +127,9 @@ Features FeaturesOf(const figures::Figures& figures,
     features.hair = static_cast<int>(looks.hair() % figures.hairs_size());
   }
   features.build = looks.build();
+  if (looks.has_shirt()) {
+    features.shirt = looks.shirt();
+  }
   return features;
 }
 

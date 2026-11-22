@@ -30,9 +30,6 @@ class LoginScreen {
   static constexpr int kPreviewWidth = 760;
   static constexpr int kPreviewHeight = 1012;
 
-  /// As many characters as the login server lets an account have in a world.
-  static constexpr int kPerWorld = 4;
-
   /// With the ClientHash of this client's content, to tell the worlds that
   /// have other content apart, its items, to dress a new character in the kit
   /// it'll start with, and its figures and rig, for the looks to choose from.

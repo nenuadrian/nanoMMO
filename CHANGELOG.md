@@ -7,6 +7,20 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.94.1 (2026-11-22)
+
+- You choose your shirt's colour as you make a character, from the six players' colours, with a
+  swatch each under Hair colour, and Random picks one too. Before, the colour came from the
+  character's id, which there isn't until Create, so the preview showed one colour and the
+  character came out in another. `Looks` has an optional `shirt`, 5, which goes in `players`'
+  `shirt`, from V17, nullable: a character from before has none, and their id still picks it.
+  Adding to what the client and the servers say to each other isn't what a patch does, but
+  this field is optional, and a 0.94.0 client leaves it out and draws as before.
+- How many characters an account can have in a world is one number now, `kCharactersPerWorld` in
+  `protocol/limits.h`, which the login server and the client both read. Each had a four of its
+  own before, so changing one would have left the client offering a character the server turns
+  away, or hiding one it would make.
+
 ## 0.94.0 (2026-11-22)
 
 - Character creation. Entering a world where you have nobody goes straight to making someone, and

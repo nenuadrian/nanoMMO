@@ -155,12 +155,15 @@ message Player {
 
 // How a player looks under what they wear, as they chose it, making their
 // character: places in the rig's builds and in the figures file's lists of
-// skins, hair colours and ways to wear the hair.
+// skins, hair colours and ways to wear the hair, and in the players' colours,
+// for the colour their clothes are dyed in.
 message Looks {
   uint32 build = 1;
   uint32 skin = 2;
   uint32 hair_color = 3;
   uint32 hair = 4;
+  // A character made before 0.94.1 has none, and their id picks theirs.
+  optional uint32 shirt = 5;
 }
 
 message Monster {

@@ -18,6 +18,7 @@ wheel:
 | Skin | Six skins, from pale to dark, from the figures file | A swatch each |
 | Hair | Short, Long, Tied back, Short with a beard, Bald with a beard, or Bald | The arrows |
 | Hair colour | Black, brown, red, fair or grey | A swatch each |
+| Shirt | Orange, blue, green, purple, red or yellow, the players' colours, which the Linen Shirt is dyed in | A swatch each |
 
 - The screen starts with looks picked at random, so that new players don't all start out alike,
   and Random picks again. Each change shows on the stage at once.
@@ -29,7 +30,8 @@ wheel:
   world sends your looks with your name.
 - A character made before 0.94.0 has no looks of their own, and looks as their id picks, as
   everyone did before, so nobody wakes up as someone else. So do the bots' characters, which they
-  make without looks.
+  make without looks. One made with 0.94.0 chose the rest, but not their shirt, and their id picks
+  its colour.
 
 The names of the builds and of the ways to wear the hair are in the content, as `Build.name` in
 `content/rig.txtpb` and `Hair.name` in `content/figures.txtpb` (see [Content](content.md)), and a

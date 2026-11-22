@@ -286,7 +286,7 @@ absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
   // A character in another world is no player of this one's.
   const absl::StatusOr<Result> result = database_.Run(
       "SELECT name, x, z, experience, health, land, items_revision, quests, "
-      "gold, build, skin, hair_color, hair FROM players "
+      "gold, build, skin, hair_color, hair, shirt FROM players "
       "WHERE id = ? AND world = ?",
       {std::to_string(id), world});
   if (!result.ok()) {
@@ -316,6 +316,15 @@ absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
     looks.set_skin(skin);
     looks.set_hair_color(hair_color);
     looks.set_hair(hair);
+    // And the colour of their clothes, unless they're from before there was
+    // one to choose.
+    uint32_t shirt = 0;
+    if (!row[13].empty()) {
+      if (!absl::SimpleAtoi(row[13], &shirt)) {
+        return absl::InternalError("looks that aren't numbers");
+      }
+      looks.set_shirt(shirt);
+    }
     player.looks = looks;
   }
   // Where they are, their experience, health and land, and next their skills.

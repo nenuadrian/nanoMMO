@@ -621,8 +621,12 @@ void Renderer::DrawFigure(const Figure& figure) const {
     const auto kind = monsters_.find(figure.kind);
     looks = kind != monsters_.end() ? kind->second.get() : nullptr;
   }
-  const Color color =
-      figure.monster || figure.npc ? figure.color : PlayerColor(figure.id);
+  Color color = figure.color;
+  if (!figure.monster && !figure.npc) {
+    color = figure.features && figure.features->shirt
+                ? ShirtColor(*figure.features->shirt)
+                : PlayerColor(figure.id);
+  }
   if (looks != nullptr && looks->size() > 0) {
     looks->Draw(figure, color, cel_shading_ ? &outline_ : nullptr);
     return;

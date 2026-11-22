@@ -13,8 +13,10 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "client/scene.h"
 #include "client/theme.h"
 #include "extras/IconsFontAwesome6.h"
+#include "protocol/limits.h"
 #include "protocol/version.h"
 
 namespace nanommo {
@@ -144,6 +146,16 @@ void Stepper(const char* label, const std::vector<std::string>& names,
     *at = (*at + 1) % count;
   }
   ImGui::PopID();
+}
+
+// The players' colours, as 0xRRGGBBAA, for the shirt's swatches.
+google::protobuf::RepeatedField<uint32_t> Shirts() {
+  google::protobuf::RepeatedField<uint32_t> colors;
+  for (int shirt = 0; shirt < kShirtColors; ++shirt) {
+    colors.Add(static_cast<uint32_t>(
+        ColorToInt(ShirtColor(static_cast<uint32_t>(shirt)))));
+  }
+  return colors;
 }
 
 // Colours, as 0xRRGGBBAA, each a round swatch to click, with gold round the
@@ -523,10 +535,11 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCharacters() {
   ImGui::Spacing();
   // The login server would turn a fifth away, so we don't ask it to.
   const bool create =
-      static_cast<int>(here.size()) < kPerWorld &&
+      static_cast<int>(here.size()) < kCharactersPerWorld &&
       GameButton("New character", {-1.0f, Ui(kActionHeight)}, here.empty());
-  if (static_cast<int>(here.size()) >= kPerWorld) {
-    ImGui::TextDisabled("%d is the most a world has room for.", kPerWorld);
+  if (static_cast<int>(here.size()) >= kCharactersPerWorld) {
+    ImGui::TextDisabled("%d is the most a world has room for.",
+                        kCharactersPerWorld);
   }
   ShowErrorText(error_);
   EndPanel();
@@ -616,14 +629,17 @@ std::optional<protocol::LoginRequest> LoginScreen::BuildCreate() {
   uint32_t skin = looks_.skin();
   uint32_t hair = looks_.hair();
   uint32_t hair_color = looks_.hair_color();
+  uint32_t shirt = looks_.shirt();
   Stepper("Build", NamesOf(rig_.builds()), &build);
   Swatches("Skin", figures_.skins(), &skin);
   Stepper("Hair", NamesOf(figures_.hairs()), &hair);
   Swatches("Hair colour", figures_.hair_colors(), &hair_color);
+  Swatches("Shirt", Shirts(), &shirt);
   looks_.set_build(build);
   looks_.set_skin(skin);
   looks_.set_hair(hair);
   looks_.set_hair_color(hair_color);
+  looks_.set_shirt(shirt);
   ImGui::Spacing();
   ImGui::Spacing();
   const float half =
@@ -729,6 +745,7 @@ void LoginScreen::PickAnyLooks() {
   looks_.set_skin(any(figures_.skins_size()));
   looks_.set_hair_color(any(figures_.hair_colors_size()));
   looks_.set_hair(any(figures_.hairs_size()));
+  looks_.set_shirt(any(kShirtColors));
 }
 
 protocol::CharacterListing LoginScreen::Draft() const {

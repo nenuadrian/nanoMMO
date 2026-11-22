@@ -6,7 +6,7 @@ namespace nanommo {
 
 namespace {
 
-constexpr std::array<Color, 6> kPlayerColors = {{
+constexpr std::array<Color, kShirtColors> kPlayerColors = {{
     {242, 140, 51, 255},
     {64, 153, 242, 255},
     {89, 204, 102, 255},
@@ -17,8 +17,10 @@ constexpr std::array<Color, 6> kPlayerColors = {{
 
 }  // namespace
 
-Color PlayerColor(uint32_t id) {
-  return kPlayerColors[(id - 1) % kPlayerColors.size()];
+Color ShirtColor(uint32_t shirt) {
+  return kPlayerColors[shirt % kPlayerColors.size()];
 }
+
+Color PlayerColor(uint32_t id) { return ShirtColor(id - 1); }
 
 }  // namespace nanommo

@@ -18,8 +18,6 @@ namespace nanommo {
 /// What a world saves of them, it saves by that id (Players).
 class Characters {
  public:
-  /// How many characters an account can have in each world.
-  static constexpr int kPerWorld = 4;
   /// The most each of a character's looks can be, as its column keeps it.
   static constexpr uint32_t kMostLook = 255;
 
@@ -35,7 +33,8 @@ class Characters {
   /// world, and looks as the player chose, or, without looks, as its id
   /// picks. An InvalidArgument error says what's wrong with the name or the
   /// looks, an AlreadyExists error that it's taken in the world, and a
-  /// ResourceExhausted one that the account has kPerWorld there already.
+  /// ResourceExhausted one that the account has kCharactersPerWorld there
+  /// already.
   absl::StatusOr<uint32_t> Create(
       uint32_t account, const std::string& world, const std::string& name,
       const std::optional<protocol::Looks>& looks = std::nullopt);

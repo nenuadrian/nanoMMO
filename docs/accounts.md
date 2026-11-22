@@ -21,21 +21,23 @@
 
 ## Characters
 
-An account has up to four characters in each world (`Characters::kPerWorld`), each a row in
+An account has up to four characters in each world (`kCharactersPerWorld`, in `protocol/limits.h`), each a row in
 `players` with an id and a name of its own, which other players see. A name is unique in its world,
 and follows an account name's rules: 3 to 16 letters, digits and underscores. `players` has a unique
 key on the world and the name, and making a character counts and inserts in one statement, so two
 requests at once can't take one name, or the last place, between them. A new character has no bag
 yet, so it gets the starting kit as it first enters its world, and the client's preview dresses it in
 that kit before then. Deleting one deletes its skills and its bag with it, and deleting an account
-deletes its characters. The client has no New character once there are four
-(`LoginScreen::kPerWorld`), and the login server turns a fifth away: "You have 4 characters in
+deletes its characters. The client, reading the same number, has no New
+character once there are four, and the login server turns a fifth away: "You have 4 characters in
 Ember already."
 
 A new character comes with the looks its player chose for it (`LoginRequest`'s `looks`, see
 [Making a character](gameplay.md#making-a-character)): four places, in the rig's builds and in the
 figures file's skins, hair colours and ways to wear the hair, which go into `players`' `build`,
-`skin`, `hair_color` and `hair`, from V16, in the statement that makes it. The login server reads
+`skin`, `hair_color` and `hair`, from V16, and a fifth, in the client's six players' colours, for
+the shirt, which goes into `shirt`, from V17, all in the statement that makes it. A 0.94.0 client
+sends no shirt, and its character's shirt stays NULL. The login server reads
 no content, so it can't count those lists, and keeps any place that fits its column, up to 255
 (`Characters::kMostLook`), and refuses one past that: "That isn't a look there is." Each client
 wraps each place round to what its own lists have, and every client in a world has the same
@@ -44,8 +46,9 @@ of range draws as a look there is, the same on every screen
 ([decision 44](decisions/0044-looks-are-chosen-once-and-names-show-over-whoever-is-pointed-at-or-picked.md)).
 The characters' listing has each one's looks (`CharacterListing`'s `looks`), which the client's
 preview draws it in. A character made without looks, as the bots and the red-team client make
-theirs, and every character from before 0.94.0, has NULL in all four, and no looks in its listing,
-and its id picks how it looks, as before. Nothing changes a character's looks once it's made.
+theirs, and every character from before 0.94.0, has NULL in all five, and no looks in its listing,
+and its id picks how it looks, as before. One with a NULL shirt alone gets its looks without one,
+and its id picks the shirt's colour. Nothing changes a character's looks once it's made.
 
 The world plays a character by its id, so Redis keeps it as `player:<world>:<id>`, and its skills
 and bag go by that id (see [Saving players](saving.md)). V10 made characters from the players there

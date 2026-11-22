@@ -35,6 +35,9 @@ struct Features {
   /// Which of the rig's builds, wrapped round to what there is, or none for
   /// the one the figure's id picks.
   std::optional<uint32_t> build;
+  /// Which of the players' colours their clothes are dyed in, wrapped round
+  /// to what there is, or none for the one the figure's id picks.
+  std::optional<uint32_t> shirt;
 };
 Features FeaturesOf(const figures::Figures& figures, uint32_t id);
 
