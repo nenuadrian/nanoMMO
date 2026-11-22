@@ -46,6 +46,11 @@ constexpr std::chrono::milliseconds kFrame(16);
 // The world on kGamePort, which the bots play in.
 constexpr char kWorld[] = "Ember";
 
+// At war, how far either side of where new players come in each side waits,
+// and how far apart its bots stand, in metres.
+constexpr float kCamp = 8.0f;
+constexpr float kSpacing = 1.5f;
+
 // How long a bot that's logged in has to reach its world, and how long one
 // that's lost its world takes to notice, before it logs in again.
 constexpr std::chrono::seconds kGrace(5);
@@ -164,6 +169,16 @@ class Swarm {
     const bool red = number % 2 == 1;
     nanommo::Side side{.guild = red ? "Red" : "Blue",
                        .enemy = red ? "Blue" : "Red"};
+    // The side has every other bot, the first's half rounding up. Each waits
+    // in lines of five, a metre and a half apart, eight metres either side of
+    // where new players come in, until they're all in the guild.
+    const int place = (number - first_) / 2;
+    const int line = place / 5;
+    const int in_line = place % 5;
+    side.size = (count_ + (place * 2 == number - first_ ? 1 : 0)) / 2;
+    side.camp_x =
+        (red ? -1.0f : 1.0f) * (kCamp + static_cast<float>(line) * kSpacing);
+    side.camp_z = (static_cast<float>(in_line) - 2.0f) * kSpacing;
     if (number - first_ < 2) {
       side.leads = true;
       for (int other = number + 2; other < first_ + count_; other += 2) {

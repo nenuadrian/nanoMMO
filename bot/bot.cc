@@ -59,6 +59,8 @@ constexpr std::chrono::seconds kDrinkEvery{10};
 // For an NPC, within the four metres it hears you from.
 constexpr float kSwing = 6.0f;
 constexpr float kTalk = 3.0f;
+// The longest a bot at war waits at its camp for the rest of its side.
+constexpr auto kMuster = std::chrono::seconds(90);
 
 // How soon a bot thinks again once the monster it hunts is dead: soon, but
 // not before what it sent last has gone out.
@@ -323,6 +325,25 @@ void Bot::Wander() {
     }
     WanderIn(std::chrono::seconds(1));
     return;
+  }
+  // At war, a bot waits at its side's camp until all its side is in the
+  // guild, so that the two sides charge each other in lines, rather than
+  // fighting where each of them comes into the world. A minute and a half
+  // after it joined, it goes anyway, for a side whose bots don't all log in.
+  if (side_ && !charged_) {
+    const auto now = std::chrono::steady_clock::now();
+    const bool in = guild_.name() == side_->guild;
+    if (in && !joined_) {
+      joined_ = now;
+    }
+    charged_ = (in && guild_.members_size() >= side_->size) ||
+               (joined_ && now - *joined_ >= kMuster);
+    if (!charged_) {
+      Trip camp{.to_x = side_->camp_x, .to_z = side_->camp_z, .there = 1.0f};
+      Send(Travel(camp, x_, z_).value_or(protocol::Input()));
+      WanderIn(std::chrono::seconds(1));
+      return;
+    }
   }
   // In its guild, it goes for the nearest enemy it can see, before anything
   // else, and the server runs it up to them.

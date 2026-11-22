@@ -16,6 +16,10 @@ its own major and minor version, and turns any other away.
   `shirt`, from V17, nullable: a character from before has none, and their id still picks it.
   Adding to what the client and the servers say to each other isn't what a patch does, but
   this field is optional, and a 0.94.0 client leaves it out and draws as before.
+- The bots at war wait at their side's camp, in lines of five 8 metres west (Red) or east (Blue) of
+  where new players come in, until all their side is in the guild, or for a minute and a half, and
+  then charge. Before, each fought as soon as it was in, where it came into the world, so a war of
+  bots was one heap of them. `bench/chaos.sh war-replay`'s kills start once the guilds are full.
 - How many characters an account can have in a world is one number now, `kCharactersPerWorld` in
   `protocol/limits.h`, which the login server and the client both read. Each had a four of its
   own before, so changing one would have left the client offering a character the server turns

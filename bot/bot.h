@@ -127,6 +127,10 @@ class Bot {
   std::optional<Side> side_;
   protocol::Guild guild_;
   std::size_t recruit_ = 0;
+  /// When it joined its side's guild, and whether it's left the camp for the
+  /// charge, which it does once.
+  std::optional<std::chrono::steady_clock::time_point> joined_;
+  bool charged_ = false;
 };
 
 }  // namespace nanommo

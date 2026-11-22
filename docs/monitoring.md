@@ -51,8 +51,10 @@ host, the game server's host, how many bots, how many seconds to spread their ar
 number of its first bot, so that several swarms can play on one server, the transport for the
 worlds, `udp` or `tcp`, UDP by default, and `war`, which sends the swarm to war: the bots with odd
 numbers are in Red, and the even ones in Blue, whose first bots found them, take them to war and ask
-the rest in, by name, and in their guild, a bot goes for the nearest enemy it can see, before
-monsters and quests (`bot/war.h`):
+the rest in, by name. Until all its side is in, each bot waits at its side's camp, in lines of five
+8 metres west (Red) or east (Blue) of where new players come in, or for a minute and a half after
+it joined, and then, in their guild, a bot goes for the nearest enemy it can see, before monsters
+and quests (`bot/war.h`), so the two sides charge each other in lines:
 
 ```bash
 ./build/bin/nanommo_bot localhost localhost 100 10

@@ -22,6 +22,12 @@ struct Side {
   /// Whether the bot is the first of its side, which leads it even when
   /// nobody else is on it.
   bool leads = false;
+  /// How many bots are on the side, its leader with them.
+  int size = 1;
+  /// Where the bot waits for the rest of its side to join, before the charge:
+  /// its place in its side's camp, either side of where new players come in.
+  float camp_x = 0.0f;
+  float camp_z = 0.0f;
 };
 
 /// What the side's leader does about its guild next, one thing at a time:
