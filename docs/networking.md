@@ -65,7 +65,8 @@ would be hidden in the fog anyway.
   into the parts.
 - Names, levels and the most health a unit can have go out once a second, with every twentieth world
   (`kFullEvery`), and the client keeps the last ones it had in between. Protobuf leaves out a field
-  that's empty or zero, and no name or level is.
+  that's empty or zero, and no name or level is. A player's looks go with their name, as they never
+  change (see [A character's looks](#a-characters-looks)).
 
 With bots that spread over the island, `bench/load.sh 100 12` on an Apple M4 Pro, with the bots on the
 same machine as the server:
@@ -100,8 +101,9 @@ about, as combat text.
   unit has come.
 - The client (`client/combat_text.h`) shows a hit's damage over the monster, in white, a monster's
   over the player it hit, in red, health given back in green, and a new level in gold, each rising
-  over the nameplate for a second and a half and fading. What happens to the other players is
-  smaller than what happens to you. A kind of event from a newer server shows nothing.
+  from over the head, where the nameplate goes, shown or not, for a second and a half and fading.
+  What happens to the other players is smaller than what happens to you. A kind of event from a
+  newer server shows nothing.
 - A dead monster has no nameplate, and a bot hunting it thinks again as soon as its world shows it
   dead, so it doesn't swing at the body.
 
@@ -116,7 +118,7 @@ you at once instead, the way the server will, and the server's answer corrects i
 | The client | Sends its keys once each of the server's ticks, 20 a second, each numbered, from 1 |
 | The server | Applies a player's numbered keys in order, one a tick, before the world steps, keeping a few that arrive together and dropping the oldest past five. A slow frame on the client sends two or three together, so with more than three waiting, it's fallen behind the client, and skips one a tick until it's caught up. Inputs come in as fast as they go out, so a queue a burst filled would stay full: if two or more waited at the start of every tick for a second, it drops one |
 | Each world | Says the last of your inputs the server applied (`acked`), and whether it moved you itself that tick (`steered`), with where you are, in every datagram |
-| The client | Shows the round trip under the minimap: from sending an input to the world that says it was applied |
+| The client | Shows the round trip under the minimap, or in its place with the minimap off: from sending an input to the world that says it was applied |
 
 - The client walks you with each tick's keys as it sends them, with `WalkAlong` from
   `server/walking.h`, which the server walks players with. It's a library both link, built without
@@ -212,6 +214,33 @@ move in the bag, and the client says no more than which recipe.
 
 What's made goes into the bag, which comes as it always does, once its revision moves, and why
 something couldn't be made, or that it was, is a line from nobody.
+
+## A character's looks
+
+A player chooses how their character looks as they make them
+([Gameplay](gameplay.md#making-a-character)), and it never changes, so the looks go as four small
+numbers, a `Looks`: `build`, a place in the rig's builds, and `skin`, `hair_color` and `hair`,
+places in the figures file's lists. Each client wraps each round to what its lists have, so any
+number draws as a look there is, the same on every client in the world, and there's nothing for
+the servers to check but that it fits its column ([Accounts](accounts.md#characters)).
+
+| Message | Field | What |
+|---|---|---|
+| `LoginRequest` | `looks`, 13 | With `create_character` and the name, the looks chosen. None, as from a bot, and the character's id picks them |
+| `CharacterListing` | `looks`, 9 | Each character's, for the characters' screen to draw them in, unless it's from before there were looks to choose |
+| `Player` | `looks`, 17 | Everyone's near you, once a second, with the name, which the client keeps in between, as it does the name. A player with their name and no looks has none, as from before there were looks to choose. Your own part of each world leaves them out, as it does your name |
+
+## Giving up a quest
+
+The quest log, on T, gives up a quest ([Gameplay](gameplay.md#quests)), which takes no NPC, so the
+client says no more than which.
+
+| Message | Field | What |
+|---|---|---|
+| `Input` | `give_up`, 23 | A quest you're on, by its id in the quests file, once, over TCP. The world takes it off you, kills and all, and your quests come again, as `World`'s `quests`, 17, at their next revision. Zero, the default, gives up nothing |
+
+Giving up a quest you're not on, or one you've turned in, is a line from nobody: "You're not on
+that quest."
 
 ## Blows where the attacker saw them
 

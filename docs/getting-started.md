@@ -108,7 +108,7 @@ Then, in another terminal:
 |---|---|
 | Login | A name and a password: Make an account the first time, Log in after |
 | Worlds | Ember, with the arrow keys and Enter, or a click |
-| Characters | Type a name and make one, then Enter the world |
+| Characters | New character, or straight there with nobody yet: a name, a build, a skin and hair, and Create. Then Enter the world |
 
 | Key | Does |
 |---|---|
@@ -123,7 +123,11 @@ Then, in another terminal:
 | M | The map |
 | I | The bag |
 | C | The character |
+| T | Your quests |
 | G | The guild |
+| K | Crafting |
+| H | The help, with these keys and more |
+| O | The settings |
 | Enter | The chat, and `/g` and a space before a line for your guild |
 | Escape | Closes what's open, or opens the menu, with Settings and Log out |
 

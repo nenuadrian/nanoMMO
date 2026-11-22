@@ -49,6 +49,14 @@ skills (see [Skills](gameplay.md#skills)) and three recipes (see [Crafting](game
   that takes, and the `level` it needs. Every player knows each recipe of their level or below,
   so there's no list of who knows what. Each of its items is at most a slot's worth, so that what it
   makes always has room in a slot that what it takes has emptied.
+- The figures file's skins, hair colours and ways to wear the hair, its `hairs`, and the rig's
+  `builds` are what a player chooses from as they make their character (see
+  [Making a character](gameplay.md#making-a-character)). A `Hair`'s `name` and a `Build`'s are
+  what that screen calls them, from "Short" to "Bald", and "Slight" and "Broad", or, without one,
+  its number. A character's looks are places in those lists, so a new one goes at the end: one put
+  in before the end, or taken out, changes the looks of everyone who chose one after it. A
+  character from before there were looks to choose has the looks its id picks, by how many each
+  list has, so any new one changes most of theirs.
 - Monsters with a fixed home, camps of monsters and NPCs name their kind by id, and their land by
   name. A quest names its giver's kind of NPC, the kind of monster it asks for and its prizes by id,
   and a recipe what it takes and makes.
@@ -92,8 +100,10 @@ skills (see [Skills](gameplay.md#skills)) and three recipes (see [Crafting](game
   The build copies the files next to the client, which reads them from there.
 
 Each side reads its own copy, so a client and a world have to agree on what the client reads. Each
-world works out its `ClientHash`, a 64-bit FNV-1a of the ids, names and looks, what the bag shows of
-each item, which is all of it but its weapon, the skills' levels and cooldowns, the monsters'
+world works out its `ClientHash`, a 64-bit FNV-1a of the figures and the rig, which the clients
+draw the players from, so that a character's looks draw the same on each, and of the ids, names
+and looks, what the bag shows of each item, which is all of it but its weapon, the skills' levels
+and cooldowns, the monsters'
 skills but for their damage, cooldowns and ranges, where each boss's phases start, what each trainer teaches, and all of each quest and each recipe, serialized deterministically, registers it with Consul, and the login server
 lists it with the world. The fights and the skills' effects stay out of it, so that changing a
 sword's damage or a skeleton's leash needs no new client.

@@ -10,8 +10,8 @@
   you a token for the one you pick: it checks the character is yours, puts the token in Redis,
   which works once, within 30 seconds, and sends it to the client.
 - The client takes the token to the character's world, a game server, `nanommo_server`. The game
-  server takes the token out of Redis, and loads that character, if it's in this world: its name
-  and where it is from the `players` table, with what Redis has on top, as that's newer.
+  server takes the token out of Redis, and loads that character, if it's in this world: its name,
+  its looks and where it is from the `players` table, with what Redis has on top, as that's newer.
 - A client gives up on a request the login server hasn't answered within five seconds,
   `kLoginDeadline` in `protocol/login_client.h`, connecting, shaking hands and the reply together,
   once it has the server's address, and says so. The login server counts each request it answers,
@@ -28,7 +28,24 @@ key on the world and the name, and making a character counts and inserts in one 
 requests at once can't take one name, or the last place, between them. A new character has no bag
 yet, so it gets the starting kit as it first enters its world, and the client's preview dresses it in
 that kit before then. Deleting one deletes its skills and its bag with it, and deleting an account
-deletes its characters.
+deletes its characters. The client has no New character once there are four
+(`LoginScreen::kPerWorld`), and the login server turns a fifth away: "You have 4 characters in
+Ember already."
+
+A new character comes with the looks its player chose for it (`LoginRequest`'s `looks`, see
+[Making a character](gameplay.md#making-a-character)): four places, in the rig's builds and in the
+figures file's skins, hair colours and ways to wear the hair, which go into `players`' `build`,
+`skin`, `hair_color` and `hair`, from V16, in the statement that makes it. The login server reads
+no content, so it can't count those lists, and keeps any place that fits its column, up to 255
+(`Characters::kMostLook`), and refuses one past that: "That isn't a look there is." Each client
+wraps each place round to what its own lists have, and every client in a world has the same
+lists, as the figures and the rig are in `ClientHash` (see [Content](content.md)), so a place out
+of range draws as a look there is, the same on every screen
+([decision 44](decisions/0044-looks-are-chosen-once-and-names-show-over-whoever-is-pointed-at-or-picked.md)).
+The characters' listing has each one's looks (`CharacterListing`'s `looks`), which the client's
+preview draws it in. A character made without looks, as the bots and the red-team client make
+theirs, and every character from before 0.94.0, has NULL in all four, and no looks in its listing,
+and its id picks how it looks, as before. Nothing changes a character's looks once it's made.
 
 The world plays a character by its id, so Redis keeps it as `player:<world>:<id>`, and its skills
 and bag go by that id (see [Saving players](saving.md)). V10 made characters from the players there

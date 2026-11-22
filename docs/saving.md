@@ -72,9 +72,17 @@ the saver writes it as it does the bag's rows, and a bag that hasn't changed kee
 has.
 `players.quests`, from V9, keeps their quests, as protobuf's JSON for the `Quests` message: they're a
 few numbers, read and written whole with the player, and never looked up by quest, so they go with
-the player's row, with no table of their own. A hash with no quests, from before them or of a player
-on none, leaves the ones MySQL has. So the `players` table, and the website's
+the player's row, with no table of their own. A hash with no quests, from before them, leaves the
+ones MySQL has. Quests that have changed carry their revision, so a player who's given up all they
+were on saves as none. So the `players` table, and the website's
 rankings, are at most about five seconds behind the game.
+
+A character's looks, `players.build`, `skin`, `hair_color` and `hair`, from V16, are in MySQL
+alone: the login server writes them as it makes the character (see
+[Characters](accounts.md#characters)), they never change, and the game server reads them with the
+rest of the character's row as it loads them, so neither Redis nor the saver has them. Each is a
+`TINYINT UNSIGNED`, NULL for a character from before there were looks to choose, whose id picks
+them.
 
 In each batch, the oldest trades in the `trades` stream go first, up to 250, each with both its players,
 so that MySQL has a trade's record and both bags from after it, or none of it. The saver inserts

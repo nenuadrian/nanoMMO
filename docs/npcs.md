@@ -7,7 +7,9 @@ land has a trainer too, a few steps from where players start. The storytellers t
 [The storyteller](#the-storyteller)), the trainers teach skills (see
 [Learning skills](gameplay.md#learning-skills)), the guard, the ash warden and the healers give quests (see
 [Quests](gameplay.md#quests)), and the merchants don't do anything yet. Each one is a person, like the
-players, with its name over it in green.
+players, with its name over it in green while the pointer's on it, or always, with NPCs on in the
+settings (see [Names over heads](gameplay.md#names-over-heads)), and the mark of a quest for you
+over it either way.
 
 Kinds of NPC, and where each NPC stands, are in `content/npcs.txtpb` (see [Content](content.md)).
 The server leaves out an NPC whose ground isn't walkable, which another world's seed could do.

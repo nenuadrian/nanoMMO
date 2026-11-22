@@ -1,5 +1,41 @@
 # Gameplay
 
+## Making a character
+
+Once you've logged in, you pick a world, and then one of your characters in it to enter as. A
+world where you have nobody yet goes straight to making someone, and New character, under your
+characters, does too, while you have fewer than four there, as many as the login server lets an
+account have in a world (see [Characters](accounts.md#characters)). The game's name is over the
+login alone, so the worlds and the characters have the screen.
+
+You name them, and choose how they look, on the right, while they stand on the stage in the
+middle, in the kit they'll start with, turning as you drag them and coming closer with the mouse
+wheel:
+
+| Choice | From | Picked with |
+|---|---|---|
+| Build | Slight or Broad, the rig's builds | The arrows either side of its name, which go round |
+| Skin | Six skins, from pale to dark, from the figures file | A swatch each |
+| Hair | Short, Long, Tied back, Short with a beard, Bald with a beard, or Bald | The arrows |
+| Hair colour | Black, brown, red, fair or grey | A swatch each |
+
+- The screen starts with looks picked at random, so that new players don't all start out alike,
+  and Random picks again. Each change shows on the stage at once.
+- Create, or Enter in the name, makes them, and you're back at your characters, with them picked.
+  A name that's taken, or breaks the rules, gets a line saying why, under the buttons, and the
+  screen keeps what you chose.
+  «  Characters goes back without making anyone.
+- The looks are yours for good: nothing in the game changes them. Everyone sees you so, as each
+  world sends your looks with your name.
+- A character made before 0.94.0 has no looks of their own, and looks as their id picks, as
+  everyone did before, so nobody wakes up as someone else. So do the bots' characters, which they
+  make without looks.
+
+The names of the builds and of the ways to wear the hair are in the content, as `Build.name` in
+`content/rig.txtpb` and `Hair.name` in `content/figures.txtpb` (see [Content](content.md)), and a
+look is a place in those lists
+([decision 44](decisions/0044-looks-are-chosen-once-and-names-show-over-whoever-is-pointed-at-or-picked.md)).
+
 ## Monsters, health and levels
 
 The monsters are Quaternius's skeleton, from [Poly Pizza](https://poly.pizza/m/wODZYCgX5Z). It's
@@ -22,11 +58,12 @@ picks another place. The world's random generator takes a seed, so the tests pic
 
 ## Fighting
 
-Click a monster to pick it: it gets a red ring at its feet, and a frame beside yours with its
-name, level and health. A click on the ground lets it go, and so does Escape, its death, or going
-into another land. The cursor is a crosshair over a living monster, a hand over an NPC within
-talking reach, and the arrow elsewhere. Each input carries the monster you picked (`Input.target`),
-which the world keeps as your target.
+Click a monster to pick it: it gets a red ring at its feet, a frame beside yours with its name,
+level and health, and its name over its head for as long as it's picked (see
+[Names over heads](#names-over-heads)). A click on the ground lets it go, and so does Escape, its
+death, or going into another land. The cursor is a crosshair over a living monster, a hand over an
+NPC within talking reach, and the arrow elsewhere. Each input carries the monster you picked
+(`Input.target`), which the world keeps as your target.
 
 Space uses Strike, the skill every player has: a swing of your weapon at the monster you picked,
 which turns you to face it. Out of its reach, it first runs you up to it, to most of the reach
@@ -115,8 +152,8 @@ still in it. The plain skeleton only swings, so that new players learn that firs
 - The client draws the shape on the ground where the monster stood as it started, the way it faced
   (`client/telegraphs.h`), in the skill's colour: faint all over, with its edges strong, and filling
   from the monster out until it lands, counting down by itself between worlds. Under the monster's
-  health, a thinner bar fills with it, with the skill's name. Both go once it lands, or the monster
-  dies.
+  health, while its name shows over it (see [Names over heads](#names-over-heads)), a thinner bar
+  fills with it, with the skill's name. Both go once it lands, or the monster dies.
 - The game's bots run out of a shape they're in, straight away from the monster, to a metre past
   its end, or out of a cone by its side, where that's nearer, as it is in a narrow one (`StepOut`,
   in `bot/wander.h`), and then think again.
@@ -173,8 +210,9 @@ monsters file's order, the Bone Storm first:
 - While you've picked it, or it's within thirty metres of you (`kBossBarReach`), its bar is across
   the top of the screen, under the target's frame (`client/boss_bar.h`): its name, its health, a
   mark where each phase after the first starts, and the phase it's in, which each world sends as
-  `Monster.phase`. Its name is over its head, and a click anywhere on it picks it: a monster's box
-  for the mouse is as tall as its kind, and as much wider.
+  `Monster.phase`. Its name is over its head while the pointer's on it, or it's picked, as any
+  monster's is, and a click anywhere on it picks it: a monster's box for the mouse is as tall as
+  its kind, and as much wider.
 - The game's bots go for a boss within sixty metres of them (`kJoinTheFight`, in `bot/quests.h`),
   as the Colossus is of the middle of the Meadows, before anything else, and back to it after each
   skill they run out of, and after dying, so the bots that fill a world take it on together.
@@ -332,16 +370,27 @@ kind of NPC, what they say giving it, what it asks you to kill and how many, and
 prizes it gives (see [Content](content.md)). A new quest of the same sort is another entry, and needs
 no code.
 
-An NPC with a quest for you has a gold mark over its name: `!` for one you can take, or `?` for one
-you've done, to turn in. Click it to open its quests: what it says, what each asks for and gives,
-and a button to take it, how many you've killed for it, a button to turn it in once you've killed
-them all, or Done. The quests you're on are on the right, under the minimap, each with how many
+An NPC with a quest for you has a gold mark over its head, whether its name shows or not, so that
+it can be found: `!` for one you can take, or `?` for one you've done, to turn in. Click it to open
+its quests: what it says, what each asks for and gives, and a button to take it, how many you've
+killed for it, a button to turn it in once you've killed them all, or Done. The quests you're on
+are on the right, under the minimap, or in its place with the minimap off, each with how many
 you've killed for it, with a tick once that's all of them.
+
+T, or the scroll among the buttons in the bottom right, opens your quests (`client/quest_window.h`):
+those you're on, down the left, with a tick by each you've killed enough for, and under them those
+you've done, the highest id first. The one picked shows on the right: who gave it, what they said,
+what it asks you to kill, how far you've got, as a bar, and the experience and prizes it gives.
+Give up asks whether you're sure, as what you've killed for it goes too, and Keep it says no.
 
 - The server decides it all, as it does a skill a trainer teaches. The client sends `Input`'s
   `take` or `turn_in`, once, with the NPC's id and the quest's, and the world checks that the NPC
   is of the quest's giver's kind, in the same land, within talking reach, and that you can take or
   turn it in, or says why not, in a line in the chat from nobody.
+- Giving up sends `Input`'s `give_up`, the quest's id, once, and needs no NPC near you. The world
+  takes the quest off you, with your kills for it (`World::GiveUp`), and its giver has a `!` for
+  you again: taking it starts it over, from none. A quest you're not on is a line from nobody,
+  "You're not on that quest.", and one you've turned in stays done.
 - A kill counts for each quest you're on that asks for its kind, up to as many as it asks for, with
   a line in the chat, such as "Bones by the Gate: 2 of 3 Skeletons killed.", and the last one says
   who to go back to. Only the killing blow counts, as with experience and loot.
@@ -405,8 +454,9 @@ characters, and a character is in one guild at most.
   out ends the guild, and its name is free again. Deleting a character leaves its guild, in the same transaction.
 - While the guild is at war, nobody leaves it, nobody's removed from it, and it isn't disbanded,
   until the war's over (see [Guild wars](#guild-wars)).
-- A player's guild shows under their name, in angle brackets, and in their frame across from their
-  name. It comes with their name, once a second.
+- A player's guild shows under their name, in angle brackets, while their name shows (see
+  [Names over heads](#names-over-heads)), unless the settings leave guilds out, and in their frame
+  across from their name. It comes with their name, once a second.
 - A guild's lines are green in the chat, after `[Guild]`. They go to its players in the world at
   once, over TCP, on the chat's own limit and cleaning.
 - The guild's players hear who joined and who left. Anything refused is said in the chat, in yellow.
@@ -555,11 +605,13 @@ at war, for 30 minutes."
 
 - A guild is in one war at a time. A war ends when its time is up (`Guilds::kWarLength`), and both
   guilds hear "The war between Iron Wolves and Stone Bears is over." Nobody can give one up.
-- The enemy guild's players have their names in red over their heads, and a click on one picks
-  them as it picks a monster, or a duel opponent: a red ring at their feet, their frame beside
-  yours, and the hotbar's skills for one target ready to use on them. A skill that hits all around
-  hits every enemy it reaches, with the monsters, and never your guildmates or anyone else. Nobody
-  else can hurt a player, but a duel opponent.
+- The enemy guild's players' names are red, over their heads while the pointer's on one or you've
+  picked them, or always, with Other players on in the settings (see
+  [Names over heads](#names-over-heads)), and a click on one picks them as it picks a monster, or a
+  duel opponent: a red ring at their feet, their frame beside yours, and the hotbar's skills for
+  one target ready to use on them. A skill that hits all around hits every enemy it reaches, with
+  the monsters, and never your guildmates or anyone else. Nobody else can hurt a player, but a duel
+  opponent.
 - Your blows on an enemy are checked where your screen drew them, up to a fifth of a second back,
   as in a duel ([Networking](networking.md#blows-where-the-attacker-saw-them)), and a blow doesn't
   push or throw a player.
@@ -591,3 +643,50 @@ war's score ([Saving players](saving.md#guild-wars)). Why wars take two guilds, 
 kill is [decision 41](decisions/0041-guilds-at-war-hurt-each-other-anywhere.md), and why a kill
 counts once, a victim scores once every five minutes, and nobody leaves a war is
 [decision 42](decisions/0042-a-war-kill-counts-once-and-nobody-leaves-a-war.md).
+
+## Names over heads
+
+A name shows over someone's head while the pointer's on them, or you've picked them, and not
+otherwise, so that a crowd of players and monsters doesn't hide the land under its names. The
+pointer's on whoever's nearest along it, but you, of any kind (`PickAnyone`, in
+`client/picking.h`), and what you've picked is the monster, the duel opponent or the enemy at war
+you clicked. An NPC with a quest for you shows its mark anyway, without its name, so that it can be
+found.
+
+The settings' Interface page, on O, has the rest, under "Names over heads":
+
+| Setting | What it does | To begin with |
+|---|---|---|
+| Always show them over: Monsters, Other players, NPCs, You | Shows those names all the time | Each off |
+| With them: Health | A health bar under each name, but an NPC's | On |
+| With them: Levels | The level before each name, but an NPC's | On |
+| With them: Guilds | A player's guild under their name, in angle brackets | On |
+
+- A name shows within 50 metres, in front of the camera, as before, in red for an enemy at war.
+- A monster's skill on its way shows under its health while its name does, and its shape on the
+  ground either way (see [Monsters' skills](#monsters-skills)).
+- The client keeps them in `settings.txtpb` (see [Music](graphics.md#music)), as `Interface`'s
+  `nameplates`, 4, a `Nameplates` with a switch for each, in `client/settings.proto`. A file from
+  before has none, so it gets the defaults.
+- Until 0.94.0, every name within 50 metres showed, with its level and health, but an NPC's. Why
+  names show for whoever you notice, and why the hints went into the help, is
+  [decision 44](decisions/0044-looks-are-chosen-once-and-names-show-over-whoever-is-pointed-at-or-picked.md).
+
+## Help and the settings
+
+H, or the question mark among the buttons in the bottom right, opens the help
+(`client/help_window.h`): a page each for moving, fighting, items, quests, guilds and duels, chat,
+and the keys, each a few lines on what to do. The keys' page is the settings' own list (`BuildKeys`,
+in `client/menu.h`), so the two say the same. The help has the hints that were on the screen: the
+bag's line on throwing things away, and the map's on clicking a place to walk there. The bag no
+longer counts the slots used.
+
+O opens the settings, as Settings in the menu does, and closes them again. Their Interface page has
+the interface's size, "Show the minimap", which can take the minimap off the screen, and whether it
+turns with the camera (see [The map and the minimap](graphics.md#the-map-and-the-minimap)), the
+hotbar's order, and the names over heads (above). The client keeps whether the minimap shows as
+`Interface`'s `minimap`, 5.
+
+The buttons in the bottom right, round like the chat's, open the character (C), the bag (I), your
+quests (T), the guild (G), the map (M), the help (H) and the menu (Escape), each with its key in its
+tooltip. Crafting is on K.

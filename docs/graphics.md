@@ -13,8 +13,10 @@ three joints up the spine, the neck and the head, and on each side the collarbon
 elbow and the wrist, and the hip, the knee, the ankle, the ball of the foot and the tip of the toes.
 The lengths are an adult's, as shares of their height. A joint on the left can be mirrored onto the
 right. A build moves some joints, and the ones that hang from them, such as the shoulders out
-wider, and each player's id picks one of the builds (`client/rig.cc` makes a raylib model of each,
-a bone for each joint, resting where it is, unturned).
+wider, and has a name, Slight or Broad, for the screen a player makes their character on. Each
+player has the build they chose there, or, for a character from before there was a choice, the one
+their id picks (`client/rig.cc` makes a raylib model of each, a bone for each joint, resting where
+it is, unturned).
 
 How a figure stands is a key like a skill's, turning the joints from the arms out to arms down by
 the sides, with the sword hand turned so the blade points ahead. The idle and the death are moves
@@ -44,10 +46,16 @@ the right. The client builds the parts' triangles where the bones rest, and bind
 part's bone alone, so the clips pose the parts rigidly, like a jointed doll. The content's checks
 refuse a part on a joint the rig doesn't have. The body's parts are white, which takes
 on the player's skin, with dark eyes. The file lists the skins, the hair colours and the ways to wear
-the hair, and each player's id picks one of each, the same on every client. An item's look can have
-parts too, which a player who wears it has over their figure, in their own colours, or for a dyed
-one, such as the Linen Shirt, in the player's colour (see [Items](gameplay.md#items)). Each player in the
-world's message says what they wear, so everyone sees each other in it. NPCs are people too, but
+the hair, each way with a name, from Short to Bald, and each player has one of each, as they chose
+them, making their character (see [Making a character](gameplay.md#making-a-character)). Their
+looks are places in the lists, which each client wraps round to what the lists have, so a place out
+of range draws as one there is, the same on every client (`FeaturesOf` in `client/animator.h`, and
+`Characters::For` for the build). A character from before there was a choice has no looks, and its
+id picks one of each, as everyone's did before (`FeaturesOf` in `content/figures.h`).
+An item's look can have parts too, which a player who wears it has over their figure, in their
+own colours, or for a dyed one, such as the Linen Shirt, in the player's colour (see
+[Items](gameplay.md#items)). Each player in the world's message says what they wear, so everyone
+sees each other in it. NPCs are people too, but
 their kind in the NPCs file says their skin, hair and clothes, which a player's id doesn't pick, and
 their kind's id picks their build (see [NPCs](npcs.md)). With cel shading on, the
 outline is drawn with each figure's hull, the same parts with smooth normals, so it stays whole
@@ -170,16 +178,27 @@ client.
   background, with ours drawn under what's in it, dark, with its corners cut, a brass trim, a red
   glow under its title in gold, and a close button. Buttons are drawn in the same shape
   (`GameButton`).
-- Escape closes what's on top: the settings, the menu, the map, someone's window, the bag, then the
-  character, then lets go of the monster picked, and with nothing left, opens the menu: Back to the
-  game, Settings, Log out and Quit. The settings have a page each for the interface, the sound, the
-  graphics, the sky and the keys. The buttons in the bottom right open the character, the bag, the
-  map and the menu.
+- Escape closes what's on top: the settings, the menu, the map, the help, your quests, someone's
+  window, the bag, crafting, the guild, then the character, then lets go of the monster or player
+  picked, and with nothing left, opens the menu: Back to the game, Settings, Log out and Quit. O
+  opens the settings too, and closes them. The settings have a page each for the interface, the
+  sound, the graphics and the keys. H opens the help, with a page each for moving, fighting,
+  items, quests, guilds and duels, chat, and the keys, whose list is the settings' own
+  (`BuildKeys`), and the hints the windows had, such as the map's on clicking to walk, are there
+  (see [Help and the settings](gameplay.md#help-and-the-settings)).
+- The buttons in the bottom right open the character, the bag, your quests, the guild, the map, the
+  help and the menu. Each is round, as the chat's is in the bottom left (`DrawRoundButton`): a
+  wine-red disc in a brass rim, with its icon, lit while the mouse is over it, and ringed in ember
+  while what it opens is open, with nothing behind the row.
 - Your frame, in the top left, has your face, drawn into a texture of its own each frame from a
   camera close up, in a ring with your level, beside your name, your health and your experience.
   The monster you picked has a frame at the top in the middle.
 - The screens before the world are drawn over embers rising in the dark, from below the screen,
-  each at its own pace, from a hash of its number, under the game's name in gold.
+  each at its own pace, from a hash of its number, with the game's name in gold over the login.
+  The worlds, the characters and the screen that makes one have the screen to themselves. The
+  character picked, or being made, stands on a stage in the middle, with the fire's glow behind
+  them and nothing on the floor, which a drag turns and the mouse wheel brings closer, and the
+  buttons that do something there are one height, and side by side one width.
 - The hotbar's skills and the bag's items are in slots of brass (`DrawSlot`), each icon in its
   colour on a glow of it. An item or a skill that's dragged is drawn under the mouse, where it was
   taken hold of, through ImGui's drag and drop with its own preview off.
@@ -193,14 +212,17 @@ client.
 As a land is built, behind the loading screen, the client draws it from above into a texture, a
 pixel a metre, north up (`client/map.h`): its ground in the land's colours, as the meshes have
 them, lit from the top left by its slopes, its shallow and deep sea, and each tree as a dark spot.
-The minimap, in the top right, is a disc of the land around you, under a plate with the land's
-name, in a brass ring with north's gem on it. Its plus and minus, or the mouse wheel over it, show
+The minimap, in the top right, is a disc of the land around you, in a brass ring with north's gem
+on it. The land's name is the map's title, and the loading screen's as you arrive. Its plus and
+minus, or the mouse wheel over it, show
 25, 45 or 80 metres around you, and its map button, or M, opens the map of the whole land, which
 Escape or M closes. Both show the land's gates, in the colour of where they lead, the NPCs and their
 quest marks, the monsters, with a ring around the one you picked, the other players, where you're
 walking to, and you, as an arrow the way you face. On the minimap, what's past its rim is left out,
 but for the monster you picked and the quests, which wait on the rim. The settings' Interface page
-turns it with the camera, so that what's ahead is up, rather than north. The disc is the map's
+turns it with the camera, so that what's ahead is up, rather than north, or takes it off the screen
+with "Show the minimap", and then what goes under it, the round trip and the quests you're on, goes
+up into the corner. The map is on M either way. The disc is the map's
 texture drawn as a fan of triangles round you, each corner's place on the map turned by the camera's
 heading, which ImGui's images, square and upright, can't do. A click on the map walks you there (see
 [Walking by yourself](worlds.md#walking-by-yourself)).

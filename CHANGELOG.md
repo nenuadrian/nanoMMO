@@ -7,6 +7,47 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.94.0 (2026-11-22)
+
+- Character creation. Entering a world where you have nobody goes straight to making someone, and
+  New character, under your characters while you have fewer than four there, opens it too. You
+  name them, step through the builds, Slight and Broad, and the ways to wear the hair, from Short
+  to Bald, and pick a skin and a hair colour from swatches, while they stand on the stage in the
+  kit they'll start with, turning as you drag them. The screen starts with looks picked at random,
+  so that new players don't all start out alike, Random picks again, and Create makes them.
+- Looks are places in the rig's builds and in the figures file's skins, hair colours and ways to
+  wear the hair, and builds and hairs have names, `Build.name` and `Hair.name`. `LoginRequest`'s
+  `looks`, 13, a `Looks`, carries them. The login server has no content to count them by, so it
+  keeps any up to 255 (`Characters::kMostLook`), and each client wraps each round to what its lists
+  have: a look out of range draws as one there is, the same for everyone. They go in `players`'
+  `build`, `skin`, `hair_color` and `hair`, from V16, nullable: a character from before 0.94.0 has
+  none, and its id still picks its looks, so nobody wakes up as someone else. The bots and the
+  red-team client send none.
+- `CharacterListing`'s `looks`, 9, dress the characters' screen, and a world reads them from MySQL
+  as the character enters it, and sends them in `Player`'s `looks`, 17, once a second with the
+  name, as they never change.
+- Once logged in, the worlds and the characters have no logo over them, and nothing's on the floor
+  under the character picked. The buttons that do something are one height, and side by side one
+  width: Enter the world and Delete, Delete and Keep, New character, Random and Create.
+- Names over heads show while the pointer's on someone, or they're picked, and otherwise as the
+  settings say. The settings' Interface page has "Names over heads": always over monsters, other
+  players, NPCs or you, each off to begin with, and with their health, their level and a player's
+  guild, each on (`Interface.nameplates`, 4, in `client/settings.proto`). An NPC with a quest for
+  you shows its mark anyway. "Show the minimap", `Interface.minimap`, 5, can take the minimap off
+  the screen, and the quest tracker moves up into its place. The minimap loses the plate with its
+  land's name.
+- O opens the settings, and H the help, with a page each for moving, fighting, items, quests,
+  guilds and duels, chat, and the keys, which are the settings' list. The bag's count of slots used
+  is gone, and its line on throwing things away and the map's on clicking to walk are in the help.
+  The buttons in the bottom right are round, like the chat's, with nothing behind them, and have
+  one for your quests and one for the help. The character window loses the ring of light on its
+  floor, and the name, level and land under the figure.
+- T opens your quests: those you're on, with a tick by each you've killed enough for, and those
+  you've done, the highest id first, each with who gave it, what it asks for, how far you've got
+  and what it gives. Give up asks whether you're sure, as what you've killed for it goes too, and
+  sends `Input`'s `give_up`, 23, with the quest's id. The world takes it off you
+  (`World::GiveUp`), and its giver offers it again. A quest you've turned in stays done.
+
 ## 0.93.0 (2026-11-21)
 
 - Crafting, wherever you are. K opens the crafting window, with the recipes of your level and
