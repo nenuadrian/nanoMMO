@@ -21,7 +21,7 @@ services:
       retries: 30
 
   flyway:
-    image: flyway/flyway:13.12.1
+    image: flyway/flyway:13.13.0
     command: ["migrate"]
     environment:
       FLYWAY_URL: jdbc:mysql://mysql:3306/nanommo?useSsl=true&trustServerCertificate=true
@@ -48,7 +48,7 @@ services:
       retries: 30
 
   clickhouse:
-    image: clickhouse/clickhouse-server:26.10.3.7
+    image: clickhouse/clickhouse-server:26.10.4.207
     environment:
       CLICKHOUSE_DB: nanommo
       CLICKHOUSE_USER: nanommo
@@ -299,12 +299,12 @@ services:
       - "127.0.0.1:9093:9093"
 
   mailpit:
-    image: axllent/mailpit:v1.33.1
+    image: axllent/mailpit:v1.34.0
     ports:
       - "127.0.0.1:8025:8025"
 
   loki:
-    image: grafana/loki:3.7.9
+    image: grafana/loki:3.7.10
     command: ["-config.file=/etc/loki/loki.yaml"]
     volumes:
       - ./monitoring/loki.yaml:/etc/loki/loki.yaml:ro
@@ -331,7 +331,7 @@ services:
       - prometheus
 
   alloy:
-    image: grafana/alloy:v1.21.3
+    image: grafana/alloy:v1.22.0
     command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
     # Profiling the servers loads an eBPF program into the kernel, and reads
     # the processes of the other containers.
