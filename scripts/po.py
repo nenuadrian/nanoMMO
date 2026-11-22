@@ -7,7 +7,9 @@ they're given, such as GameButton, and the content's names, in the context
 the client looks them up in. update merges the template into each language's
 PO file, as gettext's msgmerge would: a translation stays with its string, a
 string that changed a little keeps its old translation marked fuzzy, and one
-that's gone is kept at the end, obsolete, for a string that comes back."""
+that's gone is kept at the end, obsolete, for a string that comes back. check,
+which CI runs, says what's wrong: a template or a PO file that isn't up to
+date, one that can't be read, or a translation the client would show wrong."""
 
 import argparse
 import copy
@@ -69,6 +71,11 @@ msgstr ""
 # An old translation is offered for a changed string, fuzzy, while they're at
 # least this alike, from 0 to 1.
 ALIKE = 0.6
+
+# Letters a language's translations shouldn't have, by its code, with the one
+# meant: Romanian's s and t take a comma below, which old fonts drew as a
+# cedilla, and keyboards still type.
+MISTAKES = {"ro": {"ş": "ș", "ţ": "ț", "Ş": "Ș", "Ţ": "Ț"}}
 
 
 class Error(Exception):
@@ -599,6 +606,177 @@ def languages():
     return sorted(PO.glob("*.po"))
 
 
+# Plural-Forms, read and worked out as the client does, in
+# client/translations.cc.
+
+PLURAL_TOKEN = re.compile(r"\s*(\|\||&&|==|!=|<=|>=|[<>%?:()n]|\d+)")
+
+
+class Plural:
+    """A Plural-Forms expression of n: ?:, ||, &&, the comparisons, %,
+    numbers and brackets."""
+
+    def __init__(self, expression):
+        self.tokens = []
+        at = 0
+        while at < len(expression.rstrip()):
+            match = PLURAL_TOKEN.match(expression, at)
+            if not match:
+                raise Error(f"a plural rule that can't be read: {expression}")
+            self.tokens.append(match.group(1))
+            at = match.end()
+        self.expression = expression
+
+    def form(self, n):
+        self.n, self.at = n, 0
+        value = self.ternary()
+        if self.at != len(self.tokens):
+            raise Error(f"a plural rule that can't be read: {self.expression}")
+        return value
+
+    def take(self, *tokens):
+        if self.at < len(self.tokens) and self.tokens[self.at] in tokens:
+            self.at += 1
+            return self.tokens[self.at - 1]
+        return None
+
+    def expect(self, token):
+        if not self.take(token):
+            raise Error(f"a plural rule that can't be read: {self.expression}")
+
+    def ternary(self):
+        condition = self.either()
+        if not self.take("?"):
+            return condition
+        then = self.ternary()
+        self.expect(":")
+        otherwise = self.ternary()
+        return then if condition else otherwise
+
+    def either(self):
+        value = self.both()
+        while self.take("||"):
+            right = self.both()
+            value = int(bool(value) or bool(right))
+        return value
+
+    def both(self):
+        value = self.equality()
+        while self.take("&&"):
+            right = self.equality()
+            value = int(bool(value) and bool(right))
+        return value
+
+    def equality(self):
+        value = self.comparison()
+        while (op := self.take("==", "!=")):
+            right = self.comparison()
+            value = int(value == right if op == "==" else value != right)
+        return value
+
+    def comparison(self):
+        value = self.remainder()
+        while (op := self.take("<=", ">=", "<", ">")):
+            right = self.remainder()
+            value = int({"<=": value <= right, ">=": value >= right,
+                         "<": value < right, ">": value > right}[op])
+        return value
+
+    def remainder(self):
+        value = self.primary()
+        while self.take("%"):
+            by = self.primary()
+            if by == 0:
+                raise Error(
+                    f"a plural rule that divides by 0: {self.expression}")
+            value %= by
+        return value
+
+    def primary(self):
+        if self.take("("):
+            value = self.ternary()
+            self.expect(")")
+            return value
+        if self.take("n"):
+            return self.n
+        if self.at < len(self.tokens) and self.tokens[self.at].isdigit():
+            self.at += 1
+            return int(self.tokens[self.at - 1])
+        raise Error(f"a plural rule that can't be read: {self.expression}")
+
+
+def plural_forms(header):
+    """How many forms a language's plurals have, after checking its rule picks
+    one of them for each count."""
+    forms = header_field(header, "Plural-Forms") or ""
+    match = re.fullmatch(r"nplurals\s*=\s*(\d+)\s*;\s*plural\s*=\s*(.+?)\s*;?",
+                         forms)
+    if not match:
+        raise Error(f"Plural-Forms without nplurals= and plural=: {forms!r}")
+    count, rule = int(match.group(1)), Plural(match.group(2))
+    for n in range(1000):
+        if not 0 <= rule.form(n) < count:
+            raise Error(f"the plural rule picks form {rule.form(n)} for {n}, "
+                        f"of {count}")
+    return count
+
+
+def placeholders(text):
+    """The placeholders absl::Substitute fills in, $0 to $9, for whom $$ is a
+    dollar."""
+    return {m for m in re.findall(r"\$(\$|\d)", text) if m != "$"}
+
+
+def listed(found):
+    return " ".join(f"${p}" for p in sorted(found)) or "none"
+
+
+def problems_in(path, template):
+    """What's wrong with a language's PO file."""
+    name = path.relative_to(ROOT)
+    header_text, header, entries = read_po(path)
+    problems = []
+    if header_field(header, "Language") != path.stem:
+        problems.append(f"{name}: its header says it's Language: "
+                        f"{header_field(header, 'Language')}")
+    forms = plural_forms(header)
+    if write_po(header_text, merge(template, header, entries)) != \
+            path.read_text(encoding="utf-8"):
+        problems.append(f"{name} isn't merged with the template: run "
+                        "scripts/po.py update")
+    for e in entries:
+        if e.obsolete or not any(e.strings):
+            continue
+        where = f"{name}: {e.id!r}"
+        if e.context:
+            where += f" in {e.context!r}"
+        english = placeholders(e.id) | placeholders(e.plural or "")
+        if e.plural is not None and len(e.strings) != forms:
+            problems.append(f"{where} has {len(e.strings)} forms, of {forms}")
+        used = set()
+        for text in e.strings:
+            used |= placeholders(text)
+            if e.plural is None and text and placeholders(text) != english:
+                problems.append(f"{where} has {listed(placeholders(text))}, "
+                                f"for {listed(english)}")
+            if "##" in text:
+                problems.append(
+                    f"{where} has ##, where ImGui would cut it off")
+            for wrong, right in MISTAKES.get(path.stem, {}).items():
+                if wrong in text:
+                    problems.append(f"{where} has {wrong}, for {right}")
+        # A plural's forms can leave out the count, as one for 1 might, but
+        # between them they say what the English says, and nothing else.
+        if e.plural is not None and all(e.strings) and used != english:
+            problems.append(
+                f"{where} has {listed(used)}, for {listed(english)}")
+    live = [e for e in entries if not e.obsolete]
+    done = sum(e.translated() for e in live)
+    fuzzy = sum("fuzzy" in e.flags for e in live)
+    print(f"{name}: {done} of {len(live)} translated, {fuzzy} fuzzy")
+    return problems
+
+
 def command_extract(_):
     entries = extract()
     TEMPLATE.write_text(write_po(HEADER, entries), encoding="utf-8")
@@ -616,6 +794,23 @@ def command_update(_):
         print(f"{path.relative_to(ROOT)}: {done} of {len(live)} translated")
 
 
+def command_check(_):
+    problems = []
+    if TEMPLATE.read_text(encoding="utf-8") != write_po(HEADER, extract()):
+        problems.append(f"{TEMPLATE.relative_to(ROOT)} is out of date: run "
+                        "scripts/po.py extract")
+    _, _, template = read_po(TEMPLATE)
+    for path in languages():
+        try:
+            problems += problems_in(path, template)
+        except Error as error:
+            problems.append(f"{path.relative_to(ROOT)}: {error}")
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    if problems:
+        sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(required=True)
@@ -625,6 +820,9 @@ def main():
     commands.add_parser(
         "update", help="merge the template into each language",
     ).set_defaults(run=command_update)
+    commands.add_parser(
+        "check", help="say what's out of date or wrong",
+    ).set_defaults(run=command_check)
     args = parser.parse_args()
     try:
         args.run(args)

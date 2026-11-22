@@ -178,6 +178,9 @@ RUN pip install --no-cache-dir clang-format==18.1.3 cpplint==2.0.2
 # one, so the folder is named after the project: NANOMMO_SERVER_TICK_H_.
 WORKDIR /nanommo
 COPY . .
+# And the translations: the template as the sources have it, each language
+# merged with it, and each translation one the client can show.
 RUN find server gateway bot client cheat protocol content terrain fuzz cinema -name '*.cc' -o -name '*.h' \
  | xargs clang-format --dry-run --Werror \
- && cpplint --root=.. --recursive --quiet server gateway bot client cheat protocol content terrain fuzz cinema
+ && cpplint --root=.. --recursive --quiet server gateway bot client cheat protocol content terrain fuzz cinema \
+ && python3 scripts/po.py check

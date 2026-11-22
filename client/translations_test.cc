@@ -1,7 +1,11 @@
 #include "client/translations.h"
 
-#include <string>
+#include <raylib.h>
 
+#include <string>
+#include <vector>
+
+#include "content/text.h"
 #include "gtest/gtest.h"
 
 namespace {
@@ -97,6 +101,25 @@ TEST(Catalog, PicksAPluralsFormByTheCount) {
   EXPECT_STREQ(catalog->Find("", "$0 gold", 1), "$0 galben");
   EXPECT_STREQ(catalog->Find("", "$0 gold", 3), "$0 galbeni");
   EXPECT_STREQ(catalog->Find("", "$0 gold", 20), "$0 de galbeni");
+}
+
+TEST(Catalog, ReadsEachFileTheClientShipsWith) {
+  // CI checks them with scripts/po.py, and the client reads them with this:
+  // each has to read them the same.
+  const FilePathList found =
+      LoadDirectoryFilesEx(NANOMMO_PO, ".po;.pot", false);
+  const std::vector<std::string> files(found.paths, found.paths + found.count);
+  UnloadDirectoryFiles(found);
+  ASSERT_FALSE(files.empty());
+  for (const std::string& file : files) {
+    const absl::StatusOr<std::string> text = nanommo::ReadFile(file);
+    ASSERT_TRUE(text.ok()) << text.status();
+    const absl::StatusOr<nanommo::Catalog> catalog =
+        IsFileExtension(file.c_str(), ".pot")
+            ? nanommo::Catalog::PseudoFrom(*text)
+            : nanommo::Catalog::Parse(*text);
+    EXPECT_TRUE(catalog.ok()) << file << ", " << catalog.status();
+  }
 }
 
 TEST(PluralRule, PicksRomaniansForms) {
