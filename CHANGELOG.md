@@ -7,6 +7,17 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.94.2 (2026-11-22)
+
+- The API docs link each class, function and file to its code, highlighted, at the line that
+  defines it, and their menu links to the repository on GitHub. They have the gateway's, the
+  cinema's and the red-team client's code too.
+- The decision records were a list of pages after the docs, with their template among them. The
+  index groups them by what they're about, on GitHub and in the API docs, where each group is a
+  page under Decisions, with its records under it. Reliability and the postmortems, which the
+  README lists, weren't in the API docs at all, and are now, each postmortem under Postmortems.
+- The README's cover, in `.github`, wasn't copied into the API docs, so it didn't show.
+
 ## 0.94.1 (2026-11-22)
 
 - You choose your shirt's colour as you make a character, from the six players' colours, with a

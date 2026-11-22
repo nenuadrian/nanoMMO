@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(nanommo VERSION 0.94.1 LANGUAGES CXX)
+project(nanommo VERSION 0.94.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -267,11 +267,30 @@ if(DOXYGEN_FOUND AND NOT EMSCRIPTEN)
   set(DOXYGEN_PROJECT_NAME "nanoMMO")
   set(DOXYGEN_PROJECT_BRIEF "Building an MMO: The Engineering Series")
   set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/docs)
-  set(DOXYGEN_USE_MDFILE_AS_MAINPAGE README.md)
-  # The README's screens, which Doxygen copies into the API docs.
+  # The README is named by its whole path, as Doxygen 1.9 takes any file named
+  # README.md to be the main page, docs/decisions' too.
+  set(DOXYGEN_USE_MDFILE_AS_MAINPAGE ${CMAKE_SOURCE_DIR}/README.md)
+  # A folder's README.md would be its page under Files, and docs/decisions'
+  # and docs/postmortems' are pages of their own.
+  set(DOXYGEN_IMPLICIT_DIR_DOCS NO)
+  # The README's screens, which Doxygen copies into the API docs, and its
+  # cover, which docs/doxygen/filter.sh points at beside the pages.
   set(DOXYGEN_IMAGE_PATH ${CMAKE_SOURCE_DIR}/docs/screens)
+  set(DOXYGEN_HTML_EXTRA_FILES ${CMAKE_SOURCE_DIR}/.github/cover.jpg)
   set(DOXYGEN_EXTRACT_ALL YES)
   set(DOXYGEN_EXCLUDE_PATTERNS *_test.cc)
+  # The templates are for writing a record or a postmortem, so they aren't
+  # pages.
+  set(DOXYGEN_EXCLUDE
+    ${CMAKE_SOURCE_DIR}/docs/decisions/template.md
+    ${CMAKE_SOURCE_DIR}/docs/postmortems/template.md
+  )
+  # Each class, function and file links to its code, highlighted, at the line
+  # that defines it, and the code shows as it's written, comments and all.
+  set(DOXYGEN_SOURCE_BROWSER YES)
+  set(DOXYGEN_STRIP_CODE_COMMENTS NO)
+  # The menu, with a link to the code on GitHub after the pages.
+  set(DOXYGEN_LAYOUT_FILE ${CMAKE_SOURCE_DIR}/docs/doxygen/layout.xml)
   set(DOXYGEN_GENERATE_TREEVIEW YES)
   set(DOXYGEN_DISABLE_INDEX NO)
   set(DOXYGEN_FULL_SIDEBAR NO)
@@ -280,10 +299,12 @@ if(DOXYGEN_FOUND AND NOT EMSCRIPTEN)
     ${doxygen_awesome_SOURCE_DIR}/doxygen-awesome.css
     ${doxygen_awesome_SOURCE_DIR}/doxygen-awesome-sidebar-only.css
   )
-  # A link to a section of another page, such as docs/gameplay.md#items, works
-  # on GitHub, but Doxygen 1.9 leaves it as it is, which leads nowhere, so in
-  # the API docs it goes to the page.
-  set(DOXYGEN_FILTER_PATTERNS "*.md=sed -E 's/[.]md#[a-z0-9-]+[)]/.md)/g'")
+  # The Markdown files go through docs/doxygen/filter.sh, which files the
+  # decision records under the groups of their index, and the postmortems
+  # under theirs, for the menu, and points links to sections at their pages.
+  set(DOXYGEN_FILTER_PATTERNS
+    "*.md=sh ${CMAKE_SOURCE_DIR}/docs/doxygen/filter.sh https://github.com/nenuadrian/nanoMMO"
+  )
   # Each page in docs/ is a page of its own in the menu, after the README, in
   # the order the README lists them.
   doxygen_add_docs(docs
@@ -291,6 +312,8 @@ if(DOXYGEN_FOUND AND NOT EMSCRIPTEN)
     docs/gameplay.md docs/content.md docs/npcs.md docs/graphics.md docs/cinema.md
     docs/island.md docs/worlds.md docs/networking.md docs/accounts.md
     docs/saving.md docs/website.md docs/monitoring.md docs/benchmarking.md
-    docs/deployment.md docs/web.md docs/checks.md docs/releases.md docs/decisions
-    protocol content terrain server bot client)
+    docs/reliability.md docs/postmortems/README.md docs/postmortems
+    docs/deployment.md docs/web.md docs/checks.md docs/releases.md
+    docs/decisions/README.md docs/decisions
+    protocol content terrain server gateway bot client cheat cinema)
 endif()

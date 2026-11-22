@@ -39,53 +39,92 @@ one commit could undo, or that the code makes plain, needs none.
   ([0015](0015-migrations-with-flyway.md)). To change a decision, write a new record, and set the
   old one's status to `Superseded by` the new one. That line is the only edit an accepted record
   gets.
-- Add it to the index below.
+- Add it to the index below, in the group it's about, or in a new group if none fits.
 
 ## Index
+
+The records by what they're about, each group in the order they were written.
+
+### Language, build and releases
 
 | Number | Title | Status | Episode |
 |---|---|---|---|
 | [0001](0001-cpp-for-the-servers-and-the-client.md) | C++20 for the servers and the client | Superseded by [0026](0026-cpp23-for-the-servers-and-the-client.md) | 1 |
-| [0002](0002-an-authoritative-server-at-a-fixed-tick.md) | An authoritative server, at a fixed tick | Accepted | 1, 3 |
-| [0003](0003-protobuf-as-the-contract.md) | Protobuf as the contract between the client and the servers | Accepted | 1, 3 |
 | [0004](0004-build-test-and-check-in-docker.md) | Build, test and check in Docker, on every push | Accepted | 1, 4, 28, 43 |
 | [0005](0005-the-history-is-the-curriculum.md) | The repository's history is the curriculum | Accepted | 1 |
-| [0006](0006-draw-the-client-with-vulkan.md) | Draw the client with Vulkan | Superseded by [0007](0007-draw-the-client-with-raylib-and-imgui.md) | 2, as first written |
-| [0007](0007-draw-the-client-with-raylib-and-imgui.md) | Draw the client with raylib, and its interface with Dear ImGui | Accepted | 2 |
+| [0020](0020-one-version-for-the-whole-game.md) | One version for the whole game, and the login server's rule | Accepted | 59 |
+| [0026](0026-cpp23-for-the-servers-and-the-client.md) | C++23 for the servers and the client, with each build named in a preset | Accepted | 73 |
+
+### The servers
+
+| Number | Title | Status | Episode |
+|---|---|---|---|
+| [0002](0002-an-authoritative-server-at-a-fixed-tick.md) | An authoritative server, at a fixed tick | Accepted | 1, 3 |
 | [0008](0008-one-thread-for-the-world.md) | One thread for the world, on Asio's event loop | Accepted | 3 |
-| [0009](0009-prometheus-grafana-and-loki.md) | Metrics, logs and alerts with Prometheus, Grafana and Loki | Accepted | 4, 30, 35 |
-| [0010](0010-mysql-as-the-source-of-truth.md) | MySQL as the source of truth | Accepted | 5 |
-| [0011](0011-a-login-server-of-its-own.md) | A login server of its own, with Argon2id and one-time tokens | Accepted | 5, 6 |
-| [0012](0012-tcp-for-inputs-udp-for-worlds.md) | TCP for inputs and messages, UDP for the worlds | Accepted | 3, 9 |
-| [0013](0013-save-players-through-redis.md) | Save the players through Redis, and a saver that takes them to MySQL | Accepted | 13 |
-| [0014](0014-tls-with-an-authority-of-our-own.md) | TLS 1.3 between the clients and the servers, with an authority of our own | Accepted | 14 |
-| [0015](0015-migrations-with-flyway.md) | Change the tables with Flyway's migrations | Accepted | 18 |
-| [0016](0016-deploy-with-compose-to-one-server.md) | Deploy with Compose to one server, and hand the players over | Accepted | 19, 36, 37 |
 | [0017](0017-send-each-player-what-is-near-them.md) | Send each player what's near them, by cells | Accepted | 20 |
 | [0018](0018-find-the-worlds-through-consul.md) | Find the worlds through Consul | Accepted | 21 |
-| [0019](0019-content-as-data.md) | Content as data, in protobuf's text format | Accepted | 26, 27 |
-| [0020](0020-one-version-for-the-whole-game.md) | One version for the whole game, and the login server's rule | Accepted | 59 |
-| [0021](0021-guilds-in-mysql-transactions.md) | Guild changes as MySQL transactions, and invitations in Redis | Accepted | 66, 67 |
+| [0031](0031-a-character-is-leased-to-one-instance-at-a-time.md) | A character is leased to one instance at a time | Accepted | 79 |
+| [0037](0037-the-server-owns-the-sky.md) | The server owns the sky: the time of day and the weather, from the clock | Accepted | 85 |
+
+### Networking
+
+| Number | Title | Status | Episode |
+|---|---|---|---|
+| [0003](0003-protobuf-as-the-contract.md) | Protobuf as the contract between the client and the servers | Accepted | 1, 3 |
+| [0012](0012-tcp-for-inputs-udp-for-worlds.md) | TCP for inputs and messages, UDP for the worlds | Accepted | 3, 9 |
 | [0022](0022-numbered-inputs-and-client-side-prediction.md) | Numbered inputs, and client-side prediction | Accepted | 68 |
 | [0023](0023-draw-everyone-else-in-the-past.md) | Draw everyone else 100 milliseconds in the past | Accepted | 69 |
 | [0024](0024-leave-out-what-has-not-changed.md) | Leave out of each world what hasn't changed, by its pieces' hashes | Accepted | 70 |
-| [0025](0025-the-server-checks-what-a-client-asks-for.md) | The server checks what a client asks for, and a red-team client tries it | Accepted | 72 |
-| [0026](0026-cpp23-for-the-servers-and-the-client.md) | C++23 for the servers and the client, with each build named in a preset | Accepted | 73 |
+| [0032](0032-the-browser-reaches-the-servers-through-a-gateway.md) | A browser reaches the servers through a WebSocket gateway | Accepted | 80 |
+
+### Saving
+
+| Number | Title | Status | Episode |
+|---|---|---|---|
+| [0010](0010-mysql-as-the-source-of-truth.md) | MySQL as the source of truth | Accepted | 5 |
+| [0013](0013-save-players-through-redis.md) | Save the players through Redis, and a saver that takes them to MySQL | Accepted | 13 |
+| [0015](0015-migrations-with-flyway.md) | Change the tables with Flyway's migrations | Accepted | 18 |
+| [0021](0021-guilds-in-mysql-transactions.md) | Guild changes as MySQL transactions, and invitations in Redis | Accepted | 66, 67 |
 | [0027](0027-gold-in-the-bag.md) | Gold in the bag's message, with its revision | Accepted | 74 |
 | [0028](0028-a-trade-is-checked-against-the-bags-and-saved-as-one.md) | A trade is checked against the bags, and saved as one | Accepted | 75 |
+
+### Accounts and security
+
+| Number | Title | Status | Episode |
+|---|---|---|---|
+| [0011](0011-a-login-server-of-its-own.md) | A login server of its own, with Argon2id and one-time tokens | Accepted | 5, 6 |
+| [0014](0014-tls-with-an-authority-of-our-own.md) | TLS 1.3 between the clients and the servers, with an authority of our own | Accepted | 14 |
+| [0025](0025-the-server-checks-what-a-client-asks-for.md) | The server checks what a client asks for, and a red-team client tries it | Accepted | 72 |
+
+### The client
+
+| Number | Title | Status | Episode |
+|---|---|---|---|
+| [0006](0006-draw-the-client-with-vulkan.md) | Draw the client with Vulkan | Superseded by [0007](0007-draw-the-client-with-raylib-and-imgui.md) | 2, as first written |
+| [0007](0007-draw-the-client-with-raylib-and-imgui.md) | Draw the client with raylib, and its interface with Dear ImGui | Accepted | 2 |
 | [0029](0029-the-client-in-a-browser-with-emscripten.md) | The client in a browser, with Emscripten and WebGL 2 | Accepted | 76 |
 | [0030](0030-offline-the-client-runs-the-worlds-rules.md) | Offline, the client runs the world's rules itself | Accepted | 78 |
-| [0031](0031-a-character-is-leased-to-one-instance-at-a-time.md) | A character is leased to one instance at a time | Accepted | 79 |
-| [0032](0032-the-browser-reaches-the-servers-through-a-gateway.md) | A browser reaches the servers through a WebSocket gateway | Accepted | 80 |
+| [0044](0044-looks-are-chosen-once-and-names-show-over-whoever-is-pointed-at-or-picked.md) | Looks are chosen once, as places in the content's lists, and names show over whoever's pointed at or picked | Accepted | 94 |
+
+### Gameplay and content
+
+| Number | Title | Status | Episode |
+|---|---|---|---|
+| [0019](0019-content-as-data.md) | Content as data, in protobuf's text format | Accepted | 26, 27 |
 | [0033](0033-players-fight-each-other-in-duels-that-end-at-one-health.md) | Players fight each other in duels, which end at one health | Accepted | 81 |
 | [0034](0034-duel-blows-are-checked-where-the-attacker-saw-the-target.md) | Duel blows are checked where the attacker saw the target, up to 200 milliseconds back | Accepted | 82 |
 | [0035](0035-a-monsters-skill-lands-where-it-was-aimed.md) | A monster's skill lands where it was aimed, after a telegraph players can step out of | Accepted | 83 |
 | [0036](0036-a-boss-fights-who-hurt-it-most-and-shares-its-death.md) | A boss fights whoever's hurt it most, and its death is everyone's who took 5% of its health | Accepted | 84 |
-| [0037](0037-the-server-owns-the-sky.md) | The server owns the sky: the time of day and the weather, from the clock | Accepted | 85 |
-| [0038](0038-trace-requests-with-a-tracer-of-our-own.md) | Trace requests with a tracer of our own, which speaks OpenTelemetry | Accepted | 87 |
-| [0039](0039-objectives-with-error-budgets-and-chaos-in-staging.md) | Objectives with error budgets, and chaos experiments in staging, never in production | Accepted | 88 |
 | [0040](0040-check-the-content-as-a-graph-with-smollergraph.md) | Check the content as a graph, with smollerGraph, in the tests | Accepted | 90 |
 | [0041](0041-guilds-at-war-hurt-each-other-anywhere.md) | Guilds at war hurt each other anywhere, for half an hour, and count their kills | Accepted | 91 |
 | [0042](0042-a-war-kill-counts-once-and-nobody-leaves-a-war.md) | A war kill counts once, a victim scores once every five minutes, and nobody leaves a war | Accepted | 92 |
 | [0043](0043-craft-from-the-bag-without-a-station-and-a-recipe-needs-all-it-takes.md) | Craft from the bag, without a station, and a recipe needs all it takes | Accepted | 93 |
-| [0044](0044-looks-are-chosen-once-and-names-show-over-whoever-is-pointed-at-or-picked.md) | Looks are chosen once, as places in the content's lists, and names show over whoever's pointed at or picked | Accepted | 94 |
+
+### Deployment and monitoring
+
+| Number | Title | Status | Episode |
+|---|---|---|---|
+| [0009](0009-prometheus-grafana-and-loki.md) | Metrics, logs and alerts with Prometheus, Grafana and Loki | Accepted | 4, 30, 35 |
+| [0016](0016-deploy-with-compose-to-one-server.md) | Deploy with Compose to one server, and hand the players over | Accepted | 19, 36, 37 |
+| [0038](0038-trace-requests-with-a-tracer-of-our-own.md) | Trace requests with a tracer of our own, which speaks OpenTelemetry | Accepted | 87 |
+| [0039](0039-objectives-with-error-budgets-and-chaos-in-staging.md) | Objectives with error budgets, and chaos experiments in staging, never in production | Accepted | 88 |
