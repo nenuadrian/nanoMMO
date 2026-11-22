@@ -43,6 +43,9 @@ struct InterfaceSettings {
   /// player dragged them into: none, for the order of their levels.
   std::vector<uint32_t> hotbar;
   NameplateSettings nameplates;
+  /// The language the interface is in, by its code, as translations.h's
+  /// kLanguages has it: none for English.
+  std::string language;
 
   bool operator==(const InterfaceSettings&) const = default;
 };

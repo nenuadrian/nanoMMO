@@ -24,7 +24,10 @@ TEST(Settings, KeepsThemBetweenRuns) {
                    .antialias = false,
                    .day_night = false,
                    .weather = false},
-      .ui = {.scale = 1.25f, .minimap_turns = true, .hotbar = {3, 1, 2}}};
+      .ui = {.scale = 1.25f,
+             .minimap_turns = true,
+             .hotbar = {3, 1, 2},
+             .language = "ro"}};
   ASSERT_TRUE(nanommo::SaveSettings(path, settings).ok());
 
   const absl::StatusOr<nanommo::Settings> loaded = nanommo::LoadSettings(path);

@@ -1,0 +1,144 @@
+# nanoMMO's words in English, which each language's PO file translates.
+msgid ""
+msgstr ""
+"Project-Id-Version: nanoMMO\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: client/menu.cc
+msgid "Settings"
+msgstr ""
+
+#: client/menu.cc
+msgid "Interface"
+msgstr ""
+
+#: client/menu.cc
+msgid "Sound"
+msgstr ""
+
+#: client/menu.cc
+msgid "Graphics"
+msgstr ""
+
+#: client/menu.cc
+msgid "Keys"
+msgstr ""
+
+#: client/menu.cc
+msgid "Language"
+msgstr ""
+
+#: client/menu.cc
+msgid "Size"
+msgstr ""
+
+#: client/menu.cc
+msgid "On top of its size for your screen, which grows with it."
+msgstr ""
+
+#: client/menu.cc
+msgid "Show the minimap"
+msgstr ""
+
+#: client/menu.cc
+msgid "Turn the minimap with the camera"
+msgstr ""
+
+#: client/menu.cc
+msgid "Put the hotbar back in order"
+msgstr ""
+
+#: client/menu.cc
+msgid "Drag a skill onto another to swap them."
+msgstr ""
+
+#: client/menu.cc
+msgid "Names over heads"
+msgstr ""
+
+#: client/menu.cc
+msgid "Each shows while you point at it, or it's picked."
+msgstr ""
+
+#: client/menu.cc
+msgid "Always show them over:"
+msgstr ""
+
+#: client/menu.cc
+msgid "Monsters"
+msgstr ""
+
+#: client/menu.cc
+msgid "Other players"
+msgstr ""
+
+#: client/menu.cc
+msgid "NPCs"
+msgstr ""
+
+#: client/menu.cc
+msgid "You"
+msgstr ""
+
+#: client/menu.cc
+msgid "With them:"
+msgstr ""
+
+#: client/menu.cc
+msgid "Health"
+msgstr ""
+
+#: client/menu.cc
+msgid "Levels"
+msgstr ""
+
+#: client/menu.cc
+msgid "Guilds"
+msgstr ""
+
+#: client/menu.cc
+msgid "Volume"
+msgstr ""
+
+#: client/menu.cc
+msgid "Music"
+msgstr ""
+
+#: client/menu.cc
+msgid "Effects"
+msgstr ""
+
+#: client/menu.cc
+msgid "Mute"
+msgstr ""
+
+#: client/menu.cc
+msgid "\"Background Music\" by Pavel Bekirov, from Pixabay"
+msgstr ""
+
+#: client/menu.cc
+msgid "Bloom"
+msgstr ""
+
+#: client/menu.cc
+msgid "Cel shading"
+msgstr ""
+
+#: client/menu.cc
+msgid "Anti-aliasing"
+msgstr ""
+
+#: client/menu.cc
+msgid "Sky"
+msgstr ""
+
+#: client/menu.cc
+msgid "Weather"
+msgstr ""
+
+#: client/menu.cc
+msgid "Day and night"
+msgstr ""

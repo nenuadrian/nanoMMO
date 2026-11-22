@@ -39,6 +39,8 @@ message Interface {
   repeated uint32 hotbar = 3;
   Nameplates nameplates = 4;
   optional bool minimap = 5;
+  // The language the interface is in, by its code: none for English.
+  optional string language = 6;
 }
 
 // What the player sets, which the client keeps between runs.

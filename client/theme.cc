@@ -11,6 +11,8 @@
 #include <string>
 #include <utility>
 
+#include "client/translations.h"
+
 namespace nanommo {
 
 namespace {
@@ -26,14 +28,17 @@ ImVec4 Float4(ImU32 color, float alpha) {
   return out;
 }
 
-// One of the fonts in the folder, or null when it isn't there.
-ImFont* AddFont(const std::string& folder, const char* file) {
+// One of the fonts in the folder, or null when it isn't there. Merged, it
+// goes into the font added before it, for the letters that one hasn't got.
+ImFont* AddFont(const std::string& folder, const char* file,
+                bool merge = false) {
   const std::string path = folder + "/" + file;
   if (!FileExists(path.c_str())) {
     return nullptr;
   }
   ImFontConfig config;
   config.PixelSnapH = true;
+  config.MergeMode = merge;
   return ImGui::GetIO().Fonts->AddFontFromFileTTF(path.c_str(), kTextSize,
                                                   &config);
 }
@@ -69,7 +74,13 @@ const Fonts& GetFonts() {
 
 void LoadFonts(const std::string& folder) {
   fonts.bold = OrDefault(AddFont(folder, "AlegreyaSans-Bold.ttf"));
-  fonts.title = OrDefault(AddFont(folder, "Cinzel-Bold.ttf"));
+  fonts.title = AddFont(folder, "Cinzel-Bold.ttf");
+  // Cinzel has no ș, ț or ă, which Romanian needs, so those, and any other
+  // letter it hasn't got, come from Alegreya Sans's bold.
+  if (fonts.title != nullptr) {
+    AddFont(folder, "AlegreyaSans-Bold.ttf", true);
+  }
+  fonts.title = OrDefault(fonts.title);
   // Last, as rlImGui merges Font Awesome's icons into the last font added.
   fonts.text = OrDefault(AddFont(folder, "AlegreyaSans-Medium.ttf"));
   ImGui::GetIO().FontDefault = fonts.text;
@@ -320,7 +331,9 @@ bool BeginPanel(const char* name, bool* open, ImGuiWindowFlags flags,
   // Under everything in the window, as nothing else is drawn in it yet.
   draw->PushClipRectFullScreen();
   DrawPanel(draw, min, max, alpha);
-  const std::string title = Shown(name);
+  // In the player's language, while the window keeps its English name as its
+  // ID.
+  const std::string title = Tr(Shown(name).c_str());
   const float title_size = Ui(19.0f);
   if (!title.empty()) {
     DrawTitle(draw, {min.x + size.x / 2.0f, min.y + Ui(9.0f)}, title_size,
@@ -366,7 +379,7 @@ bool BeginPanel(const char* name, bool* open, ImGuiWindowFlags flags,
 void EndPanel() { ImGui::End(); }
 
 bool GameButton(const char* label, ImVec2 size, bool primary, bool enabled) {
-  const std::string text = Shown(label);
+  const std::string text = Tr(Shown(label).c_str());
   ImFont* font = GetFonts().title;
   const float text_size = primary ? Ui(17.0f) : Ui(15.0f);
   const ImVec2 extent =

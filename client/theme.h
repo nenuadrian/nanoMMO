@@ -101,17 +101,17 @@ void DrawTitle(ImDrawList* draw, ImVec2 top_centre, float size,
 /// The part of an ImGui label that's shown: what's before any "##".
 std::string Shown(const char* label);
 
-/// Begins a window drawn as one of our panels, with its title at the top and a
-/// close button that sets open to false, if open isn't null. Always call
-/// EndPanel after it, as ImGui's End.
+/// Begins a window drawn as one of our panels, with its title at the top, in
+/// the player's language, and a close button that sets open to false, if open
+/// isn't null. Always call EndPanel after it, as ImGui's End.
 bool BeginPanel(const char* name, bool* open, ImGuiWindowFlags flags = 0,
                 float alpha = 0.96f);
 void EndPanel();
 
 /// A button with its corners cut, in a dark red, or, for what a screen is
-/// there for, such as entering the world, in the colours of a fire. Returns
-/// whether it was clicked. A width of zero fits the label, and one below zero
-/// takes the rest of the line.
+/// there for, such as entering the world, in the colours of a fire, with its
+/// label in the player's language. Returns whether it was clicked. A width of
+/// zero fits the label, and one below zero takes the rest of the line.
 bool GameButton(const char* label, ImVec2 size, bool primary = false,
                 bool enabled = true);
 

@@ -96,6 +96,9 @@ absl::StatusOr<Settings> LoadSettings(const std::string& path) {
     loaded.ui.minimap_turns = ui.minimap_turns();
   }
   loaded.ui.hotbar = {ui.hotbar().begin(), ui.hotbar().end()};
+  if (ui.has_language()) {
+    loaded.ui.language = ui.language();
+  }
   const settings::Nameplates& plates = ui.nameplates();
   NameplateSettings& shown = loaded.ui.nameplates;
   shown.monsters = plates.has_monsters() ? plates.monsters() : shown.monsters;
@@ -125,6 +128,7 @@ absl::Status SaveSettings(const std::string& path, const Settings& player) {
   for (const uint32_t skill : player.ui.hotbar) {
     file.mutable_ui()->add_hotbar(skill);
   }
+  file.mutable_ui()->set_language(player.ui.language);
   const NameplateSettings& shown = player.ui.nameplates;
   settings::Nameplates& plates = *file.mutable_ui()->mutable_nameplates();
   plates.set_monsters(shown.monsters);

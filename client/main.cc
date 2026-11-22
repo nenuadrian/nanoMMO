@@ -65,6 +65,7 @@
 #include "client/telegraphs.h"
 #include "client/trade_window.h"
 #include "client/trainer_window.h"
+#include "client/translations.h"
 #include "client/window.h"
 #include "content/content.h"
 #include "protocol/settings.h"
@@ -145,6 +146,9 @@ int main(int argc, char* argv[]) {
     std::cerr << "nanommo client: " << loaded.status() << "\n";
   }
   nanommo::Settings saved = settings;
+  // The interface's words are in the player's language, from the settings, as
+  // soon as they pick another.
+  std::optional<std::string> language;
   if (absl::StatusOr<std::unique_ptr<nanommo::AudioDevice>> audio_or =
           nanommo::AudioDevice::Create();
       audio_or.ok()) {
@@ -234,6 +238,14 @@ int main(int argc, char* argv[]) {
   int nearby = 0;
 
   while (!window->ShouldClose()) {
+    if (settings.ui.language != language) {
+      if (const absl::Status used = nanommo::UseLanguage(
+              settings.ui.language, nanommo::LanguageFolder());
+          !used.ok()) {
+        std::cerr << "nanommo client: " << used << "\n";
+      }
+      language = settings.ui.language;
+    }
     // Connecting holds up the frame, so it waits for the loading screen to be
     // on the screen first.
     if (entering && loading.covered()) {

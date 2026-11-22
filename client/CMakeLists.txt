@@ -14,7 +14,7 @@ add_library(nanommo_client_core
   sea.cc sky.cc
   gate.cc
   loading.cc death_screen.cc cube.cc cursor.cc map.cc
-  theme.cc compass.cc predicted_bag.cc
+  theme.cc translations.cc compass.cc predicted_bag.cc
 )
 protobuf_generate(TARGET nanommo_client_core
   IMPORT_DIRS ${PROJECT_SOURCE_DIR} PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}
@@ -58,6 +58,9 @@ add_custom_target(nanommo_client_assets ALL
   COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
     ${PROJECT_SOURCE_DIR}/assets/fonts
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/fonts
+  COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+    ${PROJECT_SOURCE_DIR}/po
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/po
   COMMAND ${CMAKE_COMMAND} -E make_directory
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/content
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -78,7 +81,7 @@ add_dependencies(nanommo_client nanommo_client_assets)
 if(EMSCRIPTEN)
   set_target_properties(nanommo_client PROPERTIES SUFFIX ".html")
   set(preloads "")
-  foreach(folder content fonts monsters weapons trees)
+  foreach(folder content fonts po monsters weapons trees)
     list(APPEND preloads
       "SHELL:--preload-file ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${folder}@/${folder}")
   endforeach()
@@ -111,7 +114,7 @@ add_executable(nanommo_client_tests
   quest_window_test.cc combat_text_test.cc nameplates_test.cc boss_bar_test.cc
   login_screen_test.cc
   loading_test.cc death_screen_test.cc gate_test.cc map_test.cc
-  theme_test.cc compass_test.cc predicted_bag_test.cc chat_window_test.cc
+  theme_test.cc translations_test.cc compass_test.cc predicted_bag_test.cc chat_window_test.cc
   guild_window_test.cc trade_window_test.cc duel_window_test.cc craft_window_test.cc inbox_test.cc
   round_trip_test.cc prediction_test.cc interpolation_test.cc
   daylight_test.cc ambience_test.cc
@@ -120,6 +123,7 @@ target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gt
 add_dependencies(nanommo_client_tests nanommo_client_assets)
 target_compile_definitions(nanommo_client_tests PRIVATE
   NANOMMO_CONTENT="${PROJECT_SOURCE_DIR}/content"
+  NANOMMO_PO="${PROJECT_SOURCE_DIR}/po"
 )
 
 include(GoogleTest)

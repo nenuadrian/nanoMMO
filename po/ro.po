@@ -1,0 +1,151 @@
+# nanoMMO in Romanian. It doesn't address the player, so it picks neither
+# "tu" nor "dumneavoastră": a button is a noun, and a sentence impersonal,
+# with "se". It writes ș and ț with commas under them, not cedillas.
+msgid ""
+msgstr ""
+"Project-Id-Version: nanoMMO\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);\n"
+
+#: client/menu.cc
+msgid "Settings"
+msgstr "Setări"
+
+#: client/menu.cc
+msgid "Interface"
+msgstr "Interfață"
+
+#: client/menu.cc
+msgid "Sound"
+msgstr "Sunet"
+
+#: client/menu.cc
+msgid "Graphics"
+msgstr "Grafică"
+
+#: client/menu.cc
+msgid "Keys"
+msgstr "Taste"
+
+#: client/menu.cc
+msgid "Language"
+msgstr "Limbă"
+
+#: client/menu.cc
+msgid "Size"
+msgstr "Mărime"
+
+#: client/menu.cc
+msgid "On top of its size for your screen, which grows with it."
+msgstr "Peste mărimea potrivită ecranului, care crește odată cu el."
+
+# To check: "harta mică" for the minimap, or "minimapa", as players say?
+#: client/menu.cc
+msgid "Show the minimap"
+msgstr "Afișare hartă mică"
+
+#: client/menu.cc
+msgid "Turn the minimap with the camera"
+msgstr "Harta mică se rotește odată cu camera"
+
+#: client/menu.cc
+msgid "Put the hotbar back in order"
+msgstr "Reordonarea barei de abilități"
+
+#: client/menu.cc
+msgid "Drag a skill onto another to swap them."
+msgstr "O abilitate trasă peste alta își schimbă locul cu ea."
+
+#: client/menu.cc
+msgid "Names over heads"
+msgstr "Nume deasupra capului"
+
+#: client/menu.cc
+msgid "Each shows while you point at it, or it's picked."
+msgstr "Fiecare apare cât e cursorul pe el sau când e ales."
+
+#: client/menu.cc
+msgid "Always show them over:"
+msgstr "Mereu afișate pentru:"
+
+#: client/menu.cc
+msgid "Monsters"
+msgstr "Monștri"
+
+#: client/menu.cc
+msgid "Other players"
+msgstr "Alți jucători"
+
+#: client/menu.cc
+msgid "NPCs"
+msgstr "NPC-uri"
+
+#: client/menu.cc
+msgid "You"
+msgstr "Propriul personaj"
+
+#: client/menu.cc
+msgid "With them:"
+msgstr "Lângă nume:"
+
+#: client/menu.cc
+msgid "Health"
+msgstr "Viața"
+
+#: client/menu.cc
+msgid "Levels"
+msgstr "Nivelul"
+
+#: client/menu.cc
+msgid "Guilds"
+msgstr "Breasla"
+
+#: client/menu.cc
+msgid "Volume"
+msgstr "Volum"
+
+#: client/menu.cc
+msgid "Music"
+msgstr "Muzică"
+
+#: client/menu.cc
+msgid "Effects"
+msgstr "Efecte"
+
+#: client/menu.cc
+msgid "Mute"
+msgstr "Fără sunet"
+
+#: client/menu.cc
+msgid "\"Background Music\" by Pavel Bekirov, from Pixabay"
+msgstr "„Background Music” de Pavel Bekirov, de pe Pixabay"
+
+# To check: bloom is the glow round what's bright; or keep "Bloom"?
+#: client/menu.cc
+msgid "Bloom"
+msgstr "Strălucire"
+
+# To check: cel shading draws outlines and flat shades, like a cartoon; or
+# keep "Cel shading"?
+#: client/menu.cc
+msgid "Cel shading"
+msgstr "Stil de desen animat"
+
+#: client/menu.cc
+msgid "Anti-aliasing"
+msgstr "Margini netede"
+
+#: client/menu.cc
+msgid "Sky"
+msgstr "Cer"
+
+#: client/menu.cc
+msgid "Weather"
+msgstr "Vremea"
+
+#: client/menu.cc
+msgid "Day and night"
+msgstr "Zi și noapte"
