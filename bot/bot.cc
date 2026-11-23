@@ -20,6 +20,7 @@
 #include "asio/ssl/stream_base.hpp"
 #include "asio/write.hpp"
 #include "bot/bag.h"
+#include "bot/factions.h"
 #include "protocol/nanommo.pb.h"
 #include "terrain/lands.h"
 
@@ -84,7 +85,8 @@ Bot::Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp,
       random_(seed),
       udp_(udp),
       content_(content),
-      side_(std::move(side)) {}
+      side_(std::move(side)),
+      faction_(FactionFor(content, seed)) {}
 
 void Bot::Start(const asio::ip::tcp::resolver::results_type& server,
                 const std::string& token) {
@@ -363,7 +365,16 @@ void Bot::Wander() {
   // Quests come first: a bot hunts what they ask for, and takes and turns them
   // in, as players do, whenever its world has some of that around it.
   if (!trip_ && stay_ == 0) {
-    errand_ = NextErrand(content_, quests_, parts_.world(), x_, z_);
+    const protocol::World seen = parts_.world();
+    // Before them, it swears to its faction, at its herald, where it sees them
+    // or where they stand in its land, as a new player might on their first
+    // day.
+    errand_ = !swore_ && !Sworn(seen)
+                  ? Oath(content_, faction_, seen, static_cast<int>(land_))
+                  : std::nullopt;
+    if (!errand_) {
+      errand_ = NextErrand(content_, quests_, seen, x_, z_);
+    }
     if (errand_) {
       trip_ =
           Trip{.to_x = errand_->x,
@@ -399,6 +410,17 @@ void Bot::Wander() {
           hunting_ = errand_->monster;
         } else if (errand_->kind == Errand::Kind::kTake) {
           *input->mutable_take() = errand_->quest;
+        } else if (errand_->kind == Errand::Kind::kSwear) {
+          // A bot that set off before it saw the herald sees them here, or
+          // gives up, as nobody stands there.
+          const std::optional<Errand> oath =
+              errand_->herald != 0 ? errand_
+                                   : Oath(content_, faction_, parts_.world(),
+                                          static_cast<int>(land_));
+          if (oath && oath->herald != 0) {
+            input->set_enlist(oath->herald);
+          }
+          swore_ = true;
         } else {
           *input->mutable_turn_in() = errand_->quest;
         }

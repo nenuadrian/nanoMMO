@@ -10,17 +10,21 @@
 namespace nanommo {
 
 /// A trip a bot makes for its quests: to a monster a quest asks for, to hit
-/// it, or to an NPC, to take a quest or turn one in.
+/// it, or to an NPC, to take a quest or turn one in. Or to a herald, to swear
+/// to their faction.
 struct Errand {
-  enum class Kind { kHunt, kTake, kTurnIn };
+  enum class Kind { kHunt, kTake, kTurnIn, kSwear };
   Kind kind = Kind::kHunt;
   float x = 0.0f;
   float z = 0.0f;
   /// The monster a hunt goes after, by its id, so that the bot can tell once
   /// it's dead.
   uint32_t monster = 0;
-  /// Who to, and which quest, unless it's a hunt.
+  /// Who to, and which quest, for a quest.
   protocol::Quest quest;
+  /// The herald to swear at, by the NPC's id, for an oath, or 0 on the way
+  /// to where they stand, before the bot sees them.
+  uint32_t herald = 0;
 };
 
 /// How near a living boss has to be for a bot to join its fight, in metres:

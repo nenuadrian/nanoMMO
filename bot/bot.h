@@ -31,7 +31,8 @@ namespace nanommo {
 class Bot {
  public:
   /// Finds the NPCs that talk through their kinds in the content, and what
-  /// its items do through the items. A bot with a side is at war.
+  /// its items do through the items. A bot with a side is at war. Its seed
+  /// picks the faction it swears to.
   Bot(asio::io_context& io, asio::ssl::context& tls, uint32_t seed, bool udp,
       const Content& content, std::optional<Side> side = std::nullopt);
 
@@ -119,7 +120,7 @@ class Bot {
   /// for the monsters and NPCs in it.
   Parts parts_;
   protocol::Quests quests_;
-  /// What the trip's for, if it's for a quest.
+  /// What the trip's for, if it's for a quest, or an oath.
   std::optional<Errand> errand_;
   std::optional<protocol::Move> move_;
   /// At war, its side, its guild as the server last sent it, and the recruit
@@ -131,6 +132,10 @@ class Bot {
   /// charge, which it does once.
   std::optional<std::chrono::steady_clock::time_point> joined_;
   bool charged_ = false;
+  /// Whether it's sworn to its faction, or given up, as its herald isn't
+  /// where they stand, and which that is, by its id.
+  bool swore_ = false;
+  uint32_t faction_ = 0;
 };
 
 }  // namespace nanommo
