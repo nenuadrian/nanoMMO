@@ -38,6 +38,7 @@
 #include "client/gui.h"
 #include "client/guild_window.h"
 #include "client/help_window.h"
+#include "client/herald_window.h"
 #include "client/hotbar.h"
 #include "client/input.h"
 #include "client/interpolation.h"
@@ -187,12 +188,13 @@ int main(int argc, char* argv[]) {
   nanommo::ChatWindow chat_window;
   nanommo::TalkWindow talk_window;
   nanommo::TrainerWindow trainer_window(content->skills);
+  nanommo::HeraldWindow herald_window(content->factions);
   nanommo::QuestWindow quest_window(*content);
   nanommo::QuestLog quest_log(*content);
   nanommo::CraftWindow craft_window(*content);
   nanommo::Hotbar hotbar(content->skills);
   hotbar.Arrange(settings.ui.hotbar);
-  nanommo::PlayerFrame player_frame;
+  nanommo::PlayerFrame player_frame(content->factions);
   nanommo::PredictedBag predicted_bag(content->items);
   nanommo::LoginScreen login_screen(content_hash, content->items,
                                     content->figures, content->rig);
@@ -571,6 +573,8 @@ int main(int argc, char* argv[]) {
             target_player = player ? monster->id : 0;
           } else if (npc->talks) {
             talk_window.Open(npc->id, npc->name);
+          } else if (npc->faction != 0) {
+            herald_window.Open(npc->id, npc->name, npc->faction);
           } else if (!npc->quests.empty()) {
             quest_window.Open(npc->id, npc->name, npc->quests);
           } else {
@@ -601,10 +605,11 @@ int main(int argc, char* argv[]) {
         } else if (quest_log.visible()) {
           quest_log.Toggle();
         } else if (talk_window.open() || trainer_window.open() ||
-                   quest_window.open()) {
+                   quest_window.open() || herald_window.open()) {
           talk_window.Close();
           trainer_window.Close();
           quest_window.Close();
+          herald_window.Close();
         } else if (bag_window.visible()) {
           bag_window.Toggle();
         } else if (craft_window.visible()) {
@@ -772,6 +777,12 @@ int main(int argc, char* argv[]) {
               trainer_window.Build(renderer.figures(), connection->world())) {
         nanommo::protocol::Input ask = sent;
         *ask.mutable_learn() = *learn;
+        connection->Send(ask);
+      }
+      if (const std::optional<uint32_t> herald =
+              herald_window.Build(renderer.figures())) {
+        nanommo::protocol::Input ask = sent;
+        ask.set_enlist(*herald);
         connection->Send(ask);
       }
       if (const std::optional<nanommo::protocol::Input> quest =

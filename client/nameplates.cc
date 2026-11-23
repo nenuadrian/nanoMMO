@@ -7,12 +7,14 @@
 #include <cfloat>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "client/names.h"
 #include "client/picking.h"
+#include "client/theme.h"
 
 namespace nanommo {
 
@@ -29,6 +31,10 @@ constexpr float kGuildScale = 0.85f;
 // A quest's mark, over an NPC's name, in gold, and twice its size.
 constexpr ImU32 kMark = IM_COL32(255, 205, 60, 255);
 constexpr float kMarkScale = 2.0f;
+// A faction's mark, a diamond half as wide as the name is high, and a fifth
+// of its height apart from it.
+constexpr float kFactionMark = 0.5f;
+constexpr float kFactionGap = 0.2f;
 constexpr ImU32 kPlayerHealth = IM_COL32(90, 200, 90, 255);
 constexpr ImU32 kMonsterHealth = IM_COL32(220, 70, 60, 255);
 
@@ -50,6 +56,19 @@ void DrawShadowedText(ImDrawList* draw, float size, ImVec2 at, ImU32 color,
   draw->AddText(font, size, at, color, text.c_str());
 }
 
+// The space a faction's mark takes before a name of the height, if there's
+// one.
+float MarkWidth(const std::optional<Color>& faction, float height) {
+  return faction ? height * (kFactionMark + kFactionGap) : 0.0f;
+}
+
+// The mark at the left of a line of text, of the height, whose top is at.
+void DrawFactionMark(ImDrawList* draw, Color color, ImVec2 at, float height) {
+  const float radius = height * kFactionMark / 2.0f;
+  DrawDiamond(draw, {at.x + radius, at.y + height / 2.0f}, radius,
+              IM_COL32(color.r, color.g, color.b, 255), kShadow);
+}
+
 // Yours stands out from the other players', so that you can find yourself in
 // a crowd, and an enemy's is red, as they can hurt you.
 ImU32 NameColor(const Figure& figure, std::string_view enemy) {
@@ -67,6 +86,13 @@ ImU32 NameColor(const Figure& figure, std::string_view enemy) {
 // Over a tall monster's head, such as a boss's.
 float Above(const Figure& figure) {
   return figure.monster ? std::max(1.9f, figure.height + 0.3f) : 2.35f;
+}
+
+std::optional<Color> FactionMark(const Figure& figure) {
+  if (figure.monster || figure.faction == 0 || figure.faction_color.a == 0) {
+    return std::nullopt;
+  }
+  return figure.faction_color;
 }
 
 bool HasNameplate(const Figure& figure) {
@@ -118,13 +144,19 @@ void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
     }
     const Vector2 at = GetWorldToScreen(
         {position.x, position.y + Above(figure), position.z}, camera);
+    const std::optional<Color> faction = FactionMark(figure);
     // NPCs don't fight, so they have a name and no level or health.
     if (figure.npc) {
       const ImVec2 size =
           font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, figure.name.c_str());
       if (named) {
-        DrawShadowedText(draw, font_size, {at.x - size.x / 2, at.y - size.y},
-                         kNpcName, figure.name);
+        const float marked = MarkWidth(faction, size.y);
+        const ImVec2 top{at.x - (marked + size.x) / 2, at.y - size.y};
+        if (faction) {
+          DrawFactionMark(draw, *faction, top, size.y);
+        }
+        DrawShadowedText(draw, font_size, {top.x + marked, top.y}, kNpcName,
+                         figure.name);
       }
       if (figure.mark != 0) {
         const std::string mark(1, figure.mark);
@@ -190,9 +222,13 @@ void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
                        guild);
     }
     top -= name_size.y;
-    const float left = at.x - (level_width + name_size.x) / 2;
-    DrawShadowedText(draw, font_size, {left, top}, kLevel, level);
-    DrawShadowedText(draw, font_size, {left + level_width, top},
+    const float marked = MarkWidth(faction, name_size.y);
+    const float left = at.x - (marked + level_width + name_size.x) / 2;
+    if (faction) {
+      DrawFactionMark(draw, *faction, {left, top}, name_size.y);
+    }
+    DrawShadowedText(draw, font_size, {left + marked, top}, kLevel, level);
+    DrawShadowedText(draw, font_size, {left + marked + level_width, top},
                      NameColor(figure, enemy), figure.name);
   }
 }

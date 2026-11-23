@@ -18,3 +18,22 @@ TEST(Nameplates, LeaveTheDeadMonstersBare) {
   // And one whose name hasn't come yet has nothing to show.
   EXPECT_FALSE(nanommo::HasNameplate(nanommo::Figure{.monster = true}));
 }
+
+TEST(Nameplates, MarkTheSwornAndTheHeraldsInTheirFactionsColours) {
+  constexpr Color kGold{232, 197, 71, 255};
+  // alice has sworn to a faction, and the herald swears players to it.
+  const nanommo::Figure alice{
+      .name = "alice", .faction = 2, .faction_color = kGold};
+  const nanommo::Figure herald{.name = "Herald of Fortuna",
+                               .faction = 2,
+                               .faction_color = kGold,
+                               .npc = true};
+  ASSERT_TRUE(nanommo::FactionMark(alice).has_value());
+  EXPECT_EQ(nanommo::FactionMark(alice)->r, kGold.r);
+  EXPECT_TRUE(nanommo::FactionMark(herald).has_value());
+
+  // bob is in none, and carol in one this client's content hasn't got.
+  EXPECT_FALSE(nanommo::FactionMark(nanommo::Figure{.name = "bob"}));
+  EXPECT_FALSE(
+      nanommo::FactionMark(nanommo::Figure{.name = "carol", .faction = 9}));
+}

@@ -112,6 +112,39 @@ TEST(Animator, DressesAnNpcAsItsKind) {
   EXPECT_EQ(figures[0].wearing, (std::vector<uint32_t>{4, 5}));
 }
 
+TEST(Animator, MarksPlayersAndHeraldsWithTheirFactions) {
+  nanommo::protocol::World world =
+      WorldWith(0, 0, 0, nanommo::protocol::MOTION_IDLE);
+  world.mutable_players(0)->set_faction(2);
+  nanommo::protocol::Player* bob = world.add_players();
+  bob->set_id(2);
+  bob->set_name("bob");
+  nanommo::protocol::Npc* herald = world.add_npcs();
+  herald->set_id(1);
+  herald->set_kind(8);
+  nanommo::protocol::Npc* guard = world.add_npcs();
+  guard->set_id(2);
+  guard->set_kind(1);
+  nanommo::Content content;
+  content.factions = *nanommo::ParseFactions(R"pb(
+    factions { id: 1 name: "Concordia" color: 0x4A90E2FF herald: 7 }
+    factions { id: 2 name: "Fortuna" color: 0xE8C547FF herald: 8 }
+  )pb");
+
+  // alice is sworn to Fortuna, and bob to nothing; the herald is Fortuna's,
+  // and the guard nobody's.
+  const auto figures = nanommo::Animator(content).Update(world, 0.1f);
+  ASSERT_EQ(figures.size(), 4u);
+  EXPECT_EQ(figures[0].faction, 2u);
+  EXPECT_EQ(figures[0].faction_color.r, 0xE8);
+  EXPECT_EQ(figures[0].faction_color.b, 0x47);
+  EXPECT_EQ(figures[1].faction, 0u);
+  EXPECT_EQ(figures[1].faction_color.a, 0);
+  EXPECT_TRUE(figures[2].npc);
+  EXPECT_EQ(figures[2].faction, 2u);
+  EXPECT_EQ(figures[3].faction, 0u);
+}
+
 TEST(Animator, KnowsWhichQuestsAnNpcGives) {
   nanommo::protocol::World world;
   nanommo::protocol::Npc* npc = world.add_npcs();

@@ -2,19 +2,25 @@
 #define NANOMMO_CLIENT_PLAYER_FRAME_H_
 
 #include <cstdint>
+#include <map>
+#include <utility>
 #include <vector>
 
 #include "client/animator.h"
 #include "client/offscreen.h"
 #include "client/renderer.h"
+#include "content/factions.h"
 #include "protocol/nanommo.pb.h"
 
 namespace nanommo {
 
 /// You, in the top left: your face in a ring, your name and level, your health
-/// and how far you are into your level.
+/// and how far you are into your level, and the faction you've sworn to.
 class PlayerFrame {
  public:
+  explicit PlayerFrame(std::map<uint32_t, factions::Faction> factions)
+      : factions_(std::move(factions)) {}
+
   /// The portrait's size, in pixels, twice what it's shown at on most
   /// screens, so that it's sharp on the rest.
   static constexpr int kPortraitPixels = 192;
@@ -27,6 +33,7 @@ class PlayerFrame {
             const protocol::World& world) const;
 
  private:
+  std::map<uint32_t, factions::Faction> factions_;
   Offscreen portrait_{kPortraitPixels, kPortraitPixels};
   bool rendered_ = false;
 };

@@ -58,8 +58,8 @@ const Figure* PickNpc(const std::vector<Figure>& figures, const Ray& ray,
                       Vector3 you) {
   return Pick(figures, ray, [you](const Figure& figure) {
     return figure.npc &&
-           (figure.talks || !figure.teaches.empty() ||
-            !figure.quests.empty()) &&
+           (figure.talks || !figure.teaches.empty() || !figure.quests.empty() ||
+            figure.faction != 0) &&
            std::hypot(figure.position.x - you.x, figure.position.z - you.z) <=
                kTalkReach;
   });

@@ -231,7 +231,7 @@ msgstr ""
 msgid "Duel"
 msgstr ""
 
-#: client/duel_window.cc client/guild_window.cc
+#: client/duel_window.cc client/guild_window.cc client/herald_window.cc
 msgid "Not now"
 msgstr ""
 
@@ -470,6 +470,27 @@ msgstr ""
 
 #: client/help_window.cc
 msgid "/trade, /duel or /war and a name asks for a trade, a duel or a war."
+msgstr ""
+
+#. $0 is a faction, as "Concordia".
+#: client/herald_window.cc server/world.cc
+msgid "You're sworn to $0 already."
+msgstr ""
+
+#: client/herald_window.cc
+msgid "Swear to $0, and its colour goes by your name, for everyone to see."
+msgstr ""
+
+#: client/herald_window.cc
+msgid "Enlist"
+msgstr ""
+
+#: client/herald_window.cc
+msgid "It's for good: there's no leaving $0, nor swearing to another."
+msgstr ""
+
+#: client/herald_window.cc
+msgid "Swear"
 msgstr ""
 
 #: client/hotbar.cc
@@ -1688,11 +1709,6 @@ msgstr ""
 
 #. $0 is a faction, as "Concordia".
 #: server/world.cc
-msgid "You're sworn to $0 already."
-msgstr ""
-
-#. $0 is a faction, as "Concordia".
-#: server/world.cc
 msgid "You've joined $0."
 msgstr ""
 
@@ -2290,6 +2306,24 @@ msgstr ""
 #: content/recipes.txtpb
 msgctxt "recipe 3"
 msgid "Temper an Ash Blade"
+msgstr ""
+
+#. A faction's name, in Latin, which may stay as it is.
+#: content/factions.txtpb
+msgctxt "faction 1"
+msgid "Concordia"
+msgstr ""
+
+#. A faction's name, in Latin, which may stay as it is.
+#: content/factions.txtpb
+msgctxt "faction 2"
+msgid "Fortuna"
+msgstr ""
+
+#. A faction's name, in Latin, which may stay as it is.
+#: content/factions.txtpb
+msgctxt "faction 3"
+msgid "Victoria"
 msgstr ""
 
 #. A way to wear the hair.

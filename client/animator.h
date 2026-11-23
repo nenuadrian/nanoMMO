@@ -22,6 +22,10 @@ struct Figure {
   std::string name;
   /// A player's guild, by its name, or empty.
   std::string guild;
+  /// A player's faction, or the one an NPC is the herald of, by its id in the
+  /// factions file, or 0 for none, and its colour.
+  uint32_t faction = 0;
+  Color faction_color = BLANK;
   bool you = false;
   bool monster = false;
   bool npc = false;

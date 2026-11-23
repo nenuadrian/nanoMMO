@@ -35,6 +35,10 @@ const char* NameOf(const recipes::Recipe& recipe) {
   return Tr(absl::StrCat("recipe ", recipe.id()), recipe.name().c_str());
 }
 
+const char* NameOf(const factions::Faction& faction) {
+  return Tr(absl::StrCat("faction ", faction.id()), faction.name().c_str());
+}
+
 const char* NameOf(const figures::Hair& hair) {
   return Tr("hair", hair.name().c_str());
 }

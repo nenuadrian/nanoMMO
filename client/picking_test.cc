@@ -39,13 +39,16 @@ TEST(Picking, PicksTheNearestNpcThatTalksOrTeaches) {
   EXPECT_EQ(nanommo::PickNpc(figures, beside, kHere), nullptr);
 
   // A trainer is picked too, though it doesn't talk, and so is an NPC who
-  // gives quests.
+  // gives quests, and a herald, who swears players to their faction.
   figures.push_back(Npc(4, -6.0f, false));
   figures.back().teaches = {2};
   EXPECT_EQ(nanommo::PickNpc(figures, ahead, kHere)->id, 4u);
   figures.push_back(Npc(5, -5.5f, false));
   figures.back().quests = {1};
   EXPECT_EQ(nanommo::PickNpc(figures, ahead, kHere)->id, 5u);
+  figures.push_back(Npc(6, -5.0f, false));
+  figures.back().faction = 1;
+  EXPECT_EQ(nanommo::PickNpc(figures, ahead, kHere)->id, 6u);
 }
 
 TEST(Picking, PicksTheNearestLivingMonster) {

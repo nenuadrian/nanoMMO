@@ -55,6 +55,11 @@ std::optional<std::string> NameIn(const protocol::Arg& arg,
         return NameOf(*skill);
       }
       break;
+    case protocol::Arg::kFaction:
+      if (const auto* faction = Find(content.factions, arg.faction())) {
+        return NameOf(*faction);
+      }
+      break;
     default:
       break;
   }

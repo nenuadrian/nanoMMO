@@ -70,6 +70,14 @@ Figure Follow(const std::map<uint32_t, Figure>& figures, const Unit& unit,
   return figure;
 }
 
+// The faction's colour, or none for no faction, or one this client's content
+// hasn't got.
+Color ColorOf(const std::map<uint32_t, factions::Faction>& factions,
+              uint32_t faction) {
+  const auto found = factions.find(faction);
+  return found != factions.end() ? GetColor(found->second.color()) : BLANK;
+}
+
 // NPCs stand still, so each is where the server says, and only its clip's time
 // goes on.
 Figure Stand(const std::map<uint32_t, Figure>& figures,
@@ -95,6 +103,10 @@ Figure Stand(const std::map<uint32_t, Figure>& figures,
     figure.teaches = {kind->second.teaches().begin(),
                       kind->second.teaches().end()};
   }
+  // A herald, of their faction.
+  const factions::Faction* heralded = HeraldOf(content.factions, npc.kind());
+  figure.faction = heralded != nullptr ? heralded->id() : 0;
+  figure.faction_color = ColorOf(content.factions, figure.faction);
   figure.quests.clear();
   for (const auto& [id, quest] : content.quests) {
     if (quest.giver() == npc.kind()) {
@@ -146,6 +158,8 @@ std::vector<Figure> Animator::Update(const protocol::World& world,
         Follow(players_, player, player.skill(), player.casts(), seconds);
     figure.name = player.name();
     figure.guild = player.guild();
+    figure.faction = player.faction();
+    figure.faction_color = ColorOf(content_.factions, player.faction());
     figure.you = player.id() == world.you();
     figure.weapon = player.weapon();
     figure.wearing = {player.wearing().begin(), player.wearing().end()};

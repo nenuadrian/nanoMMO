@@ -10,6 +10,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/substitute.h"
+#include "client/names.h"
 #include "client/picking.h"
 #include "client/theme.h"
 #include "client/translations.h"
@@ -98,8 +99,12 @@ void PlayerFrame::Draw(const std::vector<Figure>& figures,
   const ImVec2 plate_min{centre.x, centre.y - Ui(kPlateHeight) / 2.0f};
   const ImVec2 plate_max{centre.x + Ui(kPlateWidth),
                          centre.y + Ui(kPlateHeight) / 2.0f};
+  // Your faction goes under the plate, once you've sworn to one.
+  const auto faction = factions_.find(you->faction);
+  const bool sworn = faction != factions_.end();
   BeginFrame("You", {Ui(kMargin), Ui(kMargin)},
-             {plate_max.x, centre.y + radius + Ui(8.0f)});
+             {plate_max.x,
+              sworn ? plate_max.y + Ui(30.0f) : centre.y + radius + Ui(8.0f)});
   ImDrawList* draw = ImGui::GetWindowDrawList();
   DrawPanel(draw, plate_min, plate_max, 0.92f);
 
@@ -139,6 +144,17 @@ void PlayerFrame::Draw(const std::vector<Figure>& figures,
     DrawShadowedText(draw, bold, Ui(13.0f),
                      {right - extent.x, plate_min.y + Ui(9.0f)}, colors::kMuted,
                      you->guild.c_str());
+  }
+  // Your faction's name, in its colour, after a diamond of it, as over your
+  // head.
+  if (sworn) {
+    const Color color = GetColor(faction->second.color());
+    const ImU32 shown = IM_COL32(color.r, color.g, color.b, 255);
+    const float top = plate_max.y + Ui(6.0f);
+    DrawDiamond(draw, {left + Ui(5.0f), top + Ui(8.0f)}, Ui(5.0f), shown,
+                colors::kNight);
+    DrawShadowedText(draw, bold, Ui(14.0f), {left + Ui(16.0f), top}, shown,
+                     NameOf(faction->second));
   }
   const std::string health = absl::StrCat(you->health, " / ", you->max_health);
   const ImVec2 health_min{left, plate_min.y + Ui(30.0f)};

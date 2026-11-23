@@ -102,6 +102,20 @@ TEST_F(Messages, AreInTheLanguagesFileWithTheContentsNames) {
   EXPECT_EQ(nanommo::Translated(full.message, content),
             "Rucsacul e plin. Întâi trebuie făcut loc pentru o Lamă de "
             "cenușă.");
+  // A faction, by its id, whose name stays as it is, and its herald.
+  const nanommo::factions::Faction& concordia = content.factions.at(1);
+  EXPECT_EQ(
+      nanommo::Translated(
+          nanommo::Msg("You've joined $0.", nanommo::Of(concordia)).message,
+          content),
+      "Intrare în facțiunea Concordia.");
+  EXPECT_EQ(
+      nanommo::Translated(
+          nanommo::Msg("You're too far away to talk to the $0.",
+                       nanommo::Of(content.npcs.kinds.at(concordia.herald())))
+              .message,
+          content),
+      "Prea departe de Vestitorul facțiunii Concordia pentru o discuție.");
 }
 
 TEST_F(Messages, KeepTheNamesPlayersGave) {

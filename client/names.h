@@ -20,6 +20,7 @@ const char* NameOf(const monsters::Kind& kind);
 const char* NameOf(const npcs::Kind& kind);
 const char* NameOf(const quests::Quest& quest);
 const char* NameOf(const recipes::Recipe& recipe);
+const char* NameOf(const factions::Faction& faction);
 const char* NameOf(const figures::Hair& hair);
 const char* NameOf(const rig::Build& build);
 

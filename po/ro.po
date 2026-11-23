@@ -243,7 +243,7 @@ msgstr "Provocare la duel de la $0."
 msgid "Duel"
 msgstr "Accept"
 
-#: client/duel_window.cc client/guild_window.cc
+#: client/duel_window.cc client/guild_window.cc client/herald_window.cc
 msgid "Not now"
 msgstr "Nu acum"
 
@@ -483,6 +483,29 @@ msgstr "Cu /g și un spațiu la început, mesajul ajunge la breaslă."
 #: client/help_window.cc
 msgid "/trade, /duel or /war and a name asks for a trade, a duel or a war."
 msgstr "/trade, /duel sau /war și un nume cer un schimb, un duel sau un război."
+
+# To check: "a jurat credință", swore allegiance, with the faction's name as it is.
+#. $0 is a faction, as "Concordia".
+#: client/herald_window.cc server/world.cc
+msgid "You're sworn to $0 already."
+msgstr "Personajul a jurat deja credință facțiunii $0."
+
+#: client/herald_window.cc
+msgid "Swear to $0, and its colour goes by your name, for everyone to see."
+msgstr "Cu jurământul față de $0, culoarea facțiunii apare lângă numele personajului, la vedere pentru toți."
+
+#: client/herald_window.cc
+msgid "Enlist"
+msgstr "Înrolare"
+
+#: client/herald_window.cc
+msgid "It's for good: there's no leaving $0, nor swearing to another."
+msgstr "E pentru totdeauna: fără ieșire din $0 și fără jurământ față de altă facțiune."
+
+# To check: a noun for the button that swears for good; or "Depunere jurământ"?
+#: client/herald_window.cc
+msgid "Swear"
+msgstr "Jurământ"
 
 #: client/hotbar.cc
 msgid "A swing of what you hold."
@@ -1721,12 +1744,6 @@ msgstr "Misiunea „$0” e deja terminată."
 msgid "Nobody here swears players to a faction."
 msgstr "Nimeni de aici nu înrolează într-o facțiune."
 
-# To check: "a jurat credință", swore allegiance, with the faction's name as it is.
-#. $0 is a faction, as "Concordia".
-#: server/world.cc
-msgid "You're sworn to $0 already."
-msgstr "Personajul a jurat deja credință facțiunii $0."
-
 #. $0 is a faction, as "Concordia".
 #: server/world.cc
 msgid "You've joined $0."
@@ -2355,6 +2372,24 @@ msgstr "Legarea unei săbii de os"
 msgctxt "recipe 3"
 msgid "Temper an Ash Blade"
 msgstr "Călirea unei lame de cenușă"
+
+#. A faction's name, in Latin, which may stay as it is.
+#: content/factions.txtpb
+msgctxt "faction 1"
+msgid "Concordia"
+msgstr "Concordia"
+
+#. A faction's name, in Latin, which may stay as it is.
+#: content/factions.txtpb
+msgctxt "faction 2"
+msgid "Fortuna"
+msgstr "Fortuna"
+
+#. A faction's name, in Latin, which may stay as it is.
+#: content/factions.txtpb
+msgctxt "faction 3"
+msgid "Victoria"
+msgstr "Victoria"
 
 #. A way to wear the hair.
 #: content/figures.txtpb

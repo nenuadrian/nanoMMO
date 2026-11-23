@@ -23,6 +23,10 @@ float Above(const Figure& figure);
 /// nothing left to fight.
 bool HasNameplate(const Figure& figure);
 
+/// The mark before a player's name, or a herald's, in their faction's colour,
+/// or none for one in no faction, or in one this client's content hasn't got.
+std::optional<Color> FactionMark(const Figure& figure);
+
 /// What the player's taking notice of, which says whose nameplates show:
 /// the one the pointer's on, by Who, the one they've picked, and those the
 /// settings show always.
@@ -42,7 +46,8 @@ bool ShowsName(const Figure& figure, const Noticed& noticed);
 /// for an NPC's, as the settings say. Under a monster's health, its skill on
 /// its way, if it has one: a bar that fills as its shape does, in its colour,
 /// and its name. The names of the players in the guild at war with yours, by
-/// its name, are red.
+/// its name, are red, and a player's faction, or a herald's, is a diamond of
+/// its colour before the name.
 void DrawNameplates(const std::vector<Figure>& figures, const Camera3D& camera,
                     const std::map<uint32_t, Telegraph>& telegraphs = {},
                     std::string_view enemy = {}, const Noticed& noticed = {});

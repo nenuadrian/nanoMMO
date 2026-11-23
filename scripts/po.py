@@ -62,6 +62,8 @@ CONTENT = [
     ("content/npcs.txtpb", "kinds", "npc", "An NPC's name."),
     ("content/quests.txtpb", "quests", "quest", "A quest's name."),
     ("content/recipes.txtpb", "recipes", "recipe", "A recipe's name."),
+    ("content/factions.txtpb", "factions", "faction",
+     "A faction's name, in Latin, which may stay as it is."),
     ("content/figures.txtpb", "hairs", "hair", "A way to wear the hair."),
     ("content/rig.txtpb", "builds", "build", "A build, a character's shape."),
 ]

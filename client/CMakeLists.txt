@@ -9,7 +9,7 @@ add_library(nanommo_client_core
   bag_window.cc guild_window.cc trade_window.cc duel_window.cc craft_window.cc round_trip.cc prediction.cc
   interpolation.cc
   character_screen.cc
-  chat_window.cc talk_window.cc trainer_window.cc quest_window.cc picking.cc
+  chat_window.cc talk_window.cc trainer_window.cc quest_window.cc herald_window.cc picking.cc
   animator.cc characters.cc rig.cc moves.cc fx.cc reactions.cc telegraphs.cc figures.cc triangles.cc ground.cc trees.cc chunks.cc
   sea.cc sky.cc
   gate.cc
