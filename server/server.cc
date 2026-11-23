@@ -436,6 +436,7 @@ void Server::Talk(uint32_t id, const protocol::Talk& talk) {
   const auto asked = std::chrono::steady_clock::now();
   if (!story_limits_.at(id).Take(asked)) {
     metrics_.AddStory("refused");
+    // Translators: $0 is an NPC who tells stories.
     Notify(id, Msg("The $0 needs a moment before the next story.", Of(npc)));
     return;
   }

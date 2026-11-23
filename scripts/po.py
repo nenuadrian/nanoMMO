@@ -3,13 +3,15 @@
 
 extract writes the template, po/nanommo.pot: each string the client's sources
 hand to Tr, TrN, TrLabel or N_, or to one of the helpers that translate what
-they're given, such as GameButton, and the content's names, in the context
-the client looks them up in. update merges the template into each language's
-PO file, as gettext's msgmerge would: a translation stays with its string, a
-string that changed a little keeps its old translation marked fuzzy, and one
-that's gone is kept at the end, obsolete, for a string that comes back. check,
-which CI runs, says what's wrong: a template or a PO file that isn't up to
-date, one that can't be read, or a translation the client would show wrong."""
+they're given, such as GameButton, each sentence the servers make with Msg or
+MsgN, which the client translates as it shows it, and the content's names, in
+the context the client looks them up in. update merges the template into each
+language's PO file, as gettext's msgmerge would: a translation stays with its
+string, a string that changed a little keeps its old translation marked fuzzy,
+and one that's gone is kept at the end, obsolete, for a string that comes
+back. check, which CI runs, says what's wrong: a template or a PO file that
+isn't up to date, one that can't be read, or a translation the client would
+show wrong."""
 
 import argparse
 import copy
@@ -40,6 +42,14 @@ KEYWORDS = {
 }
 # Those whose string is an ImGui label, of which what's before "##" shows.
 LABELS = {"TrLabel", "GameButton", "BeginPanel"}
+
+# The servers' sentences, which go to the client as messages, by their English
+# (protocol/messages.h), and the plurals', by their English for one and for
+# more. The offline world, which runs the servers' rules, makes them too.
+SERVER_KEYWORDS = {
+    "Msg": {None: (None, 1, None)},
+    "MsgN": {None: (None, 1, 2)},
+}
 
 # The content's names, by the file, the field its list is in, and the context
 # each is looked up in: its kind, and its id where it has one
@@ -199,10 +209,11 @@ def literals(arg, path):
     return found
 
 
-def from_source(path):
-    """Each string a client source file translates, in order, with a comment
-    for its translators where one's above it, starting "Translators:", which
-    goes with the first string in the statement after it."""
+def from_source(path, keywords=KEYWORDS):
+    """Each string a source file translates, or makes a sentence of for the
+    client to translate, in order, with a comment for its translators where
+    one's above it, starting "Translators:", which goes with the first string
+    in the statement after it."""
     text = (ROOT / path).read_text(encoding="utf-8")
     tokens = cpp_tokens(text, path)
     found = []
@@ -217,7 +228,7 @@ def from_source(path):
         if kind == "punct" and value in ";}":
             note = None
             continue
-        if kind != "name" or value not in KEYWORDS:
+        if kind != "name" or value not in keywords:
             continue
         if i + 1 >= len(tokens) or tokens[i + 1][1] != "(":
             continue
@@ -229,7 +240,7 @@ def from_source(path):
         args = arguments(tokens, i + 2)
         if args is None:
             continue
-        spec = KEYWORDS[value].get(len(args), KEYWORDS[value].get(None))
+        spec = keywords[value].get(len(args), keywords[value].get(None))
         if spec is None:
             continue
         context_at, id_at, plural_at = spec
@@ -326,6 +337,16 @@ def field(fields, name, default=None):
     return next((value for key, value in fields if key == name), default)
 
 
+def counted_item(name):
+    """An item's English for one of it and for more, a plural's two forms, as
+    Counted makes them in protocol/messages.cc: "a Bone" and "$0 Bones", and
+    for a name that's plural already, "a pair of Leather Boots"."""
+    if name.endswith("s"):
+        return f"a pair of {name}", f"$0 pairs of {name}"
+    article = "an" if name and name[0] in "AEIOU" else "a"
+    return f"{article} {name}", f"$0 {name}s"
+
+
 def from_content():
     """The content's names, each in its context, as client/names.cc looks
     them up."""
@@ -353,6 +374,11 @@ def from_content():
             id = field(each, "id")
             context = f"{kind} {id}" if id is not None else kind
             add(path, context, name, note)
+            if kind == "item":
+                one, many = counted_item(name)
+                add(path, context, one,
+                    "So many of an item, as the servers say it: $0 is how "
+                    "many.", plural=many)
             if kind == "monster" and id in counted:
                 add(path, context, f"$0 {name}",
                     "So many of a kind of monster, as a quest asks for: $0 "
@@ -384,17 +410,25 @@ def from_lands():
     return found
 
 
-def extract():
-    """The template's entries, each string once, where it's first found."""
-    sources = sorted(
+def sources_in(*patterns):
+    return sorted(
         str(path.relative_to(ROOT))
-        for pattern in ("client/*.cc", "client/*.h")
+        for pattern in patterns
         for path in ROOT.glob(pattern)
         if not path.name.endswith("_test.cc")
     )
+
+
+def extract():
+    """The template's entries, each string once, where it's first found: the
+    client's, the servers', the lands' and the content's."""
+    client = [e for path in sources_in("client/*.cc", "client/*.h")
+              for e in from_source(path)]
+    servers = [e for path in sources_in("protocol/*.cc", "protocol/*.h",
+                                        "server/*.cc", "server/*.h")
+               for e in from_source(path, SERVER_KEYWORDS)]
     entries = {}
-    for entry in [e for path in sources for e in from_source(path)] + \
-            from_lands() + from_content():
+    for entry in client + servers + from_lands() + from_content():
         known = entries.get(entry.key())
         if known is None:
             entries[entry.key()] = entry

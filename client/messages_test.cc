@@ -7,6 +7,7 @@
 #include <string>
 
 #include "client/translations.h"
+#include "content/content.h"
 #include "gtest/gtest.h"
 #include "protocol/messages.h"
 
@@ -82,6 +83,25 @@ TEST_F(Messages, AreTranslatedWithTheContentsNames) {
           nanommo::Msg("$0", nanommo::Of(content_.items.by_id[4])).message,
           content_),
       "Căciulă");
+}
+
+TEST_F(Messages, AreInTheLanguagesFileWithTheContentsNames) {
+  // The servers' sentences, and so many of each item, are in the template
+  // that scripts/po.py writes, and in Romanian.
+  const nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  ASSERT_TRUE(nanommo::UseLanguage("ro", NANOMMO_PO).ok());
+  const nanommo::Sentence dropped = nanommo::Msg(
+      "The $0 dropped $1.", nanommo::Of(content.monsters.kinds.at(1)),
+      nanommo::Msg("$0 and $1", nanommo::Of(content.items, 3, 20),
+                   nanommo::MsgN("$0 gold", "$0 gold", 5, 5)));
+  EXPECT_EQ(nanommo::Translated(dropped.message, content),
+            "De la Schelet: 20 de Oase și 5 galbeni.");
+  const nanommo::Sentence full =
+      nanommo::Msg("Your bag is full. Make room for $0 first.",
+                   nanommo::Of(content.items, 6, 1));
+  EXPECT_EQ(nanommo::Translated(full.message, content),
+            "Rucsacul e plin. Întâi trebuie făcut loc pentru o Lamă de "
+            "cenușă.");
 }
 
 TEST_F(Messages, KeepTheNamesPlayersGave) {

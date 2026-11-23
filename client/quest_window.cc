@@ -35,6 +35,14 @@ std::string Monsters(const Content& content, const quests::Kill& kill) {
   return NameOf(kind->second, kill.count());
 }
 
+// The experience a quest gives, a plural, as the servers' is, in a quest's
+// prizes.
+std::string Experience(const quests::Quest& quest) {
+  return absl::Substitute(
+      TrN("$0 experience", "$0 experience", quest.experience()),
+      quest.experience());
+}
+
 // What a quest gives, an item's icon and name and how many: "Health Potion
 // x2".
 std::string Prize(const items::Item& item, uint32_t count) {
@@ -77,9 +85,7 @@ std::optional<protocol::Input> QuestWindow::Build(
         "%s  %s", ICON_FA_SKULL,
         absl::Substitute(Tr("Kill $0"), Monsters(content_, quest.kill()))
             .c_str());
-    ImGui::Text(
-        "%s  %s", ICON_FA_STAR,
-        absl::Substitute(Tr("$0 experience"), quest.experience()).c_str());
+    ImGui::Text("%s  %s", ICON_FA_STAR, Experience(quest).c_str());
     for (const quests::Prize& prize : quest.prizes()) {
       ImGui::TextUnformatted(
           Prize(content_.items.by_id.at(prize.item()), prize.count()).c_str());
@@ -217,9 +223,7 @@ std::optional<protocol::Input> QuestLog::Build(const protocol::Quests& yours) {
             colors::kGoldDark, IM_COL32(90, 58, 10, 255), count.c_str());
     ImGui::Dummy({width, Ui(22.0f)});
   }
-  ImGui::Text(
-      "%s  %s", ICON_FA_STAR,
-      absl::Substitute(Tr("$0 experience"), quest.experience()).c_str());
+  ImGui::Text("%s  %s", ICON_FA_STAR, Experience(quest).c_str());
   for (const quests::Prize& prize : quest.prizes()) {
     const auto item = content_.items.by_id.find(prize.item());
     if (item == content_.items.by_id.end()) {

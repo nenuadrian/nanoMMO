@@ -75,7 +75,7 @@ msgstr ""
 msgid "Bag"
 msgstr ""
 
-#: client/bag_window.cc client/trade_window.cc
+#: client/bag_window.cc client/trade_window.cc server/world.cc
 msgid "$0 gold"
 msgid_plural "$0 gold"
 msgstr[0] ""
@@ -115,7 +115,7 @@ msgstr ""
 msgid "Experience $0 / $1"
 msgstr ""
 
-#: client/chat_window.cc client/messages.cc
+#: client/chat_window.cc client/messages.cc protocol/messages.cc
 msgid "something"
 msgstr ""
 
@@ -1012,6 +1012,12 @@ msgid_plural "$0 monsters"
 msgstr[0] ""
 msgstr[1] ""
 
+#: client/quest_window.cc server/world.cc
+msgid "$0 experience"
+msgid_plural "$0 experience"
+msgstr[0] ""
+msgstr[1] ""
+
 #. An item's name, and how many of it.
 #: client/quest_window.cc
 msgid "$0 x$1"
@@ -1019,10 +1025,6 @@ msgstr ""
 
 #: client/quest_window.cc
 msgid "Kill $0"
-msgstr ""
-
-#: client/quest_window.cc
-msgid "$0 experience"
 msgstr ""
 
 #: client/quest_window.cc
@@ -1142,6 +1144,652 @@ msgstr ""
 msgid "From level $0"
 msgstr ""
 
+#: server/accounts.cc
+msgid "Names are 3 to 16 characters long."
+msgstr ""
+
+#: server/accounts.cc
+msgid "Names are letters, digits and underscores."
+msgstr ""
+
+#: server/accounts.cc
+msgid "Passwords are at least 8 characters long."
+msgstr ""
+
+#: server/accounts.cc
+msgid "Passwords are at most 128 characters long."
+msgstr ""
+
+#: server/characters.cc
+msgid "That isn't a look there is."
+msgstr ""
+
+#: server/characters.cc
+msgid "Someone in $0 is called that already."
+msgstr ""
+
+#: server/characters.cc
+msgid "You have $0 character in $1 already."
+msgid_plural "You have $0 characters in $1 already."
+msgstr[0] ""
+msgstr[1] ""
+
+#: server/characters.cc
+msgid "That character isn't yours."
+msgstr ""
+
+#: server/guilds.cc
+msgid "Your guild is at war already."
+msgstr ""
+
+#: server/guilds.cc
+msgid "$0 is at war already."
+msgstr ""
+
+#: server/guilds.cc
+msgid "They're not in your guild."
+msgstr ""
+
+#: server/guilds.cc server/server.cc
+msgid "You're in no guild."
+msgstr ""
+
+#: server/guilds.cc
+msgid "Guild names are 3 to 24 characters long."
+msgstr ""
+
+#: server/guilds.cc
+msgid "Guild names are letters, with one space between words."
+msgstr ""
+
+#: server/guilds.cc
+msgid "There's a guild called that in $0 already."
+msgstr ""
+
+#: server/guilds.cc
+msgid "You're in a guild already."
+msgstr ""
+
+#: server/guilds.cc
+msgid "Only officers and the leader can ask someone in."
+msgstr ""
+
+#: server/guilds.cc
+msgid "They've been asked to join a guild."
+msgstr ""
+
+#: server/guilds.cc
+msgid "Nobody's asked you, or it's run out."
+msgstr ""
+
+#: server/guilds.cc
+msgid "That guild is gone."
+msgstr ""
+
+#: server/guilds.cc
+msgid "$0 is full."
+msgstr ""
+
+#: server/guilds.cc
+msgid "The leader makes members officers, and officers members."
+msgstr ""
+
+#: server/guilds.cc
+msgid "Only the leader changes ranks."
+msgstr ""
+
+#: server/guilds.cc
+msgid "To go, leave the guild."
+msgstr ""
+
+#: server/guilds.cc
+msgid "The leader removes officers and members, and officers members."
+msgstr ""
+
+#: server/guilds.cc
+msgid "Nobody's removed from a guild at war until the war's over."
+msgstr ""
+
+#: server/guilds.cc
+msgid "Only the leader disbands the guild."
+msgstr ""
+
+#: server/guilds.cc
+msgid "A guild at war can't be disbanded until the war's over."
+msgstr ""
+
+#: server/guilds.cc
+msgid "Only the leader takes the guild to war."
+msgstr ""
+
+#: server/guilds.cc
+msgid "There's no guild called $0 in $1."
+msgstr ""
+
+#: server/guilds.cc
+msgid "Your guild can't go to war with itself."
+msgstr ""
+
+#: server/guilds.cc
+msgid "You've asked $0 already."
+msgstr ""
+
+#: server/guilds.cc
+msgid "Nobody leaves a guild at war until the war's over."
+msgstr ""
+
+#: server/inventory.cc server/trades.cc server/world.cc
+msgid "There's nothing there."
+msgstr ""
+
+#: server/inventory.cc server/trades.cc
+msgid "You haven't that much gold."
+msgstr ""
+
+#: server/inventory.cc
+msgid "You can't wear that."
+msgstr ""
+
+#: server/inventory.cc
+msgid "You can't wear the $0."
+msgstr ""
+
+#. $1 is the slot, such as "main hand".
+#: server/inventory.cc
+msgid "The $0 goes in the $1 slot."
+msgstr ""
+
+#: server/inventory.cc
+msgid "There's no such place."
+msgstr ""
+
+#: server/inventory.cc
+msgid "That stack is full."
+msgstr ""
+
+#: server/inventory.cc
+msgid "Only a whole stack can swap places."
+msgstr ""
+
+#: server/inventory.cc
+msgid "There aren't that many there."
+msgstr ""
+
+#: server/login_server.cc
+msgid "That name is taken."
+msgstr ""
+
+#: server/login_server.cc
+msgid "Wrong name or password."
+msgstr ""
+
+#. $0 is the servers' version, such as 0.96.0.
+#: server/login_server.cc
+msgid "This client is too old for the servers, which are $0. Get the new one to play."
+msgstr ""
+
+#. $0 is this client's version, and $1 the servers', such as 0.96.0.
+#: server/login_server.cc
+msgid "This client is $0, and the servers are $1. Get the $1 client to play."
+msgstr ""
+
+#: server/login_server.cc
+msgid "You've been away a while. Log in again."
+msgstr ""
+
+#: server/login_server.cc
+msgid "The server couldn't do that. Try again later."
+msgstr ""
+
+#: server/login_server.cc
+msgid "The server couldn't list the worlds. Try again later."
+msgstr ""
+
+#: server/server.cc
+msgid "You're talking too fast, so nobody heard that."
+msgstr ""
+
+#. $0 is an NPC, as "Guard".
+#: server/server.cc server/world.cc
+msgid "You're too far away to talk to the $0."
+msgstr ""
+
+#. $0 is an NPC who tells stories.
+#: server/server.cc
+msgid "The $0 needs a moment before the next story."
+msgstr ""
+
+#: server/server.cc
+msgid "I can't think of a story right now."
+msgstr ""
+
+#: server/server.cc
+msgid "You're moving things too fast."
+msgstr ""
+
+#: server/server.cc
+msgid "You're asking for duels too fast."
+msgstr ""
+
+#: server/server.cc
+msgid "You're crafting too fast."
+msgstr ""
+
+#: server/server.cc
+msgid "You're doing that too fast."
+msgstr ""
+
+#: server/server.cc
+msgid "Nobody of that name is playing in $0 now."
+msgstr ""
+
+#: server/server.cc
+msgid "$0 is in a guild already."
+msgstr ""
+
+#: server/server.cc
+msgid "You asked $0 to join $1."
+msgstr ""
+
+#: server/server.cc
+msgid "$0 joined $1."
+msgstr ""
+
+#. $2 is who leads the guild after them.
+#: server/server.cc
+msgid "$0 left $1. $2 leads it now."
+msgstr ""
+
+#: server/server.cc
+msgid "$0 left $1."
+msgstr ""
+
+#: server/server.cc
+msgid "You were the last in $0, so it's no more."
+msgstr ""
+
+#: server/server.cc
+msgid "You left $0."
+msgstr ""
+
+#: server/server.cc
+msgid "$0 is an officer now."
+msgstr ""
+
+#: server/server.cc
+msgid "$0 is a member now."
+msgstr ""
+
+#: server/server.cc
+msgid "You were removed from $0."
+msgstr ""
+
+#: server/server.cc
+msgid "$0 removed $1 from $2."
+msgstr ""
+
+#: server/server.cc
+msgid "$0 disbanded $1."
+msgstr ""
+
+#. /war is the chat's command, which stays as it is, and $0 the guild that asks.
+#: server/server.cc
+msgid "$0 asks $1 to war. Your leader types /war $0 to say yes."
+msgstr ""
+
+#: server/server.cc
+msgid "You asked $0 to war."
+msgstr ""
+
+#: server/server.cc
+msgid "$0 and $1 are at war, for $2 minute."
+msgid_plural "$0 and $1 are at war, for $2 minutes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: server/server.cc
+msgid "The war between $0 and $1 is over."
+msgstr ""
+
+#: server/server.cc
+msgid "$0 killed $1."
+msgstr ""
+
+#: server/server.cc
+msgid "That didn't work. Try again."
+msgstr ""
+
+#: server/server.cc
+msgid "The duel's off, as the world moves to its next instance."
+msgstr ""
+
+#: server/trades.cc server/world.cc
+msgid "You're not trading with anyone."
+msgstr ""
+
+#: server/trades.cc
+msgid "You can't trade that."
+msgstr ""
+
+#: server/trades.cc
+msgid "The trade has changed, so look at it again."
+msgstr ""
+
+#: server/trades.cc
+msgid "The items offered aren't all there any more."
+msgstr ""
+
+#: server/trades.cc
+msgid "The gold offered isn't all there any more."
+msgstr ""
+
+#: server/trades.cc
+msgid "There isn't room for the trade in one of the bags."
+msgstr ""
+
+#: server/trades.cc
+msgid "That's more gold than can be carried."
+msgstr ""
+
+#: server/world.cc
+msgid "You can't, while it's offered in your trade."
+msgstr ""
+
+#: server/world.cc
+msgid "You can't, while you're dead."
+msgstr ""
+
+#. The last two of a list, such as what a monster dropped.
+#: server/world.cc
+msgid "$0 and $1"
+msgstr ""
+
+#. One of a list, and the rest of it after a comma.
+#: server/world.cc
+msgid "$0, $1"
+msgstr ""
+
+#. How long until a boss rises again.
+#: server/world.cc
+msgid "$0 second"
+msgid_plural "$0 seconds"
+msgstr[0] ""
+msgstr[1] ""
+
+#. How long until a boss rises again.
+#: server/world.cc
+msgid "a minute"
+msgid_plural "$0 minutes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: server/world.cc
+msgid "$0 has gone, so the trade's off."
+msgstr ""
+
+#: server/world.cc
+msgid "$0 has gone, so the duel's off."
+msgstr ""
+
+#: server/world.cc
+msgid "There's nobody to move it."
+msgstr ""
+
+#: server/world.cc
+msgid "There's nobody to throw it away."
+msgstr ""
+
+#: server/world.cc
+msgid "There's nobody to use it."
+msgstr ""
+
+#: server/world.cc
+msgid "You can't use that."
+msgstr ""
+
+#: server/world.cc
+msgid "You can't use the $0."
+msgstr ""
+
+#. $1 is how many seconds, and s their symbol.
+#: server/world.cc
+msgid "You can use another $0 in $1 s."
+msgstr ""
+
+#: server/world.cc
+msgid "You're at full health already."
+msgstr ""
+
+#: server/world.cc
+msgid "There's no such recipe."
+msgstr ""
+
+#: server/world.cc
+msgid "You're making something already."
+msgstr ""
+
+#: server/world.cc
+msgid "You can make $0 from level $1."
+msgstr ""
+
+#: server/world.cc
+msgid "Nobody of that name is here."
+msgstr ""
+
+#: server/world.cc
+msgid "You can't trade with yourself."
+msgstr ""
+
+#: server/world.cc
+msgid "You're too far away to trade with $0."
+msgstr ""
+
+#: server/world.cc
+msgid "You're trading already."
+msgstr ""
+
+#: server/world.cc
+msgid "$0 is trading with someone already."
+msgstr ""
+
+#. /trade is the chat's command, which stays as it is.
+#: server/world.cc
+msgid "$0 asks to trade. Type /trade $0 to say yes."
+msgstr ""
+
+#: server/world.cc
+msgid "You asked $0 to trade."
+msgstr ""
+
+#: server/world.cc
+msgid "There's nobody to trade."
+msgstr ""
+
+#: server/world.cc
+msgid "You traded with $0."
+msgstr ""
+
+#: server/world.cc
+msgid "$0 called the trade off."
+msgstr ""
+
+#: server/world.cc
+msgid "You can't duel yourself."
+msgstr ""
+
+#: server/world.cc
+msgid "You're too far away to duel $0."
+msgstr ""
+
+#: server/world.cc
+msgid "You're in a duel already."
+msgstr ""
+
+#: server/world.cc
+msgid "$0 is in a duel already."
+msgstr ""
+
+#. /duel yes is the chat's command, which stays as it is.
+#: server/world.cc
+msgid "$0 asks you to duel. Type /duel yes to say yes."
+msgstr ""
+
+#: server/world.cc
+msgid "You asked $0 to duel."
+msgstr ""
+
+#: server/world.cc
+msgid "Nobody's asked you to duel."
+msgstr ""
+
+#: server/world.cc
+msgid "$0 said no to a duel."
+msgstr ""
+
+#: server/world.cc
+msgid "You're not in a duel."
+msgstr ""
+
+#: server/world.cc
+msgid "$0 called the duel off."
+msgstr ""
+
+#: server/world.cc
+msgid "Nobody here teaches that."
+msgstr ""
+
+#: server/world.cc
+msgid "You're too far away to learn from the $0."
+msgstr ""
+
+#: server/world.cc
+msgid "You can learn $0 from level $1."
+msgstr ""
+
+#: server/world.cc
+msgid "You know $0 already."
+msgstr ""
+
+#: server/world.cc
+msgid "Nobody here gives that quest."
+msgstr ""
+
+#: server/world.cc
+msgid "You're on $0 already."
+msgstr ""
+
+#: server/world.cc
+msgid "You've done $0 already."
+msgstr ""
+
+#: server/world.cc
+msgid "You're not on that quest."
+msgstr ""
+
+#: server/world.cc
+msgid "Nobody here takes that quest."
+msgstr ""
+
+#: server/world.cc
+msgid "You're not on $0."
+msgstr ""
+
+#. $0 is the quest, $1 how many kills it asks for, and $2 how many there have been.
+#: server/world.cc
+msgid "$0 asks for $1, and you've killed $2."
+msgstr ""
+
+#: server/world.cc
+msgid "Your bag is full. Make room for the prizes first."
+msgstr ""
+
+#. $0 is the quest, and $1 its prizes, as "100 experience and a Bone".
+#: server/world.cc
+msgid "You've done $0, for $1."
+msgstr ""
+
+#: server/world.cc
+msgid "The $0 has fallen. It rises again in $1."
+msgstr ""
+
+#. $1 is who took the most of its health, and $2 how long until it's back.
+#: server/world.cc
+msgid "The $0 has fallen to $1. It rises again in $2."
+msgstr ""
+
+#. $1 is who took the most of its health, $2 how many others helped, and $3 how long until it's back.
+#: server/world.cc
+msgid "The $0 has fallen to $1 and $2 other. It rises again in $3."
+msgid_plural "The $0 has fallen to $1 and $2 others. It rises again in $3."
+msgstr[0] ""
+msgstr[1] ""
+
+#. $0 is a monster, and $1 what it dropped, as "2 Bones and 5 gold".
+#: server/world.cc
+msgid "The $0 dropped $1."
+msgstr ""
+
+#. $0 is what didn't fit, as "2 Bones and a Sword".
+#: server/world.cc
+msgid "Your bag is full, so you left $0 behind."
+msgstr ""
+
+#. $0 is the quest, $1 how many have been killed, $2 how many of which monster it asks for, as "10 Skeletons", and $3 who gave it.
+#: server/world.cc
+msgid "$0: $1 of $2 killed. Go back to the $3."
+msgstr ""
+
+#. $0 is the quest, $1 how many have been killed, and $2 how many of which monster it asks for, as "10 Skeletons".
+#: server/world.cc
+msgid "$0: $1 of $2 killed."
+msgstr ""
+
+#. $0 is so many of an item, as "10 Bones", and $1 what's made, as "a Bone Sword".
+#: server/world.cc
+msgid "You need $0 in your bag to make $1."
+msgstr ""
+
+#: server/world.cc
+msgid "Your bag is full. Make room for $0 first."
+msgstr ""
+
+#. $1 is why, a sentence of its own.
+#: server/world.cc
+msgid "You couldn't make $0. $1"
+msgstr ""
+
+#: server/world.cc
+msgid "You made $0."
+msgstr ""
+
+#: server/world.cc
+msgid "You stopped making $0."
+msgstr ""
+
+#: server/world.cc
+msgid "$0 didn't answer, so there's no duel."
+msgstr ""
+
+#: server/world.cc
+msgid "You went too far from the flag."
+msgstr ""
+
+#: server/world.cc
+msgid "$0 won the duel."
+msgstr ""
+
+#: server/world.cc
+msgid "You won the duel against $0."
+msgstr ""
+
+#: server/world.cc
+msgid "The $0 has risen."
+msgstr ""
+
+#: server/world.cc
+msgid "The $0 rises again in $1."
+msgstr ""
+
 #. A land's name, which "The $0" makes a title.
 #: terrain/lands.h
 msgctxt "land"
@@ -1166,11 +1814,27 @@ msgctxt "item 1"
 msgid "Sword"
 msgstr ""
 
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 1"
+msgid "a Sword"
+msgid_plural "$0 Swords"
+msgstr[0] ""
+msgstr[1] ""
+
 #. An item's name.
 #: content/items.txtpb
 msgctxt "item 2"
 msgid "Health Potion"
 msgstr ""
+
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 2"
+msgid "a Health Potion"
+msgid_plural "$0 Health Potions"
+msgstr[0] ""
+msgstr[1] ""
 
 #. An item's name.
 #: content/items.txtpb
@@ -1178,11 +1842,27 @@ msgctxt "item 3"
 msgid "Bone"
 msgstr ""
 
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 3"
+msgid "a Bone"
+msgid_plural "$0 Bones"
+msgstr[0] ""
+msgstr[1] ""
+
 #. An item's name.
 #: content/items.txtpb
 msgctxt "item 4"
 msgid "Leather Cap"
 msgstr ""
+
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 4"
+msgid "a Leather Cap"
+msgid_plural "$0 Leather Caps"
+msgstr[0] ""
+msgstr[1] ""
 
 #. An item's name.
 #: content/items.txtpb
@@ -1190,11 +1870,27 @@ msgctxt "item 5"
 msgid "Leather Tunic"
 msgstr ""
 
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 5"
+msgid "a Leather Tunic"
+msgid_plural "$0 Leather Tunics"
+msgstr[0] ""
+msgstr[1] ""
+
 #. An item's name.
 #: content/items.txtpb
 msgctxt "item 6"
 msgid "Ash Blade"
 msgstr ""
+
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 6"
+msgid "an Ash Blade"
+msgid_plural "$0 Ash Blades"
+msgstr[0] ""
+msgstr[1] ""
 
 #. An item's name.
 #: content/items.txtpb
@@ -1202,11 +1898,27 @@ msgctxt "item 7"
 msgid "Ash Buckler"
 msgstr ""
 
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 7"
+msgid "an Ash Buckler"
+msgid_plural "$0 Ash Bucklers"
+msgstr[0] ""
+msgstr[1] ""
+
 #. An item's name.
 #: content/items.txtpb
 msgctxt "item 8"
 msgid "Linen Shirt"
 msgstr ""
+
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 8"
+msgid "a Linen Shirt"
+msgid_plural "$0 Linen Shirts"
+msgstr[0] ""
+msgstr[1] ""
 
 #. An item's name.
 #: content/items.txtpb
@@ -1214,11 +1926,27 @@ msgctxt "item 9"
 msgid "Cloth Trousers"
 msgstr ""
 
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 9"
+msgid "a pair of Cloth Trousers"
+msgid_plural "$0 pairs of Cloth Trousers"
+msgstr[0] ""
+msgstr[1] ""
+
 #. An item's name.
 #: content/items.txtpb
 msgctxt "item 10"
 msgid "Plain Shoes"
 msgstr ""
+
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 10"
+msgid "a pair of Plain Shoes"
+msgid_plural "$0 pairs of Plain Shoes"
+msgstr[0] ""
+msgstr[1] ""
 
 #. An item's name.
 #: content/items.txtpb
@@ -1226,17 +1954,41 @@ msgctxt "item 11"
 msgid "Leather Boots"
 msgstr ""
 
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 11"
+msgid "a pair of Leather Boots"
+msgid_plural "$0 pairs of Leather Boots"
+msgstr[0] ""
+msgstr[1] ""
+
 #. An item's name.
 #: content/items.txtpb
 msgctxt "item 12"
 msgid "Bone Buckler"
 msgstr ""
 
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 12"
+msgid "a Bone Buckler"
+msgid_plural "$0 Bone Bucklers"
+msgstr[0] ""
+msgstr[1] ""
+
 #. An item's name.
 #: content/items.txtpb
 msgctxt "item 13"
 msgid "Bone Sword"
 msgstr ""
+
+#. So many of an item, as the servers say it: $0 is how many.
+#: content/items.txtpb
+msgctxt "item 13"
+msgid "a Bone Sword"
+msgid_plural "$0 Bone Swords"
+msgstr[0] ""
+msgstr[1] ""
 
 #. A skill's name.
 #: content/skills.txtpb

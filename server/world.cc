@@ -127,12 +127,12 @@ Part List(std::vector<Part> things) {
   Part list = std::move(things.back());
   things.pop_back();
   if (!things.empty()) {
-    // Translators: the last two of a list, such as what a monster dropped.
+    // Translators: The last two of a list, such as what a monster dropped.
     list = Of(Msg("$0 and $1", std::move(things.back()), std::move(list)));
     things.pop_back();
   }
   while (!things.empty()) {
-    // Translators: one of a list, and the rest of it after a comma.
+    // Translators: One of a list, and the rest of it after a comma.
     list = Of(Msg("$0, $1", std::move(things.back()), std::move(list)));
     things.pop_back();
   }
@@ -169,11 +169,11 @@ bool Gain(Player& player, uint32_t experience) {
 Sentence InWords(std::chrono::nanoseconds time) {
   const auto seconds = static_cast<uint64_t>(
       std::chrono::duration_cast<std::chrono::seconds>(time).count());
-  // Translators: how long until a boss rises again.
+  // Translators: How long until a boss rises again.
   if (seconds % 60 != 0) {
     return MsgN("$0 second", "$0 seconds", seconds, seconds);
   }
-  // Translators: how long until a boss rises again.
+  // Translators: How long until a boss rises again.
   return MsgN("a minute", "$0 minutes", seconds / 60, seconds / 60);
 }
 
@@ -812,6 +812,7 @@ absl::Status World::TakeQuest(uint32_t id, uint32_t npc, uint32_t quest) {
   }
   if (std::hypot(giver->second.x - player->second.x,
                  giver->second.z - player->second.z) > kTalkReach) {
+    // Translators: $0 is an NPC, as "Guard".
     return Refusal(
         absl::StatusCode::kOutOfRange,
         Msg("You're too far away to talk to the $0.", Of(giver->second)));
@@ -1508,10 +1509,13 @@ void World::Loot(uint32_t id, Player& player, const Monster& monster) {
     }
   }
   if (!kept.empty()) {
+    // Translators: $0 is a monster, and $1 what it dropped, as "2 Bones and
+    // 5 gold".
     Tell(id,
          Msg("The $0 dropped $1.", Of(kind->second), List(std::move(kept))));
   }
   if (!left.empty()) {
+    // Translators: $0 is what didn't fit, as "2 Bones and a Sword".
     Tell(id, Msg("Your bag is full, so you left $0 behind.",
                  List(std::move(left))));
   }
@@ -1598,6 +1602,8 @@ absl::StatusOr<Inventory> World::Made(uint32_t id, const Player& player,
       left -= taken;
     }
     if (left > 0) {
+      // Translators: $0 is so many of an item, as "10 Bones", and $1 what's
+      // made, as "a Bone Sword".
       return Refusal(absl::StatusCode::kFailedPrecondition,
                      Msg("You need $0 in your bag to make $1.",
                          Of(content_->items, input.item(), input.count()),
