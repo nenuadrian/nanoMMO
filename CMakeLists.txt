@@ -55,8 +55,8 @@ FetchContent_Declare(
 )
 FetchContent_Declare(
   rlimgui
-  URL https://github.com/raylib-extras/rlImGui/archive/1550009359ad975927f7f0e4a3f47e3f27123ea9.tar.gz
-  URL_HASH SHA256=7d04ff0c996a89190e1050d3c4448ad784479723c76893efea2d731bd5eb839f
+  URL https://github.com/raylib-extras/rlImGui/archive/5c17e70e98ae9f50ca94bdcad0e3b3536b46a203.tar.gz
+  URL_HASH SHA256=008e1f8012549c561ae00fce52a5b2c81e3d52604f270cd8ade9ee6d299a166d
 )
 # In a browser, raylib draws with WebGL 2, which is OpenGL ES 3.0.
 if(EMSCRIPTEN)
@@ -143,8 +143,8 @@ set(BUILD_SHARED_LIBS OFF)
 set(DISABLE_TESTS ON)
 FetchContent_Declare(
   hiredis
-  URL https://github.com/redis/hiredis/archive/refs/tags/v1.5.0.tar.gz
-  URL_HASH SHA256=eec7ef8641d221e144a58d5ef8d733c8c75c7fd487097a233aacb4fa33981cfb
+  URL https://github.com/redis/hiredis/archive/refs/tags/v1.5.1.tar.gz
+  URL_HASH SHA256=f5ec19151c0f4f15ca018c22b17b6f6739a672a4fc0c085b692aef69a154ebef
   SYSTEM
 )
 FetchContent_MakeAvailable(hiredis)
@@ -171,8 +171,8 @@ if(NANOMMO_SANITIZE MATCHES "thread")
 endif()
 FetchContent_Declare(
   httplib
-  URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.65.0.tar.gz
-  URL_HASH SHA256=6fda8f23ff811a751c2b6e694fe2f1aa1625df53a317110329ef57a18f9fa5fb
+  URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.67.0.tar.gz
+  URL_HASH SHA256=be711ddaf7a3655d8f23aa5655709250b24d247aedd4b2629989d18b6164e5be
   SYSTEM
 )
 FetchContent_MakeAvailable(httplib)
@@ -184,8 +184,8 @@ FetchContent_MakeAvailable(httplib)
 # they use, stay out when another project fetches it.
 FetchContent_Declare(
   smollergraph
-  URL https://github.com/nenuadrian/smollerGraph/archive/refs/tags/v0.20.0.tar.gz
-  URL_HASH SHA256=47db65ece73011395af3a0cf9fb8831fd919de90f39c0cd671415fa06f400408
+  URL https://github.com/nenuadrian/smollerGraph/archive/refs/tags/v0.20.2.tar.gz
+  URL_HASH SHA256=224f3c41da983a5849c177188e5bed450704f6d34a4143b4e3acd50b000ebeb5
   SYSTEM
   EXCLUDE_FROM_ALL
 )
