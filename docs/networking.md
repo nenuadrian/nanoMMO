@@ -66,7 +66,8 @@ would be hidden in the fog anyway.
 - Names, levels and the most health a unit can have go out once a second, with every twentieth world
   (`kFullEvery`), and the client keeps the last ones it had in between. Protobuf leaves out a field
   that's empty or zero, and no name or level is. A player's looks go with their name, as they never
-  change (see [A character's looks](#a-characters-looks)).
+  change (see [A character's looks](#a-characters-looks)), and so does their faction, which changes
+  once at most (see [A faction's messages](#a-factions-messages)).
 
 With bots that spread over the island, `bench/load.sh 100 12` on an Apple M4 Pro, with the bots on the
 same machine as the server:
@@ -242,6 +243,21 @@ client says no more than which.
 Giving up a quest you're not on, or one you've turned in, is a line from nobody: "You're not on
 that quest."
 
+## A faction's messages
+
+A player swears to a faction at its herald ([Gameplay](gameplay.md#factions)), once, so the
+client says no more than which herald, and everyone near sees the faction as they see a guild.
+
+| Message | Field | What |
+|---|---|---|
+| `Input` | `enlist`, 24 | A herald, by the NPC's id, once, over TCP. The world checks it as it does a trainer: an NPC in your land, within talking reach, who's a herald, and you in no faction yet. Zero, the default, swears to nothing |
+| `Player` | `faction`, 18 | The faction they've sworn to, by its id in the factions file, of everyone near you, once a second, with the name, which the client keeps in between, as it does a guild. A player with their name and no faction is in none. Your own part of each world leaves it out, as it does your name |
+| `Arg` | `faction`, 11 | A faction in a server's sentence, by its id, "You've joined $0.", which the client names in its player's language, in the context `faction 1` |
+
+What's refused is a line from nobody: "Nobody here swears players to a faction.", "You're too far
+away to talk to the Herald of Concordia." or "You're sworn to Concordia already.". A faction is a
+byte or two in each player's piece of a full world, and nothing in the worlds between.
+
 ## Blows where the attacker saw them
 
 A client draws everyone else 100 milliseconds in the past (above), and its keys reach the server a
@@ -302,7 +318,7 @@ its English, which is its key, with `$0` to `$9`, and its args.
 | `Message` | `plural`, 2, and `count`, 3 | A plural's English for any other count, and the count, which picks its form |
 | `Message` | `args`, 4 | An `Arg` for each placeholder, in order |
 | `Arg` | `number`, 1, `name`, 2, or `phrase`, 3 | A number, a name a player gave or a version, as it is, or a `Message` of its own, such as so much gold, or the rest of a list |
-| `Arg` | `item`, 4, `monster`, 5, `npc`, 6, `quest`, 7, `skill`, 8, or `slot`, 9 | The content's, by its id, a kind of monster or of NPC by its kind's, or a slot of the bag, which the client names in its player's language |
+| `Arg` | `item`, 4, `monster`, 5, `npc`, 6, `quest`, 7, `skill`, 8, `slot`, 9, or `faction`, 11 | The content's, by its id, a kind of monster or of NPC by its kind's, or a slot of the bag, which the client names in its player's language |
 | `Arg` | `count`, 10 | With an item or a monster, so many of it, "a Bone" or "3 Bones". None, its name alone |
 | `Chat` | `message`, 4 | A line from nobody, in place of `text`, which is what players say |
 | `Chat` | `npc`, 5 | An NPC who speaks, in place of `name`, by its kind, as a storyteller does |

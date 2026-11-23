@@ -121,6 +121,7 @@ The records by what they're about, each group in the order they were written.
 | [0041](0041-guilds-at-war-hurt-each-other-anywhere.md) | Guilds at war hurt each other anywhere, for half an hour, and count their kills | Accepted | 91 |
 | [0042](0042-a-war-kill-counts-once-and-nobody-leaves-a-war.md) | A war kill counts once, a victim scores once every five minutes, and nobody leaves a war | Accepted | 92 |
 | [0043](0043-craft-from-the-bag-without-a-station-and-a-recipe-needs-all-it-takes.md) | Craft from the bag, without a station, and a recipe needs all it takes | Accepted | 93 |
+| [0047](0047-a-faction-is-sworn-to-once-at-its-herald-and-means-nothing-in-a-fight-yet.md) | A faction is sworn to once, at its herald, guilds have none, and it means nothing in a fight yet | Accepted | 97 |
 
 ### Deployment and monitoring
 

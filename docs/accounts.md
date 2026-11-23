@@ -48,7 +48,9 @@ The characters' listing has each one's looks (`CharacterListing`'s `looks`), whi
 preview draws it in. A character made without looks, as the bots and the red-team client make
 theirs, and every character from before 0.94.0, has NULL in all five, and no looks in its listing,
 and its id picks how it looks, as before. One with a NULL shirt alone gets its looks without one,
-and its id picks the shirt's colour. Nothing changes a character's looks once it's made.
+and its id picks the shirt's colour. Nothing changes a character's looks once it's made. A new
+character is in no faction, NULL in `faction`, from V18, until it swears to one in the world (see
+[Factions](gameplay.md#factions)).
 
 The world plays a character by its id, so Redis keeps it as `player:<world>:<id>`, and its skills
 and bag go by that id (see [Saving players](saving.md)). V10 made characters from the players there

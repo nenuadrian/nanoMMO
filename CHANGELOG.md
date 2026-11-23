@@ -7,6 +7,36 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.97.0 (2026-11-23)
+
+- Factions: Concordia, in sky blue, Fortuna, in gold, and Victoria, in crimson, named in Latin
+  after the Roman gods of harmony, luck and victory, each with a herald in the Meadows, in a row to
+  the west of where new players start. A new character is in none. A click on a herald opens their
+  window, and Enlist, and then Swear, as it asks once more, swears you to their faction, for good:
+  "You've joined Concordia." Asking again, at any herald, is "You're sworn to Concordia already."
+  Factions mean nothing in a fight yet, and guilds have none, so guildmates can be in different
+  ones.
+- `content/factions.txtpb`, with `factions.proto`, has each faction's id, name, colour and herald,
+  a kind of NPC. The NPCs file has the three heralds, kinds 7 to 9, in their factions' colours.
+  `ParseFactions` refuses a faction with no colour or no herald, and two with one herald,
+  `CheckContent` one whose herald isn't in the NPCs file, and the content graph has a faction its
+  herald `ENLISTS` players in, so one whose herald stands nowhere is out of reach. The factions are
+  in `ClientHash`.
+- `Input` has `enlist`, 24, a herald's id, which `World::Enlist` checks as it does a trainer, and the
+  offline world takes too. `Player` has `faction`, 18, which goes with the name, once a second, and
+  `Arg` has `faction`, 11, for a faction in a server's sentence. This changes what the client and
+  the servers say to each other, so the login server turns a 0.96.0 client away.
+- A sworn player has a diamond in their faction's colour before their level and name, as does a
+  herald before theirs, and their own frame has their faction's name under it.
+- A player's faction is saved with the rest of them, through Redis, and the saver writes it to
+  `players.faction`, from V18, only where the row has none, so nothing switches it.
+- The factions' names are translated, in the context `faction 1`, and stay as they are in Romanian,
+  in the heralds' names too: "Vestitorul facțiunii Concordia". The template has 525 strings, and
+  `ro.po` translates them all.
+- The bots swear to a faction each, in turn by their numbers, at its herald, before their quests.
+- Decision record 47 says why a faction is sworn to once, at its herald, why guilds have none, and
+  why it means nothing in a fight yet.
+
 ## 0.96.0 (2026-11-23)
 
 - What the servers say is in the player's language: a login server's errors, such as a name that's

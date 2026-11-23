@@ -650,6 +650,39 @@ kill is [decision 41](decisions/0041-guilds-at-war-hurt-each-other-anywhere.md),
 counts once, a victim scores once every five minutes, and nobody leaves a war is
 [decision 42](decisions/0042-a-war-kill-counts-once-and-nobody-leaves-a-war.md).
 
+## Factions
+
+Each world has three factions, named in Latin after the Roman gods of harmony, luck and victory:
+Concordia, in sky blue, Fortuna, in gold, and Victoria, in crimson. A new character is in none. To
+the west of where new players start, in the Meadows, stand the three heralds, the Herald of
+Concordia, of Fortuna and of Victoria, each in their faction's colour, with a diamond of it before
+their name. A click on one, within talking reach, opens their window: their faction's name, in its
+colour, a line on what swearing to it does, and Enlist. Enlist asks once more, "It's for good:
+there's no leaving Concordia, nor swearing to another.", with Swear and Not now. Swear sends the
+herald's id, and the world says "You've joined Concordia." in the chat.
+
+- A faction is for good, for now: there's no leaving it, nor swearing to another. A sworn player
+  who asks again, at any herald, hears "You're sworn to Concordia already.", and a herald's window
+  says the same, without a button.
+- The heralds stand in the Meadows alone, and the offline world has them too, with the same rules,
+  though nothing offline is saved.
+- A sworn player has a diamond in their faction's colour before their level and name, over their
+  head, while their name shows (see [Names over heads](#names-over-heads)), and their faction's
+  name, in its colour, under their frame in the top left. It comes with their name, once a second.
+- Factions mean nothing in a fight yet. A faction's players can't hurt another's, and nobody's
+  friend or foe by their faction: the only players who can hurt each other are still duellists and
+  guilds at war. Guilds have no faction, so guildmates can be in different ones, and a war is
+  between guilds, whatever their players' factions.
+- The faction's name is the same in each language, as it's Latin. The heralds' names are
+  translated, as the other NPCs' are.
+
+The factions are in the content, in `content/factions.txtpb`, each with its colour and its
+herald, a kind of NPC (see [Content](content.md)). A player's faction is in the tick's save, as
+their skills are, and the saver writes it to `players.faction`, from V18, only where there's none
+yet ([Saving players](saving.md)). Why a faction is chosen at a herald, once, why guilds have
+none, and why factions aren't hostile yet is
+[decision 47](decisions/0047-a-faction-is-sworn-to-once-at-its-herald-and-means-nothing-in-a-fight-yet.md).
+
 ## Names over heads
 
 A name shows over someone's head while the pointer's on them, or you've picked them, and not
@@ -669,6 +702,8 @@ The settings' Interface page, on O, has the rest, under "Names over heads":
 | With them: Guilds | A player's guild under their name, in angle brackets | On |
 
 - A name shows within 50 metres, in front of the camera, as before, in red for an enemy at war.
+- A sworn player's faction, and a herald's, is a diamond in its colour before the name, half as
+  wide as the name is high (see [Factions](#factions)).
 - A monster's skill on its way shows under its health while its name does, and its shape on the
   ground either way (see [Monsters' skills](#monsters-skills)).
 - The client keeps them in `settings.txtpb` (see [Music](graphics.md#music)), as `Interface`'s

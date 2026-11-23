@@ -44,7 +44,12 @@ they would players'. Quests come first: between trips, a bot looks at what's aro
 together from the world's parts as the client does, and turns in a quest it's done if its giver is
 there, or goes after the nearest monster a quest it's on asks for, or takes a quest it hasn't done
 from an NPC there who gives it. It runs there, and swings, or takes or turns in the quest, so that
-the servers count kills and save quests as they would players'. A bot that stops
+the servers count kills and save quests as they would players'. Before its quests, a bot swears
+to a faction, each in turn by its number (`FactionFor`, in `bot/factions.h`), unless its world
+shows it sworn already: it walks to the faction's herald, where it sees them, or where the NPCs file
+stands them in its land, and swears there, or gives up if nobody's there, so the crowd in the
+Meadows wears all three colours within a few seconds of arriving (see
+[Factions](gameplay.md#factions)). A bot that stops
 getting closer, at the sea or a lake, gives up on its trip. Each one logs in as bot1, bot2 and so on,
 and creates its account the first time. It takes the login server's
 host, the game server's host, how many bots, how many seconds to spread their arrival over, the

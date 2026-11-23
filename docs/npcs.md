@@ -3,10 +3,12 @@
 Each land has a few NPCs near its middle, where players start. In the Meadows, a guard and a
 storyteller stand on either side of the road to the gate, and a merchant and a healer face each
 other across it. The Ashlands have an ash warden and a storyteller, a merchant and a healer. Each
-land has a trainer too, a few steps from where players start. The storytellers tell stories (see
+land has a trainer too, a few steps from where players start, and the Meadows have the three
+factions' heralds, in a row to the west of it, facing it. The storytellers tell stories (see
 [The storyteller](#the-storyteller)), the trainers teach skills (see
 [Learning skills](gameplay.md#learning-skills)), the guard, the ash warden and the healers give quests (see
-[Quests](gameplay.md#quests)), and the merchants don't do anything yet. Each one is a person, like the
+[Quests](gameplay.md#quests)), the heralds swear players to their factions (see
+[Factions](gameplay.md#factions)), and the merchants don't do anything yet. Each one is a person, like the
 players, with its name over it in green while the pointer's on it, or always, with NPCs on in the
 settings (see [Names over heads](gameplay.md#names-over-heads)), and the mark of a quest for you
 over it either way.

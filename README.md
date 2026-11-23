@@ -81,10 +81,10 @@ How each part of the game works is in `docs/`, a page each, which the
 
 - [Getting started](docs/getting-started.md): from a clone to playing, on macOS and Ubuntu, and what each error means.
 - [Gameplay](docs/gameplay.md): making a character, monsters, health and levels, fighting, skills,
-  items and gold, quests, chat, guilds, trading, crafting, duels and guild wars, the names over
-  heads, and the help and the settings.
-- [Content](docs/content.md): the items, monsters, NPCs, quests and skills, as data the servers, the client and the bots read, checked as a graph in smollerGraph.
-- [NPCs](docs/npcs.md): who stands where, and the storyteller, which tells stories with mvGPT.
+  items and gold, quests, chat, guilds, trading, crafting, duels and guild wars, factions, the
+  names over heads, and the help and the settings.
+- [Content](docs/content.md): the items, monsters, NPCs, quests, skills, recipes and factions, as data the servers, the client and the bots read, checked as a graph in smollerGraph.
+- [NPCs](docs/npcs.md): who stands where, the heralds, and the storyteller, which tells stories with mvGPT.
 - [Graphics and sound](docs/graphics.md): the characters, the interface, the map, the sky, day and night, the weather, the music, the sound effects and the weather's, made from numbers, and the post-processing: bloom, cel shading and anti-aliasing.
 - [Cinema](docs/cinema.md): filming the game frame by frame, in slow motion, with a stage of players and monsters, for the trailer.
 - [The island](docs/island.md): the ground, the trees and the sea, made from a seed, and drawing them fast.

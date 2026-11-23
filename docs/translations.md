@@ -7,11 +7,11 @@ none for English, `ro` for Romanian, and `pseudo`.
 
 What's translated is the client's own words, each window's and each button's, the content's names,
 as they're shown: the items, the skills, the monsters and their skills, the NPCs, the quests and
-what their givers say, the recipes, the ways to wear the hair, the builds and the lands, and what
-the servers say: a login server's errors, such as a name that's taken, and a world's lines in the
-chat, such as a bag that's full, a guild's news or what a monster dropped, which come as messages
-the client translates (see [The servers' sentences](#the-servers-sentences)). What stays English is
-[below](#what-stays-english).
+what their givers say, the recipes, the factions, the ways to wear the hair, the builds and the
+lands, and what the servers say: a login server's errors, such as a name that's taken, and a
+world's lines in the chat, such as a bag that's full, a guild's news or what a monster dropped,
+which come as messages the client translates (see [The servers' sentences](#the-servers-sentences)).
+What stays English is [below](#what-stays-english).
 
 ## How it works
 
@@ -51,8 +51,8 @@ The code is in English, and asks for each string in the player's language as it 
   an ID.
 - The content's names are English in the content files, as `ClientHash` hashes them and the
   servers say them, so each is translated as it's shown, in a context that says what it names:
-  its kind and its id, `item 8`, `skill 3`, `monster 4`, `monster 4 skill 1`, `npc 2`, `quest 1`
-  and `recipe 3`, or, for those without an id, its kind alone, `hair`, `build` and `land`
+  its kind and its id, `item 8`, `skill 3`, `monster 4`, `monster 4 skill 1`, `npc 2`, `quest 1`,
+  `recipe 3` and `faction 1`, or, for those without an id, its kind alone, `hair`, `build` and `land`
   (`client/names.h`). Translating them changes nothing that two sides have to agree on. "3
   Skeletons", for a quest, is a plural of its own, as the English has it, the name with an s.
 - Cinzel, the titles' and the buttons' face, has no ș, ț or ă, so the client merges Alegreya Sans
@@ -72,7 +72,7 @@ the login screen as the reply comes.
 | `number` | A number | As it is |
 | `name` | A name a player gave, a character's, a guild's or a world's, or a version | As it is, in every language |
 | `phrase` | A sentence of its own inside the other, such as so much gold, or the rest of a list | Translated on its own |
-| `item`, `monster`, `npc`, `quest`, `skill`, `slot` | The content's, by its id, or a slot of the bag | `NameOf`, in its context, such as `item 8` |
+| `item`, `monster`, `npc`, `quest`, `skill`, `slot`, `faction` | The content's, by its id, or a slot of the bag | `NameOf`, in its context, such as `item 8` |
 | `count`, with an `item` or a `monster` | So many of it | A plural of each item's own, "a Bone" and "$0 Bones", or of the monster's, "$0 Skeletons" |
 
 - On the servers, `Msg` makes a sentence, and `MsgN` a plural, from its English and a part for each
@@ -167,9 +167,11 @@ language would cut off, and a letter a font can't draw. It's for whoever adds a 
   for a client from before 0.96.0, which is how a 0.95.0 client hears it's turned away.
 
 Romanian doesn't address the player, so it picks neither "tu" nor "dumneavoastră": a button is a
-noun, such as "Ștergere", and a sentence impersonal, with "se", or a noun, such as "Ieșire din
-breasla $0." An item's or a skill's name that would need an article goes in quotes, „$0”, and so
-many of an item takes "de" from 20 on, "20 de Oase". It has ș and ț with their commas below. Why
+noun, such as "Ștergere" or "Înrolare", and a sentence impersonal, with "se", or a noun, such as
+"Ieșire din breasla $0." An item's or a skill's name that would need an article goes in quotes,
+„$0”, and so many of an item takes "de" from 20 on, "20 de Oase". The factions' names are Latin,
+and stay as they are, after "facțiunea" where Romanian would decline them: "Intrare în facțiunea
+Concordia." It has ș and ț with their commas below. Why
 translations are PO files read by the client, and why the content stays English, is
 [decision 45](decisions/0045-translate-the-client-with-gettext-po-files-at-display-and-keep-the-content-english.md),
 and why the servers send their sentences as their English and args is

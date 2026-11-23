@@ -6,7 +6,8 @@ Redis: a hash for each player in each world, `player:<world>:<account id>`, with
 of the skills they know with commas between them, and its key in a set, `players:unsaved` (see
 [Worlds](worlds.md)). A player whose bag's revision has moved gets `items` too, the bag's `Inventory`
 message in protobuf's bytes, with their gold in it, and their key goes into `items:unsaved` as
-well. Their quests go in `quests`, a `Quests` message in protobuf's bytes, the same the client gets. It sends all of it in
+well. Their quests go in `quests`, a `Quests` message in protobuf's bytes, the same the client gets, and
+their faction in `faction`, its id, or nothing for none. It sends all of it in
 one round trip, as one Lua script, which checks the players' leases and runs the commands with
 nothing in between, so that Redis keeps all of it or none of it (`Redis::TransactionIf`, see
 [One instance at a time](#one-instance-at-a-time)), and saving takes a few
@@ -76,6 +77,14 @@ the player's row, with no table of their own. A hash with no quests, from before
 ones MySQL has. Quests that have changed carry their revision, so a player who's given up all they
 were on saves as none. So the `players` table, and the website's
 rankings, are at most about five seconds behind the game.
+
+A player's faction, `players.faction`, from V18, a `TINYINT UNSIGNED` that's NULL for none, changes
+in the world, as they swear to one at its herald ([Gameplay](gameplay.md#factions)), so it's saved
+as their skills are: in the tick's save into Redis, and by the saver from there. A faction is for
+good, so the saver writes one only where the row has none, `COALESCE(players.faction,
+saved.faction)`, and nothing, not a hash with none, from before factions, nor one with another,
+switches it. A world reads MySQL's as the player enters, or Redis's, while the saver hasn't taken it
+there yet.
 
 A character's looks, `players.build`, `skin`, `hair_color` and `hair`, from V16, are in MySQL
 alone: the login server writes them as it makes the character (see
