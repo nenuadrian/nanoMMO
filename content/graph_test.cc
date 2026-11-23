@@ -53,6 +53,19 @@ TEST(ContentGraph, FindsAQuestNobodyCanTake) {
                                }));
 }
 
+TEST(ContentGraph, FindsAFactionNobodyCanJoin) {
+  // Victoria's herald, taken out of the Meadows, stands nowhere.
+  Content content = GamesContent();
+  std::erase_if(content.npcs.spawns, [&](const npcs::Spawn& spawn) {
+    return content.npcs.kinds.at(spawn.kind()).name() == "Herald of Victoria";
+  });
+  EXPECT_EQ(CheckContent(content), absl::OkStatus());
+  EXPECT_EQ(Problems(content), (std::vector<std::string>{
+                                   "Herald of Victoria, an NPC",
+                                   "Victoria, a faction",
+                               }));
+}
+
 TEST(ContentGraph, FindsAQuestNobodyCanFinish) {
   // The Crypt's skeletons live in camps there and nowhere else.
   Content content = GamesContent();

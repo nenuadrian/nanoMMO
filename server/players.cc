@@ -286,7 +286,7 @@ absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
   // A character in another world is no player of this one's.
   const absl::StatusOr<Result> result = database_.Run(
       "SELECT name, x, z, experience, health, land, items_revision, quests, "
-      "gold, build, skin, hair_color, hair, shirt FROM players "
+      "gold, build, skin, hair_color, hair, shirt, faction FROM players "
       "WHERE id = ? AND world = ?",
       {std::to_string(id), world});
   if (!result.ok()) {
@@ -362,8 +362,9 @@ absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
   }
 
   const absl::StatusOr<std::vector<std::vector<std::string>>> newer =
-      redis_.Pipeline({{"HMGET", Key(world, id), "x", "z", "experience",
-                        "health", "land", "skills", "items", "quests"}});
+      redis_.Pipeline(
+          {{"HMGET", Key(world, id), "x", "z", "experience", "health", "land",
+            "skills", "items", "quests", "faction"}});
   if (!newer.ok()) {
     return newer.status();
   }
@@ -384,6 +385,12 @@ absl::StatusOr<Player> Players::Load(const std::string& world, uint32_t id) {
   player.quests = {quests.on().begin(), quests.on().end()};
   player.quests_done = {quests.done().begin(), quests.done().end()};
   player.quests_revision = quests.revision();
+  // Their faction is for good: MySQL's, once the saver's taken it there, or
+  // Redis's until then. None is empty in both.
+  const std::string& faction = !row[14].empty() ? row[14] : hash[8];
+  if (!faction.empty() && !absl::SimpleAtoi(faction, &player.faction)) {
+    return absl::InternalError("a saved faction that isn't a number");
+  }
   player.inventory = Inventory(*std::move(bag));
   if (!absl::SimpleAtof(saved[0], &player.x) ||
       !absl::SimpleAtof(saved[1], &player.z) ||
@@ -486,6 +493,10 @@ absl::StatusOr<std::set<uint32_t>> Players::Save(
   std::vector<std::string> unsaved = {"SADD", kUnsaved};
   std::vector<std::string> items_unsaved = {"SADD", kItemsUnsaved};
   for (const auto& [id, progress] : changed) {
+    // A player who's sworn to no faction has none, as in a hash from before
+    // factions.
+    const std::string faction =
+        progress.faction != 0 ? absl::StrCat(progress.faction) : "";
     std::vector<std::string>& hset =
         commands.emplace_back(std::vector<std::string>{
             "HSET",       Key(world, id),
@@ -498,7 +509,8 @@ absl::StatusOr<std::set<uint32_t>> Players::Save(
             "land",       kLands[progress.land].name,
             "weapon",     absl::StrCat(progress.weapon),
             "skills",     absl::StrJoin(progress.skills, ","),
-            "quests",     QuestsOf(progress).SerializeAsString()});
+            "quests",     QuestsOf(progress).SerializeAsString(),
+            "faction",    faction});
     unsaved.push_back(Key(world, id));
     // The bag goes as its message, in protobuf's bytes, which Redis keeps as
     // they are.
@@ -672,8 +684,8 @@ absl::StatusOr<int> Players::Flush() {
     }
     for (const std::string& key : keys) {
       reads.push_back({"HMGET", key, "world", "player", "x", "z", "experience",
-                       "health", "land", "weapon", "skills", "items",
-                       "quests"});
+                       "health", "land", "weapon", "skills", "items", "quests",
+                       "faction"});
     }
     const absl::StatusOr<std::vector<std::vector<std::string>>> replies =
         redis_.Pipeline(reads);
@@ -712,7 +724,8 @@ absl::StatusOr<int> Players::Flush() {
       absl::StrAppend(&sql, rows == 0 ? "" : ", ",
                       "ROW(?, ?, ?, ?, ?, NULLIF(?, ''), "
                       "COALESCE(NULLIF(?, ''), 'Meadows'), NULLIF(?, ''), "
-                      "NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''))");
+                      "NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), "
+                      "NULLIF(?, ''))");
       ++rows;
       const std::string& world = hash[0];
       const std::string& player = hash[1];
@@ -750,6 +763,8 @@ absl::StatusOr<int> Players::Flush() {
             .IgnoreError();
       }
       values.push_back(json);
+      // And their faction, if they've sworn to one.
+      values.push_back(hash[11]);
       // The skills go into a table of their own, a row each.
       for (const std::string_view skill :
            absl::StrSplit(hash[8], ',', absl::SkipEmpty())) {
@@ -806,7 +821,7 @@ absl::StatusOr<int> Players::Flush() {
     absl::StrAppend(
         &sql,
         ") AS saved (id, world, x, z, experience, health, land, weapon, "
-        "items_revision, gold, quests) "
+        "items_revision, gold, quests, faction) "
         "ON players.id = saved.id AND players.world = saved.world "
         "SET players.x = saved.x, players.z = saved.z, "
         "players.experience = saved.experience, players.health = saved.health, "
@@ -814,7 +829,10 @@ absl::StatusOr<int> Players::Flush() {
         "players.items_revision = "
         "COALESCE(saved.items_revision, players.items_revision), "
         "players.gold = COALESCE(saved.gold, players.gold), "
-        "players.quests = COALESCE(saved.quests, players.quests)");
+        "players.quests = COALESCE(saved.quests, players.quests), "
+        // A faction is for good, so the saver writes one only where there's
+        // none, and nothing switches it, nor does a hash with none take it.
+        "players.faction = COALESCE(players.faction, saved.faction)");
     absl::StrAppend(&gone_sql, ")");
     // A bag's rows can't go without the rows that take their place, or a
     // failure between the two would empty it, so the batch is a transaction.

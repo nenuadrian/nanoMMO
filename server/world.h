@@ -53,6 +53,9 @@ struct Player {
   /// The guild they're in, by its id, or 0 for none, which the server tells
   /// the world, as it's in MySQL.
   uint32_t guild = 0;
+  /// The faction they've sworn to, by its id in the factions file, or 0 for
+  /// none. It's for good.
+  uint32_t faction = 0;
   float x = 0.0f;
   float z = 0.0f;
   /// In radians, around the vertical. Zero faces along z, towards the camera.
@@ -390,6 +393,11 @@ class World {
   /// killed as many as it asks for, for its experience, and its prizes in
   /// their bag, or the error says why not, in words for the player.
   absl::Status TurnIn(uint32_t id, uint32_t npc, uint32_t quest);
+
+  /// The player swears to the faction whose herald the NPC is, in this land,
+  /// for good, and hears so. Or the error says why not, in words for the
+  /// player: one who's sworn to a faction stays with it.
+  absl::Status Enlist(uint32_t id, uint32_t npc);
 
   /// Gives up a quest the player's on, wherever they are, with what they've
   /// killed for it, so that its giver gives it again. A NotFound error says

@@ -72,6 +72,10 @@ std::string EnglishOf(const protocol::Arg& arg, const Content& content) {
     }
     case protocol::Arg::kSlot:
       return Of(arg.slot()).english;
+    case protocol::Arg::kFaction: {
+      const auto* faction = Find(content.factions, arg.faction());
+      return faction != nullptr ? Of(*faction).english : something;
+    }
     case protocol::Arg::VALUE_NOT_SET:
       break;
   }
@@ -169,6 +173,12 @@ Part Of(const skills::Skill& skill) {
   protocol::Arg arg;
   arg.set_skill(skill.id());
   return Made(std::move(arg), skill.name());
+}
+
+Part Of(const factions::Faction& faction) {
+  protocol::Arg arg;
+  arg.set_faction(faction.id());
+  return Made(std::move(arg), faction.name());
 }
 
 Part Of(items::Slot slot) {

@@ -64,7 +64,10 @@ void Add(uint64_t& hash, const google::protobuf::Message& message) {
 absl::StatusOr<Content> ReadContent(const std::string& folder) {
   Content content;
   absl::Status read =
-      Read(folder, "figures.txtpb", ParseFigures, content.figures);
+      Read(folder, "factions.txtpb", ParseFactions, content.factions);
+  if (read.ok()) {
+    read = Read(folder, "figures.txtpb", ParseFigures, content.figures);
+  }
   if (read.ok()) {
     read = Read(folder, "items.txtpb", ParseItems, content.items);
   }
@@ -216,6 +219,13 @@ absl::Status CheckContent(const Content& content) {
       return fits;
     }
   }
+  for (const auto& [id, faction] : content.factions) {
+    if (!content.npcs.kinds.contains(faction.herald())) {
+      return absl::InvalidArgumentError(
+          absl::StrCat(faction.name(), " has a herald ", faction.herald(),
+                       " that isn't in the NPCs file"));
+    }
+  }
   return absl::OkStatus();
 }
 
@@ -267,6 +277,11 @@ uint64_t ClientHash(const Content& content) {
   }
   for (const auto& [id, recipe] : content.recipes) {
     Add(hash, recipe);
+  }
+  // The clients mark each player's name in their faction's colour, and open
+  // a herald's window on a click.
+  for (const auto& [id, faction] : content.factions) {
+    Add(hash, faction);
   }
   // The clients show each skill's level and cooldown, and the effect is the
   // server's alone.

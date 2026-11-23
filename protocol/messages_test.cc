@@ -86,4 +86,17 @@ TEST(Messages, AreTheSameInEnglishFromTheContent) {
   EXPECT_EQ(nanommo::English(sentence.message, content), sentence.english);
 }
 
+TEST(Messages, NameAFactionByItsId) {
+  nanommo::Content content;
+  nanommo::factions::Faction& concordia = content.factions[1];
+  concordia.set_id(1);
+  concordia.set_name("Concordia");
+  const nanommo::Sentence joined =
+      nanommo::Msg("You've joined $0.", nanommo::Of(concordia));
+  EXPECT_EQ(joined.english, "You've joined Concordia.");
+  ASSERT_EQ(joined.message.args_size(), 1);
+  EXPECT_EQ(joined.message.args(0).faction(), 1u);
+  EXPECT_EQ(nanommo::English(joined.message, content), joined.english);
+}
+
 }  // namespace

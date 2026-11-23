@@ -79,11 +79,52 @@ kinds {
   }
 }
 
+# The factions' heralds, each in their faction's colour, from the factions
+# file, who swear players to it.
+kinds {
+  id: 7
+  name: "Herald of Concordia"
+  look {
+    color: 0x4A90E2FF
+    skin: 0xE8B98FFF
+    hair_color: 0x3B2A20FF
+    hair: 1
+    wearing: [8, 9, 10]
+  }
+}
+kinds {
+  id: 8
+  name: "Herald of Fortuna"
+  look {
+    color: 0xE8C547FF
+    skin: 0xB7835CFF
+    hair_color: 0xD9A441FF
+    hair: 2
+    wearing: [8, 9, 11]
+  }
+}
+kinds {
+  id: 9
+  name: "Herald of Victoria"
+  look {
+    color: 0xD93A49FF
+    skin: 0x8E5B3EFF
+    hair_color: 0x1C181AFF
+    hair: 3
+    weapon: 1
+    wearing: [8, 9, 11]
+  }
+}
+
 spawns { kind: 1 land: "Meadows" x: -3.2 z: -7.5 yaw: 0 }
 spawns { kind: 5 land: "Meadows" x: 3.2 z: -7.5 yaw: 0 }
 spawns { kind: 2 land: "Meadows" x: -6 z: -4 yaw: 1.57 }
 spawns { kind: 3 land: "Meadows" x: 6 z: -4.5 yaw: -1.57 }
 spawns { kind: 6 land: "Meadows" x: -2.5 z: -3 yaw: 0.69 }
+# The heralds, in a row to the west of where players start, facing it.
+spawns { kind: 7 land: "Meadows" x: -8 z: -1 yaw: 1.45 }
+spawns { kind: 8 land: "Meadows" x: -8.5 z: 1.75 yaw: 1.77 }
+spawns { kind: 9 land: "Meadows" x: -8 z: 4.5 yaw: 2.08 }
 spawns { kind: 4 land: "Ashlands" x: 3.2 z: -7.5 yaw: 0 }
 spawns { kind: 5 land: "Ashlands" x: -3.2 z: -7.5 yaw: 0 }
 spawns { kind: 2 land: "Ashlands" x: -6 z: -4 yaw: 1.57 }

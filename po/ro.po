@@ -1718,6 +1718,21 @@ msgid "You've done $0 already."
 msgstr "Misiunea „$0” e deja terminată."
 
 #: server/world.cc
+msgid "Nobody here swears players to a faction."
+msgstr "Nimeni de aici nu înrolează într-o facțiune."
+
+# To check: "a jurat credință", swore allegiance, with the faction's name as it is.
+#. $0 is a faction, as "Concordia".
+#: server/world.cc
+msgid "You're sworn to $0 already."
+msgstr "Personajul a jurat deja credință facțiunii $0."
+
+#. $0 is a faction, as "Concordia".
+#: server/world.cc
+msgid "You've joined $0."
+msgstr "Intrare în facțiunea $0."
+
+#: server/world.cc
 msgid "You're not on that quest."
 msgstr "Misiunea aceasta nu e în curs."
 
@@ -2267,6 +2282,25 @@ msgstr "Povestitor"
 msgctxt "npc 6"
 msgid "Trainer"
 msgstr "Antrenor"
+
+# To check: the faction's name as it is; or the shorter "Vestitorul Concordiei", here and below?
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 7"
+msgid "Herald of Concordia"
+msgstr "Vestitorul facțiunii Concordia"
+
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 8"
+msgid "Herald of Fortuna"
+msgstr "Vestitorul facțiunii Fortuna"
+
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 9"
+msgid "Herald of Victoria"
+msgstr "Vestitorul facțiunii Victoria"
 
 #. A quest's name.
 #: content/quests.txtpb

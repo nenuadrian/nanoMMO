@@ -1683,6 +1683,20 @@ msgid "You've done $0 already."
 msgstr ""
 
 #: server/world.cc
+msgid "Nobody here swears players to a faction."
+msgstr ""
+
+#. $0 is a faction, as "Concordia".
+#: server/world.cc
+msgid "You're sworn to $0 already."
+msgstr ""
+
+#. $0 is a faction, as "Concordia".
+#: server/world.cc
+msgid "You've joined $0."
+msgstr ""
+
+#: server/world.cc
 msgid "You're not on that quest."
 msgstr ""
 
@@ -2204,6 +2218,24 @@ msgstr ""
 #: content/npcs.txtpb
 msgctxt "npc 6"
 msgid "Trainer"
+msgstr ""
+
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 7"
+msgid "Herald of Concordia"
+msgstr ""
+
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 8"
+msgid "Herald of Fortuna"
+msgstr ""
+
+#. An NPC's name.
+#: content/npcs.txtpb
+msgctxt "npc 9"
+msgid "Herald of Victoria"
 msgstr ""
 
 #. A quest's name.

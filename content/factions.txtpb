@@ -1,0 +1,28 @@
+# proto-file: content/factions.proto
+# proto-message: nanommo.factions.Factions
+
+# Three of them, named in Latin, after the Roman gods of harmony, luck and
+# victory. Each herald is a kind in the NPCs file, dressed in its faction's
+# colour: 7 the Herald of Concordia, 8 of Fortuna and 9 of Victoria.
+
+factions {
+  id: 1
+  name: "Concordia"
+  # A sky blue.
+  color: 0x4A90E2FF
+  herald: 7
+}
+factions {
+  id: 2
+  name: "Fortuna"
+  # Gold.
+  color: 0xE8C547FF
+  herald: 8
+}
+factions {
+  id: 3
+  name: "Victoria"
+  # Crimson.
+  color: 0xD93A49FF
+  herald: 9
+}

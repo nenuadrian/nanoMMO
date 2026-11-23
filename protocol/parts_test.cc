@@ -107,6 +107,7 @@ TEST(Parts, KeepsNamesAndLevelsBetweenTheTicksThatSendThem) {
   full.mutable_players(0)->set_level(4);
   full.mutable_players(0)->set_weapon(1);
   full.mutable_players(0)->set_guild("Iron Wolves");
+  full.mutable_players(0)->set_faction(2);
   nanommo::protocol::World compact = MakeWorld(3, 2, 0.5f);
   for (nanommo::protocol::Player& player : *compact.mutable_players()) {
     player.clear_name();
@@ -121,6 +122,7 @@ TEST(Parts, KeepsNamesAndLevelsBetweenTheTicksThatSendThem) {
   EXPECT_EQ(result.players(0).level(), 4u);
   EXPECT_EQ(result.players(0).weapon(), 1u);
   EXPECT_EQ(result.players(0).guild(), "Iron Wolves");
+  EXPECT_EQ(result.players(0).faction(), 2u);
   EXPECT_EQ(result.players(0).x(), 1.5f);
 
   // A world with their name, and no weapon or guild: they've put it away, and

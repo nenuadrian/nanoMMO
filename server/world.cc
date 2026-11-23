@@ -19,6 +19,7 @@
 
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "content/factions.h"
 #include "protocol/messages.h"
 #include "server/levels.h"
 #include "server/monsters.h"
@@ -828,6 +829,35 @@ absl::Status World::TakeQuest(uint32_t id, uint32_t npc, uint32_t quest) {
   player->second.quests[quest] = 0;
   ++player->second.quests_revision;
   Record(Event::Kind::kTake, id, player->second).quest = quest;
+  return absl::OkStatus();
+}
+
+absl::Status World::Enlist(uint32_t id, uint32_t npc) {
+  const auto player = players_.find(id);
+  const auto herald = npcs_.find(npc);
+  const factions::Faction* faction =
+      herald != npcs_.end() ? HeraldOf(content_->factions, herald->second.kind)
+                            : nullptr;
+  if (player == players_.end() || faction == nullptr) {
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("Nobody here swears players to a faction."));
+  }
+  if (std::hypot(herald->second.x - player->second.x,
+                 herald->second.z - player->second.z) > kTalkReach) {
+    return Refusal(
+        absl::StatusCode::kOutOfRange,
+        Msg("You're too far away to talk to the $0.", Of(herald->second)));
+  }
+  // For now, there's no leaving a faction, nor swearing to another.
+  if (const auto sworn = content_->factions.find(player->second.faction);
+      sworn != content_->factions.end()) {
+    // Translators: $0 is a faction, as "Concordia".
+    return Refusal(absl::StatusCode::kAlreadyExists,
+                   Msg("You're sworn to $0 already.", Of(sworn->second)));
+  }
+  player->second.faction = faction->id();
+  // Translators: $0 is a faction, as "Concordia".
+  Tell(id, Msg("You've joined $0.", Of(*faction)));
   return absl::OkStatus();
 }
 

@@ -88,6 +88,9 @@ void LocalConnection::Send(const protocol::Input& input) {
     done.Update(
         world_.TurnIn(kYou, input.turn_in().npc(), input.turn_in().quest()));
   }
+  if (input.enlist() != 0) {
+    done.Update(world_.Enlist(kYou, input.enlist()));
+  }
   if (input.has_item()) {
     done.Update(DoItem(world_, kYou, input.item()));
   }

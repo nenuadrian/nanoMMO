@@ -762,6 +762,63 @@ TEST(World, LearnsSkillsFromATrainerFromTheirLevel) {
             "You're too far away to learn from the Trainer.");
 }
 
+TEST(World, SwearsPlayersToAHeraldsFactionForGood) {
+  nanommo::Content content = *nanommo::testing::With(nanommo::testing::Sword());
+  content.factions = *nanommo::ParseFactions(R"pb(
+    factions { id: 1 name: "Concordia" color: 0x4A90E2FF herald: 7 }
+    factions { id: 2 name: "Fortuna" color: 0xE8C547FF herald: 8 }
+  )pb");
+  nanommo::World world(
+      1, nanommo::Terrain(),
+      std::make_shared<const nanommo::Content>(std::move(content)));
+  const uint32_t concordia = world.Spawn(
+      nanommo::Npc{.name = "Herald of Concordia", .kind = 7, .x = 2.5f});
+  const uint32_t fortuna = world.Spawn(
+      nanommo::Npc{.name = "Herald of Fortuna", .kind = 8, .x = -2.5f});
+  const uint32_t guard =
+      world.Spawn(nanommo::Npc{.name = "Guard", .kind = 1, .z = 2.0f});
+  world.Join(1, {});
+  world.Join(2, {.x = -4.0f});
+
+  // The guard is no herald, and there's nobody of that id.
+  EXPECT_EQ(world.Enlist(1, guard).message(),
+            "Nobody here swears players to a faction.");
+  EXPECT_EQ(world.Enlist(1, 99).message(),
+            "Nobody here swears players to a faction.");
+  EXPECT_EQ(world.Enlist(2, concordia).message(),
+            "You're too far away to talk to the Herald of Concordia.");
+  EXPECT_EQ(world.players().at(1).faction, 0u);
+  EXPECT_EQ(world.players().at(2).faction, 0u);
+
+  // Within reach of Concordia's herald, the first player swears to it, and
+  // hears so.
+  ASSERT_TRUE(world.Enlist(1, concordia).ok());
+  EXPECT_EQ(world.players().at(1).faction, 1u);
+  const std::vector<nanommo::Notice> notices = world.TakeNotices();
+  ASSERT_EQ(notices.size(), 1u);
+  EXPECT_EQ(notices[0].player, 1u);
+  EXPECT_EQ(notices[0].text, "You've joined Concordia.");
+
+  // Once, and for good: not again, and not to another.
+  EXPECT_EQ(world.Enlist(1, concordia).message(),
+            "You're sworn to Concordia already.");
+  EXPECT_EQ(world.Enlist(1, fortuna).message(),
+            "You're sworn to Concordia already.");
+  EXPECT_EQ(world.players().at(1).faction, 1u);
+  EXPECT_TRUE(world.TakeNotices().empty());
+
+  // The second, within reach of Fortuna's, swears to Fortuna.
+  ASSERT_TRUE(world.Enlist(2, fortuna).ok());
+  EXPECT_EQ(world.players().at(2).faction, 2u);
+
+  // Someone who comes back, or through a gate, is as sworn as they were.
+  world.Leave(1);
+  world.Join(1, {.faction = 1});
+  EXPECT_EQ(world.players().at(1).faction, 1u);
+  EXPECT_EQ(world.Enlist(1, fortuna).message(),
+            "You're sworn to Concordia already.");
+}
+
 TEST(World, MonstersKillPlayersWhoComeBackInTheMiddleWhenTheyAsk) {
   nanommo::World world;
   world.Join(1, {.x = 2.0f});

@@ -716,6 +716,59 @@ TEST_F(ServerTest, SendsEachPlayerTheirQuestsAsTheyChange) {
   EXPECT_EQ(alice.notices().back(), "You're on Bones already.");
 }
 
+TEST_F(ServerTest, OthersSeeYourFactionWhichStaysWithYou) {
+  // Concordia's herald where new players start.
+  nanommo::Content content;
+  content.npcs = *nanommo::ParseNpcs(R"pb(
+    kinds {
+      id: 7
+      name: "Herald of Concordia"
+      look { skin: 0xF1C49CFF }
+    }
+    spawns { kind: 7 land: "Meadows" x: 1 z: 0 }
+  )pb");
+  content.factions = *nanommo::ParseFactions(R"pb(
+    factions { id: 1 name: "Concordia" color: 0x4A90E2FF herald: 7 }
+  )pb");
+  absl::StatusOr<std::unique_ptr<nanommo::Server>> heralded =
+      nanommo::Server::Create(io_, 0, *server_tls_,
+                              std::chrono::milliseconds(50), world_, 1, content,
+                              metrics_, *tokens_, *players_, *guilds_, *events_,
+                              *storyteller_);
+  ASSERT_TRUE(heralded.ok()) << heralded.status();
+  const uint16_t port = (*heralded)->port();
+  TestPlayer bob(io_, *client_tls_, port, Token(bob_), content);
+  // What bob sees of alice's faction, in the world sent in full once a
+  // second, with her name.
+  const auto sworn = [&](uint32_t faction) {
+    return std::ranges::any_of(
+        bob.world().players(), [&](const nanommo::protocol::Player& player) {
+          return player.id() == alice_ && !player.name().empty() &&
+                 player.faction() == faction;
+        });
+  };
+  TestPlayer alice(io_, *client_tls_, port, Token(alice_), content);
+  ASSERT_TRUE(RunUntil([&] { return sworn(0); }));
+
+  // alice swears to it, a metre from its herald, the world's first NPC.
+  nanommo::protocol::Input enlist;
+  enlist.set_enlist(1);
+  alice.Send(enlist);
+  ASSERT_TRUE(RunUntil([&] { return !alice.notices().empty(); }));
+  EXPECT_EQ(alice.notices().back(), "You've joined Concordia.");
+  EXPECT_TRUE(RunUntil([&] { return sworn(1); }));
+
+  alice.Send(enlist);
+  ASSERT_TRUE(RunUntil([&] { return alice.notices().size() == 2; }));
+  EXPECT_EQ(alice.notices().back(), "You're sworn to Concordia already.");
+
+  // Saved as she left, she comes back sworn.
+  alice.Leave();
+  ASSERT_TRUE(RunUntil([&] { return !bob.Sees(alice_); }));
+  TestPlayer back(io_, *client_tls_, port, Token(alice_), content);
+  EXPECT_TRUE(RunUntil([&] { return sworn(1); }));
+}
+
 TEST_F(ServerTest, ShowsEachHitToThePlayersNearIt) {
   // A skeleton a step from where new players start, and a sword for each.
   nanommo::Content content{.items = nanommo::testing::Sword(),

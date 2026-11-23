@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package nanommo.factions;
+
+// A side a player swears to, at its herald, for good. For now it's a name and
+// a colour by its players' names, and nothing in a fight: anyone can be
+// friends with anyone.
+message Faction {
+  // From one, and a faction keeps its id for good, as each player's is saved
+  // by it.
+  uint32 id = 1;
+  string name = 2;
+  // As 0xRRGGBBAA, like the NPCs file's: its mark by its players' names.
+  uint32 color = 3;
+  // Who swears players to it, by their kind's id in the NPCs file.
+  uint32 herald = 4;
+}
+
+message Factions {
+  repeated Faction factions = 1;
+}

@@ -35,6 +35,7 @@ protocol::Player ToProtocol(uint32_t id, const Player& player) {
   if (player.looks) {
     *sent.mutable_looks() = *player.looks;
   }
+  sent.set_faction(player.faction);
   sent.set_yaw(player.yaw);
   sent.set_motion(ToProtocol(player.motion));
   const int level = LevelFor(player.experience).number;
@@ -128,6 +129,7 @@ protocol::World YouIn(uint32_t id, const Player& player, uint32_t seed,
   here->clear_level();
   here->clear_max_health();
   here->clear_weapon();
+  here->clear_faction();
   return you;
 }
 

@@ -6,6 +6,7 @@
 #include <string>
 
 #include "absl/status/statusor.h"
+#include "content/factions.h"
 #include "content/figures.h"
 #include "content/items.h"
 #include "content/monsters.h"
@@ -20,6 +21,8 @@ namespace nanommo {
 /// What the game is made of, which the world servers and the clients both
 /// read from the content folder.
 struct Content {
+  /// By id.
+  std::map<uint32_t, factions::Faction> factions;
   figures::Figures figures;
   ItemTable items;
   MonsterTable monsters;
@@ -40,8 +43,8 @@ absl::StatusOr<Content> ReadContent(const std::string& folder);
 /// that drops an item the items file doesn't have, a trainer that teaches a
 /// skill the skills file doesn't have, a quest whose giver, monster or prize
 /// isn't in its file, a recipe that takes or makes an item that isn't, or more
-/// of one than go in a slot, or a part of a figure or of an item on a joint
-/// the rig doesn't have.
+/// of one than go in a slot, a part of a figure or of an item on a joint the
+/// rig doesn't have, or a faction whose herald isn't in the NPCs file.
 absl::Status CheckContent(const Content& content);
 
 /// A fingerprint of what the clients read, so that a client can tell whether

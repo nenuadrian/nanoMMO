@@ -56,6 +56,22 @@ TEST(Content, ReadsTheGamesContent) {
   EXPECT_EQ(content->items.by_id.at(bind.inputs(0).item()).name(), "Sword");
   EXPECT_EQ(content->items.by_id.at(bind.inputs(1).item()).name(), "Bone");
   EXPECT_EQ(content->items.by_id.at(bind.output().item()).name(), "Bone Sword");
+  // Three factions, each with its herald where new players start.
+  ASSERT_EQ(content->factions.size(), 3u);
+  const nanommo::factions::Faction& concordia = content->factions.at(1);
+  EXPECT_EQ(concordia.name(), "Concordia");
+  EXPECT_EQ(content->npcs.kinds.at(concordia.herald()).name(),
+            "Herald of Concordia");
+  for (const auto& [id, faction] : content->factions) {
+    EXPECT_TRUE(std::ranges::any_of(content->npcs.spawns,
+                                    [&](const nanommo::npcs::Spawn& spawn) {
+                                      return spawn.kind() == faction.herald() &&
+                                             spawn.land() == "Meadows";
+                                    }))
+        << faction.name();
+    EXPECT_EQ(nanommo::HeraldOf(content->factions, faction.herald()), &faction);
+  }
+  EXPECT_EQ(nanommo::HeraldOf(content->factions, 1), nullptr);
 }
 
 TEST(Content, HashesWhatTheClientsRead) {
@@ -101,6 +117,11 @@ TEST(Content, HashesWhatTheClientsRead) {
   nanommo::Content rig = *nanommo::ReadContent(NANOMMO_CONTENT);
   rig.rig.mutable_walk()->set_cycle_ms(900);
   EXPECT_NE(nanommo::ClientHash(rig), hash);
+
+  // And mark a faction's players in its colour.
+  nanommo::Content factions = *nanommo::ReadContent(NANOMMO_CONTENT);
+  factions.factions.at(1).set_color(0x00FF00FF);
+  EXPECT_NE(nanommo::ClientHash(factions), hash);
 }
 
 TEST(Content, RefusesFiguresThatDontAddUp) {
@@ -534,6 +555,32 @@ TEST(Content, RefusesNpcsThatDontAddUp) {
   content.npcs.kinds.at(1).add_teaches(99);
   EXPECT_EQ(nanommo::CheckContent(content).message(),
             "the Guard teaches a skill 99 that isn't in the skills file");
+}
+
+TEST(Content, RefusesFactionsThatDontAddUp) {
+  const auto factions = [](std::string_view fields) {
+    return nanommo::ParseFactions(
+        absl::StrCat("factions { id: 1 name: \"Concordia\" ", fields, " }"));
+  };
+  EXPECT_TRUE(factions("color: 0x4A90E2FF herald: 7").ok());
+  EXPECT_EQ(factions("herald: 7").status().message(),
+            "Concordia has no colour");
+  EXPECT_EQ(factions("color: 0x4A90E2FF").status().message(),
+            "Concordia has no herald");
+  EXPECT_EQ(
+      nanommo::ParseFactions(
+          "factions { id: 1 name: \"Concordia\" color: 0x4A90E2FF herald: 7 } "
+          "factions { id: 2 name: \"Fortuna\" color: 0xE8C547FF herald: 7 }")
+          .status()
+          .message(),
+      "two factions have the herald 7");
+
+  // Its herald is in the NPCs file.
+  nanommo::Content content = *nanommo::ReadContent(NANOMMO_CONTENT);
+  EXPECT_TRUE(nanommo::CheckContent(content).ok());
+  content.factions.at(1).set_herald(99);
+  EXPECT_EQ(nanommo::CheckContent(content).message(),
+            "Concordia has a herald 99 that isn't in the NPCs file");
 }
 
 TEST(Content, RefusesQuestsThatDontAddUp) {

@@ -59,6 +59,7 @@ Part Of(const monsters::Kind& kind, uint32_t count = 0);
 Part Of(const npcs::Kind& kind);
 Part Of(const quests::Quest& quest);
 Part Of(const skills::Skill& skill);
+Part Of(const factions::Faction& faction);
 Part Of(items::Slot slot);
 
 /// A sentence inside another, which is translated on its own.

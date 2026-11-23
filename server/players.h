@@ -41,6 +41,10 @@ struct Progress {
   /// with them, it tells a player who's given up all they were on from a hash
   /// from before there were quests, which leaves MySQL's.
   uint32_t quests_revision = 0;
+  /// The faction they've sworn to, by its id, or 0 for none. They swear to it
+  /// in the world, which saves it with the rest of them, as it does what they
+  /// learn, through Redis.
+  uint32_t faction = 0;
 
   bool operator==(const Progress&) const = default;
 };

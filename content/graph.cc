@@ -26,7 +26,7 @@ namespace {
 // player CRAFTS it once they reach them all.
 constexpr std::string_view kWays =
     "STARTS_IN|STARTS_WITH|KNOWS|GATE|SPAWNS|STANDS|DROPS|SUMMONS|GIVES|"
-    "REWARDS|TEACHES|NEXT|CRAFTS|MAKES";
+    "REWARDS|TEACHES|NEXT|CRAFTS|MAKES|ENLISTS";
 
 // Each label, and what it's called in a line of Unreachable's.
 struct Kind {
@@ -36,7 +36,7 @@ struct Kind {
 constexpr Kind kKinds[] = {
     {"Land", "a land"},     {"Monster", "a monster"}, {"Npc", "an NPC"},
     {"Quest", "a quest"},   {"Item", "an item"},      {"Skill", "a skill"},
-    {"Recipe", "a recipe"},
+    {"Recipe", "a recipe"}, {"Faction", "a faction"},
 };
 
 // Adds the content's nodes and relationships, a name at a time, and keeps
@@ -162,6 +162,9 @@ absl::Status AddContentGraph(const Content& content,
   for (const auto& [id, recipe] : content.recipes) {
     add.Node(recipe.name(), "Recipe");
   }
+  for (const auto& [id, faction] : content.factions) {
+    add.Node(faction.name(), "Faction");
+  }
   if (!add.status().ok()) return add.status();
 
   // A new player starts in the first land, with the kit and the starting
@@ -208,13 +211,18 @@ absl::Status AddContentGraph(const Content& content,
     }
   }
 
-  // What each NPC teaches and gives, what each quest pays and asks for, and
-  // the swing each skill goes on into.
+  // What each NPC teaches and gives, the faction each herald swears players
+  // to, what each quest pays and asks for, and the swing each skill goes on
+  // into.
   for (const auto& [id, kind] : content.npcs.kinds) {
     for (const uint32_t skill : kind.teaches()) {
       add.Relationship(kind.name(), "TEACHES",
                        content.skills.by_id.at(skill).name());
     }
+  }
+  for (const auto& [id, faction] : content.factions) {
+    add.Relationship(content.npcs.kinds.at(faction.herald()).name(), "ENLISTS",
+                     faction.name());
   }
   for (const auto& [id, quest] : content.quests) {
     add.Relationship(content.npcs.kinds.at(quest.giver()).name(), "GIVES",

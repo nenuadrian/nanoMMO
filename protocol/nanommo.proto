@@ -103,6 +103,9 @@ message Input {
   // A quest to give up, by its id in the quests file, sent once: what was
   // killed for it goes with it, and its giver gives it again.
   uint32 give_up = 23;
+  // A herald to swear to its faction at, by the NPC's id, sent once. It's for
+  // good.
+  uint32 enlist = 24;
 }
 
 // A place in a land, in metres from its middle.
@@ -151,6 +154,9 @@ message Player {
   // How they chose to look, so that everyone draws them so. A character made
   // before there were looks to choose has none, and their id picks theirs.
   Looks looks = 17;
+  // The faction they've sworn to, by its id in the factions file, or none,
+  // which comes with their name.
+  uint32 faction = 18;
 }
 
 // How a player looks under what they wear, as they chose it, making their
@@ -267,6 +273,8 @@ message Arg {
     uint32 quest = 7;
     uint32 skill = 8;
     items.Slot slot = 9;
+    // 10 is count's, below.
+    uint32 faction = 11;
   }
   // With an item, so many of it, "a Bone" or "3 Bones", and with a monster,
   // "3 Skeletons". With none, its name alone.

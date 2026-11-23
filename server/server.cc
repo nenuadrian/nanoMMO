@@ -99,7 +99,8 @@ Progress ProgressOf(const Player& player) {
                     .items_revision = player.inventory.revision(),
                     .quests = player.quests,
                     .quests_done = player.quests_done,
-                    .quests_revision = player.quests_revision};
+                    .quests_revision = player.quests_revision,
+                    .faction = player.faction};
   // The dead come back in the middle, at full health, so that's what we keep.
   if (player.motion == Motion::kDead) {
     progress.x = 0.0f;
@@ -236,6 +237,9 @@ void Server::Accept() {
           }
           if (input.give_up() != 0) {
             GiveUp(*id, input.give_up());
+          }
+          if (input.enlist() != 0) {
+            Enlist(*id, input.enlist());
           }
           if (input.has_item()) {
             Item(*id, input.item());
@@ -519,6 +523,17 @@ void Server::GiveUp(uint32_t id, uint32_t quest) {
   }
   std::cout << land.players().at(id).name << " gave up quest " << quest
             << std::endl;
+}
+
+void Server::Enlist(uint32_t id, uint32_t npc) {
+  World& land = *WorldOf(id);
+  const absl::Status sworn = land.Enlist(id, npc);
+  if (!sworn.ok()) {
+    Notify(id, SentenceOf(sworn));
+    return;
+  }
+  const Player& player = land.players().at(id);
+  std::cout << player.name << " joined faction " << player.faction << std::endl;
 }
 
 void Server::Item(uint32_t id, const protocol::ItemAction& action) {
@@ -1366,6 +1381,7 @@ void Server::BroadcastCopy(const Copy& copy, bool full) {
         entry.clear_level();
         entry.clear_max_health();
         entry.clear_weapon();
+        entry.clear_faction();
       } else if (const auto member = members_.find(id);
                  member != members_.end()) {
         // Their guild goes with their name, once a second.

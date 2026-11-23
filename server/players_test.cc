@@ -446,6 +446,39 @@ TEST_F(PlayersTest, KeepsTheQuestsTheyreOnAndHaveDone) {
   EXPECT_EQ(player->quests_done, (std::set<uint32_t>{1}));
 }
 
+TEST_F(PlayersTest, KeepsTheFactionForGood) {
+  nanommo::Players players(*database_, *redis_);
+  const std::string id = std::to_string(id_);
+  absl::StatusOr<nanommo::Player> player = players.Load("Ember", id_);
+  ASSERT_TRUE(player.ok());
+  EXPECT_EQ(player->faction, 0u);
+
+  // Sworn, they're saved into Redis with it, and the saver takes it to MySQL.
+  ASSERT_TRUE(players.Save("Ember", {{id_, {.faction = 2}}}).ok());
+  player = players.Load("Ember", id_);
+  ASSERT_TRUE(player.ok());
+  EXPECT_EQ(player->faction, 2u);
+  ASSERT_TRUE(players.Flush().ok());
+  const auto faction = [&] {
+    return database_->Run("SELECT faction FROM players WHERE id = ?", {id})
+        .value_or(nanommo::Result())
+        .rows;
+  };
+  EXPECT_EQ(faction(), (std::vector<std::vector<std::string>>{{"2"}}));
+
+  // A save with another, or with none, doesn't switch it in MySQL, which the
+  // player comes back with once Redis's copy is gone.
+  ASSERT_TRUE(players.Save("Ember", {{id_, {.faction = 3}}}).ok());
+  ASSERT_TRUE(players.Flush().ok());
+  ASSERT_TRUE(players.Save("Ember", {{id_, {.x = 1.0f}}}).ok());
+  ASSERT_TRUE(players.Flush().ok());
+  EXPECT_EQ(faction(), (std::vector<std::vector<std::string>>{{"2"}}));
+  ASSERT_TRUE(redis_->Command({"DEL", "player:Ember:" + id}).ok());
+  player = players.Load("Ember", id_);
+  ASSERT_TRUE(player.ok());
+  EXPECT_EQ(player->faction, 2u);
+}
+
 TEST_F(PlayersTest, SavesGoldWithTheBag) {
   nanommo::Players players(*database_, *redis_);
   const std::string id = std::to_string(id_);
