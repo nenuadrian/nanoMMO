@@ -29,6 +29,7 @@
 #include "asio/write.hpp"
 #include "gtest/gtest.h"
 #include "prometheus/text_serializer.h"
+#include "protocol/messages.h"
 #include "server/accounts.h"
 #include "server/characters.h"
 #include "server/guilds.h"
@@ -44,12 +45,13 @@ namespace {
 constexpr char kTls[] = NANOMMO_TEST_TLS "/ours/";
 
 // A player, the way the client is one: over TLS, with a token. It keeps the
-// last world the server sent.
+// last world the server sent, and what the server says in English, with the
+// names of the content it's given.
 class TestPlayer {
  public:
   TestPlayer(asio::io_context& io, asio::ssl::context& tls, uint16_t port,
-             std::string token)
-      : stream_(io, tls) {
+             std::string token, nanommo::Content content = {})
+      : stream_(io, tls), content_(std::move(content)) {
     stream_.set_verify_callback(asio::ssl::host_name_verification("localhost"));
     stream_.lowest_layer().async_connect(
         {asio::ip::make_address("127.0.0.1"), port},
@@ -189,7 +191,10 @@ class TestPlayer {
             } else if (!world.chat().empty()) {
               for (const nanommo::protocol::Chat& line : world.chat()) {
                 if (line.name().empty()) {
-                  notices_.push_back(line.text());
+                  notices_.push_back(
+                      line.has_message()
+                          ? nanommo::English(line.message(), content_)
+                          : line.text());
                 } else {
                   heard_.push_back(line);
                 }
@@ -203,6 +208,7 @@ class TestPlayer {
   }
 
   nanommo::TlsStream stream_;
+  nanommo::Content content_;
   std::string hello_;
   std::array<char, 4096> buffer_;
   nanommo::FrameReader reader_;

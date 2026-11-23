@@ -24,34 +24,6 @@ msgid "nothing"
 msgstr ""
 
 #: client/bag_window.cc
-msgid "main hand"
-msgstr ""
-
-#: client/bag_window.cc
-msgid "off hand"
-msgstr ""
-
-#: client/bag_window.cc
-msgid "head"
-msgstr ""
-
-#: client/bag_window.cc
-msgid "body"
-msgstr ""
-
-#: client/bag_window.cc
-msgid "legs"
-msgstr ""
-
-#: client/bag_window.cc
-msgid "feet"
-msgstr ""
-
-#: client/bag_window.cc
-msgid "nowhere"
-msgstr ""
-
-#: client/bag_window.cc
 msgid "An item this client doesn't know"
 msgstr ""
 
@@ -996,6 +968,38 @@ msgstr ""
 
 #: client/menu.cc
 msgid "Menu (Escape)"
+msgstr ""
+
+#: client/messages.cc
+msgid "something"
+msgstr ""
+
+#: client/names.cc
+msgid "main hand"
+msgstr ""
+
+#: client/names.cc
+msgid "off hand"
+msgstr ""
+
+#: client/names.cc
+msgid "head"
+msgstr ""
+
+#: client/names.cc
+msgid "body"
+msgstr ""
+
+#: client/names.cc
+msgid "legs"
+msgstr ""
+
+#: client/names.cc
+msgid "feet"
+msgstr ""
+
+#: client/names.cc
+msgid "nowhere"
 msgstr ""
 
 #: client/player_frame.cc

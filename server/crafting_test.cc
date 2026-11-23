@@ -5,8 +5,10 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "google/protobuf/util/message_differencer.h"
 #include "gtest/gtest.h"
+#include "protocol/messages.h"
 #include "protocol/places.h"
 #include "server/monsters.h"
 #include "server/test_content.h"
@@ -198,8 +200,14 @@ TEST(Crafting, NeedsRoomForWhatItMakesOnceWhatItTakesIsGone) {
   };
   nanommo::World world(1, nanommo::Terrain(), Recipes());
   world.Join(1, full(7));
-  EXPECT_EQ(world.Craft(1, kCarveACap).message(),
-            "Your bag is full. Make room for a Cap first.");
+  const absl::Status refused = world.Craft(1, kCarveACap);
+  EXPECT_EQ(refused.message(), "Your bag is full. Make room for a Cap first.");
+  // The client hears it as a sentence to translate, with the cap in it.
+  const nanommo::protocol::Message why = nanommo::SentenceOf(refused).message;
+  EXPECT_EQ(why.text(), "Your bag is full. Make room for $0 first.");
+  ASSERT_EQ(why.args_size(), 1);
+  EXPECT_EQ(why.args(0).item(), kCap);
+  EXPECT_EQ(why.args(0).count(), 1u);
 
   // Five bones, all it takes, leave their slot for the cap.
   world.Join(2, full(5));

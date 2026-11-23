@@ -13,6 +13,7 @@
 #include "absl/status/status.h"
 #include "client/translations.h"
 #include "protocol/clock.h"
+#include "protocol/messages.h"
 #include "server/monsters.h"
 #include "server/npcs.h"
 #include "server/shown.h"
@@ -94,7 +95,7 @@ void LocalConnection::Send(const protocol::Input& input) {
     done.Update(DoCraft(world_, kYou, input.craft()));
   }
   if (!done.ok()) {
-    Notify(std::string(done.message()));
+    Notify(SentenceOf(done).message);
   }
   if (!input.say().empty()) {
     Say(world_.players().at(kYou).name, input.say());
@@ -190,12 +191,24 @@ void LocalConnection::Notify(const std::string& text,
   Say("", text, channel);
 }
 
+void LocalConnection::Notify(const protocol::Message& message,
+                             protocol::Channel channel) {
+  protocol::Chat line;
+  *line.mutable_message() = message;
+  line.set_channel(channel);
+  Add(std::move(line));
+}
+
 void LocalConnection::Say(const std::string& name, const std::string& text,
                           protocol::Channel channel) {
   protocol::Chat line;
   line.set_name(name);
   line.set_text(text);
   line.set_channel(channel);
+  Add(std::move(line));
+}
+
+void LocalConnection::Add(protocol::Chat line) {
   chat_.push_back(std::move(line));
   while (chat_.size() > kChatLines) {
     chat_.pop_front();

@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 
+#include "content/content.h"
 #include "protocol/chat.h"
 #include "protocol/nanommo.pb.h"
 
@@ -36,9 +37,11 @@ std::optional<protocol::DuelAction> DuelLine(std::string_view typed);
 /// how many lines have come since, and which, or Enter, opens it again.
 class ChatWindow {
  public:
-  /// Draws the lines, or the button while it's closed. Returns what the
-  /// player says, once Enter sends it.
-  std::optional<std::string> Build(const std::deque<protocol::Chat>& lines);
+  /// Draws the lines, or the button while it's closed, with the servers'
+  /// sentences in the language in use, which names the content's by the
+  /// content. Returns what the player says, once Enter sends it.
+  std::optional<std::string> Build(const std::deque<protocol::Chat>& lines,
+                                   const Content& content);
 
   /// How many of the lines came after the last one seen while it was open.
   static std::size_t Unread(const std::deque<protocol::Chat>& lines,

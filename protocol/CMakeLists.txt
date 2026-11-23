@@ -1,5 +1,5 @@
 add_library(nanommo_protocol
-  nanommo.proto chat.cc framing.cc parts.cc places.cc settings.cc version.cc
+  nanommo.proto chat.cc framing.cc messages.cc parts.cc places.cc settings.cc version.cc
 )
 # Logging in, over TLS, takes sockets, which a browser doesn't give us.
 if(NOT EMSCRIPTEN)
@@ -31,7 +31,7 @@ endif()
 
 add_executable(nanommo_protocol_tests
   protocol_test.cc framing_test.cc parts_test.cc tls_test.cc chat_test.cc login_client_test.cc
-  settings_test.cc version_test.cc
+  settings_test.cc version_test.cc messages_test.cc
 )
 target_link_libraries(nanommo_protocol_tests PRIVATE nanommo_protocol GTest::gtest_main)
 

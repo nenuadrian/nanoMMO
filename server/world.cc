@@ -19,6 +19,7 @@
 
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "protocol/messages.h"
 #include "server/levels.h"
 #include "server/monsters.h"
 #include "tracy/Tracy.hpp"
@@ -1578,8 +1579,9 @@ absl::StatusOr<Inventory> World::Made(uint32_t id, const Player& player,
   }
   // As loot is, each one of what doesn't stack with a serial of its own.
   if (Give(bag, output.item(), output.count()) < output.count()) {
-    return absl::ResourceExhaustedError(
-        absl::StrCat("Your bag is full. Make room for ", made, " first."));
+    return Refusal(absl::StatusCode::kResourceExhausted,
+                   Msg("Your bag is full. Make room for $0 first.",
+                       Of(content_->items, output.item(), output.count())));
   }
   return bag;
 }

@@ -7,6 +7,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/substitute.h"
 #include "client/translations.h"
+#include "protocol/messages.h"
 
 namespace nanommo {
 
@@ -51,12 +52,37 @@ const char* TextOf(const quests::Quest& quest) {
   return Tr(absl::StrCat("quest ", quest.id()), quest.text().c_str());
 }
 
+const char* NameOf(items::Slot slot) {
+  switch (slot) {
+    case items::SLOT_MAIN_HAND:
+      return Tr("main hand");
+    case items::SLOT_OFF_HAND:
+      return Tr("off hand");
+    case items::SLOT_HEAD:
+      return Tr("head");
+    case items::SLOT_BODY:
+      return Tr("body");
+    case items::SLOT_LEGS:
+      return Tr("legs");
+    case items::SLOT_FEET:
+      return Tr("feet");
+    default:
+      return Tr("nowhere");
+  }
+}
+
 std::string NameOf(const monsters::Kind& kind, uint32_t count) {
-  const std::string one = absl::StrCat("$0 ", kind.name());
-  const std::string many = one + "s";
+  const auto [one, many] = Counted(kind);
   return absl::Substitute(TrN(absl::StrCat("monster ", kind.id()), one.c_str(),
                               many.c_str(), count),
                           count);
+}
+
+std::string NameOf(const items::Item& item, uint32_t count) {
+  const auto [one, many] = Counted(item);
+  return absl::Substitute(
+      TrN(absl::StrCat("item ", item.id()), one.c_str(), many.c_str(), count),
+      count);
 }
 
 std::string LandName(std::string_view land) {

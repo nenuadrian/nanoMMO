@@ -27,35 +27,6 @@ msgid "nothing"
 msgstr "nimic"
 
 #: client/bag_window.cc
-msgid "main hand"
-msgstr "mâna principală"
-
-#: client/bag_window.cc
-msgid "off hand"
-msgstr "mâna cealaltă"
-
-#: client/bag_window.cc
-msgid "head"
-msgstr "cap"
-
-#: client/bag_window.cc
-msgid "body"
-msgstr "trup"
-
-#: client/bag_window.cc
-msgid "legs"
-msgstr "picioare"
-
-# To check: the slot for shoes and boots; or "încălțăminte"?
-#: client/bag_window.cc
-msgid "feet"
-msgstr "tălpi"
-
-#: client/bag_window.cc
-msgid "nowhere"
-msgstr "nicăieri"
-
-#: client/bag_window.cc
 msgid "An item this client doesn't know"
 msgstr "Un obiect pe care acest client nu-l cunoaște"
 
@@ -1017,6 +988,39 @@ msgstr "Ajutor (H)"
 #: client/menu.cc
 msgid "Menu (Escape)"
 msgstr "Meniu (Escape)"
+
+#: client/messages.cc
+msgid "something"
+msgstr "ceva"
+
+#: client/names.cc
+msgid "main hand"
+msgstr "mâna principală"
+
+#: client/names.cc
+msgid "off hand"
+msgstr "mâna cealaltă"
+
+#: client/names.cc
+msgid "head"
+msgstr "cap"
+
+#: client/names.cc
+msgid "body"
+msgstr "trup"
+
+#: client/names.cc
+msgid "legs"
+msgstr "picioare"
+
+# To check: the slot for shoes and boots; or "încălțăminte"?
+#: client/names.cc
+msgid "feet"
+msgstr "tălpi"
+
+#: client/names.cc
+msgid "nowhere"
+msgstr "nicăieri"
 
 #: client/player_frame.cc
 msgid "Experience: $0 / $1"

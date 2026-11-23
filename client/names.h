@@ -26,12 +26,20 @@ const char* NameOf(const rig::Build& build);
 /// A monster's skill, which is numbered among its kind's: "monster 4 skill 1".
 const char* NameOf(uint32_t kind, const monsters::Skill& skill);
 
+/// A slot of the bag, which the content's SlotName says in English, as the
+/// servers do.
+const char* NameOf(items::Slot slot);
+
 /// What a quest's giver says, giving it.
 const char* TextOf(const quests::Quest& quest);
 
 /// So many of a kind of monster, "3 Skeletons", which the template has as its
 /// name after the count, with an s for more than one, as the English does.
 std::string NameOf(const monsters::Kind& kind, uint32_t count);
+
+/// So many of an item, "a Bone" or "3 Bones", which the template has as a
+/// plural of its own, as the English does.
+std::string NameOf(const items::Item& item, uint32_t count);
 
 /// A land's name, by its English one, which the servers and kLands use: one
 /// this client doesn't know stays as it is.

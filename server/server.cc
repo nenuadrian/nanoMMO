@@ -24,6 +24,7 @@
 #include "protocol/chat.h"
 #include "protocol/clock.h"
 #include "protocol/framing.h"
+#include "protocol/messages.h"
 #include "protocol/nanommo.pb.h"
 #include "protocol/parts.h"
 #include "server/consul.h"
@@ -656,7 +657,7 @@ void Server::Craft(uint32_t id, const protocol::CraftAction& action) {
   }
   const absl::Status done = DoCraft(*WorldOf(id), id, action);
   if (!done.ok()) {
-    Notify(id, std::string(done.message()));
+    Notify(id, SentenceOf(done).message);
   }
 }
 
@@ -1012,6 +1013,15 @@ void Server::Notify(uint32_t id, const std::string& text,
   protocol::World notice;
   protocol::Chat* line = notice.add_chat();
   line->set_text(text);
+  line->set_channel(channel);
+  sessions_.at(id)->Send(Frame(notice));
+}
+
+void Server::Notify(uint32_t id, const protocol::Message& message,
+                    protocol::Channel channel) {
+  protocol::World notice;
+  protocol::Chat* line = notice.add_chat();
+  *line->mutable_message() = message;
   line->set_channel(channel);
   sessions_.at(id)->Send(Frame(notice));
 }

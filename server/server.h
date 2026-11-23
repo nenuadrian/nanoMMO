@@ -120,6 +120,9 @@ class Server {
   /// Sends the player a line from the server, which has no name.
   void Notify(uint32_t id, const std::string& text,
               protocol::Channel channel = protocol::CHANNEL_WORLD);
+  /// A sentence, which the client says in its player's language.
+  void Notify(uint32_t id, const protocol::Message& message,
+              protocol::Channel channel = protocol::CHANNEL_WORLD);
   void Receive();
   /// Each player's next numbered input, one a tick, before the world steps.
   void ApplyInputs();

@@ -91,27 +91,6 @@ const char* StatName(items::Stat stat) {
   }
 }
 
-// A slot's name, as the bag shows it, in the player's language. The content's
-// SlotName is the servers' too, which say it in English.
-const char* SlotShown(items::Slot slot) {
-  switch (slot) {
-    case items::SLOT_MAIN_HAND:
-      return Tr("main hand");
-    case items::SLOT_OFF_HAND:
-      return Tr("off hand");
-    case items::SLOT_HEAD:
-      return Tr("head");
-    case items::SLOT_BODY:
-      return Tr("body");
-    case items::SLOT_LEGS:
-      return Tr("legs");
-    case items::SLOT_FEET:
-      return Tr("feet");
-    default:
-      return Tr("nowhere");
-  }
-}
-
 std::string Added(const items::Modifier& modifier) {
   return absl::StrCat(modifier.amount() >= 0 ? "+" : "", modifier.amount(), " ",
                       StatName(modifier.stat()));
@@ -175,7 +154,7 @@ std::vector<std::string> ItemLines(const ItemTable& items,
   std::vector<std::string> lines = {NameOf(*item)};
   if (item->has_equip()) {
     lines.push_back(
-        absl::Substitute(Tr("Worn: $0"), SlotShown(item->equip().slot())));
+        absl::Substitute(Tr("Worn: $0"), NameOf(item->equip().slot())));
   }
   for (const items::Modifier& modifier : item->equip().modifiers()) {
     lines.push_back(Added(modifier));
@@ -331,7 +310,7 @@ std::optional<protocol::ItemAction> ItemSlot(const ItemTable& items,
     ImGui::BeginTooltip();
     if (stack == nullptr) {
       ImGui::TextDisabled(
-          "%s", place.has_worn() ? SlotShown(place.worn()) : Tr("Empty"));
+          "%s", place.has_worn() ? NameOf(place.worn()) : Tr("Empty"));
     } else {
       const std::vector<std::string> lines = ItemLines(items, *stack);
       ImGui::PushFont(GetFonts().title, 15.0f);

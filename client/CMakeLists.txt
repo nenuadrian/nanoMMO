@@ -2,7 +2,7 @@ add_library(nanommo_client_core
   settings.proto
   window.cc audio.cc jukebox.cc sound.cc synth.cc foley.cc soundscape.cc soundboard.cc
   ambience.cc daylight.cc weather.cc
-  settings.cc gui.cc menu.cc help_window.cc names.cc renderer.cc
+  settings.cc gui.cc menu.cc help_window.cc names.cc messages.cc renderer.cc
   offscreen.cc postprocess.cc outline.cc
   camera.cc scene.cc input.cc glsl.cc local_connection.cc inbox.cc
   login_screen.cc nameplates.cc combat_text.cc player_frame.cc boss_bar.cc hotbar.cc
@@ -116,7 +116,7 @@ add_executable(nanommo_client_tests
   loading_test.cc death_screen_test.cc gate_test.cc map_test.cc
   theme_test.cc translations_test.cc compass_test.cc predicted_bag_test.cc chat_window_test.cc
   guild_window_test.cc trade_window_test.cc duel_window_test.cc craft_window_test.cc inbox_test.cc
-  round_trip_test.cc prediction_test.cc interpolation_test.cc
+  round_trip_test.cc prediction_test.cc interpolation_test.cc messages_test.cc
   daylight_test.cc ambience_test.cc
 )
 target_link_libraries(nanommo_client_tests PRIVATE nanommo_client_core GTest::gtest_main)

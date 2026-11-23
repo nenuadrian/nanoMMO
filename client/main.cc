@@ -742,7 +742,7 @@ int main(int argc, char* argv[]) {
         walk_to(place->x, place->z);
       }
       if (const std::optional<std::string> line =
-              chat_window.Build(connection->chat())) {
+              chat_window.Build(connection->chat(), *content)) {
         // With what we sent last, so that we keep moving as we were.
         nanommo::protocol::Input say = sent;
         if (const std::optional<std::string> to_guild =

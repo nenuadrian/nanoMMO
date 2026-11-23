@@ -46,8 +46,13 @@ class LocalConnection final : public Link {
   void Show();
   void Notify(const std::string& text,
               protocol::Channel channel = protocol::CHANNEL_WORLD);
+  /// A sentence of the world's, as a server sends one.
+  void Notify(const protocol::Message& message,
+              protocol::Channel channel = protocol::CHANNEL_WORLD);
   void Say(const std::string& name, const std::string& text,
            protocol::Channel channel = protocol::CHANNEL_WORLD);
+  /// Adds a line to the chat, which keeps the newest.
+  void Add(protocol::Chat line);
 
   static constexpr uint32_t kYou = 1;
   static constexpr uint32_t kSeed = 1;

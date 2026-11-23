@@ -235,10 +235,50 @@ enum Channel {
   CHANNEL_LAND = 2;
 }
 
+// A sentence from a server, which the client says in its player's language.
+// Its English is its key, as the client's own strings' are: the translation
+// is looked up by it, and it shows where there's none. $0 to $9 in it are its
+// args, in order.
+message Message {
+  string text = 1;
+  // A plural: text is its English for one, and this its English for any
+  // other count, which picks the form in the player's language.
+  string plural = 2;
+  uint64 count = 3;
+  repeated Arg args = 4;
+}
+
+// What goes into one of a Message's placeholders.
+message Arg {
+  oneof value {
+    // A number, as it is.
+    uint64 number = 1;
+    // A name a player gave, a character's, a guild's or a world's, or a
+    // version, which stays as it is in every language.
+    string name = 2;
+    // A sentence of its own inside the other, translated on its own, such as
+    // so much gold.
+    Message phrase = 3;
+    // The content's, by their ids, which the client names in its player's
+    // language, as it does wherever it shows them.
+    uint32 item = 4;
+    uint32 monster = 5;
+    uint32 npc = 6;
+    uint32 quest = 7;
+    uint32 skill = 8;
+    items.Slot slot = 9;
+  }
+  // With an item, so many of it, "a Bone" or "3 Bones", and with a monster,
+  // "3 Skeletons". With none, its name alone.
+  uint32 count = 10;
+}
+
 message Chat {
   string name = 1;
   string text = 2;
   Channel channel = 3;
+  // What the server says, in place of a text, for the client to translate.
+  Message message = 4;
 }
 
 // Where a player goes when their world's instance hands its players over to
