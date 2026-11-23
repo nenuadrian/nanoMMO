@@ -9,6 +9,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "protocol/limits.h"
+#include "protocol/messages.h"
 #include "server/accounts.h"
 #include "server/guilds.h"
 #include "server/levels.h"
@@ -125,7 +126,8 @@ absl::StatusOr<uint32_t> Characters::Create(
     for (const uint32_t look :
          {looks->build(), looks->skin(), looks->hair_color(), looks->hair()}) {
       if (look > kMostLook) {
-        return absl::InvalidArgumentError("That isn't a look there is.");
+        return Refusal(absl::StatusCode::kInvalidArgument,
+                       Msg("That isn't a look there is."));
       }
       values.push_back(absl::StrCat(look));
     }
@@ -134,7 +136,8 @@ absl::StatusOr<uint32_t> Characters::Create(
     // it, as it did then.
     if (looks->has_shirt()) {
       if (looks->shirt() > kMostLook) {
-        return absl::InvalidArgumentError("That isn't a look there is.");
+        return Refusal(absl::StatusCode::kInvalidArgument,
+                       Msg("That isn't a look there is."));
       }
       values.push_back(absl::StrCat(looks->shirt()));
       chosen = "?, ?, ?, ?, ?";
@@ -153,16 +156,17 @@ absl::StatusOr<uint32_t> Characters::Create(
                    "account_id = ? AND world = ?) < ?"),
       values);
   if (absl::IsAlreadyExists(inserted.status())) {
-    return absl::AlreadyExistsError(
-        absl::StrCat("Someone in ", world, " is called that already."));
+    return Refusal(absl::StatusCode::kAlreadyExists,
+                   Msg("Someone in $0 is called that already.", Name(world)));
   }
   if (!inserted.ok()) {
     return inserted.status();
   }
   if (inserted->insert_id == 0) {
-    return absl::ResourceExhaustedError(
-        absl::StrCat("You have ", kCharactersPerWorld, " characters in ", world,
-                     " already."));
+    return Refusal(absl::StatusCode::kResourceExhausted,
+                   MsgN("You have $0 character in $1 already.",
+                        "You have $0 characters in $1 already.",
+                        kCharactersPerWorld, kCharactersPerWorld, Name(world)));
   }
   return static_cast<uint32_t>(inserted->insert_id);
 }
@@ -186,7 +190,8 @@ absl::Status Characters::Delete(uint32_t account, uint32_t id) {
       return deleted.status();
     }
     if (deleted->affected_rows == 0) {
-      return absl::NotFoundError("That character isn't yours.");
+      return Refusal(absl::StatusCode::kNotFound,
+                     Msg("That character isn't yours."));
     }
     return absl::OkStatus();
   });
@@ -200,7 +205,8 @@ absl::StatusOr<std::string> Characters::WorldOf(uint32_t account, uint32_t id) {
     return rows.status();
   }
   if (rows->rows.empty()) {
-    return absl::NotFoundError("That character isn't yours.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("That character isn't yours."));
   }
   return rows->rows.front()[0];
 }

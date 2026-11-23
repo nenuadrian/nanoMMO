@@ -1327,6 +1327,15 @@ TEST(World, MonstersDropGold) {
   EXPECT_EQ(notices[0].text,
             absl::StrCat("The Skeleton dropped 2 Bones, a Blade and ", carried,
                          " gold."));
+  // The client gets the list as sentences, "$0, $1" with "$0 and $1" in it,
+  // for a language to join its own way.
+  const nanommo::protocol::Message& dropped = notices[0].message;
+  EXPECT_EQ(dropped.text(), "The $0 dropped $1.");
+  EXPECT_EQ(dropped.args(0).monster(), 1u);
+  EXPECT_EQ(dropped.args(1).phrase().text(), "$0, $1");
+  EXPECT_EQ(dropped.args(1).phrase().args(1).phrase().text(), "$0 and $1");
+  EXPECT_EQ(dropped.args(1).phrase().args(1).phrase().args(1).phrase().count(),
+            carried);
 
   // Gold takes no slot, so a player whose bag is full gets it all the same.
   nanommo::Player full = With(1, true);

@@ -129,7 +129,7 @@ void LocalConnection::Tick() {
   inputs_.Apply([this](uint32_t) { return &world_; });
   world_.Step(kTick);
   for (const Notice& notice : world_.TakeNotices()) {
-    Notify(notice.text, notice.channel);
+    Notify(notice.message, notice.channel);
   }
   const Player& you = world_.players().at(kYou);
   // What happens near us, as a world server shows it.

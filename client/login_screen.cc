@@ -15,6 +15,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/substitute.h"
+#include "client/messages.h"
 #include "client/names.h"
 #include "client/scene.h"
 #include "client/theme.h"
@@ -294,7 +295,12 @@ std::optional<protocol::LoginRequest> LoginScreen::Build() {
 }
 
 void LoginScreen::Show(const protocol::LoginReply& reply) {
-  error_ = reply.ok() ? "" : reply.error();
+  // The server's sentence, in the language in use. A login server before
+  // 0.96.0, which turns this client away for its version, sends the English
+  // alone.
+  error_ = reply.ok()        ? ""
+           : reply.has_why() ? Translated(reply.why())
+                             : reply.error();
   // Without a session, the login failed, or the one we had ran out: back to
   // the login, with what the server said.
   if (reply.session().empty()) {

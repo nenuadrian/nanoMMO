@@ -396,7 +396,7 @@ void Server::Leave(uint32_t id) {
 void Server::Say(uint32_t id, const std::string& text) {
   if (!chat_limits_.at(id).Take(std::chrono::steady_clock::now())) {
     metrics_.AddChatLine("refused");
-    Notify(id, "You're talking too fast, so nobody heard that.");
+    Notify(id, Msg("You're talking too fast, so nobody heard that."));
     return;
   }
   const std::optional<std::string> clean = CleanChat(text);
@@ -423,8 +423,7 @@ void Server::Talk(uint32_t id, const protocol::Talk& talk) {
   const Npc& npc = found->second;
   if (std::hypot(npc.x - player.x, npc.z - player.z) > World::kTalkReach) {
     metrics_.AddStory("refused");
-    Notify(id,
-           absl::StrCat("You're too far away to talk to the ", npc.name, "."));
+    Notify(id, Msg("You're too far away to talk to the $0.", Of(npc)));
     return;
   }
   const std::optional<std::string> words = CleanChat(talk.words());
@@ -437,36 +436,39 @@ void Server::Talk(uint32_t id, const protocol::Talk& talk) {
   const auto asked = std::chrono::steady_clock::now();
   if (!story_limits_.at(id).Take(asked)) {
     metrics_.AddStory("refused");
-    Notify(id, absl::StrCat("The ", npc.name,
-                            " needs a moment before the next story."));
+    Notify(id, Msg("The $0 needs a moment before the next story.", Of(npc)));
     return;
   }
   std::cout << player.name << " asked the " << npc.name
             << " for a story: " << *words << std::endl;
-  storyteller_.Tell(*prompt, [this, id, asked, name = npc.name](
+  storyteller_.Tell(*prompt, [this, id, asked, kind = npc.kind](
                                  const absl::StatusOr<std::string>& story) {
-    std::vector<std::string> lines = {"I can't think of a story right now."};
+    // The NPC speaks, by its kind, which each client names in its own
+    // language. The story is the storyteller's, in English.
+    protocol::World told;
     if (story.ok()) {
       metrics_.AddStory("told");
       metrics_.ObserveStory(std::chrono::steady_clock::now() - asked);
-      lines = StoryLines(*story);
+      for (const std::string& line : StoryLines(*story)) {
+        if (const std::optional<std::string> clean = CleanChat(line)) {
+          protocol::Chat* said = told.add_chat();
+          said->set_npc(kind);
+          said->set_text(*clean);
+        }
+      }
     } else {
       metrics_.AddStory("failed");
       std::cerr << "no story for player " << id << ": " << story.status()
                 << "\n";
+      protocol::Chat* said = told.add_chat();
+      said->set_npc(kind);
+      *said->mutable_message() =
+          Msg("I can't think of a story right now.").message;
     }
     // The player may have left while the model wrote.
     const auto session = sessions_.find(id);
     if (session == sessions_.end()) {
       return;
-    }
-    protocol::World told;
-    for (const std::string& line : lines) {
-      if (const std::optional<std::string> clean = CleanChat(line)) {
-        protocol::Chat* said = told.add_chat();
-        said->set_name(name);
-        said->set_text(*clean);
-      }
     }
     if (!told.chat().empty()) {
       session->second->Send(Frame(told));
@@ -478,7 +480,7 @@ void Server::Learn(uint32_t id, const protocol::Learn& learn) {
   World& land = *WorldOf(id);
   const absl::Status learned = land.Learn(id, learn.npc(), learn.skill());
   if (!learned.ok()) {
-    Notify(id, std::string(learned.message()));
+    Notify(id, SentenceOf(learned));
     return;
   }
   std::cout << land.players().at(id).name << " learned skill " << learn.skill()
@@ -489,7 +491,7 @@ void Server::TakeQuest(uint32_t id, const protocol::Quest& quest) {
   World& land = *WorldOf(id);
   const absl::Status taken = land.TakeQuest(id, quest.npc(), quest.quest());
   if (!taken.ok()) {
-    Notify(id, std::string(taken.message()));
+    Notify(id, SentenceOf(taken));
     return;
   }
   std::cout << land.players().at(id).name << " took quest " << quest.quest()
@@ -500,7 +502,7 @@ void Server::TurnIn(uint32_t id, const protocol::Quest& quest) {
   World& land = *WorldOf(id);
   const absl::Status turned = land.TurnIn(id, quest.npc(), quest.quest());
   if (!turned.ok()) {
-    Notify(id, std::string(turned.message()));
+    Notify(id, SentenceOf(turned));
     return;
   }
   std::cout << land.players().at(id).name << " turned in quest "
@@ -511,7 +513,7 @@ void Server::GiveUp(uint32_t id, uint32_t quest) {
   World& land = *WorldOf(id);
   const absl::Status given_up = land.GiveUp(id, quest);
   if (!given_up.ok()) {
-    Notify(id, std::string(given_up.message()));
+    Notify(id, SentenceOf(given_up));
     return;
   }
   std::cout << land.players().at(id).name << " gave up quest " << quest
@@ -525,12 +527,12 @@ void Server::Item(uint32_t id, const protocol::ItemAction& action) {
     return;
   }
   if (!item_limits_.at(id).Take(std::chrono::steady_clock::now())) {
-    Notify(id, "You're moving things too fast.");
+    Notify(id, Msg("You're moving things too fast."));
     return;
   }
   const absl::Status done = DoItem(*WorldOf(id), id, action);
   if (!done.ok()) {
-    Notify(id, std::string(done.message()));
+    Notify(id, SentenceOf(done));
   }
 }
 
@@ -542,7 +544,7 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
   }
   // It's moving things too, so it's on the bag's limit.
   if (!item_limits_.at(id).Take(std::chrono::steady_clock::now())) {
-    Notify(id, "You're moving things too fast.");
+    Notify(id, Msg("You're moving things too fast."));
     return;
   }
   World& land = *WorldOf(id);
@@ -609,7 +611,7 @@ void Server::Trade(uint32_t id, const protocol::TradeAction& action) {
       return;
   }
   if (!done.ok()) {
-    Notify(id, std::string(done.message()));
+    Notify(id, SentenceOf(done));
   }
 }
 
@@ -619,7 +621,7 @@ void Server::Duel(uint32_t id, const protocol::DuelAction& action) {
     return;
   }
   if (!duel_limits_.at(id).Take(std::chrono::steady_clock::now())) {
-    Notify(id, "You're asking for duels too fast.");
+    Notify(id, Msg("You're asking for duels too fast."));
     return;
   }
   World& land = *WorldOf(id);
@@ -641,7 +643,7 @@ void Server::Duel(uint32_t id, const protocol::DuelAction& action) {
       return;
   }
   if (!done.ok()) {
-    Notify(id, std::string(done.message()));
+    Notify(id, SentenceOf(done));
   }
 }
 
@@ -652,12 +654,12 @@ void Server::Craft(uint32_t id, const protocol::CraftAction& action) {
     return;
   }
   if (!craft_limits_.at(id).Take(std::chrono::steady_clock::now())) {
-    Notify(id, "You're crafting too fast.");
+    Notify(id, Msg("You're crafting too fast."));
     return;
   }
   const absl::Status done = DoCraft(*WorldOf(id), id, action);
   if (!done.ok()) {
-    Notify(id, SentenceOf(done).message);
+    Notify(id, SentenceOf(done));
   }
 }
 
@@ -672,7 +674,7 @@ void Server::Guild(uint32_t id, const protocol::GuildAction& action) {
     return;
   }
   if (!guild_limits_.at(id).Take(std::chrono::steady_clock::now())) {
-    Notify(id, "You're doing that too fast.");
+    Notify(id, Msg("You're doing that too fast."));
     return;
   }
   switch (action.action_case()) {
@@ -740,12 +742,11 @@ void Server::Ask(uint32_t id, const std::string& name) {
     }
   }
   if (asked == 0) {
-    Notify(id,
-           absl::StrCat("Nobody of that name is playing in ", name_, " now."));
+    Notify(id, Msg("Nobody of that name is playing in $0 now.", Name(name_)));
     return;
   }
   if (members_.contains(asked)) {
-    Notify(id, absl::StrCat(asked_name, " is in a guild already."));
+    Notify(id, Msg("$0 is in a guild already.", Name(asked_name)));
     return;
   }
   const absl::StatusOr<Membership> guild = guilds_.Invite(id, asked);
@@ -758,7 +759,7 @@ void Server::Ask(uint32_t id, const std::string& name) {
   question.mutable_invite()->set_from(WorldOf(id)->players().at(id).name);
   sessions_.at(asked)->Send(Frame(question));
   Notify(id,
-         absl::StrCat("You asked ", asked_name, " to join ", guild->name, "."));
+         Msg("You asked $0 to join $1.", Name(asked_name), Name(guild->name)));
 }
 
 void Server::Join(uint32_t id) {
@@ -770,8 +771,9 @@ void Server::Join(uint32_t id) {
   members_[id] = *joined;
   WorldOf(id)->SetGuild(id, joined->guild);
   RefreshGuild(joined->guild);
-  TellGuild(joined->guild, absl::StrCat(WorldOf(id)->players().at(id).name,
-                                        " joined ", joined->name, "."));
+  TellGuild(joined->guild,
+            Msg("$0 joined $1.", Name(WorldOf(id)->players().at(id).name),
+                Name(joined->name)));
 }
 
 void Server::QuitGuild(uint32_t id) {
@@ -784,21 +786,24 @@ void Server::QuitGuild(uint32_t id) {
   WorldOf(id)->SetGuild(id, 0);
   guild_news_.insert(id);
   RefreshGuild(left->guild);
-  std::string news = absl::StrCat(WorldOf(id)->players().at(id).name, " left ",
-                                  left->name, ".");
+  const Part who = Name(WorldOf(id)->players().at(id).name);
+  const Part guild = Name(left->name);
   if (left->successor != 0) {
-    absl::StrAppend(&news, " ", left->successor_name, " leads it now.");
     // If they're playing here, they see it at once.
     if (const auto next = members_.find(left->successor);
         next != members_.end()) {
       next->second.rank = protocol::RANK_LEADER;
       guild_news_.insert(left->successor);
     }
+    // Translators: $2 is who leads the guild after them.
+    TellGuild(left->guild, Msg("$0 left $1. $2 leads it now.", who, guild,
+                               Name(left->successor_name)));
+  } else {
+    TellGuild(left->guild, Msg("$0 left $1.", who, guild));
   }
-  TellGuild(left->guild, news);
-  Notify(id, left->ended ? absl::StrCat("You were the last in ", left->name,
-                                        ", so it's no more.")
-                         : absl::StrCat("You left ", left->name, "."));
+  Notify(id, left->ended
+                 ? Msg("You were the last in $0, so it's no more.", guild)
+                 : Msg("You left $0.", guild));
 }
 
 void Server::SetRank(uint32_t id, uint32_t player, protocol::Rank rank) {
@@ -811,10 +816,10 @@ void Server::SetRank(uint32_t id, uint32_t player, protocol::Rank rank) {
     member->second.rank = rank;
   }
   RefreshGuild(changed->guild);
-  TellGuild(changed->guild,
-            absl::StrCat(changed->player_name, rank == protocol::RANK_OFFICER
-                                                   ? " is an officer now."
-                                                   : " is a member now."));
+  const Part who = Name(changed->player_name);
+  TellGuild(changed->guild, rank == protocol::RANK_OFFICER
+                                ? Msg("$0 is an officer now.", who)
+                                : Msg("$0 is a member now.", who));
 }
 
 void Server::Kick(uint32_t id, uint32_t player) {
@@ -827,13 +832,13 @@ void Server::Kick(uint32_t id, uint32_t player) {
   if (members_.erase(player) > 0) {
     WorldOf(player)->SetGuild(player, 0);
     guild_news_.insert(player);
-    Notify(player,
-           absl::StrCat("You were removed from ", kicked->guild_name, "."));
+    Notify(player, Msg("You were removed from $0.", Name(kicked->guild_name)));
   }
   RefreshGuild(kicked->guild);
-  TellGuild(kicked->guild, absl::StrCat(WorldOf(id)->players().at(id).name,
-                                        " removed ", kicked->player_name,
-                                        " from ", kicked->guild_name, "."));
+  TellGuild(
+      kicked->guild,
+      Msg("$0 removed $1 from $2.", Name(WorldOf(id)->players().at(id).name),
+          Name(kicked->player_name), Name(kicked->guild_name)));
 }
 
 void Server::Disband(uint32_t id) {
@@ -842,9 +847,9 @@ void Server::Disband(uint32_t id) {
     Refuse(id, ended.status());
     return;
   }
-  const std::string news = absl::StrCat(WorldOf(id)->players().at(id).name,
-                                        " disbanded ", ended->name, ".");
-  TellGuild(ended->guild, news);
+  TellGuild(ended->guild,
+            Msg("$0 disbanded $1.", Name(WorldOf(id)->players().at(id).name),
+                Name(ended->name)));
   // Everyone in it who's playing here is in no guild now.
   std::erase_if(members_, [&](const auto& member) {
     if (member.second.guild != ended->guild) {
@@ -864,12 +869,13 @@ void Server::AskToWar(uint32_t id, const std::string& name) {
   }
   // Asked: the other guild's players here hear it in their chat.
   if (war->id == 0) {
+    // Translators: /war is the chat's command, which stays as it is, and $0
+    // the guild that asks.
     TellGuild(war->challenged,
-              absl::StrCat(war->challenger_name, " asks ", war->challenged_name,
-                           " to war. Your leader types /war ",
-                           war->challenger_name, " to say yes."),
+              Msg("$0 asks $1 to war. Your leader types /war $0 to say yes.",
+                  Name(war->challenger_name), Name(war->challenged_name)),
               protocol::CHANNEL_GUILD);
-    Notify(id, absl::StrCat("You asked ", war->challenged_name, " to war."));
+    Notify(id, Msg("You asked $0 to war.", Name(war->challenged_name)));
     return;
   }
   // Started: each copy of each land has it at once, and both guilds hear.
@@ -877,9 +883,11 @@ void Server::AskToWar(uint32_t id, const std::string& name) {
             << " went to war" << std::endl;
   wars_.push_back(*war);
   copies_.SetWars(wars_);
-  const std::string news = absl::StrCat(
-      war->challenger_name, " and ", war->challenged_name, " are at war, for ",
-      Guilds::kWarLength.count(), " minutes.");
+  const uint64_t minutes = Guilds::kWarLength.count();
+  const Sentence news =
+      MsgN("$0 and $1 are at war, for $2 minute.",
+           "$0 and $1 are at war, for $2 minutes.", minutes,
+           Name(war->challenger_name), Name(war->challenged_name), minutes);
   for (const uint32_t guild : {war->challenger, war->challenged}) {
     TellGuild(guild, news, protocol::CHANNEL_GUILD);
     RefreshGuild(guild);
@@ -904,9 +912,9 @@ void Server::ReadWars() {
     if (std::ranges::find(*read, war.id, &War::id) != read->end()) {
       continue;
     }
-    const std::string news =
-        absl::StrCat("The war between ", war.challenger_name, " and ",
-                     war.challenged_name, " is over.");
+    const Sentence news =
+        Msg("The war between $0 and $1 is over.", Name(war.challenger_name),
+            Name(war.challenged_name));
     for (const uint32_t guild : {war.challenger, war.challenged}) {
       TellGuild(guild, news, protocol::CHANNEL_GUILD);
       RefreshGuild(guild);
@@ -927,10 +935,11 @@ void Server::ReadWars() {
 
 void Server::TellKills(const std::vector<WarKill>& kills) {
   for (const WarKill& kill : kills) {
-    const std::string news = absl::StrCat(
-        WorldOf(kill.killer)->players().at(kill.killer).name, " killed ",
-        WorldOf(kill.victim)->players().at(kill.victim).name, ".");
-    std::cout << news << std::endl;
+    const Sentence news =
+        Msg("$0 killed $1.",
+            Name(WorldOf(kill.killer)->players().at(kill.killer).name),
+            Name(WorldOf(kill.victim)->players().at(kill.victim).name));
+    std::cout << news.english << std::endl;
     TellGuild(kill.guild, news, protocol::CHANNEL_GUILD);
     if (const War* war = WarOf(kill.guild); war != nullptr) {
       TellGuild(war->Against(kill.guild), news, protocol::CHANNEL_GUILD);
@@ -948,12 +957,12 @@ const War* Server::WarOf(uint32_t guild) const {
 void Server::GuildSay(uint32_t id, const std::string& text) {
   const auto member = members_.find(id);
   if (member == members_.end()) {
-    Notify(id, "You're in no guild.");
+    Notify(id, Msg("You're in no guild."));
     return;
   }
   if (!chat_limits_.at(id).Take(std::chrono::steady_clock::now())) {
     metrics_.AddChatLine("refused");
-    Notify(id, "You're talking too fast, so nobody heard that.");
+    Notify(id, Msg("You're talking too fast, so nobody heard that."));
     return;
   }
   const std::optional<std::string> clean = CleanChat(text);
@@ -988,11 +997,11 @@ void Server::RefreshGuild(uint32_t guild) {
   }
 }
 
-void Server::TellGuild(uint32_t guild, const std::string& text,
+void Server::TellGuild(uint32_t guild, const Sentence& news,
                        protocol::Channel channel) {
   for (const auto& [id, membership] : members_) {
     if (membership.guild == guild) {
-      Notify(id, text, channel);
+      Notify(id, news, channel);
     }
   }
 }
@@ -1002,19 +1011,15 @@ void Server::Refuse(uint32_t id, const absl::Status& why) {
       absl::IsAborted(why)) {
     std::cerr << "a guild action of player " << id << " failed: " << why
               << "\n";
-    Notify(id, "That didn't work. Try again.");
+    Notify(id, Msg("That didn't work. Try again."));
     return;
   }
-  Notify(id, std::string(why.message()));
+  Notify(id, SentenceOf(why));
 }
 
-void Server::Notify(uint32_t id, const std::string& text,
+void Server::Notify(uint32_t id, const Sentence& said,
                     protocol::Channel channel) {
-  protocol::World notice;
-  protocol::Chat* line = notice.add_chat();
-  line->set_text(text);
-  line->set_channel(channel);
-  sessions_.at(id)->Send(Frame(notice));
+  Notify(id, said.message, channel);
 }
 
 void Server::Notify(uint32_t id, const protocol::Message& message,
@@ -1056,8 +1061,8 @@ int Server::HandOver(const std::string& host, uint16_t port) {
   SaveChanged();
   // The next instance has none of this one's duels, so each is off, and both
   // sides hear so before they're told to go.
-  const std::string off =
-      "The duel's off, as the world moves to its next instance.";
+  const Sentence off =
+      Msg("The duel's off, as the world moves to its next instance.");
   for (const auto& [id, session] : sessions_) {
     if (const uint32_t other = WorldOf(id)->CallOffDuel(id); other != 0) {
       Notify(id, off);
@@ -1114,7 +1119,7 @@ void Server::Tick() {
   copies_.Step(interval_);
   for (const Notice& notice : copies_.TakeNotices()) {
     if (sessions_.contains(notice.player)) {
-      Notify(notice.player, notice.text, notice.channel);
+      Notify(notice.player, notice.message, notice.channel);
     }
   }
   std::vector<WarKill> kills = copies_.TakeWarKills();

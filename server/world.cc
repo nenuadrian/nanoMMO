@@ -64,8 +64,16 @@ std::optional<Place> Within(const std::map<uint32_t, Unit>& units, uint32_t id,
 
 // What's offered in a trade stays where it is until the trade's over, as the
 // trade takes it from there.
-constexpr std::string_view kOffered =
-    "You can't, while it's offered in your trade.";
+absl::Status Offered() {
+  return Refusal(absl::StatusCode::kFailedPrecondition,
+                 Msg("You can't, while it's offered in your trade."));
+}
+
+// Why a player who's dead can't.
+absl::Status Dead() {
+  return Refusal(absl::StatusCode::kFailedPrecondition,
+                 Msg("You can't, while you're dead."));
+}
 
 // Whether the unit, a monster or a duel's opponent, is within the slice in
 // front of the player, as wide as the arc, in degrees. Without one, it's all
@@ -112,36 +120,27 @@ void Add(Stats& stats, const items::Modifier& modifier) {
   }
 }
 
-// "a Bone", "an Ash Blade", or "3 Bones".
-std::string Some(const items::Item& item, uint32_t count) {
-  if (count > 1) {
-    return absl::StrCat(count, " ", item.name(), "s");
+// "A", "A and B", or "A, B and C", of one thing or more, in the client's
+// language too: from the end, the last two in a sentence, and each before
+// them in a sentence with the rest.
+Part List(std::vector<Part> things) {
+  Part list = std::move(things.back());
+  things.pop_back();
+  if (!things.empty()) {
+    // Translators: the last two of a list, such as what a monster dropped.
+    list = Of(Msg("$0 and $1", std::move(things.back()), std::move(list)));
+    things.pop_back();
   }
-  const bool vowel = !item.name().empty() &&
-                     std::string_view("AEIOU").find(item.name().front()) !=
-                         std::string_view::npos;
-  return absl::StrCat(vowel ? "an " : "a ", item.name());
-}
-
-// The same, by the item's id, or "something" for one the items file doesn't
-// have.
-std::string Some(const ItemTable& items, uint32_t item, uint32_t count) {
-  const auto found = items.by_id.find(item);
-  return found != items.by_id.end() ? Some(found->second, count) : "something";
-}
-
-// "A", "A and B", or "A, B and C".
-std::string List(const std::vector<std::string>& things) {
-  std::string list;
-  for (std::size_t i = 0; i < things.size(); ++i) {
-    absl::StrAppend(&list,
-                    i == 0                   ? ""
-                    : i + 1 == things.size() ? " and "
-                                             : ", ",
-                    things[i]);
+  while (!things.empty()) {
+    // Translators: one of a list, and the rest of it after a comma.
+    list = Of(Msg("$0, $1", std::move(things.back()), std::move(list)));
+    things.pop_back();
   }
   return list;
 }
+
+// So much gold, as loot.
+Part Gold(uint32_t gold) { return Of(MsgN("$0 gold", "$0 gold", gold, gold)); }
 
 }  // namespace
 
@@ -167,16 +166,24 @@ bool Gain(Player& player, uint32_t experience) {
 }
 
 // "30 seconds", "a minute" or "2 minutes".
-std::string InWords(std::chrono::nanoseconds time) {
-  const auto seconds =
-      std::chrono::duration_cast<std::chrono::seconds>(time).count();
+Sentence InWords(std::chrono::nanoseconds time) {
+  const auto seconds = static_cast<uint64_t>(
+      std::chrono::duration_cast<std::chrono::seconds>(time).count());
+  // Translators: how long until a boss rises again.
   if (seconds % 60 != 0) {
-    return absl::StrCat(seconds, " seconds");
+    return MsgN("$0 second", "$0 seconds", seconds, seconds);
   }
-  return seconds == 60 ? "a minute" : absl::StrCat(seconds / 60, " minutes");
+  // Translators: how long until a boss rises again.
+  return MsgN("a minute", "$0 minutes", seconds / 60, seconds / 60);
 }
 
 }  // namespace
+
+Part Of(const Npc& npc) {
+  protocol::Arg arg;
+  arg.set_npc(npc.kind);
+  return {.arg = std::move(arg), .english = npc.name};
+}
 
 uint32_t MainHandOf(const Player& player) {
   const items::Stack* held = player.inventory.At(Worn(items::SLOT_MAIN_HAND));
@@ -242,16 +249,12 @@ void World::Join(uint32_t id, Player player) {
 
 void World::Leave(uint32_t id) {
   // Both have to be here to trade, or to duel.
+  const Part gone = Name(players_.at(id).name);
   if (const uint32_t other = trades_.End(id); other != 0) {
-    notices_.push_back(
-        {.player = other,
-         .text = absl::StrCat(players_.at(id).name,
-                              " has gone, so the trade's off.")});
+    Tell(other, Msg("$0 has gone, so the trade's off.", gone));
   }
   if (const uint32_t other = duels_.End(id); other != 0) {
-    notices_.push_back({.player = other,
-                        .text = absl::StrCat(players_.at(id).name,
-                                             " has gone, so the duel's off.")});
+    Tell(other, Msg("$0 has gone, so the duel's off.", gone));
   }
   players_.erase(id);
   history_.Leave(id);
@@ -261,10 +264,11 @@ absl::Status World::MoveItem(uint32_t id, const protocol::Place& from,
                              const protocol::Place& to, uint32_t count) {
   const auto found = players_.find(id);
   if (found == players_.end()) {
-    return absl::NotFoundError("There's nobody to move it.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("There's nobody to move it."));
   }
   if (trades_.Holds(id, from) || trades_.Holds(id, to)) {
-    return absl::FailedPreconditionError(kOffered);
+    return Offered();
   }
   Player& player = found->second;
   const absl::Status moved =
@@ -278,10 +282,11 @@ absl::Status World::MoveItem(uint32_t id, const protocol::Place& from,
 absl::Status World::DestroyItem(uint32_t id, const protocol::Place& place) {
   const auto found = players_.find(id);
   if (found == players_.end()) {
-    return absl::NotFoundError("There's nobody to throw it away.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("There's nobody to throw it away."));
   }
   if (trades_.Holds(id, place)) {
-    return absl::FailedPreconditionError(kOffered);
+    return Offered();
   }
   Player& player = found->second;
   const absl::Status destroyed = player.inventory.Destroy(place);
@@ -294,39 +299,42 @@ absl::Status World::DestroyItem(uint32_t id, const protocol::Place& place) {
 absl::Status World::UseItem(uint32_t id, uint32_t slot) {
   const auto found = players_.find(id);
   if (found == players_.end()) {
-    return absl::NotFoundError("There's nobody to use it.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("There's nobody to use it."));
   }
   Player& player = found->second;
   const protocol::Place place = InBag(slot);
   if (trades_.Holds(id, place)) {
-    return absl::FailedPreconditionError(kOffered);
+    return Offered();
   }
   const items::Stack* stack = player.inventory.At(place);
   if (stack == nullptr) {
-    return absl::NotFoundError("There's nothing there.");
+    return Refusal(absl::StatusCode::kNotFound, Msg("There's nothing there."));
   }
   const auto item = content_->items.by_id.find(stack->item());
-  if (item == content_->items.by_id.end() || !item->second.has_use()) {
-    return absl::FailedPreconditionError(absl::StrCat(
-        "You can't use ",
-        item != content_->items.by_id.end() ? "the " + item->second.name()
-                                            : "that",
-        "."));
+  if (item == content_->items.by_id.end()) {
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("You can't use that."));
   }
-  const std::string& name = item->second.name();
+  if (!item->second.has_use()) {
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("You can't use the $0.", Of(item->second)));
+  }
   const items::Use& use = item->second.use();
   if (player.motion == Motion::kDead) {
-    return absl::FailedPreconditionError("You can't, while you're dead.");
+    return Dead();
   }
   const auto cooling = player.item_cooldowns.find(item->first);
   if (cooling != player.item_cooldowns.end()) {
-    return absl::FailedPreconditionError(absl::StrCat(
-        "You can use another ", name, " in ",
-        std::chrono::ceil<std::chrono::seconds>(cooling->second).count(),
-        " s."));
+    // Translators: $1 is how many seconds, and s their symbol.
+    return Refusal(
+        absl::StatusCode::kFailedPrecondition,
+        Msg("You can use another $0 in $1 s.", Of(item->second),
+            std::chrono::ceil<std::chrono::seconds>(cooling->second).count()));
   }
   if (use.heal() > 0 && player.health >= MaxHealthOf(player)) {
-    return absl::FailedPreconditionError("You're at full health already.");
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("You're at full health already."));
   }
   Heal(id, player, static_cast<int>(use.heal()));
   if (use.cooldown_ms() > 0) {
@@ -343,21 +351,23 @@ absl::Status World::Craft(uint32_t id, uint32_t recipe) {
   const auto player = players_.find(id);
   const auto found = content_->recipes.find(recipe);
   if (player == players_.end() || found == content_->recipes.end()) {
-    return absl::NotFoundError("There's no such recipe.");
+    return Refusal(absl::StatusCode::kNotFound, Msg("There's no such recipe."));
   }
   const recipes::Recipe& making = found->second;
   if (player->second.motion == Motion::kDead) {
-    return absl::FailedPreconditionError("You can't, while you're dead.");
+    return Dead();
   }
   if (player->second.crafting != 0) {
-    return absl::AlreadyExistsError("You're making something already.");
+    return Refusal(absl::StatusCode::kAlreadyExists,
+                   Msg("You're making something already."));
   }
   if (LevelFor(player->second.experience).number <
       static_cast<int>(making.level())) {
-    return absl::FailedPreconditionError(absl::StrCat(
-        "You can make ",
-        Some(content_->items, making.output().item(), making.output().count()),
-        " from level ", making.level(), "."));
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("You can make $0 from level $1.",
+                       Of(content_->items, making.output().item(),
+                          making.output().count()),
+                       making.level()));
   }
   // The same check as once it's made, so that it says now what's missing.
   if (const absl::StatusOr<Inventory> bag = Made(id, player->second, making);
@@ -382,32 +392,32 @@ absl::Status World::AskToTrade(uint32_t id, std::string_view name) {
     return absl::EqualsIgnoreCase(entry.second.name, name);
   });
   if (player == players_.end() || other == players_.end()) {
-    return absl::NotFoundError("Nobody of that name is here.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("Nobody of that name is here."));
   }
   if (other == player) {
-    return absl::InvalidArgumentError("You can't trade with yourself.");
+    return Refusal(absl::StatusCode::kInvalidArgument,
+                   Msg("You can't trade with yourself."));
   }
-  const std::string& asker = player->second.name;
-  const std::string& asked = other->second.name;
+  const Part asker = Name(player->second.name);
+  const Part asked = Name(other->second.name);
   if (Distance(player->second, other->second) > kTradeReach) {
-    return absl::OutOfRangeError(
-        absl::StrCat("You're too far away to trade with ", asked, "."));
+    return Refusal(absl::StatusCode::kOutOfRange,
+                   Msg("You're too far away to trade with $0.", asked));
   }
   if (trades_.With(id) != 0) {
-    return absl::FailedPreconditionError("You're trading already.");
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("You're trading already."));
   }
   if (trades_.With(other->first) != 0) {
-    return absl::FailedPreconditionError(
-        absl::StrCat(asked, " is trading with someone already."));
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("$0 is trading with someone already.", asked));
   }
   if (!trades_.Ask(id, other->first)) {
-    notices_.push_back(
-        {.player = other->first,
-         .text = absl::StrCat(asker, " asks to trade. Type /trade ", asker,
-                              " to say yes.")});
-    notices_.push_back(
-        {.player = id,
-         .text = absl::StrCat("You asked ", asked, " to trade.")});
+    // Translators: /trade is the chat's command, which stays as it is.
+    Tell(other->first,
+         Msg("$0 asks to trade. Type /trade $0 to say yes.", asker));
+    Tell(id, Msg("You asked $0 to trade.", asked));
   } else {
     // A trade holds what each offers, which may be what they're making
     // something from, so both stop.
@@ -421,7 +431,8 @@ absl::Status World::OfferToTrade(uint32_t id,
                                  const protocol::TradeOffer& offer) {
   const auto player = players_.find(id);
   if (player == players_.end()) {
-    return absl::NotFoundError("There's nobody to trade.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("There's nobody to trade."));
   }
   return trades_.Offer(id, player->second.inventory, content_->items, offer);
 }
@@ -430,13 +441,15 @@ absl::StatusOr<uint32_t> World::ReadyToTrade(uint32_t id, bool ready,
                                              uint32_t revision) {
   const uint32_t other = trades_.With(id);
   if (other == 0) {
-    return absl::FailedPreconditionError("You're not trading with anyone.");
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("You're not trading with anyone."));
   }
   Player& player = players_.at(id);
   Player& them = players_.at(other);
   if (ready && Distance(player, them) > kTradeReach) {
-    return absl::OutOfRangeError(
-        absl::StrCat("You're too far away to trade with ", them.name, "."));
+    return Refusal(
+        absl::StatusCode::kOutOfRange,
+        Msg("You're too far away to trade with $0.", Name(them.name)));
   }
   const absl::StatusOr<bool> both = trades_.Ready(id, ready, revision);
   if (!both.ok()) {
@@ -449,23 +462,17 @@ absl::StatusOr<uint32_t> World::ReadyToTrade(uint32_t id, bool ready,
   const absl::Status traded =
       trades_.Complete(id, player.inventory, them.inventory, content_->items);
   if (!traded.ok()) {
-    notices_.push_back(
-        {.player = other, .text = std::string(traded.message())});
+    Tell(other, SentenceOf(traded));
     return traded;
   }
-  notices_.push_back(
-      {.player = id, .text = absl::StrCat("You traded with ", them.name, ".")});
-  notices_.push_back(
-      {.player = other,
-       .text = absl::StrCat("You traded with ", player.name, ".")});
+  Tell(id, Msg("You traded with $0.", Name(them.name)));
+  Tell(other, Msg("You traded with $0.", Name(player.name)));
   return other;
 }
 
 void World::CancelTrade(uint32_t id) {
   if (const uint32_t other = trades_.End(id); other != 0) {
-    notices_.push_back(
-        {.player = other,
-         .text = absl::StrCat(players_.at(id).name, " called the trade off.")});
+    Tell(other, Msg("$0 called the trade off.", Name(players_.at(id).name)));
   }
 }
 
@@ -488,10 +495,12 @@ absl::Status World::AskToDuel(uint32_t id, std::string_view name) {
     return absl::EqualsIgnoreCase(entry.second.name, name);
   });
   if (player == players_.end() || other == players_.end()) {
-    return absl::NotFoundError("Nobody of that name is here.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("Nobody of that name is here."));
   }
   if (other == player) {
-    return absl::InvalidArgumentError("You can't duel yourself.");
+    return Refusal(absl::StatusCode::kInvalidArgument,
+                   Msg("You can't duel yourself."));
   }
   // Asking back the one who asked is a yes.
   if (const Duels::Duel* duel = duels_.Of(id);
@@ -499,26 +508,25 @@ absl::Status World::AskToDuel(uint32_t id, std::string_view name) {
       duel->challenged == id && duel->challenger == other->first) {
     return AnswerDuel(id, true);
   }
-  const std::string& asker = player->second.name;
-  const std::string& asked = other->second.name;
+  const Part asker = Name(player->second.name);
+  const Part asked = Name(other->second.name);
   if (Distance(player->second, other->second) > Duels::kReach) {
-    return absl::OutOfRangeError(
-        absl::StrCat("You're too far away to duel ", asked, "."));
+    return Refusal(absl::StatusCode::kOutOfRange,
+                   Msg("You're too far away to duel $0.", asked));
   }
   if (duels_.Of(id) != nullptr) {
-    return absl::FailedPreconditionError("You're in a duel already.");
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("You're in a duel already."));
   }
   if (duels_.Of(other->first) != nullptr) {
-    return absl::FailedPreconditionError(
-        absl::StrCat(asked, " is in a duel already."));
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("$0 is in a duel already.", asked));
   }
   duels_.Ask(id, other->first);
-  notices_.push_back(
-      {.player = other->first,
-       .text = absl::StrCat(asker,
-                            " asks you to duel. Type /duel yes to say yes.")});
-  notices_.push_back(
-      {.player = id, .text = absl::StrCat("You asked ", asked, " to duel.")});
+  // Translators: /duel yes is the chat's command, which stays as it is.
+  Tell(other->first,
+       Msg("$0 asks you to duel. Type /duel yes to say yes.", asker));
+  Tell(id, Msg("You asked $0 to duel.", asked));
   return absl::OkStatus();
 }
 
@@ -526,22 +534,22 @@ absl::Status World::AnswerDuel(uint32_t id, bool yes) {
   const Duels::Duel* duel = duels_.Of(id);
   if (duel == nullptr || duel->challenged != id ||
       duel->state != Duels::State::kAsked) {
-    return absl::NotFoundError("Nobody's asked you to duel.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("Nobody's asked you to duel."));
   }
   const uint32_t asker = duel->challenger;
   const Player& challenger = players_.at(asker);
   const Player& player = players_.at(id);
   if (!yes) {
     duels_.End(id);
-    notices_.push_back(
-        {.player = asker,
-         .text = absl::StrCat(player.name, " said no to a duel.")});
+    Tell(asker, Msg("$0 said no to a duel.", Name(player.name)));
     return absl::OkStatus();
   }
   // They may have walked apart while the ask waited.
   if (Distance(player, challenger) > Duels::kReach) {
-    return absl::OutOfRangeError(
-        absl::StrCat("You're too far away to duel ", challenger.name, "."));
+    return Refusal(
+        absl::StatusCode::kOutOfRange,
+        Msg("You're too far away to duel $0.", Name(challenger.name)));
   }
   duels_.Accept(id, {.x = challenger.x, .z = challenger.z});
   // Both stop what they were making, to fight.
@@ -553,16 +561,14 @@ absl::Status World::AnswerDuel(uint32_t id, bool yes) {
 absl::Status World::Yield(uint32_t id) {
   const Duels::Duel* duel = duels_.Of(id);
   if (duel == nullptr) {
-    return absl::NotFoundError("You're not in a duel.");
+    return Refusal(absl::StatusCode::kNotFound, Msg("You're not in a duel."));
   }
   if (duel->state == Duels::State::kFighting) {
     Lose(id);
     return absl::OkStatus();
   }
   const uint32_t other = duels_.End(id);
-  notices_.push_back(
-      {.player = other,
-       .text = absl::StrCat(players_.at(id).name, " called the duel off.")});
+  Tell(other, Msg("$0 called the duel off.", Name(players_.at(id).name)));
   return absl::OkStatus();
 }
 
@@ -771,22 +777,24 @@ absl::Status World::Learn(uint32_t id, uint32_t npc, uint32_t skill) {
   if (player == players_.end() || trainer == npcs_.end() ||
       !trainer->second.teaches.contains(skill) ||
       taught == content_->skills.by_id.end()) {
-    return absl::NotFoundError("Nobody here teaches that.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("Nobody here teaches that."));
   }
   if (std::hypot(trainer->second.x - player->second.x,
                  trainer->second.z - player->second.z) > kTalkReach) {
-    return absl::OutOfRangeError(absl::StrCat(
-        "You're too far away to learn from the ", trainer->second.name, "."));
+    return Refusal(
+        absl::StatusCode::kOutOfRange,
+        Msg("You're too far away to learn from the $0.", Of(trainer->second)));
   }
-  const std::string& name = taught->second.name();
   const uint32_t level = taught->second.level();
   if (LevelFor(player->second.experience).number < static_cast<int>(level)) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("You can learn ", name, " from level ", level, "."));
+    return Refusal(
+        absl::StatusCode::kFailedPrecondition,
+        Msg("You can learn $0 from level $1.", Of(taught->second), level));
   }
   if (player->second.skills.contains(skill)) {
-    return absl::AlreadyExistsError(
-        absl::StrCat("You know ", name, " already."));
+    return Refusal(absl::StatusCode::kAlreadyExists,
+                   Msg("You know $0 already.", Of(taught->second)));
   }
   player->second.skills.insert(skill);
   return absl::OkStatus();
@@ -799,20 +807,22 @@ absl::Status World::TakeQuest(uint32_t id, uint32_t npc, uint32_t quest) {
   if (player == players_.end() || giver == npcs_.end() ||
       given == content_->quests.end() ||
       given->second.giver() != giver->second.kind) {
-    return absl::NotFoundError("Nobody here gives that quest.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("Nobody here gives that quest."));
   }
   if (std::hypot(giver->second.x - player->second.x,
                  giver->second.z - player->second.z) > kTalkReach) {
-    return absl::OutOfRangeError(absl::StrCat(
-        "You're too far away to talk to the ", giver->second.name, "."));
+    return Refusal(
+        absl::StatusCode::kOutOfRange,
+        Msg("You're too far away to talk to the $0.", Of(giver->second)));
   }
   if (player->second.quests.contains(quest)) {
-    return absl::AlreadyExistsError(
-        absl::StrCat("You're on ", given->second.name(), " already."));
+    return Refusal(absl::StatusCode::kAlreadyExists,
+                   Msg("You're on $0 already.", Of(given->second)));
   }
   if (player->second.quests_done.contains(quest)) {
-    return absl::AlreadyExistsError(
-        absl::StrCat("You've done ", given->second.name(), " already."));
+    return Refusal(absl::StatusCode::kAlreadyExists,
+                   Msg("You've done $0 already.", Of(given->second)));
   }
   player->second.quests[quest] = 0;
   ++player->second.quests_revision;
@@ -823,7 +833,8 @@ absl::Status World::TakeQuest(uint32_t id, uint32_t npc, uint32_t quest) {
 absl::Status World::GiveUp(uint32_t id, uint32_t quest) {
   const auto player = players_.find(id);
   if (player == players_.end() || !player->second.quests.contains(quest)) {
-    return absl::NotFoundError("You're not on that quest.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("You're not on that quest."));
   }
   player->second.quests.erase(quest);
   ++player->second.quests_revision;
@@ -837,37 +848,42 @@ absl::Status World::TurnIn(uint32_t id, uint32_t npc, uint32_t quest) {
   if (player == players_.end() || giver == npcs_.end() ||
       given == content_->quests.end() ||
       given->second.giver() != giver->second.kind) {
-    return absl::NotFoundError("Nobody here takes that quest.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("Nobody here takes that quest."));
   }
   if (std::hypot(giver->second.x - player->second.x,
                  giver->second.z - player->second.z) > kTalkReach) {
-    return absl::OutOfRangeError(absl::StrCat(
-        "You're too far away to talk to the ", giver->second.name, "."));
+    return Refusal(
+        absl::StatusCode::kOutOfRange,
+        Msg("You're too far away to talk to the $0.", Of(giver->second)));
   }
   const quests::Quest& done = given->second;
   const auto on = player->second.quests.find(quest);
   if (on == player->second.quests.end()) {
-    return absl::NotFoundError(
-        absl::StrCat("You're not on ", done.name(), "."));
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("You're not on $0.", Of(done)));
   }
   if (on->second < done.kill().count()) {
-    return absl::FailedPreconditionError(
-        absl::StrCat(done.name(), " asks for ", done.kill().count(),
-                     ", and you've killed ", on->second, "."));
+    // Translators: $0 is the quest, $1 how many kills it asks for, and $2 how
+    // many there have been.
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("$0 asks for $1, and you've killed $2.", Of(done),
+                       done.kill().count(), on->second));
   }
   // The prizes go into a copy of the bag, so that it's all of them or none.
   Inventory bag = player->second.inventory;
-  std::vector<std::string> prizes;
+  std::vector<Part> prizes = {Of(MsgN("$0 experience", "$0 experience",
+                                      done.experience(), done.experience()))};
   for (const quests::Prize& prize : done.prizes()) {
     const auto item = content_->items.by_id.find(prize.item());
     if (item == content_->items.by_id.end()) {
       continue;
     }
     if (Give(bag, prize.item(), prize.count()) < prize.count()) {
-      return absl::ResourceExhaustedError(
-          "Your bag is full. Make room for the prizes first.");
+      return Refusal(absl::StatusCode::kResourceExhausted,
+                     Msg("Your bag is full. Make room for the prizes first."));
     }
-    prizes.push_back(Some(item->second, prize.count()));
+    prizes.push_back(Of(item->second, prize.count()));
   }
   player->second.inventory = std::move(bag);
   Record(Event::Kind::kTurnIn, id, player->second).quest = quest;
@@ -884,10 +900,9 @@ absl::Status World::TurnIn(uint32_t id, uint32_t npc, uint32_t quest) {
   player->second.quests.erase(on);
   player->second.quests_done.insert(quest);
   ++player->second.quests_revision;
-  prizes.insert(prizes.begin(), absl::StrCat(done.experience(), " experience"));
-  notices_.push_back({.player = id,
-                      .text = absl::StrCat("You've done ", done.name(),
-                                           ", for ", List(prizes), ".")});
+  // Translators: $0 is the quest, and $1 its prizes, as "100 experience and a
+  // Bone".
+  Tell(id, Msg("You've done $0, for $1.", Of(done), List(std::move(prizes))));
   return absl::OkStatus();
 }
 
@@ -1378,16 +1393,25 @@ void World::Hurt(uint32_t id, Player& player, uint32_t monster_id,
       taken_most = threat;
     }
   }
-  std::string fallen = "has fallen";
-  if (most != nullptr) {
-    absl::StrAppend(&fallen, " to ", most->name);
-  }
-  if (helped > 1) {
-    absl::StrAppend(&fallen, " and ", helped - 1,
-                    helped == 2 ? " other" : " others");
-  }
-  Announce(monster, absl::StrCat(fallen, ". It rises again in ",
-                                 InWords(monster.respawn_time), "."));
+  const Sentence again = InWords(monster.respawn_time);
+  Announce(monster, [&](Part boss) {
+    if (most == nullptr) {
+      return Msg("The $0 has fallen. It rises again in $1.", std::move(boss),
+                 again);
+    }
+    if (helped < 2) {
+      // Translators: $1 is who took the most of its health, and $2 how long
+      // until it's back.
+      return Msg("The $0 has fallen to $1. It rises again in $2.",
+                 std::move(boss), Name(most->name), again);
+    }
+    // Translators: $1 is who took the most of its health, $2 how many others
+    // helped, and $3 how long until it's back.
+    return MsgN("The $0 has fallen to $1 and $2 other. It rises again in $3.",
+                "The $0 has fallen to $1 and $2 others. It rises again in $3.",
+                static_cast<uint64_t>(helped - 1), std::move(boss),
+                Name(most->name), helped - 1, again);
+  });
 }
 
 void World::Reward(uint32_t id, Player& player, const Monster& monster) {
@@ -1451,8 +1475,8 @@ void World::Loot(uint32_t id, Player& player, const Monster& monster) {
   if (kind == content_->monsters.kinds.end()) {
     return;
   }
-  std::vector<std::string> kept;
-  std::vector<std::string> left;
+  std::vector<Part> kept;
+  std::vector<Part> left;
   for (const monsters::Drop& drop : kind->second.loot()) {
     const auto item = content_->items.by_id.find(drop.item());
     if (item == content_->items.by_id.end() ||
@@ -1464,14 +1488,14 @@ void World::Loot(uint32_t id, Player& player, const Monster& monster) {
         least, std::max(drop.max(), least))(random_);
     const uint32_t fitted = Give(player.inventory, drop.item(), count);
     if (fitted > 0) {
-      kept.push_back(Some(item->second, fitted));
+      kept.push_back(Of(item->second, fitted));
       Event& looted = Record(Event::Kind::kLoot, id, player);
       looted.monster = monster.kind;
       looted.item = drop.item();
       looted.count = fitted;
     }
     if (fitted < count) {
-      left.push_back(Some(item->second, count - fitted));
+      left.push_back(Of(item->second, count - fitted));
     }
   }
   // Gold takes no slot, so a full bag takes it too.
@@ -1480,18 +1504,16 @@ void World::Loot(uint32_t id, Player& player, const Monster& monster) {
         std::uniform_int_distribution(gold.min(), gold.max())(random_);
     if (const uint32_t carried = coins - player.inventory.AddGold(coins);
         carried > 0) {
-      kept.push_back(absl::StrCat(carried, " gold"));
+      kept.push_back(Gold(carried));
     }
   }
   if (!kept.empty()) {
-    notices_.push_back({.player = id,
-                        .text = absl::StrCat("The ", kind->second.name(),
-                                             " dropped ", List(kept), ".")});
+    Tell(id,
+         Msg("The $0 dropped $1.", Of(kind->second), List(std::move(kept))));
   }
   if (!left.empty()) {
-    notices_.push_back({.player = id,
-                        .text = absl::StrCat("Your bag is full, so you left ",
-                                             List(left), " behind.")});
+    Tell(id, Msg("Your bag is full, so you left $0 behind.",
+                 List(std::move(left))));
   }
 }
 
@@ -1509,14 +1531,19 @@ void World::Count(uint32_t id, Player& player, const Monster& monster) {
     }
     ++kills;
     ++player.quests_revision;
-    std::string text =
-        absl::StrCat(found->second.name(), ": ", kills, " of ", kill.count(),
-                     " ", kind->second.name(), "s killed.");
+    const Part asked = Of(kind->second, kill.count());
     const auto giver = content_->npcs.kinds.find(found->second.giver());
     if (kills == kill.count() && giver != content_->npcs.kinds.end()) {
-      absl::StrAppend(&text, " Go back to the ", giver->second.name(), ".");
+      // Translators: $0 is the quest, $1 how many have been killed, $2 how
+      // many of which monster it asks for, as "10 Skeletons", and $3 who gave
+      // it.
+      Tell(id, Msg("$0: $1 of $2 killed. Go back to the $3.", Of(found->second),
+                   kills, asked, Of(giver->second)));
+      continue;
     }
-    notices_.push_back({.player = id, .text = std::move(text)});
+    // Translators: $0 is the quest, $1 how many have been killed, and $2 how
+    // many of which monster it asks for, as "10 Skeletons".
+    Tell(id, Msg("$0: $1 of $2 killed.", Of(found->second), kills, asked));
   }
 }
 
@@ -1551,7 +1578,6 @@ uint32_t World::Give(Inventory& bag, uint32_t item, uint32_t count) {
 absl::StatusOr<Inventory> World::Made(uint32_t id, const Player& player,
                                       const recipes::Recipe& recipe) {
   const recipes::ItemCount& output = recipe.output();
-  const std::string made = Some(content_->items, output.item(), output.count());
   // Into a copy, so that it's all of it or none, which goes into the bag as
   // one change, and one save.
   Inventory bag = player.inventory;
@@ -1572,9 +1598,10 @@ absl::StatusOr<Inventory> World::Made(uint32_t id, const Player& player,
       left -= taken;
     }
     if (left > 0) {
-      return absl::FailedPreconditionError(absl::StrCat(
-          "You need ", Some(content_->items, input.item(), input.count()),
-          " in your bag to make ", made, "."));
+      return Refusal(absl::StatusCode::kFailedPrecondition,
+                     Msg("You need $0 in your bag to make $1.",
+                         Of(content_->items, input.item(), input.count()),
+                         Of(content_->items, output.item(), output.count())));
     }
   }
   // As loot is, each one of what doesn't stack with a serial of its own.
@@ -1598,22 +1625,20 @@ void World::Make(uint32_t id, Player& player, std::chrono::nanoseconds time) {
     return;
   }
   player.crafting = 0;
-  const std::string made =
-      Some(content_->items, recipe.output().item(), recipe.output().count());
+  const Part made =
+      Of(content_->items, recipe.output().item(), recipe.output().count());
   // Their bag may have changed since they started, so it's checked again.
   absl::StatusOr<Inventory> bag = Made(id, player, recipe);
   if (!bag.ok()) {
-    notices_.push_back({.player = id,
-                        .text = absl::StrCat("You couldn't make ", made, ". ",
-                                             bag.status().message())});
+    // Translators: $1 is why, a sentence of its own.
+    Tell(id, Msg("You couldn't make $0. $1", made, SentenceOf(bag.status())));
     return;
   }
   player.inventory = *std::move(bag);
   Event& crafted = Record(Event::Kind::kCraft, id, player);
   crafted.item = recipe.output().item();
   crafted.count = recipe.output().count();
-  notices_.push_back(
-      {.player = id, .text = absl::StrCat("You made ", made, ".")});
+  Tell(id, Msg("You made $0.", made));
 }
 
 void World::Interrupt(uint32_t id, Player& player) {
@@ -1622,15 +1647,19 @@ void World::Interrupt(uint32_t id, Player& player) {
     return;
   }
   const recipes::ItemCount& output = found->second.output();
-  notices_.push_back(
-      {.player = id,
-       .text = absl::StrCat(
-           "You stopped making ",
-           Some(content_->items, output.item(), output.count()), ".")});
+  Tell(id, Msg("You stopped making $0.",
+               Of(content_->items, output.item(), output.count())));
   player.crafting = 0;
 }
 
 std::vector<Notice> World::TakeNotices() { return std::exchange(notices_, {}); }
+
+void World::Tell(uint32_t player, Sentence said, protocol::Channel channel) {
+  notices_.push_back({.player = player,
+                      .text = std::move(said.english),
+                      .message = std::move(said.message),
+                      .channel = channel});
+}
 
 std::vector<Event> World::TakeEvents() { return std::exchange(events_, {}); }
 
@@ -1645,10 +1674,8 @@ Event& World::Record(Event::Kind kind, uint32_t id, const Player& player) {
 
 void World::Referee(std::chrono::nanoseconds time) {
   for (const Duels::Duel& asked : duels_.Step(time)) {
-    notices_.push_back(
-        {.player = asked.challenger,
-         .text = absl::StrCat(players_.at(asked.challenged).name,
-                              " didn't answer, so there's no duel.")});
+    Tell(asked.challenger, Msg("$0 didn't answer, so there's no duel.",
+                               Name(players_.at(asked.challenged).name)));
   }
   // Losing ends a duel, so the losers are found first, and lose after.
   std::vector<uint32_t> losers;
@@ -1662,8 +1689,7 @@ void World::Referee(std::chrono::nanoseconds time) {
           std::hypot(player.x - duel.flag.x, player.z - duel.flag.z) >
           Duels::kFlagReach;
       if (strayed) {
-        notices_.push_back(
-            {.player = side, .text = "You went too far from the flag."});
+        Tell(side, Msg("You went too far from the flag."));
       }
       if (strayed || player.motion == Motion::kDead) {
         losers.push_back(side);
@@ -1681,12 +1707,8 @@ void World::Lose(uint32_t id) {
   // Neither can hit the other any more.
   players_.at(id).target_player = 0;
   players_.at(winner).target_player = 0;
-  notices_.push_back(
-      {.player = id,
-       .text = absl::StrCat(players_.at(winner).name, " won the duel.")});
-  notices_.push_back({.player = winner,
-                      .text = absl::StrCat("You won the duel against ",
-                                           players_.at(id).name, ".")});
+  Tell(id, Msg("$0 won the duel.", Name(players_.at(winner).name)));
+  Tell(winner, Msg("You won the duel against $0.", Name(players_.at(id).name)));
 }
 
 void World::Act(Monster& monster, std::chrono::nanoseconds time) {
@@ -1705,11 +1727,15 @@ void World::Act(Monster& monster, std::chrono::nanoseconds time) {
     Revive(monster, time, random_);
     // The land hears that a boss is about to come back, and that it has.
     if (monster.boss() && monster.motion != Motion::kDead) {
-      Announce(monster, "has risen.");
+      Announce(monster, [](Part boss) {
+        return Msg("The $0 has risen.", std::move(boss));
+      });
     } else if (monster.boss() && before > kRisesSoon &&
                monster.respawn <= kRisesSoon) {
-      Announce(monster,
-               absl::StrCat("rises again in ", InWords(kRisesSoon), "."));
+      Announce(monster, [](Part boss) {
+        return Msg("The $0 rises again in $1.", std::move(boss),
+                   InWords(kRisesSoon));
+      });
     }
     return;
   }
@@ -1777,15 +1803,15 @@ void World::CallAdds(uint32_t id, std::size_t phase) {
   }
 }
 
-void World::Announce(const Monster& boss, std::string_view news) {
+void World::Announce(const Monster& boss,
+                     const std::function<Sentence(Part boss)>& news) {
   const auto kind = content_->monsters.kinds.find(boss.kind);
   if (kind == content_->monsters.kinds.end()) {
     return;
   }
-  const std::string line = absl::StrCat("The ", kind->second.name(), " ", news);
+  const Sentence line = news(Of(kind->second));
   for (const auto& [id, player] : players_) {
-    notices_.push_back(
-        {.player = id, .text = line, .channel = protocol::CHANNEL_LAND});
+    Tell(id, line, protocol::CHANNEL_LAND);
   }
 }
 

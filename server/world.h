@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -18,6 +19,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "content/content.h"
+#include "protocol/messages.h"
 #include "protocol/nanommo.pb.h"
 #include "server/duels.h"
 #include "server/history.h"
@@ -240,14 +242,19 @@ struct Npc {
 };
 
 /// A line the world has for one of its players, such as what a monster
-/// they killed dropped, for the server to send them.
+/// they killed dropped, for the server to send them: as a sentence, for their
+/// client to say in its player's language, and in English.
 struct Notice {
   uint32_t player = 0;
   std::string text;
+  protocol::Message message;
   /// CHANNEL_LAND for what everyone in the land hears, which the clients
   /// show apart.
   protocol::Channel channel = protocol::CHANNEL_WORLD;
 };
+
+/// An NPC, by its kind, for a sentence, with its English name.
+Part Of(const Npc& npc);
 
 /// Something a player did, or that happened to them, for the game's
 /// analytics and for the players near them to see: what, who and where, and
@@ -582,9 +589,14 @@ class World {
   /// The adds of the boss's phase, by their places among its phases, round
   /// it, unless it's died since.
   void CallAdds(uint32_t id, std::size_t phase);
-  /// A line everyone in the land hears about the boss, after its name, such as
-  /// "The Bone Colossus has risen."
-  void Announce(const Monster& boss, std::string_view news);
+  /// A line everyone in the land hears about the boss, with its name in it,
+  /// such as "The Bone Colossus has risen.", unless the content hasn't got its
+  /// kind.
+  void Announce(const Monster& boss,
+                const std::function<Sentence(Part boss)>& news);
+  /// A line for the player, which the server sends them.
+  void Tell(uint32_t player, Sentence said,
+            protocol::Channel channel = protocol::CHANNEL_WORLD);
   void Hit(Monster& monster);
   /// A monster's blow on the player, from a swing or a skill: what they wear
   /// takes some of it, down to one, and with no health left, they die.

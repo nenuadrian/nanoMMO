@@ -6,7 +6,8 @@
 #include <string>
 #include <utility>
 
-#include "absl/strings/str_cat.h"
+#include "absl/status/status.h"
+#include "protocol/messages.h"
 
 namespace nanommo {
 
@@ -39,6 +40,15 @@ const items::Item* Find(const ItemTable& table, uint32_t id) {
   return found != table.by_id.end() ? &found->second : nullptr;
 }
 
+absl::Status Nothing() {
+  return Refusal(absl::StatusCode::kNotFound, Msg("There's nothing there."));
+}
+
+absl::Status NotThatMuchGold() {
+  return Refusal(absl::StatusCode::kFailedPrecondition,
+                 Msg("You haven't that much gold."));
+}
+
 uint32_t StackSizeOf(const ItemTable& table, uint32_t id) {
   const items::Item* item = Find(table, id);
   return item != nullptr ? StackSize(*item) : 1;
@@ -52,15 +62,19 @@ absl::Status CheckFits(const ItemTable& table, const items::Stack& stack,
     return absl::OkStatus();
   }
   const items::Item* item = Find(table, stack.item());
-  if (item == nullptr || !item->has_equip()) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("You can't wear ",
-                     item != nullptr ? "the " + item->name() : "that", "."));
+  if (item == nullptr) {
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("You can't wear that."));
+  }
+  if (!item->has_equip()) {
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("You can't wear the $0.", Of(*item)));
   }
   if (item->equip().slot() != place.worn()) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("The ", item->name(), " goes in the ",
-                     SlotName(item->equip().slot()), " slot."));
+    // Translators: $1 is the slot, such as "main hand".
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("The $0 goes in the $1 slot.", Of(*item),
+                       Of(item->equip().slot())));
   }
   return absl::OkStatus();
 }
@@ -180,11 +194,12 @@ absl::Status Inventory::Move(const ItemTable& table,
                              const protocol::Place& from,
                              const protocol::Place& to, uint32_t count) {
   if (!IsPlace(from) || !IsPlace(to)) {
-    return absl::InvalidArgumentError("There's no such place.");
+    return Refusal(absl::StatusCode::kInvalidArgument,
+                   Msg("There's no such place."));
   }
   items::Stack* moving = MutableAt(from);
   if (moving == nullptr) {
-    return absl::NotFoundError("There's nothing there.");
+    return Nothing();
   }
   if (SamePlace(from, to)) {
     return absl::OkStatus();
@@ -208,7 +223,8 @@ absl::Status Inventory::Move(const ItemTable& table,
     const uint32_t size = StackSizeOf(table, there->item());
     const uint32_t room = size > there->count() ? size - there->count() : 0;
     if (room == 0) {
-      return absl::FailedPreconditionError("That stack is full.");
+      return Refusal(absl::StatusCode::kFailedPrecondition,
+                     Msg("That stack is full."));
     }
     const uint32_t onto = std::min(moved, room);
     there->set_count(there->count() + onto);
@@ -218,8 +234,8 @@ absl::Status Inventory::Move(const ItemTable& table,
     }
   } else {
     if (moved < all) {
-      return absl::FailedPreconditionError(
-          "Only a whole stack can swap places.");
+      return Refusal(absl::StatusCode::kFailedPrecondition,
+                     Msg("Only a whole stack can swap places."));
     }
     if (const absl::Status fits = CheckFits(table, *there, from); !fits.ok()) {
       return fits;
@@ -233,7 +249,7 @@ absl::Status Inventory::Move(const ItemTable& table,
 absl::Status Inventory::TakeOne(const protocol::Place& place) {
   items::Stack* stack = MutableAt(place);
   if (stack == nullptr) {
-    return absl::NotFoundError("There's nothing there.");
+    return Nothing();
   }
   if (stack->count() > 1) {
     stack->set_count(stack->count() - 1);
@@ -247,7 +263,8 @@ absl::Status Inventory::TakeOne(const protocol::Place& place) {
 absl::Status Inventory::Take(const protocol::Place& place, uint32_t count) {
   items::Stack* stack = MutableAt(place);
   if (stack == nullptr || stack->count() < count) {
-    return absl::NotFoundError("There aren't that many there.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("There aren't that many there."));
   }
   if (stack->count() > count) {
     stack->set_count(stack->count() - count);
@@ -260,7 +277,7 @@ absl::Status Inventory::Take(const protocol::Place& place, uint32_t count) {
 
 absl::Status Inventory::TakeGold(uint32_t amount) {
   if (amount > gold()) {
-    return absl::FailedPreconditionError("You haven't that much gold.");
+    return NotThatMuchGold();
   }
   if (amount > 0) {
     items_.set_gold(gold() - amount);
@@ -271,7 +288,7 @@ absl::Status Inventory::TakeGold(uint32_t amount) {
 
 absl::Status Inventory::Destroy(const protocol::Place& place) {
   if (At(place) == nullptr) {
-    return absl::NotFoundError("There's nothing there.");
+    return Nothing();
   }
   Clear(place);
   Changed();

@@ -12,6 +12,7 @@
 
 #include "absl/strings/substitute.h"
 #include "client/messages.h"
+#include "client/names.h"
 #include "client/theme.h"
 #include "client/translations.h"
 #include "extras/IconsFontAwesome6.h"
@@ -32,8 +33,18 @@ constexpr ImVec4 kGuild{0.45f, 0.9f, 0.45f, 1.0f};
 constexpr ImVec4 kLand{1.0f, 0.95f, 0.77f, 1.0f};
 
 bool Same(const protocol::Chat& a, const protocol::Chat& b) {
-  return a.name() == b.name() && a.text() == b.text() &&
-         a.message().SerializeAsString() == b.message().SerializeAsString();
+  return a.SerializeAsString() == b.SerializeAsString();
+}
+
+// Who said the line: a player, by the name they gave, or an NPC, by its kind,
+// in the language in use.
+std::string SpeakerOf(const protocol::Chat& line, const Content& content) {
+  if (line.npc() == 0) {
+    return line.name();
+  }
+  const auto kind = content.npcs.kinds.find(line.npc());
+  return kind != content.npcs.kinds.end() ? NameOf(kind->second)
+                                          : Tr("something");
 }
 
 }  // namespace
@@ -189,16 +200,17 @@ std::optional<std::string> ChatWindow::Build(
       ImGui::PopFont();
       continue;
     }
-    // A line with no name is from the server, and one of those for the guild
+    // A line from nobody is from the server, and one of those for the guild
     // alone, such as a kill in its war, is green, as its players' lines are.
-    if (line.name().empty() && line.channel() == protocol::CHANNEL_GUILD) {
+    const bool from_server = line.name().empty() && line.npc() == 0;
+    if (from_server && line.channel() == protocol::CHANNEL_GUILD) {
       ImGui::PushStyleColor(ImGuiCol_Text, kGuild);
       ImGui::TextWrapped("%s",
                          absl::Substitute(Tr("[Guild] $0"), text).c_str());
       ImGui::PopStyleColor();
       continue;
     }
-    if (line.name().empty()) {
+    if (from_server) {
       ImGui::PushStyleColor(ImGuiCol_Text, kServer);
       ImGui::TextWrapped("%s", text.c_str());
       ImGui::PopStyleColor();
@@ -210,11 +222,12 @@ std::optional<std::string> ChatWindow::Build(
       ImGui::PushStyleColor(ImGuiCol_Text, kGuild);
     }
     ImGui::PushFont(GetFonts().bold, 0.0f);
+    const std::string speaker = SpeakerOf(line, content);
     if (guild) {
       ImGui::TextUnformatted(
-          absl::Substitute(Tr("[Guild] $0:"), line.name()).c_str());
+          absl::Substitute(Tr("[Guild] $0:"), speaker).c_str());
     } else {
-      ImGui::TextColored(kName, "%s:", line.name().c_str());
+      ImGui::TextColored(kName, "%s:", speaker.c_str());
     }
     ImGui::PopFont();
     ImGui::SameLine();

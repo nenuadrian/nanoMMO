@@ -12,6 +12,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "protocol/messages.h"
 #include "server/levels.h"
 
 namespace nanommo {
@@ -44,22 +45,22 @@ absl::Status NeitherAtWar(Database& database, uint32_t ours, uint32_t theirs,
   }
   for (const std::vector<std::string>& war : wars->rows) {
     if (war[0] == a || war[1] == a) {
-      return absl::FailedPreconditionError("Your guild is at war already.");
+      return Refusal(absl::StatusCode::kFailedPrecondition,
+                     Msg("Your guild is at war already."));
     }
   }
   if (!wars->rows.empty()) {
-    return absl::FailedPreconditionError(
-        absl::StrCat(their_name, " is at war already."));
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("$0 is at war already.", Name(their_name)));
   }
   return absl::OkStatus();
 }
 
-// A FailedPrecondition error, in the words given, while the guild is in a war
-// that hasn't ended. Nobody leaves a war: a losing side could dodge it, or
+// A FailedPrecondition refusal, in the words given, while the guild is in a
+// war that hasn't ended. Nobody leaves a war: a losing side could dodge it, or
 // disband, which takes the war's kills with the guild. The caller has the
 // guild's row locked, as a war's yes locks it, so no war starts meanwhile.
-absl::Status NotAtWar(Database& database, uint32_t guild,
-                      std::string_view why) {
+absl::Status NotAtWar(Database& database, uint32_t guild, const Sentence& why) {
   const std::string id = absl::StrCat(guild);
   const absl::StatusOr<Result> wars = database.Run(
       "SELECT id FROM guild_wars WHERE ends_at > NOW() "
@@ -69,7 +70,7 @@ absl::Status NotAtWar(Database& database, uint32_t guild,
     return wars.status();
   }
   if (!wars->rows.empty()) {
-    return absl::FailedPreconditionError(why);
+    return Refusal(absl::StatusCode::kFailedPrecondition, why);
   }
   return absl::OkStatus();
 }
@@ -87,7 +88,8 @@ absl::StatusOr<protocol::Rank> RankIn(Database& database, uint32_t guild,
   }
   int grade = 0;
   if (member->rows.empty()) {
-    return absl::NotFoundError("They're not in your guild.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("They're not in your guild."));
   }
   if (!absl::SimpleAtoi(member->rows.front()[0], &grade) ||
       !protocol::Rank_IsValid(grade)) {
@@ -110,7 +112,7 @@ absl::StatusOr<Membership> LockFor(Database& database, uint32_t player) {
   }
   if (in->rows.empty() ||
       !absl::SimpleAtoi(in->rows.front()[0], &membership.guild)) {
-    return absl::NotFoundError("You're in no guild.");
+    return Refusal(absl::StatusCode::kNotFound, Msg("You're in no guild."));
   }
   const absl::StatusOr<Result> guild =
       database.Run("SELECT name FROM guilds WHERE id = ? FOR UPDATE",
@@ -121,7 +123,7 @@ absl::StatusOr<Membership> LockFor(Database& database, uint32_t player) {
   const absl::StatusOr<protocol::Rank> rank =
       RankIn(database, membership.guild, player);
   if (guild->rows.empty() || absl::IsNotFound(rank.status())) {
-    return absl::NotFoundError("You're in no guild.");
+    return Refusal(absl::StatusCode::kNotFound, Msg("You're in no guild."));
   }
   if (!rank.ok()) {
     return rank.status();
@@ -135,8 +137,8 @@ absl::StatusOr<Membership> LockFor(Database& database, uint32_t player) {
 
 absl::Status CheckGuildName(std::string_view name) {
   if (name.size() < 3 || name.size() > 24) {
-    return absl::InvalidArgumentError(
-        "Guild names are 3 to 24 characters long.");
+    return Refusal(absl::StatusCode::kInvalidArgument,
+                   Msg("Guild names are 3 to 24 characters long."));
   }
   // Words of letters, one space apart, so a name starts and ends with a
   // letter, and two names can't differ by their spaces alone.
@@ -145,8 +147,9 @@ absl::Status CheckGuildName(std::string_view name) {
         name[i] == ' ' && i > 0 && i + 1 < name.size() && name[i - 1] != ' ';
     if (!absl::ascii_isalpha(static_cast<unsigned char>(name[i])) &&
         !between_words) {
-      return absl::InvalidArgumentError(
-          "Guild names are letters, with one space between words.");
+      return Refusal(
+          absl::StatusCode::kInvalidArgument,
+          Msg("Guild names are letters, with one space between words."));
     }
   }
   return absl::OkStatus();
@@ -162,7 +165,7 @@ absl::StatusOr<Membership> Guilds::Of(uint32_t player) {
     return rows.status();
   }
   if (rows->rows.empty()) {
-    return absl::NotFoundError("You're in no guild.");
+    return Refusal(absl::StatusCode::kNotFound, Msg("You're in no guild."));
   }
   const std::vector<std::string>& row = rows->rows.front();
   Membership membership;
@@ -189,8 +192,9 @@ absl::StatusOr<Membership> Guilds::Create(const std::string& world,
     const absl::StatusOr<Result> guild = database_.Run(
         "INSERT INTO guilds (world, name) VALUES (?, ?)", {world, name});
     if (absl::IsAlreadyExists(guild.status())) {
-      return absl::AlreadyExistsError(
-          absl::StrCat("There's a guild called that in ", world, " already."));
+      return Refusal(
+          absl::StatusCode::kAlreadyExists,
+          Msg("There's a guild called that in $0 already.", Name(world)));
     }
     if (!guild.ok()) {
       return guild.status();
@@ -201,7 +205,8 @@ absl::StatusOr<Membership> Guilds::Create(const std::string& world,
         {absl::StrCat(player), absl::StrCat(membership.guild),
          absl::StrCat(static_cast<int>(protocol::RANK_LEADER))});
     if (absl::IsAlreadyExists(leader.status())) {
-      return absl::AlreadyExistsError("You're in a guild already.");
+      return Refusal(absl::StatusCode::kAlreadyExists,
+                     Msg("You're in a guild already."));
     }
     return leader.status();
   });
@@ -217,8 +222,8 @@ absl::StatusOr<Membership> Guilds::Invite(uint32_t from, uint32_t player) {
     return asking.status();
   }
   if (asking->rank == protocol::RANK_MEMBER) {
-    return absl::PermissionDeniedError(
-        "Only officers and the leader can ask someone in.");
+    return Refusal(absl::StatusCode::kPermissionDenied,
+                   Msg("Only officers and the leader can ask someone in."));
   }
   // NX sets it only when there's none, so of two asking at once, from any
   // instance, one does, and the invitation runs out by itself.
@@ -226,7 +231,8 @@ absl::StatusOr<Membership> Guilds::Invite(uint32_t from, uint32_t player) {
       redis_.Command({"SET", InvitationOf(player), absl::StrCat(asking->guild),
                       "EX", absl::StrCat(kInvitationLife.count()), "NX"});
   if (absl::IsNotFound(asked.status())) {
-    return absl::AlreadyExistsError("They've been asked to join a guild.");
+    return Refusal(absl::StatusCode::kAlreadyExists,
+                   Msg("They've been asked to join a guild."));
   }
   if (!asked.ok()) {
     return asked.status();
@@ -241,7 +247,8 @@ absl::StatusOr<Membership> Guilds::Accept(uint32_t player) {
   const absl::StatusOr<std::string> invitation =
       redis_.Command({"GET", InvitationOf(player)});
   if (absl::IsNotFound(invitation.status())) {
-    return absl::NotFoundError("Nobody's asked you, or it's run out.");
+    return Refusal(absl::StatusCode::kNotFound,
+                   Msg("Nobody's asked you, or it's run out."));
   }
   if (!invitation.ok()) {
     return invitation.status();
@@ -261,7 +268,7 @@ absl::StatusOr<Membership> Guilds::Accept(uint32_t player) {
       return guild.status();
     }
     if (guild->rows.empty()) {
-      return absl::NotFoundError("That guild is gone.");
+      return Refusal(absl::StatusCode::kNotFound, Msg("That guild is gone."));
     }
     membership.name = guild->rows.front()[0];
     const absl::StatusOr<Result> members =
@@ -275,14 +282,15 @@ absl::StatusOr<Membership> Guilds::Accept(uint32_t player) {
       return absl::InternalError("a count that isn't a number");
     }
     if (count >= kMostMembers) {
-      return absl::ResourceExhaustedError(
-          absl::StrCat(membership.name, " is full."));
+      return Refusal(absl::StatusCode::kResourceExhausted,
+                     Msg("$0 is full.", Name(membership.name)));
     }
     const absl::StatusOr<Result> member =
         database_.Run("INSERT INTO guild_members (player, guild) VALUES (?, ?)",
                       {absl::StrCat(player), absl::StrCat(membership.guild)});
     if (absl::IsAlreadyExists(member.status())) {
-      return absl::AlreadyExistsError("You're in a guild already.");
+      return Refusal(absl::StatusCode::kAlreadyExists,
+                     Msg("You're in a guild already."));
     }
     return member.status();
   });
@@ -300,8 +308,9 @@ absl::StatusOr<Membership> Guilds::Accept(uint32_t player) {
 absl::StatusOr<Changed> Guilds::SetRank(uint32_t from, uint32_t player,
                                         protocol::Rank rank) {
   if (rank == protocol::RANK_LEADER || from == player) {
-    return absl::InvalidArgumentError(
-        "The leader makes members officers, and officers members.");
+    return Refusal(
+        absl::StatusCode::kInvalidArgument,
+        Msg("The leader makes members officers, and officers members."));
   }
   Changed changed;
   const absl::Status done = database_.Transaction([&]() -> absl::Status {
@@ -310,7 +319,8 @@ absl::StatusOr<Changed> Guilds::SetRank(uint32_t from, uint32_t player,
       return leading.status();
     }
     if (leading->rank != protocol::RANK_LEADER) {
-      return absl::PermissionDeniedError("Only the leader changes ranks.");
+      return Refusal(absl::StatusCode::kPermissionDenied,
+                     Msg("Only the leader changes ranks."));
     }
     changed.guild = leading->guild;
     changed.guild_name = leading->name;
@@ -338,7 +348,8 @@ absl::StatusOr<Changed> Guilds::SetRank(uint32_t from, uint32_t player,
 
 absl::StatusOr<Changed> Guilds::Kick(uint32_t from, uint32_t player) {
   if (from == player) {
-    return absl::InvalidArgumentError("To go, leave the guild.");
+    return Refusal(absl::StatusCode::kInvalidArgument,
+                   Msg("To go, leave the guild."));
   }
   Changed changed;
   const absl::Status done = database_.Transaction([&]() -> absl::Status {
@@ -352,12 +363,13 @@ absl::StatusOr<Changed> Guilds::Kick(uint32_t from, uint32_t player) {
       return theirs.status();
     }
     if (acting->rank <= *theirs) {
-      return absl::PermissionDeniedError(
-          "The leader removes officers and members, and officers members.");
+      return Refusal(absl::StatusCode::kPermissionDenied,
+                     Msg("The leader removes officers and members, and "
+                         "officers members."));
     }
     if (const absl::Status free = NotAtWar(
             database_, acting->guild,
-            "Nobody's removed from a guild at war until the war's over.");
+            Msg("Nobody's removed from a guild at war until the war's over."));
         !free.ok()) {
       return free;
     }
@@ -388,11 +400,13 @@ absl::StatusOr<Membership> Guilds::Disband(uint32_t from) {
       return leading.status();
     }
     if (leading->rank != protocol::RANK_LEADER) {
-      return absl::PermissionDeniedError("Only the leader disbands the guild.");
+      return Refusal(absl::StatusCode::kPermissionDenied,
+                     Msg("Only the leader disbands the guild."));
     }
     if (const absl::Status free =
             NotAtWar(database_, leading->guild,
-                     "A guild at war can't be disbanded until the war's over.");
+                     Msg("A guild at war can't be disbanded until the war's "
+                         "over."));
         !free.ok()) {
       return free;
     }
@@ -447,8 +461,8 @@ absl::StatusOr<War> Guilds::AskToWar(const std::string& world, uint32_t from,
     return asking.status();
   }
   if (asking->rank != protocol::RANK_LEADER) {
-    return absl::PermissionDeniedError(
-        "Only the leader takes the guild to war.");
+    return Refusal(absl::StatusCode::kPermissionDenied,
+                   Msg("Only the leader takes the guild to war."));
   }
   // MySQL compares the name without its case.
   const absl::StatusOr<Result> found =
@@ -458,8 +472,9 @@ absl::StatusOr<War> Guilds::AskToWar(const std::string& world, uint32_t from,
     return found.status();
   }
   if (found->rows.empty()) {
-    return absl::NotFoundError(
-        absl::StrCat("There's no guild called ", name, " in ", world, "."));
+    return Refusal(
+        absl::StatusCode::kNotFound,
+        Msg("There's no guild called $0 in $1.", Name(name), Name(world)));
   }
   War war{.challenger = asking->guild, .challenger_name = asking->name};
   if (!absl::SimpleAtoi(found->rows.front()[0], &war.challenged)) {
@@ -467,8 +482,8 @@ absl::StatusOr<War> Guilds::AskToWar(const std::string& world, uint32_t from,
   }
   war.challenged_name = found->rows.front()[1];
   if (war.challenged == war.challenger) {
-    return absl::InvalidArgumentError(
-        "Your guild can't go to war with itself.");
+    return Refusal(absl::StatusCode::kInvalidArgument,
+                   Msg("Your guild can't go to war with itself."));
   }
   // Asking back the guild that asked is a yes, as in a duel, and they're the
   // challenger.
@@ -493,8 +508,8 @@ absl::StatusOr<War> Guilds::AskToWar(const std::string& world, uint32_t from,
       {"SET", WarAskOf(world, war.challenger, war.challenged),
        absl::StrCat(from), "EX", absl::StrCat(kWarAskLife.count()), "NX"});
   if (absl::IsNotFound(set.status())) {
-    return absl::AlreadyExistsError(
-        absl::StrCat("You've asked ", war.challenged_name, " already."));
+    return Refusal(absl::StatusCode::kAlreadyExists,
+                   Msg("You've asked $0 already.", Name(war.challenged_name)));
   }
   if (!set.ok()) {
     return set.status();
@@ -517,21 +532,21 @@ absl::StatusOr<War> Guilds::StartWar(const std::string& world, uint32_t from,
         return locked.status();
       }
       if (locked->rows.empty()) {
-        return absl::NotFoundError("That guild is gone.");
+        return Refusal(absl::StatusCode::kNotFound, Msg("That guild is gone."));
       }
     }
     // They may have stopped leading it since we asked.
     const absl::StatusOr<protocol::Rank> rank =
         RankIn(database_, war.challenged, from);
     if (absl::IsNotFound(rank.status())) {
-      return absl::NotFoundError("You're in no guild.");
+      return Refusal(absl::StatusCode::kNotFound, Msg("You're in no guild."));
     }
     if (!rank.ok()) {
       return rank.status();
     }
     if (*rank != protocol::RANK_LEADER) {
-      return absl::PermissionDeniedError(
-          "Only the leader takes the guild to war.");
+      return Refusal(absl::StatusCode::kPermissionDenied,
+                     Msg("Only the leader takes the guild to war."));
     }
     if (const absl::Status free = NeitherAtWar(
             database_, war.challenged, war.challenger, war.challenger_name);
@@ -623,7 +638,7 @@ absl::StatusOr<Left> LeaveGuild(Database& database, uint32_t player) {
   }
   if (const absl::Status free =
           NotAtWar(database, leaving->guild,
-                   "Nobody leaves a guild at war until the war's over.");
+                   Msg("Nobody leaves a guild at war until the war's over."));
       !free.ok()) {
     return free;
   }

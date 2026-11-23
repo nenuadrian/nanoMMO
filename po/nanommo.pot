@@ -115,6 +115,10 @@ msgstr ""
 msgid "Experience $0 / $1"
 msgstr ""
 
+#: client/chat_window.cc client/messages.cc
+msgid "something"
+msgstr ""
+
 #: client/chat_window.cc
 msgid "Chat (Enter)"
 msgstr ""
@@ -968,10 +972,6 @@ msgstr ""
 
 #: client/menu.cc
 msgid "Menu (Escape)"
-msgstr ""
-
-#: client/messages.cc
-msgid "something"
 msgstr ""
 
 #: client/names.cc

@@ -23,6 +23,7 @@
 #include "asio/ssl/context.hpp"
 #include "asio/steady_timer.hpp"
 #include "content/content.h"
+#include "protocol/messages.h"
 #include "protocol/nanommo.pb.h"
 #include "server/copies.h"
 #include "server/events.h"
@@ -110,17 +111,18 @@ class Server {
   /// To the guild's players in this world, at once, over TCP.
   void GuildSay(uint32_t id, const std::string& text);
   /// Sends each of the guild's players here a line from the server.
-  void TellGuild(uint32_t guild, const std::string& text,
+  void TellGuild(uint32_t guild, const Sentence& news,
                  protocol::Channel channel = protocol::CHANNEL_WORLD);
   /// Sends each of the guild's players here its roster with the next news.
   void RefreshGuild(uint32_t guild);
-  /// Tells the player why their guild action failed: in the error's words
-  /// when it's about what they asked, and with "try again" when it's MySQL.
+  /// Tells the player why their guild action failed: in the refusal's
+  /// sentence when it's about what they asked, and with "try again" when it's
+  /// MySQL.
   void Refuse(uint32_t id, const absl::Status& why);
-  /// Sends the player a line from the server, which has no name.
-  void Notify(uint32_t id, const std::string& text,
+  /// Sends the player a line from the server, which has no name: a sentence,
+  /// which their client says in its player's language.
+  void Notify(uint32_t id, const Sentence& said,
               protocol::Channel channel = protocol::CHANNEL_WORLD);
-  /// A sentence, which the client says in its player's language.
   void Notify(uint32_t id, const protocol::Message& message,
               protocol::Channel channel = protocol::CHANNEL_WORLD);
   void Receive();

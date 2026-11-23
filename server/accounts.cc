@@ -6,31 +6,33 @@
 #include <vector>
 
 #include "absl/strings/numbers.h"
+#include "protocol/messages.h"
 
 namespace nanommo {
 
 absl::Status CheckUsername(std::string_view username) {
   if (username.size() < 3 || username.size() > 16) {
-    return absl::InvalidArgumentError("Names are 3 to 16 characters long.");
+    return Refusal(absl::StatusCode::kInvalidArgument,
+                   Msg("Names are 3 to 16 characters long."));
   }
   const auto allowed = [](char c) {
     return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
   };
   if (!std::all_of(username.begin(), username.end(), allowed)) {
-    return absl::InvalidArgumentError(
-        "Names are letters, digits and underscores.");
+    return Refusal(absl::StatusCode::kInvalidArgument,
+                   Msg("Names are letters, digits and underscores."));
   }
   return absl::OkStatus();
 }
 
 absl::Status CheckPassword(std::string_view password) {
   if (password.size() < 8) {
-    return absl::InvalidArgumentError(
-        "Passwords are at least 8 characters long.");
+    return Refusal(absl::StatusCode::kInvalidArgument,
+                   Msg("Passwords are at least 8 characters long."));
   }
   if (password.size() > 128) {
-    return absl::InvalidArgumentError(
-        "Passwords are at most 128 characters long.");
+    return Refusal(absl::StatusCode::kInvalidArgument,
+                   Msg("Passwords are at most 128 characters long."));
   }
   return absl::OkStatus();
 }

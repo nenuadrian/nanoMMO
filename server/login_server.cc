@@ -12,6 +12,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "protocol/framing.h"
+#include "protocol/messages.h"
 #include "protocol/version.h"
 #include "server/characters.h"
 #include "server/listen.h"
@@ -22,6 +23,13 @@
 namespace nanommo {
 
 namespace {
+
+// Says why the reply refuses: in English, as a client before 0.96.0 shows it,
+// and as a sentence, for the client to say in its player's language.
+void Refuse(protocol::LoginReply& reply, const Sentence& why) {
+  reply.set_error(why.english);
+  *reply.mutable_why() = why.message;
+}
 
 // The account the name and password are for, or a reply that says why not:
 // a wrong password, or a name that's taken or no good for a new account.
@@ -34,7 +42,7 @@ absl::StatusOr<uint32_t> Authenticate(const protocol::LoginRequest& request,
       problem = CheckPassword(request.password());
     }
     if (!problem.ok()) {
-      reply.set_error(problem.message());
+      Refuse(reply, SentenceOf(problem));
       return 0;
     }
     const absl::StatusOr<std::string> hash = HashPassword(request.password());
@@ -44,7 +52,7 @@ absl::StatusOr<uint32_t> Authenticate(const protocol::LoginRequest& request,
     const absl::StatusOr<uint32_t> created =
         accounts.Create(request.username(), *hash);
     if (absl::IsAlreadyExists(created.status())) {
-      reply.set_error("That name is taken.");
+      Refuse(reply, Msg("That name is taken."));
       return 0;
     }
     return created;
@@ -55,7 +63,7 @@ absl::StatusOr<uint32_t> Authenticate(const protocol::LoginRequest& request,
   }
   if (!account.ok() ||
       !VerifyPassword(account->password_hash, request.password())) {
-    reply.set_error("Wrong name or password.");
+    Refuse(reply, Msg("Wrong name or password."));
     return 0;
   }
   return account->id;
@@ -86,7 +94,7 @@ std::string_view Asked(const protocol::LoginRequest& request) {
 absl::Status Readable(const absl::Status& status, protocol::LoginReply& reply) {
   if (absl::IsInvalidArgument(status) || absl::IsAlreadyExists(status) ||
       absl::IsResourceExhausted(status) || absl::IsNotFound(status)) {
-    reply.set_error(status.message());
+    Refuse(reply, SentenceOf(status));
     return absl::OkStatus();
   }
   return status;
@@ -110,14 +118,16 @@ absl::StatusOr<protocol::LoginReply> HandleLogin(
     // A client of another version would log in, then fail to make sense of
     // what the world sends it: it's told which version to get instead.
     if (!Compatible(request.version(), kVersion)) {
-      reply.set_error(
-          request.version().empty()
-              ? absl::StrCat("This client is too old for the servers, which "
-                             "are ",
-                             kVersion, ". Get the new one to play.")
-              : absl::StrCat("This client is ", request.version(),
-                             ", and the servers are ", kVersion, ". Get the ",
-                             kVersion, " client to play."));
+      // Translators: $0 is the servers' version, such as 0.96.0.
+      Refuse(reply, request.version().empty()
+                        ? Msg("This client is too old for the servers, which "
+                              "are $0. Get the new one to play.",
+                              Name(kVersion))
+                        // Translators: $0 is this client's version, and $1
+                        // the servers', such as 0.96.0.
+                        : Msg("This client is $0, and the servers are $1. Get "
+                              "the $1 client to play.",
+                              Name(request.version()), Name(kVersion)));
       return reply;
     }
     // Logging in, or making an account: a session for what comes next.
@@ -137,7 +147,7 @@ absl::StatusOr<protocol::LoginReply> HandleLogin(
   } else {
     const absl::StatusOr<uint32_t> id = tokens.AccountOf(request.session());
     if (absl::IsNotFound(id.status())) {
-      reply.set_error("You've been away a while. Log in again.");
+      Refuse(reply, Msg("You've been away a while. Log in again."));
       return reply;
     }
     if (!id.ok()) {
@@ -264,7 +274,7 @@ void LoginServer::Accept() {
           std::cerr << "nanommo login: " << handled.status() << TraceField()
                     << "\n";
           span.SetError(handled.status().ToString());
-          reply.set_error("The server couldn't do that. Try again later.");
+          Refuse(reply, Msg("The server couldn't do that. Try again later."));
         }
         // A login, as it happens: the requests that follow it go with its
         // session, without a name.
@@ -312,7 +322,7 @@ protocol::LoginReply LoginServer::ListWorlds() {
     if (worlds_.ok() && now - worlds_at_ < std::chrono::seconds(30)) {
       return worlds_;
     }
-    reply.set_error("The server couldn't list the worlds. Try again later.");
+    Refuse(reply, Msg("The server couldn't list the worlds. Try again later."));
     return reply;
   }
   reply.set_ok(true);

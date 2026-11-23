@@ -190,11 +190,8 @@ class TestPlayer {
                              world.events().end());
             } else if (!world.chat().empty()) {
               for (const nanommo::protocol::Chat& line : world.chat()) {
-                if (line.name().empty()) {
-                  notices_.push_back(
-                      line.has_message()
-                          ? nanommo::English(line.message(), content_)
-                          : line.text());
+                if (line.name().empty() && line.npc() == 0) {
+                  notices_.push_back(English(line.message(), content_));
                 } else {
                   heard_.push_back(line);
                 }
@@ -648,7 +645,8 @@ TEST_F(ServerTest, APlayerMakesWhatARecipeMakes) {
                               metrics_, *tokens_, *players_, *guilds_, *events_,
                               *storyteller_);
   ASSERT_TRUE(crafty.ok()) << crafty.status();
-  TestPlayer alice(io_, *client_tls_, (*crafty)->port(), Token(alice_));
+  TestPlayer alice(io_, *client_tls_, (*crafty)->port(), Token(alice_),
+                   content);
   ASSERT_TRUE(RunUntil([&] { return alice.bag().revision() > 0; }));
 
   // What she can't make comes back as a line from nobody.
@@ -697,7 +695,8 @@ TEST_F(ServerTest, SendsEachPlayerTheirQuestsAsTheyChange) {
                               metrics_, *tokens_, *players_, *guilds_, *events_,
                               *storyteller_);
   ASSERT_TRUE(guarded.ok()) << guarded.status();
-  TestPlayer alice(io_, *client_tls_, (*guarded)->port(), Token(alice_));
+  TestPlayer alice(io_, *client_tls_, (*guarded)->port(), Token(alice_),
+                   content);
 
   // Her quests come as she joins, on none.
   ASSERT_TRUE(RunUntil([&] { return alice.quests().has_value(); }));

@@ -185,6 +185,14 @@ TEST_F(LoginTest, TurnsAwayAClientOfAnotherVersion) {
             absl::StrCat("This client is 0.1.0, and the servers are ",
                          nanommo::kVersion, ". Get the ", nanommo::kVersion,
                          " client to play."));
+  // And as a sentence, for a client that translates it, with the versions as
+  // they are.
+  EXPECT_EQ(reply.why().text(),
+            "This client is $0, and the servers are $1. Get the $1 client to "
+            "play.");
+  ASSERT_EQ(reply.why().args_size(), 2);
+  EXPECT_EQ(reply.why().args(0).name(), "0.1.0");
+  EXPECT_EQ(reply.why().args(1).name(), nanommo::kVersion);
 }
 
 TEST_F(LoginTest, TurnsAwayAClientFromBeforeVersions) {

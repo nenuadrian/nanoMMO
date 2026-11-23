@@ -125,6 +125,10 @@ msgstr "Viață $0 / $1"
 msgid "Experience $0 / $1"
 msgstr "Experiență $0 / $1"
 
+#: client/chat_window.cc client/messages.cc
+msgid "something"
+msgstr "ceva"
+
 #: client/chat_window.cc
 msgid "Chat (Enter)"
 msgstr "Chat (Enter)"
@@ -988,10 +992,6 @@ msgstr "Ajutor (H)"
 #: client/menu.cc
 msgid "Menu (Escape)"
 msgstr "Meniu (Escape)"
-
-#: client/messages.cc
-msgid "something"
-msgstr "ceva"
 
 #: client/names.cc
 msgid "main hand"

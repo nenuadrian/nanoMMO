@@ -279,6 +279,9 @@ message Chat {
   Channel channel = 3;
   // What the server says, in place of a text, for the client to translate.
   Message message = 4;
+  // An NPC who speaks, in place of a name, by its kind, which the client
+  // names in its player's language, as the storyteller does.
+  uint32 npc = 5;
 }
 
 // Where a player goes when their world's instance hands its players over to
@@ -447,7 +450,11 @@ message LoginReply {
   bool ok = 1;
   // To enter the world with, once a character's picked.
   string token = 2;
+  // What's wrong, in English, which a client before 0.96.0 shows, as one of
+  // another version reads it to hear which version to get.
   string error = 3;
+  // The same, for the client to say in its player's language.
+  Message why = 7;
   repeated WorldListing worlds = 4;
   // Once logged in: the session to ask with next, and the account's
   // characters in all the worlds.

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "google/protobuf/util/message_differencer.h"
+#include "protocol/messages.h"
 #include "protocol/places.h"
 
 namespace nanommo {
@@ -23,6 +24,11 @@ bool SameItem(const items::Stack* there, const items::Stack& offered) {
   items::Stack same = *there;
   same.set_count(offered.count());
   return google::protobuf::util::MessageDifferencer::Equals(same, offered);
+}
+
+absl::Status NotTrading() {
+  return Refusal(absl::StatusCode::kFailedPrecondition,
+                 Msg("You're not trading with anyone."));
 }
 
 }  // namespace
@@ -66,21 +72,24 @@ absl::Status Trades::Offer(uint32_t id, const Inventory& bag,
                            const protocol::TradeOffer& offer) {
   const auto side = sides_.find(id);
   if (side == sides_.end()) {
-    return absl::FailedPreconditionError("You're not trading with anyone.");
+    return NotTrading();
   }
   protocol::TradeSide offered;
   for (const uint32_t slot : offer.bag()) {
     const items::Stack* stack = bag.At(InBag(slot));
     if (stack == nullptr) {
-      return absl::NotFoundError("There's nothing there.");
+      return Refusal(absl::StatusCode::kNotFound,
+                     Msg("There's nothing there."));
     }
     if (!items.by_id.contains(stack->item())) {
-      return absl::FailedPreconditionError("You can't trade that.");
+      return Refusal(absl::StatusCode::kFailedPrecondition,
+                     Msg("You can't trade that."));
     }
     (*offered.mutable_bag())[slot] = *stack;
   }
   if (offer.gold() > bag.gold()) {
-    return absl::FailedPreconditionError("You haven't that much gold.");
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("You haven't that much gold."));
   }
   offered.set_gold(offer.gold());
   side->second.offer = std::move(offered);
@@ -96,13 +105,13 @@ absl::Status Trades::Offer(uint32_t id, const Inventory& bag,
 absl::StatusOr<bool> Trades::Ready(uint32_t id, bool ready, uint32_t revision) {
   const auto side = sides_.find(id);
   if (side == sides_.end()) {
-    return absl::FailedPreconditionError("You're not trading with anyone.");
+    return NotTrading();
   }
   // An offer can change while a ready's on its way, and the ready is for the
   // offers the player saw.
   if (ready && revision != side->second.revision) {
-    return absl::FailedPreconditionError(
-        "The trade has changed, so look at it again.");
+    return Refusal(absl::StatusCode::kFailedPrecondition,
+                   Msg("The trade has changed, so look at it again."));
   }
   side->second.offer.set_ready(ready);
   const uint32_t other = side->second.with;
@@ -130,13 +139,14 @@ absl::Status Trades::Complete(uint32_t id, Inventory& bag, Inventory& other_bag,
     for (const auto& [slot, stack] : offers[side]->bag()) {
       if (!SameItem(after[side].At(InBag(slot)), stack) ||
           !after[side].Take(InBag(slot), stack.count()).ok()) {
-        return refuse(absl::FailedPreconditionError(
-            "The items offered aren't all there any more."));
+        return refuse(
+            Refusal(absl::StatusCode::kFailedPrecondition,
+                    Msg("The items offered aren't all there any more.")));
       }
     }
     if (!after[side].TakeGold(offers[side]->gold()).ok()) {
-      return refuse(absl::FailedPreconditionError(
-          "The gold offered isn't all there any more."));
+      return refuse(Refusal(absl::StatusCode::kFailedPrecondition,
+                            Msg("The gold offered isn't all there any more.")));
     }
   }
   // Then each gets the copies of what the other offered.
@@ -144,13 +154,14 @@ absl::Status Trades::Complete(uint32_t id, Inventory& bag, Inventory& other_bag,
     Inventory& to = after[1 - side];
     for (const auto& [slot, stack] : offers[side]->bag()) {
       if (to.Add(items, stack) > 0) {
-        return refuse(absl::ResourceExhaustedError(
-            "There isn't room for the trade in one of the bags."));
+        return refuse(
+            Refusal(absl::StatusCode::kResourceExhausted,
+                    Msg("There isn't room for the trade in one of the bags.")));
       }
     }
     if (to.AddGold(offers[side]->gold()) > 0) {
-      return refuse(absl::ResourceExhaustedError(
-          "That's more gold than can be carried."));
+      return refuse(Refusal(absl::StatusCode::kResourceExhausted,
+                            Msg("That's more gold than can be carried.")));
     }
   }
   bag = std::move(after[0]);
