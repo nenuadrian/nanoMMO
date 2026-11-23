@@ -43,7 +43,9 @@ monster, or in a message of its own whenever it changes.
 The storyteller is an NPC that tells you a story about a few words you give it. Click it, in purple
 across the road from the guard, or from the ash warden, type a few words, such as
 `dragon castle gold`, and press Enter, or Tell me a story. The story comes back in the chat, under
-the storyteller's name, to you and nobody else.
+the storyteller's name, to you and nobody else. The name is in your language, as the server sends
+the storyteller's kind, and the story is English, as mvGPT writes it (see
+[Translations](translations.md#what-stays-english)).
 
 The stories come from [mvGPT](https://github.com/nenuadrian/mvGPT), a small language model built
 from scratch in a series of its own, which learned to write short children's stories from a few

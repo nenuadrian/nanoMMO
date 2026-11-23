@@ -288,6 +288,29 @@ clock (`server/weather.h`), so it's nothing to keep, and it's about 25 bytes, so
 world, and a client that loses one has it again a twentieth of a second later. `Parts` keeps the
 newest world's.
 
+## The servers' sentences
+
+What the servers say, a refusal, a guild's news, what a monster dropped, or a login server's error,
+goes as a `Message`, for the client to say in its player's language
+([Translations](translations.md#the-servers-sentences),
+[decision 0046](decisions/0046-the-servers-send-their-sentences-as-their-english-and-args-for-the-client-to-translate.md)):
+its English, which is its key, with `$0` to `$9`, and its args.
+
+| Message | Field | What |
+|---|---|---|
+| `Message` | `text`, 1 | The English, with a placeholder for each arg, or a plural's English for one |
+| `Message` | `plural`, 2, and `count`, 3 | A plural's English for any other count, and the count, which picks its form |
+| `Message` | `args`, 4 | An `Arg` for each placeholder, in order |
+| `Arg` | `number`, 1, `name`, 2, or `phrase`, 3 | A number, a name a player gave or a version, as it is, or a `Message` of its own, such as so much gold, or the rest of a list |
+| `Arg` | `item`, 4, `monster`, 5, `npc`, 6, `quest`, 7, `skill`, 8, or `slot`, 9 | The content's, by its id, a kind of monster or of NPC by its kind's, or a slot of the bag, which the client names in its player's language |
+| `Arg` | `count`, 10 | With an item or a monster, so many of it, "a Bone" or "3 Bones". None, its name alone |
+| `Chat` | `message`, 4 | A line from nobody, in place of `text`, which is what players say |
+| `Chat` | `npc`, 5 | An NPC who speaks, in place of `name`, by its kind, as a storyteller does |
+| `LoginReply` | `why`, 7 | Why not, as a `Message`, beside `error`, 3, its English, which a client from before 0.96.0 reads |
+
+A message is about the size of the line it replaces: its English, with placeholders where the
+names were, and a few bytes for each arg, over TCP, as the lines were.
+
 ## What a modified client can try
 
 The client runs on the player's machine, so anything it sends can be made up. `nanommo_cheat` is

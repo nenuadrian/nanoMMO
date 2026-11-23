@@ -426,6 +426,10 @@ your sword.
   fills up again over time (`server/token_bucket.h`). A line over that goes nowhere, and the server
   tells the player that they're talking too fast, in a line with no name, which the chat window
   shows in yellow.
+- What the servers say, in a line with no name, such as that, a refusal or a guild's news, comes as
+  a sentence the client translates, in the player's language, with the names in it as players gave
+  them (see [Translations](translations.md#the-servers-sentences)). What players say stays as they
+  said it.
 - The client keeps the last hundred lines. The server prints each line said, and counts the lines,
   said and refused, in `nanommo_chat_lines_total`, which the dashboard shows a minute.
 

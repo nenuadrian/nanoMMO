@@ -7,6 +7,37 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.96.0 (2026-11-23)
+
+- What the servers say is in the player's language: a login server's errors, such as a name that's
+  taken, and what a world says in the chat, its refusals, such as a bag that's full, a trade's, a
+  duel's and a war's news, a guild's, what a monster dropped, a quest's progress and prizes, and a
+  boss's fall, and the offline world's. Each goes as a `Message`: its English, with `$0` to `$9`,
+  which is its key, as a client string's English is, and its args, numbers, names players gave,
+  which stay as they are, the content's, by id, and sentences of their own, such as so much gold.
+  The client translates it as it shows it, with the content's names in the player's language
+  (`client/messages.h`).
+- `Chat` has `message`, 4, in place of `text` for a line from nobody, and `npc`, 5, for an NPC who
+  speaks, such as a storyteller, which the chat names in the player's language, over a story that
+  stays English. `LoginReply` has `why`, 7, the `Message`, beside `error`, its English, which a
+  client before 0.96.0 shows. This changes what the client and the servers say to each other, so
+  the login server turns a 0.95.0 client away, in English.
+- On the servers, `Msg` and `MsgN`, for a plural, make a sentence with its English
+  (`protocol/messages.h`), and a refusal is a `Refusal`, a status with the English as its message
+  and the sentence as its payload, so the logs and the tests read the English as before. A list is
+  a sentence of "$0 and $1" and "$0, $1", so a language joins it its own way, and so many of an
+  item is a plural of each item's own, "a Bone" and "$0 Bones", in place of an s on the end.
+- `scripts/po.py extract` takes the servers' sentences from `protocol/` and `server/`, with their
+  translators' comments, and a plural for each item from the items file. The template has 512
+  strings, and `ro.po` translates them all, without addressing the player. The quest window's "$0
+  experience" is a plural, as a quest's prizes in the chat are, and Romanian counts it in points.
+- The images, packages and libraries are at their newest versions, from Dependabot's pull
+  requests of 22 November: Python 3.15 for the lint stage and the storyteller, transformers 5.23.0,
+  FrankenPHP 1.13.5, Guzzle 8.5.2, PSR-7 3.5.0, Laravel 13.43.0 and Tinker 3.2.0 for the website,
+  Flyway 13.12.2, ClickHouse 26.10.4.207, Mailpit 1.34.0, Loki 3.7.10 and Alloy 1.22.0 in
+  `compose.yaml`, and rlImGui's newest commit, hiredis 1.5.1, cpp-httplib 0.67.0 and smollerGraph
+  0.20.2, whose API docs link to their code.
+
 ## 0.95.0 (2026-11-22)
 
 - The client speaks Romanian. The settings' Interface page has Language: English, Română, and

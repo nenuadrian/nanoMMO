@@ -59,7 +59,9 @@ skills (see [Skills](gameplay.md#skills)) and three recipes (see [Crafting](game
   list has, so any new one changes most of theirs.
 - The names, and the quests' words, are English, which `ClientHash` hashes and the servers say.
   The client translates each as it shows it, by its kind and id, such as `item 8`, so a language
-  changes nothing in the content (see [Translations](translations.md#how-it-works)).
+  changes nothing in the content (see [Translations](translations.md#how-it-works)), and a
+  server's sentence names the content by its id, for the client to say in its player's language.
+  Each item has a plural too, "a Bone" and "$0 Bones", for so many of it in a server's sentence.
 - Monsters with a fixed home, camps of monsters and NPCs name their kind by id, and their land by
   name. A quest names its giver's kind of NPC, the kind of monster it asks for and its prizes by id,
   and a recipe what it takes and makes.

@@ -20,7 +20,9 @@ minor version without changing what the client and the servers say to each other
 The client sends its version with each login (`LoginRequest.version`), and the login server lets
 it in when its major and minor version match the servers' (`Compatible`). It turns any
 other away, with an error that names the version to get, and a client from before versions, which
-sends none, is told it's too old. So a deploy that changes the minor version turns away the
+sends none, is told it's too old. The error is English, in `LoginReply`'s `error`, as every client
+reads it there, and from 0.96.0 it's a sentence too, in `why`, which a client of 0.96.0 or later
+says in its player's language. So a deploy that changes the minor version turns away the
 clients built before it, at their next login.
 
 ## Releases

@@ -5,10 +5,13 @@ lists each language by its own name, English, Română and Pseudo, and the inter
 as one's picked. The client keeps it in `settings.txtpb` as `Interface`'s `language`, 6, a code:
 none for English, `ro` for Romanian, and `pseudo`.
 
-What's translated is the client's own words, each window's and each button's, and the content's
-names, as they're shown: the items, the skills, the monsters and their skills, the NPCs, the quests
-and what their givers say, the recipes, the ways to wear the hair, the builds and the lands. The
-server's sentences stay English for now (see [What stays English](#what-stays-english)).
+What's translated is the client's own words, each window's and each button's, the content's names,
+as they're shown: the items, the skills, the monsters and their skills, the NPCs, the quests and
+what their givers say, the recipes, the ways to wear the hair, the builds and the lands, and what
+the servers say: a login server's errors, such as a name that's taken, and a world's lines in the
+chat, such as a bag that's full, a guild's news or what a monster dropped, which come as messages
+the client translates (see [The servers' sentences](#the-servers-sentences)). What stays English is
+[below](#what-stays-english).
 
 ## How it works
 
@@ -56,6 +59,46 @@ The code is in English, and asks for each string in the player's language as it 
   Bold into it, which ImGui reaches for any letter Cinzel hasn't got (`LoadFonts`, in
   `client/theme.cc`).
 
+## The servers' sentences
+
+The servers don't know each player's language, and a world has players in every one at once, so
+what they say goes to the client as a `Message` (`protocol/nanommo.proto`): its English, with `$0`
+to `$9`, which is its key, as a client string's English is, and what goes in each placeholder, its
+args. The client translates it as the chat draws it, with `Translated` (`client/messages.h`), and
+the login screen as the reply comes.
+
+| Arg | What | In the player's language |
+|---|---|---|
+| `number` | A number | As it is |
+| `name` | A name a player gave, a character's, a guild's or a world's, or a version | As it is, in every language |
+| `phrase` | A sentence of its own inside the other, such as so much gold, or the rest of a list | Translated on its own |
+| `item`, `monster`, `npc`, `quest`, `skill`, `slot` | The content's, by its id, or a slot of the bag | `NameOf`, in its context, such as `item 8` |
+| `count`, with an `item` or a `monster` | So many of it | A plural of each item's own, "a Bone" and "$0 Bones", or of the monster's, "$0 Skeletons" |
+
+- On the servers, `Msg` makes a sentence, and `MsgN` a plural, from its English and a part for each
+  placeholder: a number, a `Name`, `Of` the content, or another sentence (`protocol/messages.h`):
+  `Msg("Your bag is full. Make room for $0 first.", Of(items, cap, 1))`. Each has its English too,
+  "a Cap" or "3 Bones" as before, which the servers' tests read, and `English` says a message again
+  from the content's names, as a test hears it from a server.
+- A refusal is a `Refusal`, an `absl::Status` whose message is the English, with the sentence as
+  its payload, which `SentenceOf` takes back out, so the world's rules, the bag's and the guilds'
+  return statuses as they did. A guild's action that MySQL fails, whose status isn't one, is "That
+  didn't work. Try again." to the player, and in the logs as it is.
+- A plural has its English for one and for more, and a count, which picks its form in the
+  player's language, as `TrN` does: "$0 gold", or "a minute" and "$0 minutes".
+- A list, such as what a monster dropped, "2 Bones, a Sword and 5 gold", is a sentence of "$0 and
+  $1", with "$0, $1" before the rest of it, so each language joins it its own way.
+- So many of an item has a plural of the item's own, in its context, "a Bone" and "$0 Bones", which
+  `scripts/po.py` makes from the items file as `Counted` makes them on the servers, so a language
+  says one or 20 of each its own way, with its own gender.
+- A login server's reply has `why`, the sentence, beside `error`, its English, which a client from
+  before 0.96.0 shows. A client of another version reads `error` to hear which version to get
+  (see [Versions](releases.md#versions)), so it stays.
+- An NPC who speaks, such as a storyteller, comes with its kind, `Chat`'s `npc`, and the chat names
+  it in the player's language, over a story that's English.
+- The offline world runs the servers' rules, so it says the same sentences, which the client
+  translates the same way.
+
 ## The workflow
 
 `scripts/po.py` keeps the files, with Python 3 and nothing else:
@@ -70,9 +113,12 @@ scripts/po.py check
 ```
 
 - `extract` finds each string the client's sources hand to `Tr`, `TrN`, `TrLabel` or `N_`, or to
-  one of the helpers that translate, and the content's names, and writes `po/nanommo.pot`, the same
-  way each time, with where each is from. A comment above a call, starting `// Translators:`, goes
-  with its string, for whoever translates it.
+  one of the helpers that translate, each sentence the servers make with `Msg` or `MsgN`, in
+  `protocol/` and `server/`, and the content's names, with a plural for each item, and writes
+  `po/nanommo.pot`, the same way each time, with where each is from. A comment above a call,
+  starting `// Translators:`, goes with its string, for whoever translates it, and a server's says
+  what goes in its placeholders. A sentence the servers and the client both have, such as "$0
+  gold", is one string.
 - `update` merges the template into each `po/*.po`, as gettext's `msgmerge` would: a translation
   stays with its string, a string that's changed a little gets the old translation, marked fuzzy
   for someone to look at, and one that's gone stays at the end, obsolete, for a string that comes
@@ -111,17 +157,20 @@ language would cut off, and a letter a font can't draw. It's for whoever adds a 
 
 ## What stays English
 
-- The server's sentences: a login server's error, such as a name that's taken, and what a world
-  says in the chat, as a duel ends, a guild's news or a refusal, such as a bag that's full, and
-  those of the offline world, which runs the server's rules. They're made on the server, in
-  English, glued together from names and numbers, and episode 96 sends them as message ids with
-  their arguments instead, which the client translates.
-- The storyteller's stories, which mvGPT tells in English, and so the words it's given.
+- The storyteller's stories, which mvGPT tells in English, and so the words it's given. The
+  storyteller's name, over them, is in the player's language.
 - The details of a connection that fails, such as the system's, after "Couldn't reach the server:".
-- The chat's commands, `/g`, `/trade`, `/duel` and `/war`, and the keys' letters.
+- The chat's commands, `/g`, `/trade`, `/duel` and `/war`, the `yes` after `/duel`, and the keys'
+  letters, in the sentences that say to type them too.
 - Names that players give: characters, guilds and worlds.
+- The servers' logs, which have each sentence's English, and a login server's `error`, the English
+  for a client from before 0.96.0, which is how a 0.95.0 client hears it's turned away.
 
 Romanian doesn't address the player, so it picks neither "tu" nor "dumneavoastră": a button is a
-noun, such as "Ștergere", and a sentence impersonal, with "se". It has ș and ț with their commas
-below. Why translations are PO files read by the client, and why the content stays English, is
-[decision 45](decisions/0045-translate-the-client-with-gettext-po-files-at-display-and-keep-the-content-english.md).
+noun, such as "Ștergere", and a sentence impersonal, with "se", or a noun, such as "Ieșire din
+breasla $0." An item's or a skill's name that would need an article goes in quotes, „$0”, and so
+many of an item takes "de" from 20 on, "20 de Oase". It has ș and ț with their commas below. Why
+translations are PO files read by the client, and why the content stays English, is
+[decision 45](decisions/0045-translate-the-client-with-gettext-po-files-at-display-and-keep-the-content-english.md),
+and why the servers send their sentences as their English and args is
+[decision 46](decisions/0046-the-servers-send-their-sentences-as-their-english-and-args-for-the-client-to-translate.md).

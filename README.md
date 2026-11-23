@@ -98,7 +98,7 @@ How each part of the game works is in `docs/`, a page each, which the
 - [Reliability](docs/reliability.md): the objectives and their error budgets, the alerts on how fast those burn, what breaking things on purpose found, and [postmortems](docs/postmortems/README.md).
 - [Deployment](docs/deployment.md): a server with Docker Compose, handing players over without downtime, and deploying on push.
 - [The client in a browser](docs/web.md): the client built with Emscripten, drawing with WebGL 2 in a page, what differs there, playing offline, and online through the gateway.
-- [Translations](docs/translations.md): the client in English and Romanian, gettext's PO files, plurals, the content's names, pseudo-localisation, adding a language, and what stays English.
+- [Translations](docs/translations.md): the client in English and Romanian, gettext's PO files, plurals, the content's names, the servers' sentences as messages the client translates, pseudo-localisation, adding a language, and what stays English.
 - [Code style and checks](docs/checks.md): clang-format and cpplint, the sanitizers, the fuzzers, clang-tidy and the coverage report.
 - [Versions and dependencies](docs/releases.md): the game's version, which clients the login server lets in, releases, and keeping the libraries, images and packages up to date.
 - [Decisions](docs/decisions/README.md): why the game is built the way it is, a short record for each choice that would be costly to undo, and what it costs us.

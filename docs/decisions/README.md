@@ -76,6 +76,7 @@ The records by what they're about, each group in the order they were written.
 | [0023](0023-draw-everyone-else-in-the-past.md) | Draw everyone else 100 milliseconds in the past | Accepted | 69 |
 | [0024](0024-leave-out-what-has-not-changed.md) | Leave out of each world what hasn't changed, by its pieces' hashes | Accepted | 70 |
 | [0032](0032-the-browser-reaches-the-servers-through-a-gateway.md) | A browser reaches the servers through a WebSocket gateway | Accepted | 80 |
+| [0046](0046-the-servers-send-their-sentences-as-their-english-and-args-for-the-client-to-translate.md) | The servers send their sentences as their English and args, which the client translates | Accepted | 96 |
 
 ### Saving
 
