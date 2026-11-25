@@ -21,7 +21,7 @@ services:
       retries: 30
 
   flyway:
-    image: flyway/flyway:13.12.2
+    image: flyway/flyway:13.13.0
     command: ["migrate"]
     environment:
       FLYWAY_URL: jdbc:mysql://mysql:3306/nanommo?useSsl=true&trustServerCertificate=true
@@ -48,7 +48,7 @@ services:
       retries: 30
 
   clickhouse:
-    image: clickhouse/clickhouse-server:26.10.4.207
+    image: clickhouse/clickhouse-server:26.10.9.12
     environment:
       CLICKHOUSE_DB: nanommo
       CLICKHOUSE_USER: nanommo
@@ -314,7 +314,7 @@ services:
       - "127.0.0.1:3100:3100"
 
   pyroscope:
-    image: grafana/pyroscope:2.4.3
+    image: grafana/pyroscope:2.4.4
     ports:
       - "127.0.0.1:4040:4040"
 
