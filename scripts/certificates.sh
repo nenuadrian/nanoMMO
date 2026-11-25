@@ -6,6 +6,8 @@
 # one with every name, from the same authority, so the clients' ca.crt still
 # trusts it.
 set -eu
+# Git for Windows' sh would take /CN=... for a path, and turn it into one.
+export MSYS_NO_PATHCONV=1
 
 if [ $# -gt 0 ]; then
   dir=$1

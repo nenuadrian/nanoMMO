@@ -1,6 +1,11 @@
 #include "server/redis.h"
 
+// timeval, which hiredis takes for its timeouts.
+#if defined(_WIN32)
+#include <winsock2.h>
+#else
 #include <sys/time.h>
+#endif
 
 #include <algorithm>
 #include <cerrno>

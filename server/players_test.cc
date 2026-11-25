@@ -628,7 +628,8 @@ TEST_F(PlayersTest, TheSaverCarriesOnATradesTrace) {
 
   const auto named = [&spans](std::string_view name) {
     for (const nlohmann::json& span : spans) {
-      if (span["name"] == name) {
+      // A string, as MSVC finds json == std::string_view ambiguous.
+      if (span["name"] == std::string(name)) {
         return span;
       }
     }

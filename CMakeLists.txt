@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(nanommo VERSION 0.97.2 LANGUAGES CXX)
+project(nanommo VERSION 0.97.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,7 +9,13 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-add_compile_options(-fno-omit-frame-pointer)
+# MSVC reads the sources as UTF-8 only when told, and protobuf's generated
+# code has more sections than an object file holds by default.
+if(MSVC)
+  add_compile_options(/utf-8 /bigobj)
+else()
+  add_compile_options(-fno-omit-frame-pointer)
+endif()
 
 # address,undefined, or thread, which can't go with address.
 set(NANOMMO_SANITIZE "" CACHE STRING "Sanitizers to build with")
@@ -80,6 +86,9 @@ if(EMSCRIPTEN)
   set(protobuf_BUILD_TESTS OFF)
 endif()
 set(protobuf_WITH_ZLIB OFF)
+# With MSVC, protobuf links the C runtime statically unless told, and the rest
+# of us link it as a DLL.
+set(protobuf_MSVC_STATIC_RUNTIME OFF)
 FetchContent_Declare(
   protobuf
   URL https://github.com/protocolbuffers/protobuf/archive/refs/tags/v36.2.tar.gz
@@ -108,7 +117,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(asio)
 add_library(asio INTERFACE)
-target_include_directories(asio SYSTEM INTERFACE ${asio_SOURCE_DIR}/asio/include)
+# asio/include is a symbolic link to include, which Windows makes only in
+# developer mode, so we name the folder itself.
+target_include_directories(asio SYSTEM INTERFACE ${asio_SOURCE_DIR}/include)
+# asio brings in windows.h, which would otherwise define min and max, and names
+# raylib has, such as Rectangle and CloseWindow.
+if(WIN32)
+  target_compile_definitions(asio INTERFACE
+    NOMINMAX WIN32_LEAN_AND_MEAN NOGDI NOUSER _WIN32_WINNT=0x0A00)
+endif()
 
 # Tracy's macros compile to nothing without -DTRACY_ENABLE=ON. On demand,
 # it records nothing until a profiler connects.
@@ -190,6 +207,12 @@ FetchContent_Declare(
   EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(smollergraph)
+# smollerGraph asks for GCC's and Clang's warnings, which cl takes for others.
+if(MSVC)
+  get_target_property(options smollergraph COMPILE_OPTIONS)
+  list(REMOVE_ITEM options -Wall -Wextra -Wpedantic)
+  set_target_properties(smollergraph PROPERTIES COMPILE_OPTIONS "${options}")
+endif()
 
 find_package(PkgConfig REQUIRED)
 # Homebrew keeps mysql-client and OpenSSL out of the places pkg-config and
@@ -222,11 +245,16 @@ target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${rlimgui_SOURCE_DIR
 target_link_libraries(imgui PUBLIC raylib)
 target_compile_options(imgui PRIVATE -w)
 
-add_compile_options(-Wall -Wextra -Wpedantic)
-# A designated initializer leaves the fields it doesn't name at their defaults,
-# which is how we use it, so a warning for each of them buries the ones that
-# matter.
-add_compile_options(-Wno-missing-field-initializers)
+if(MSVC)
+  add_compile_options(/W3)
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+else()
+  add_compile_options(-Wall -Wextra -Wpedantic)
+  # A designated initializer leaves the fields it doesn't name at their
+  # defaults, which is how we use it, so a warning for each of them buries the
+  # ones that matter.
+  add_compile_options(-Wno-missing-field-initializers)
+endif()
 
 option(NANOMMO_COVERAGE "Count the lines the tests run, with Clang" OFF)
 if(NANOMMO_COVERAGE)

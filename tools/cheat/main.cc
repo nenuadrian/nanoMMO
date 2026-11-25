@@ -859,7 +859,7 @@ int main(int argc, char** argv) {
     // Teleport sends each way as 1000 for three seconds, and then as not a
     // number for three, which leaves the last keys as they were.
     const bool number = ways % 2 == 0;
-    const float far = (ways / 2) % 2 == 0 ? 1000.0f : -1000.0f;
+    const float far_x = (ways / 2) % 2 == 0 ? 1000.0f : -1000.0f;
     if (now >= tick) {
       tick += kTick;
       // The keys, numbered, once a tick, or three times for speed.
@@ -867,7 +867,7 @@ int main(int argc, char** argv) {
       for (int i = 0; i < keys; ++i) {
         nanommo::protocol::Input input;
         if (cheat == Cheat::kTeleport) {
-          input.set_x(number ? far : std::numeric_limits<float>::quiet_NaN());
+          input.set_x(number ? far_x : std::numeric_limits<float>::quiet_NaN());
           input.set_run(true);
         } else if (fights) {
           input.set_target(target);
@@ -904,7 +904,7 @@ int main(int argc, char** argv) {
                 << " inputs a second, and ";
       if (cheat == Cheat::kTeleport) {
         std::cout << "with x "
-                  << (number ? (far > 0 ? "1000" : "-1000") : "not a number")
+                  << (number ? (far_x > 0 ? "1000" : "-1000") : "not a number")
                   << " ran ";
       }
       std::cout << std::fixed << std::setprecision(1);

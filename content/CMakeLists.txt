@@ -37,7 +37,9 @@ gtest_discover_tests(nanommo_content_tests)
 # player to each thing in the game, and a tool that writes it out for sg to
 # serve. The game's own programs don't link it, and a browser's build has no
 # smollerGraph (the top CMakeLists.txt fetches it for the servers and tools).
-if(NOT EMSCRIPTEN)
+# Nor does Windows: smollerGraph's pages are read and written with POSIX's
+# pread and pwrite.
+if(NOT EMSCRIPTEN AND NOT WIN32)
 add_library(nanommo_content_graph graph.cc)
 target_link_libraries(nanommo_content_graph PUBLIC
   nanommo_content smollergraph::smollergraph absl::status absl::statusor

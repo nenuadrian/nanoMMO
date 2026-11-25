@@ -464,6 +464,10 @@ class World {
 
   /// The player gives their duel up, and the other side wins it, or before
   /// it's started, calls it off.
+#if defined(Yield)
+// winbase.h's, from 16-bit Windows, which does nothing.
+#undef Yield
+#endif
   absl::Status Yield(uint32_t id);
 
   /// Ends the player's duel, however far it's got, with nobody winning, as

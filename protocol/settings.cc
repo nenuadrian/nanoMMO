@@ -1,6 +1,6 @@
 #include "protocol/settings.h"
 
-#include <unistd.h>
+#include <sys/stat.h>
 
 #include <cstdlib>
 #include <string>
@@ -11,7 +11,11 @@ namespace nanommo {
 
 namespace {
 
-bool Exists(const std::string& path) { return access(path.c_str(), F_OK) == 0; }
+// stat, which Windows has too, where it hasn't POSIX's access.
+bool Exists(const std::string& path) {
+  struct stat status;
+  return stat(path.c_str(), &status) == 0;
+}
 
 }  // namespace
 

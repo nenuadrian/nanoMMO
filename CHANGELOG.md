@@ -7,6 +7,29 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.97.3 (2026-11-25)
+
+- nanoMMO builds on Windows, with Visual Studio 2026's MSVC, and its tests pass there. CMake gives
+  MSVC warning flags of its own, UTF-8 sources and big object files, and builds protobuf with the C
+  runtime as a DLL, as the rest of the game links it. asio's headers come from its `include`, since
+  `asio/include` is a symbolic link, which Windows makes only in developer mode. Whatever brings in
+  `windows.h` through asio goes without its `min`, `max`, `Rectangle`, `CloseWindow` and the other
+  names raylib has too. The settings, Redis's timeouts and the cinema's pipe to ffmpeg use
+  Windows' own calls where POSIX's are missing. The build runs `scripts/certificates.sh` with
+  `sh`, and the civetweb patch reads the stop flag with civetweb's atomics, not GCC's. smollerGraph
+  reads and writes its pages with POSIX's `pread` and `pwrite`, so Windows has no content graph,
+  its tests or `nanommo_graph`.
+- `.gitattributes` checks text files out with LF, Windows included. Git for Windows checked them out
+  with CRLF, and in a Linux container `#!/bin/sh` with a CR after it isn't found, so `docker build`
+  stopped at `scripts/certificates.sh` there. A clone from before, with no changes of its own, gets
+  LF with `git rm --cached -r -q . && git reset --hard`.
+- On Windows, the libraries come from vcpkg: `vcpkg install openssl libsodium libmysql pkgconf`.
+  vcpkg's libmysql has no `mysqlclient.pc`, so pkg-config needs one beside vcpkg's `libsodium.pc`.
+- On Windows, `localhost` is `::1` first, where the servers don't listen, and Windows gives up on a
+  connection there only after two seconds. So a client logs in two seconds late, and a bot never
+  gets into its world, but `127.0.0.1` works. Nothing the client and the servers say to each other
+  changes.
+
 ## 0.97.2 (2026-11-25)
 
 - Flyway 13.13.0, ClickHouse 26.10.9.12 and Pyroscope 2.4.4 in `compose.yaml`, and FrankenPHP

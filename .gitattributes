@@ -1,0 +1,3 @@
+# Checked out with LF everywhere, Windows too: the scripts and configs run
+# in Linux containers, where a CR ends up in #!/bin/sh.
+* text=auto eol=lf

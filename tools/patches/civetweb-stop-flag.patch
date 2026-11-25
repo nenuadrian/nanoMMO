@@ -10,7 +10,7 @@ civetweb's fix for a data race on its stop flag, from its main branch
  	do {
 -		sf = mg_atomic_compare_and_swap(f, *f, v);
 +		sf = mg_atomic_compare_and_swap(f,
-+		                                __atomic_load_n(f, __ATOMIC_SEQ_CST),
++		                                mg_atomic_add(f, 0),
 +		                                v);
  	} while (sf != v);
  }

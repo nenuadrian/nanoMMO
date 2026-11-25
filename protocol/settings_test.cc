@@ -1,33 +1,48 @@
 #include "protocol/settings.h"
 
-#include <sys/stat.h>
-#include <unistd.h>
-
-#include <array>
 #include <cstdlib>
+// POSIX's getcwd, chdir and mkdir are different on Windows.
+#include <filesystem>  // NOLINT(build/c++17)
 #include <string>
 
 #include "gtest/gtest.h"
 
 namespace {
 
-bool Exists(const std::string& path) { return access(path.c_str(), F_OK) == 0; }
+bool Exists(const std::string& path) { return std::filesystem::exists(path); }
+
+void SetEnvironment(const char* name, const char* value) {
+#if defined(_WIN32)
+  _putenv_s(name, value);
+#else
+  setenv(name, value, 1);
+#endif
+}
+
+// On Windows, setting a variable to nothing takes it away.
+void UnsetEnvironment(const char* name) {
+#if defined(_WIN32)
+  _putenv_s(name, "");
+#else
+  unsetenv(name);
+#endif
+}
 
 // Runs each test from a temporary folder, outside the repository, and goes
 // back after.
 class FileSettingTest : public testing::Test {
  protected:
   void SetUp() override {
-    ASSERT_NE(getcwd(here_.data(), here_.size()), nullptr);
-    ASSERT_EQ(chdir(testing::TempDir().c_str()), 0);
+    here_ = std::filesystem::current_path();
+    std::filesystem::current_path(testing::TempDir());
   }
   void TearDown() override {
-    ASSERT_EQ(chdir(here_.data()), 0);
-    unsetenv("NANOMMO_TEST_FOLDER");
+    std::filesystem::current_path(here_);
+    UnsetEnvironment("NANOMMO_TEST_FOLDER");
   }
 
  private:
-  std::array<char, 4096> here_{};
+  std::filesystem::path here_;
 };
 
 TEST_F(FileSettingTest, FindsTheRepositorysFilesFromAnotherFolder) {
@@ -37,15 +52,15 @@ TEST_F(FileSettingTest, FindsTheRepositorysFilesFromAnotherFolder) {
 }
 
 TEST_F(FileSettingTest, TakesTheFolderItRunsInForWhatTheRepositoryHasnt) {
-  mkdir("nanommo-settings-test", 0755);
+  std::filesystem::create_directory("nanommo-settings-test");
   EXPECT_EQ(
       nanommo::FileSetting("NANOMMO_TEST_FOLDER", "nanommo-settings-test"),
       "nanommo-settings-test");
-  rmdir("nanommo-settings-test");
+  std::filesystem::remove("nanommo-settings-test");
 }
 
 TEST_F(FileSettingTest, TakesTheSettingOverEither) {
-  setenv("NANOMMO_TEST_FOLDER", "/elsewhere/content", 1);
+  SetEnvironment("NANOMMO_TEST_FOLDER", "/elsewhere/content");
   EXPECT_EQ(nanommo::FileSetting("NANOMMO_TEST_FOLDER", "content"),
             "/elsewhere/content");
 }
@@ -53,7 +68,7 @@ TEST_F(FileSettingTest, TakesTheSettingOverEither) {
 TEST_F(FileSettingTest, PointsAtTheRepositoryForWhatsMissing) {
   const std::string key =
       nanommo::FileSetting("NANOMMO_TEST_FOLDER", "tls/not-there.key");
-  EXPECT_TRUE(key.starts_with("/")) << key;
+  EXPECT_TRUE(std::filesystem::path(key).is_absolute()) << key;
   EXPECT_TRUE(key.ends_with("/tls/not-there.key")) << key;
 }
 

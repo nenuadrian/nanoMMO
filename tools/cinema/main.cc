@@ -267,7 +267,12 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
         options.width, "x", options.height, " -r ", options.fps,
         " -i - -vf vflip -c:v libx264 -preset fast -crf 14 -pix_fmt yuv420p ",
         name, ".video.mp4");
+#if defined(_WIN32)
+    // In text mode, Windows would turn each 10 in the frames into 13 10.
+    video = _popen(encode.c_str(), "wb");
+#else
     video = popen(encode.c_str(), "w");
+#endif
     if (video == nullptr) {
       std::cerr << "nanommo_cinema: couldn't start ffmpeg\n";
       return 1;
@@ -404,7 +409,11 @@ int Shoot(const Shot& shot, const nanommo::Content& content,
   }
   UnloadRenderTexture(picture);
   if (video != nullptr) {
+#if defined(_WIN32)
+    _pclose(video);
+#else
     pclose(video);
+#endif
     if (shot.music() > 0.0f) {
       AddMusic(shot, bed_left, bed_right);
     }
