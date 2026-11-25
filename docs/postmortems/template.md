@@ -1,14 +1,34 @@
-# YYYY-MM-DD: what happened, in a sentence
+# What happened on YYYY-MM-DD, in a sentence
 
-**Status:** draft, or done, and when.
-**Summary:** what happened, in two or three sentences, for someone who reads nothing else.
-**Impact:** who it hurt, and how much: players dropped, frozen or turned away, and for how long,
-data lost or wrong, error budget spent.
-**Root causes:** why it happened: what in the design or the code let it. Blameless: the system,
+## Status
+
+Draft, or done, and when.
+
+## Summary
+
+What happened, in two or three sentences, for someone who reads nothing else.
+
+## Impact
+
+Who it hurt, and how much, in players dropped, frozen or turned away, and for how long, data lost or
+wrong, and error budget spent.
+
+## Root causes
+
+Why it happened, meaning what in the design or the code let it. It's blameless, about the system,
 not a person.
-**Trigger:** what set it off.
-**Resolution:** what ended it.
-**Detection:** how we found out, or why we didn't: which alert fired, or should have.
+
+## Trigger
+
+What set it off.
+
+## Resolution
+
+What ended it.
+
+## Detection
+
+How we found out, or why we didn't, and which alert fired, or should have.
 
 ## Action items
 
@@ -26,12 +46,12 @@ not a person.
 
 ## Timeline
 
-Times from the start, with what each source said: the chaos report, the logs, the metrics, the
-traces.
+Times from the start, with what each source said, be it the chaos report, the logs, the metrics or
+the traces.
 
 | Time | What happened |
 |---|---|
 
 ## Supporting information
 
-Where the numbers come from: the chaos report's JSON, the dashboards, trace ids.
+Where the numbers come from, such as the chaos report's JSON, the dashboards and trace ids.

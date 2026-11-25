@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Episode 1's architecture leans towards a thin client: the server does the simulation, and the
+Episode 1's architecture leans towards a thin client, where the server does the simulation, and the
 client takes the input and draws, as we can't trust a client running on someone else's machine. In
 episode 2 the client still moved its own cube. Episode 3 gave the game its server, and had to
 decide which side says where a player is.
@@ -14,7 +14,7 @@ decide which side says where a player is.
 ## Decision
 
 - The world server decides what happens in the world, and the clients show it. A client sends its
-  input, `Input` in `protocol/nanommo.proto`: the direction its keys give, whether it runs or
+  input, `Input` in `protocol/nanommo.proto`. That's the direction its keys give, whether it runs or
   swings, a skill, a monster it picked, a place it asks to walk to. It never says where it is.
 - The world steps at a fixed tick, 20 a second (`TickInterval(20)`), on a steady timer, whose clock
   doesn't jump when the time of day is changed. After each tick, the server sends each client the
@@ -34,11 +34,11 @@ decide which side says where a player is.
 
 ## Consequences
 
-- A key moves you once your input has reached the server and the world has come back: a few
+- A key moves you once your input has reached the server and the world has come back. That's a few
   milliseconds on one machine, a beat behind your fingers over the internet. Episode 68 hides it
   for your own player ([0022](0022-numbered-inputs-and-client-side-prediction.md)), and episode 69
   smooths everyone else ([0023](0023-draw-everyone-else-in-the-past.md)).
-- A tick has 50 milliseconds for the whole world, which decided where slow work goes: logins
+- A tick has 50 milliseconds for the whole world, which decided where slow work goes, with logins
   ([0011](0011-a-login-server-of-its-own.md)), saving ([0013](0013-save-players-through-redis.md))
   and the rest in [0008](0008-one-thread-for-the-world.md).
 - What decides a fight stays on the server. The content's hash for the clients leaves out the

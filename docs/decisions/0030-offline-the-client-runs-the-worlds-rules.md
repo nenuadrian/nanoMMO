@@ -7,7 +7,7 @@ Accepted
 ## Context
 
 The client in a browser ([0029](0029-the-client-in-a-browser-with-emscripten.md)) can't reach the
-servers: a page can't open a TCP or UDP socket, and the servers speak nothing else. So a page
+servers, as a page can't open a TCP or UDP socket, and the servers speak nothing else. So a page
 showed the login screen and could go no further. Someone opening the game's website should be able
 to play it, and someone with a build should be able to without the servers running.
 
@@ -16,17 +16,18 @@ player's inputs do and what they're shown were in `server/server.cc`.
 
 ## Decision
 
-- The world's rules are a library, `nanommo_world`, without the database or the network: `World`
-  and what it needs, `server/shown.h` for what each player is shown, and `server/inputs.h` for
-  what their numbered inputs do and when. The world server links it, and so does the client.
+- The world's rules are a library, `nanommo_world`, without the database or the network. It holds
+  `World` and what it needs, `server/shown.h` for what each player is shown, and `server/inputs.h`
+  for what their numbered inputs do and when. The world server links it, and so does the client.
 - `LocalConnection` (`client/local_connection.h`) is a `Link`, as `Connection` is, that runs a
-  world of the client's own with that library: the first land, its monsters and NPCs, one player,
-  at the server's 50-millisecond tick. Its inputs go through `Inputs` and `DoItem`, and its worlds
-  through `ToProtocol`, `YouIn`, `BagOf` and `QuestsOf`, the server's own, so nothing is copied.
+  world of the client's own with that library. That world is the first land, its monsters and
+  NPCs, and one player, at the server's 50-millisecond tick. Its inputs go through `Inputs` and
+  `DoItem`, and its worlds through `ToProtocol`, `YouIn`, `BagOf` and `QuestsOf`, the server's own,
+  so nothing is copied.
 - A browser plays offline from the start (`CanReachServers()` is false there), and a computer does
-  with `nanommo_client --offline`. Whatever lives on the servers says so in the chat: the
-  storyteller, guilds, trades and the other lands. Nothing is saved.
-- Online, nothing changes: the server decides, and the client's copy of the rules is only used
+  with `nanommo_client --offline`. Whatever lives on the servers, the storyteller, guilds, trades
+  and the other lands, says so in the chat. Nothing is saved.
+- Online, nothing changes. The server decides, and the client's copy of the rules is only used
   offline.
 
 ## Alternatives considered

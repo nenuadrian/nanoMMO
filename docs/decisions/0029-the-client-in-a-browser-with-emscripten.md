@@ -13,10 +13,10 @@ neither, and the client is C++ on raylib, which runs in a browser through WebAss
 
 - The client builds to WebAssembly with Emscripten (`emcmake cmake --preset web`), the same
   sources as on a computer, and draws with WebGL 2, through raylib's web platform.
-- What a browser can't do goes behind a seam, not through the code: the network behind `Servers`
-  and `Link` (in a browser, there's no way to the servers yet), and the shaders' GLSL behind
-  `LoadGlsl`. The few settings that differ are in the web build's CMake: Asyncify, the preloaded
-  files, and reading textures back as RGBA.
+- What a browser can't do goes behind a seam, not through the code, with the network behind
+  `Servers` and `Link` (in a browser, there's no way to the servers yet), and the shaders' GLSL
+  behind `LoadGlsl`. The few settings that differ are in the web build's CMake. They are Asyncify,
+  the preloaded files, and reading textures back as RGBA.
 - The web build runs the release build's `protoc`, of the same version, as one built as
   WebAssembly can't run while building.
 

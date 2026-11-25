@@ -13,15 +13,15 @@ and not something we can do to players.
 
 ## Decision
 
-- The tables are made and changed by migrations: SQL files in `db/`, named
+- The tables are made and changed by migrations, SQL files in `db/`, named
   `V<version>__<description>.sql`, which Flyway runs from its official image, as the `flyway`
   service. It records each version it ran, with a checksum of its file, in
   `flyway_schema_history`.
-- It runs before anything else uses MySQL: the servers, the saver, the website and the tests wait
+- It runs before anything else uses MySQL, as the servers, the saver, the website and the tests wait
   for it, and don't start if it fails.
 - A migration never changes once it has run anywhere. A change goes in a new file, with the next
   version.
-- Each change keeps the servers from before it working, as they run on while it does: a new column
+- Each change keeps the servers from before it working, as they run on while it does. A new column
   can be `NULL` or has a default, a drop or a rename waits for a later version, and
   `ALGORITHM=INSTANT` refuses a change that would rebuild the table
   ([Saving players and migrations](../saving.md#migrations)).
@@ -39,14 +39,14 @@ and not something we can do to players.
 
 ## Consequences
 
-- Changing a migration that ran is refused, with a checksum mismatch: `ep018/step-2` adds a
+- Changing a migration that ran is refused, with a checksum mismatch. `ep018/step-2` adds a
   column to V1 on purpose, and step 3 moves it into a V2 of its own.
-- Defaults keep the servers from before saving while a deploy migrates: the world is Ember for
+- Defaults keep the servers from before saving while a deploy migrates. The world is Ember for
   the players from before worlds (V3), their land the Meadows (V4), and their weapon `NULL` (V5).
 - Going back a release leaves the database as the newer one left it, as Flyway skips migrations it
   doesn't know, so each migration has to keep the release before it working
   ([Deployment](../deployment.md)).
-- A volume from before migrations has the tables and no history, so Flyway won't touch it: it
+- A volume from before migrations has the tables and no history, so Flyway won't touch it. It
   needs `baseline`, or `down -v`.
 - Flyway's list of the MySQL versions it has verified can trail the one we run. Our migrations are
   plain SQL, and CI runs them on a fresh database on each push, which is what tells us they work.

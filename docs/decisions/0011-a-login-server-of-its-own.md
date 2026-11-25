@@ -13,8 +13,8 @@ none away. Episode 6 let them log in, to a game server that does everything on o
 ## Decision
 
 - Passwords are hashed with Argon2id, through libsodium's `crypto_pwhash_str`, at its interactive
-  limits: 64 MiB and two passes, about 60 ms a hash. The string it gives carries the algorithm,
-  its settings and a random salt, and is all the database keeps.
+  limits, which are 64 MiB and two passes, about 60 ms a hash. The string it gives carries the
+  algorithm, its settings and a random salt, and is all the database keeps.
 - Logins have a server of their own, `nanommo_login`, on TCP port 7778. It makes accounts, checks
   passwords, and gives the same answer for a wrong name as for a wrong password. Since episode 58
   it opens a session in Redis, which lasts 30 minutes after the last request, and makes, lists and
@@ -43,7 +43,7 @@ none away. Episode 6 let them log in, to a game server that does everything on o
 - One login server lets players into every world, which it lists from Consul
   ([0018](0018-find-the-worlds-through-consul.md)), and it's where an old client is turned away
   ([0020](0020-one-version-for-the-whole-game.md)).
-- Tokens work once, which bit episode 36: a world's next instance refused the token its players
+- Tokens work once, which bit episode 36, when a world's next instance refused the token its players
   had already said hello with, so a world handing its players over issues a token for each move.
 - The password went over the network as typed until episode 14 put TLS on every connection
   ([0014](0014-tls-with-an-authority-of-our-own.md)).

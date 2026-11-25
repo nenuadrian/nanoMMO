@@ -23,6 +23,9 @@ services:
       NANOMMO_MYSQL_PASSWORD: ${NANOMMO_MYSQL_PASSWORD:?set it in .env}
     restart: unless-stopped
 
+  gateway:
+    restart: unless-stopped
+
   server:
     environment:
       NANOMMO_MYSQL_PASSWORD: ${NANOMMO_MYSQL_PASSWORD:?set it in .env}

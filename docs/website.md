@@ -6,7 +6,8 @@ MySQL tables as the servers, so an account made on the website logs into the gam
 round. It hashes passwords with Argon2id, with the login server's settings, in
 `web/config/hashing.php`, so each reads the other's hashes. It keeps its sessions in Redis.
 
-It runs in Docker, on [FrankenPHP](https://frankenphp.dev), a web server with PHP built in:
+It runs in Docker, on [FrankenPHP](https://frankenphp.dev), a web server with PHP built in. This
+builds it and starts it.
 
 ```bash
 docker compose up -d --build web
@@ -26,7 +27,8 @@ so there's no CSS of our own, and nothing to build with npm.
   [Deployment](deployment.md)). To make one yourself, run
   `docker compose run --rm --no-deps web php artisan key:generate --show`, and keep it out of git.
 
-The website's tests, and Pint, Laravel's formatter, which fails on code it would change:
+The website's tests, and Pint, Laravel's formatter, which fails on code it would change, run in
+Docker.
 
 ```bash
 docker build --target test web

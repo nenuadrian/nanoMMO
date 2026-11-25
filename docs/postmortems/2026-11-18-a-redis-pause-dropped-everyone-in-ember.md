@@ -1,19 +1,28 @@
-# 2026-11-18: a Redis pause dropped everyone in Ember, and the tick SLO said one tick was missed
+# A Redis pause on 2026-11-18 dropped everyone in Ember, and the tick SLO said one tick was missed
 
-**Status:** done, 2026-11-18, in episode 89.
+## Status
 
-**Summary:** In a chaos experiment in staging, Redis was frozen for twelve seconds. Every player in
+Done, 2026-11-18, in episode 89.
+
+## Summary
+
+In a chaos experiment in staging, Redis was frozen for twelve seconds. Every player in
 Ember froze with it, and when Redis came back, Ember dropped all 101 of them, without saving them.
 The indicator we'd just made, ticks on time, counted one tick missed, and no alert fired.
 
-**Impact:** 101 players, the bots in Ember, frozen for about thirteen seconds, then disconnected.
+## Impact
+
+101 players, the bots in Ember, frozen for about thirteen seconds, then disconnected.
 They lost no more than a tick's progress, as each was saved in the tick before Redis froze, but it
 took 38 seconds for all of them, and the ten who came to log in meanwhile, to be back in. Logging in
-waited for Redis too: one login took 10.95 seconds. Frost, which nobody was playing, ticked on, as
-a world with nobody in it has nothing to save. Ember's ticks' error budget spent: one tick of
-51,840, by its count; 260 by what happened, the thirteen seconds Ember was frozen.
+waited for Redis too, and one login took 10.95 seconds. Frost, which nobody was playing, ticked on,
+as a world with nobody in it has nothing to save. By the indicator's count, Ember spent one tick of
+its ticks' error budget, out of 51,840. By what happened, it spent 260, the thirteen seconds it was
+frozen.
 
-**Root causes:** The code assumed Redis always answers, and soon. A world's tick saves its players
+## Root causes
+
+The code assumed Redis always answers, and soon. A world's tick saves its players
 and renews their leases in Redis, and its calls had no timeout, so the tick waited as long as Redis
 did, and every player in the world waited with it. A lease lasts ten seconds, so once Redis had been
 gone for longer, the leases had run out, and the world's first save after it came back found none of
@@ -22,14 +31,20 @@ its players its own, and dropped them, as [decision
 had stalled ran the ticks it owed back to back once it could, all 260 of its thirteen seconds, each
 well within its 50 milliseconds, so the ticks' indicator counted them as on time.
 
-**Trigger:** `bench/chaos.sh redis-pause 12`, which froze Redis's container with `docker pause`, as
-a Redis that hangs looks from outside: on a swap storm, a slow disk under its append-only file, or
-a `KEYS *` someone runs on it.
+## Trigger
 
-**Resolution:** The experiment thawed Redis after twelve seconds. The bots logged in again by
+`bench/chaos.sh redis-pause 12`, which froze Redis's container with `docker pause`, as
+a Redis that hangs looks from outside, such as on a swap storm, a slow disk under its append-only
+file, or a `KEYS *` someone runs on it.
+
+## Resolution
+
+The experiment thawed Redis after twelve seconds. The bots logged in again by
 themselves, after a wait that doubles, with jitter, five a second at most.
 
-**Detection:** Nothing. `WorldFallingBehind` was pending, and never fired, as it needs a minute.
+## Detection
+
+Nothing. `WorldFallingBehind` was pending, and never fired, as it needs a minute.
 The drops went to the world's standard output, not its errors, and nothing alerts on
 `nanommo_players_dropped_total`. The ticks' burn-rate alert couldn't see the freeze, for the reason
 above. We knew because we were watching.
@@ -54,7 +69,7 @@ above. We knew because we were watching.
   as a world with nobody in it never calls Redis.
 - The bots came back by themselves, spread over half a minute rather than all at once, which they
   couldn't before episode 88.
-- Nothing was lost but the time: each player had been saved in the tick before.
+- Nothing was lost but the time, as each player had been saved in the tick before.
 - The chaos tool took the fault out by itself, and said what the metrics, logs and traces saw.
 
 ### What went wrong
@@ -76,9 +91,9 @@ From the chaos report, `bench/chaos.sh redis-pause 12`, at 0.88.0, from when Red
 
 | Time | What happened |
 |---|---|
-| −2 s | Steady: Ember and Frost at 20 ticks a second, 100 bots in Ember, their newest world 60 ms old |
+| −2 s | Steady, with Ember and Frost at 20 ticks a second, 100 bots in Ember, their newest world 60 ms old |
 | 0 s | Redis frozen. Ten more bots start logging in, over the next twelve seconds |
-| 0–2 s | Ember's tick waits on Redis: 12 ticks a second, then none |
+| 0–2 s | Ember's tick waits on Redis, at 12 ticks a second, then none |
 | 2–13 s | Ember runs no ticks. Its players' newest world grows older, 10 seconds by 12 s. Frost runs its 20 a second |
 | 10 s | The leases taken or renewed just before the freeze run out |
 | 13 s | Redis thawed. Ember runs the 260 ticks it owed back to back; its first save finds none of its leases, and drops all 101 players |
@@ -88,8 +103,9 @@ From the chaos report, `bench/chaos.sh redis-pause 12`, at 0.88.0, from when Red
 
 ## Supporting information
 
-- The report: Ember owed 1,040 ticks in the window, ran 1,040, and 1,039 within 50 milliseconds;
+- In the report, Ember owed 1,040 ticks in the window, ran 1,040, and 1,039 within 50 milliseconds;
   101 players dropped; the bots' newest world over ten seconds old at its worst; the slowest trace a
   `log in` of 10.95 seconds, `a3db877bafeb30a08fb3e8ad558f0122`; no traces with errors; nothing on
   standard error but the storyteller's, which the stack didn't run.
-- The same experiment after the fixes: [Reliability](../reliability.md#what-the-experiments-found).
+- The same experiment after the fixes is in
+  [Reliability](../reliability.md#what-the-experiments-found).

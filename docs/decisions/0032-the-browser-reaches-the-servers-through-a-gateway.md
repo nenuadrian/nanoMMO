@@ -15,9 +15,9 @@ the worlds over UDP where they can (decision 12).
 ## Decision
 
 - A gateway, `nanommo_gateway`, takes pages' WebSockets and connects each to a server over TLS, as
-  a client on a computer does, and carries the game's messages both ways as they are: the same
-  framing, the same messages, so neither the servers nor the protocol change.
-- It has two routes: `/login` to the login server, and `/world/<host>/<port>` to a world only where
+  a client on a computer does, and carries the game's messages both ways as they are, with the
+  same framing and the same messages, so neither the servers nor the protocol change.
+- Its two routes are `/login` to the login server, and `/world/<host>/<port>` to a world only where
   Consul lists one there, connected at its own address and checked by its public name. It isn't an
   open proxy.
 - In a browser, a world comes over the same WebSocket, a reliable stream, as there's no UDP.
@@ -39,5 +39,5 @@ the worlds over UDP where they can (decision 12).
 
 - A page plays against the real servers, with other players, saving and the storyteller.
 - The gateway is one more service to run and watch, and every page's traffic goes through it.
-- In a browser, the world comes over a stream: a lost packet holds up what comes after it until
+- In a browser, the world comes over a stream, so a lost packet holds up what comes after it until
   it's sent again, where UDP would have gone on.

@@ -6,8 +6,8 @@ Accepted
 
 ## Context
 
-Until episode 95, every word on the screen was English, written into the client: about 340
-strings, from the menu's and the help's to the login's, some of them sentences glued together
+Until episode 95, every word on the screen was English, written into the client, in about
+340 strings, from the menu's and the help's to the login's, some of them sentences glued together
 from pieces with `absl::StrCat`, some printf's, such as "%s asks you to join %s.", and plurals made
 by putting an s on the end, as in "3 Skeletons". The content's names, the items', the monsters',
 the quests' and the rest, came from the content files, which `ClientHash` hashes so that a client
@@ -23,16 +23,16 @@ error, or what a world says in the chat, are English glued together on the serve
 
 ## Decision
 
-- Translations are gettext's PO files, in `po/`: `nanommo.pot`, the template, and a file for each
-  language, `ro.po` for Romanian. The client reads them with a reader of its own (`Catalog`, in
-  `client/translations.h`), with contexts, plurals, strings over several lines, escapes and
-  comments, and leaves out what's fuzzy or untranslated. The build copies `po/` next to the
-  client, and the web build preloads it into the page.
-- The code is English, and English is each string's key: `Tr("Sound")`, `Tr("compass", "N")` in a
-  context, `TrN(one, many, n)` for a plural, `TrLabel` for an ImGui label, and `N_` to mark a
-  string in a table, which is translated where it's shown. What has no translation shows in
-  English. The game's helpers translate what they're given: `GameButton`, `BeginPanel`, the help's
-  lines and the bottom right's tooltips.
+- Translations are gettext's PO files, in `po/`, which holds `nanommo.pot`, the template, and a file
+  for each language, `ro.po` for Romanian. The client reads them with a reader of its own
+  (`Catalog`, in `client/translations.h`), with contexts, plurals, strings over several lines,
+  escapes and comments, and leaves out what's fuzzy or untranslated. The build copies `po/` next to
+  the client, and the web build preloads it into the page.
+- The code is English, and English is each string's key. The code uses `Tr("Sound")`,
+  `Tr("compass", "N")` in a context, `TrN(one, many, n)` for a plural, `TrLabel` for an ImGui
+  label, and `N_` to mark a string in a table, which is translated where it's shown. What has no
+  translation shows in English. The game's helpers, `GameButton`, `BeginPanel`, the help's lines
+  and the bottom right's tooltips, translate what they're given.
 - A sentence with something in it has placeholders, `$0` to `$9`, which `absl::Substitute` fills
   in, in the order the translation puts them. The client leaves out a translation with a
   placeholder its English doesn't have, which `absl::Substitute` couldn't fill in, and shows the
@@ -51,13 +51,13 @@ error, or what a world says in the chat, are English glued together on the serve
 - Alegreya Sans Bold is merged into Cinzel, for the letters Cinzel hasn't got.
 - `scripts/po.py` writes the template from the sources and the content (`extract`), merges it into
   each language (`update`), and checks both in CI's lint stage (`check`).
-- Romanian doesn't address the player, so it picks neither "tu" nor "dumneavoastră": a button is a
+- Romanian doesn't address the player, so it picks neither "tu" nor "dumneavoastră". A button is a
   noun, and a sentence impersonal, with "se". It writes ș and ț with their commas below.
 
 ## Alternatives considered
 
-- GNU gettext itself: libintl, and `.mo` files compiled from the PO files. It's a library for each
-  platform and the web build, a compile step for each language, and a locale picked by the
+- GNU gettext itself, with libintl and `.mo` files compiled from the PO files. It's a library
+  for each platform and the web build, a compile step for each language, and a locale picked by the
   environment, where a game picks its language in its settings. Reading the PO files, which are
   text, takes the client a few hundred lines, and the files are the same ones.
 - gettext's own tools, `xgettext` and `msgmerge`, for the template and the merge. They don't know

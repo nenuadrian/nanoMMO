@@ -6,14 +6,14 @@ Accepted
 
 ## Context
 
-Episode 66 gave the game guilds, the first thing one player changes for others: a leader who
+Episode 66 gave the game guilds, the first thing one player changes for others. A leader who
 leaves makes someone else the leader, and in episode 67, an officer removes a member. Until then,
 each player was saved by their own world, into Redis
 ([0013](0013-save-players-through-redis.md)), as nobody else changed them.
 
 ## Decision
 
-- Guilds are in MySQL alone, from V11: `guilds`, with a unique key on the world and the name,
+- Guilds are in MySQL alone, from V11, in `guilds`, with a unique key on the world and the name,
   which MySQL's default collation compares without case, and `guild_members`, keyed by the
   character, so a character is in one guild at most.
 - Each change is a transaction. Founding inserts the guild and its leader together. Every other
@@ -43,6 +43,6 @@ each player was saved by their own world, into Redis
   would freeze the world, so ours is two, still a very long tick.
 - The roster's levels come from MySQL, a few seconds behind the game, but for the players online
   in the world, whose levels it has as they are.
-- An invitation outlives a failed join: joining deletes it only once the player has joined or
+- An invitation outlives a failed join. Joining deletes it only once the player has joined or
   can't, so a MySQL that fails for a moment leaves it to try again.
 - Deleting a character takes its membership with it, and a guild's rows go with the guild.

@@ -6,10 +6,10 @@ Accepted
 
 ## Context
 
-Episode 1 planned for monitoring from the start: decide what's worth watching, such as how long
-each tick takes and how many players are online, and use an open format, so that the game isn't
-tied to one provider's tools. Episode 4 served the first metrics, episode 30 added alerts, and
-episode 35 the logs.
+Episode 1 planned for monitoring from the start, which meant deciding what's worth watching, such
+as how long each tick takes and how many players are online, and using an open format, so that the
+game isn't tied to one provider's tools. Episode 4 served the first metrics, episode 30 added
+alerts, and episode 35 the logs.
 
 ## Decision
 
@@ -43,10 +43,10 @@ episode 35 the logs.
   Episode 30's first `WorldDown` resolved with the world still down, and the rule now looks for a
   world that was a target in the last day.
 - The saver keeps going while MySQL is down, and nothing in the metrics shows it, so a rule on its
-  logs does: `SaverFailing` (episode 35).
+  logs, `SaverFailing`, does (episode 35).
 - Alloy reads Docker's socket, which gives it as much power as root on the machine, to read logs.
 - On a server, Prometheus, Grafana, Loki and Alertmanager listen on its localhost, and we reach
   them through SSH ([Deployment](../deployment.md)).
-- The same stack took more in later: the version, as `nanommo_build_info` (0.59.0), and Pyroscope's
-  profiles all the time (episode 46). The game's analytics went to ClickHouse, a store of their
-  own (episode 47).
+- The same stack took more in later, with the version, as `nanommo_build_info` (0.59.0), and
+  Pyroscope's profiles all the time (episode 46). The game's analytics went to ClickHouse, a store
+  of their own (episode 47).

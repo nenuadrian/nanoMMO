@@ -7,7 +7,7 @@ Accepted
 ## Context
 
 Episode 1 proposed Protocol Buffers for each message between the client and the server, and
-episode 3 brought them in, with the first two messages: an `Input` from a client, and a `World`
+episode 3 brought them in, with the first two messages, an `Input` from a client and a `World`
 from the server. Every message the game sends since goes the same way.
 
 ## Decision
@@ -23,7 +23,7 @@ from the server. Every message the game sends since goes the same way.
 
 ## Alternatives considered
 
-- JSON. It's text, with each field's name in quotes: a message with one number field set to 150
+- JSON. It's text, with each field's name in quotes, so a message with one number field set to 150
   is nine bytes, where protobuf's is three, and the receiver has to parse the text back into a
   number (episode 1).
 - A binary protocol of our own, small and fast, with the encoding and the decoding written by hand
@@ -36,8 +36,8 @@ from the server. Every message the game sends since goes the same way.
 
 - A field's number is what goes on the wire, so a field that goes is `reserved`, as a monster's
   name and an NPC's colour are since episode 27, and no new field takes its number.
-- Code that doesn't know a field skips it. That isn't enough to let any client play on any server:
-  a client of another version would log in, then fail to make sense of what the world sends it,
+- Code that doesn't know a field skips it. That isn't enough to let any client play on any server,
+  as a client of another version would log in, then fail to make sense of what the world sends it,
   so the login server lets in only the servers' own minor version
   ([0020](0020-one-version-for-the-whole-game.md)).
 - Protobuf leaves out a field that's zero or empty. So content ids start at one, and names and
@@ -48,6 +48,6 @@ from the server. Every message the game sends since goes the same way.
 - The content is in protobuf's text format, with its schemas next to it
   ([0019](0019-content-as-data.md)), and a bag goes into Redis as protobuf's bytes, and into MySQL
   as its JSON ([Saving players](../saving.md)).
-- protobuf compiles with the rest, which makes a first build slow: the images take about fifteen
+- protobuf compiles with the rest, which makes a first build slow. The images take about fifteen
   minutes on a server with 2 vCPUs ([Deployment](../deployment.md)), and ccache keeps what it made
   from then on (episode 43).

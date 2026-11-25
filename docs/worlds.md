@@ -3,10 +3,10 @@
 A world is a game server, `nanommo_server`, with players, monsters and lands of its own. Each one
 registers with [Consul](https://developer.hashicorp.com/consul), HashiCorp's service registry, and
 the login server asks Consul for the worlds that are up, so a new world needs no change to the
-client, the login server or Prometheus. Compose runs two: Ember on port 7777, and Frost on 7787,
+client, the login server or Prometheus. Compose runs two, Ember on port 7777, and Frost on 7787,
 on an island from another seed. Consul's UI is at http://localhost:8500.
 
-A world takes its port as its first argument (7777 by default), and the rest from settings:
+A world takes its port as its first argument (7777 by default), and the rest from these settings.
 
 | Setting | Default | What it is |
 |---|---|---|
@@ -36,14 +36,14 @@ A world takes its port as its first argument (7777 by default), and the rest fro
   once, at its newest instance, and Prometheus labels each instance with its world, from the
   `world` in its registration.
 - To play from another machine, start the worlds with the address of this one, which the servers'
-  certificate has to name too: `scripts/certificates.sh tls 192.168.1.20`, then
+  certificate has to name too. Run `scripts/certificates.sh tls 192.168.1.20`, then
   `NANOMMO_PUBLIC_HOST=192.168.1.20 docker compose up -d` (see
   [Getting started](getting-started.md#6-play-from-another-computer)).
-- Consul runs in development mode: one server, which keeps everything in memory. Each world
+- Consul runs in development mode, as one server, which keeps everything in memory. Each world
   registers again within two seconds, so a restart loses nothing for long. In production, Consul
   would run as three or five servers, so that one can fail.
 
-A third world, with nothing changed in a file:
+This runs a third world, with nothing changed in a file.
 
 ```bash
 docker compose run -d --name gale -p 7797:7797 -p 7797:7797/udp \
@@ -51,22 +51,22 @@ docker compose run -d --name gale -p 7797:7797 -p 7797:7797/udp \
 docker stop gale && docker rm gale
 ```
 
-Each world keeps its own players: the `players` table has a row per account and world, and the
+Each world keeps its own players. The `players` table has a row per account and world, and the
 players in Redis are `player:<world>:<account>`. The players from before there were worlds stay in
-Ember: the migration gives the table's `world` column Ember as its default, which also keeps the
+Ember, as the migration gives the table's `world` column Ember as its default, which also keeps the
 servers from before saving while a deploy migrates, and the saver writes a player that was unsaved
 before worlds to Ember. The rankings on the website show each player's world. The bots connect to
 port 7777 of the host they're given, so they play in Ember (`server` in Compose).
 
 ## The world's library
 
-A world's rules are a library of their own, `nanommo_world`, which needs no database or network:
-`World`, with its players, monsters and NPCs, their levels, their trades (`server/trades.h`) and
-duels (`server/duels.h`), their guilds' wars (`server/wars.h`), where its players have been
+A world's rules are a library of their own, `nanommo_world`, which needs no database or network.
+It has `World`, with its players, monsters and NPCs, their levels, their trades (`server/trades.h`)
+and duels (`server/duels.h`), their guilds' wars (`server/wars.h`), where its players have been
 (`server/history.h`), who's near whom
 (`server/interest.h`), what each player is shown of it (`server/shown.h`) and what their inputs do
 (`server/inputs.h`). The world server links it, with MySQL, Redis, Consul and the rest around it,
-and anything else that runs a world can too, the same rules for each: the client does,
+and anything else that runs a world can too, with the same rules for each, as the client does,
 [offline](web.md#offline).
 
 | In `server/shown.h` | |
@@ -84,11 +84,12 @@ and anything else that runs a world can too, the same rules for each: the client
 
 ## Lands
 
-Each world has three lands, each an island of its own: the Meadows, where players start, the
-Ashlands, where ash and charred trees stand around lava, under a red haze, and the Crypt, a dungeon
-of grey stone around a green ooze. `terrain/lands.h` lists them for the server, the client and the
-bots, in one order, as the server tells a client which land it's in by its place in the list, and
-lists the gates between them:
+Each world has three lands, each an island of its own. They are the Meadows, where players start,
+the Ashlands, where ash and charred trees stand around lava, under a red haze, and the Crypt, a
+dungeon of grey stone around a green ooze. `terrain/lands.h` lists them for the server, the client
+and the bots, in one order, as the server tells a client which land it's in by its place in the
+list, and lists the gates between them. [The island](island.md) has how each island grows from its
+seed, and how the client draws its ground, trees and sea.
 
 | Land | Seed | Gates |
 |---|---|---|
@@ -99,19 +100,20 @@ lists the gates between them:
 The world server runs its lands as copies, in its one tick loop, each a `World` with its own players
 and monsters (`server/copies.h`). Each open land has one copy, which everyone in the world shares. A
 dungeon has one for each player who goes in, made as they go through its gate, with its own
-monsters, so that nobody else is in it:
+monsters, so that nobody else is in it.
 
-- A dungeon's copy that has nobody in it stops: its monsters stand where they are, and don't come
+- A dungeon's copy that has nobody in it stops. Its monsters stand where they are, and don't come
   back to life. It waits five minutes for its player, so that someone who steps out finds it as they
   left it, and then it goes.
 - The players in a dungeon are saved outside it, three metres out of its gate in the land it leads
   to, as its copy may be gone by the time they're back. After a deploy it is, as it ran in the
-  instance before: a player in a dungeon comes out of it, in the next instance, where they went in.
+  instance before, so a player in a dungeon comes out of it, in the next instance, where they went
+  in.
 - A copy that has nobody in it gets nothing broadcast.
 - The `nanommo_copies` metric counts each land's copies.
 
-- Players wade into the Meadows' sea up to their knees, and not into the Ashlands' lava: each land
-  says how deep its sea can be waded, and its `Terrain` takes that.
+- Players wade into the Meadows' sea up to their knees, and not into the Ashlands' lava, as each
+  land says how deep its sea can be waded, and its `Terrain` takes that.
 - A gate is a round platform, a rim of the land's stone with a disc in the colour of the sky of the
   land it leads to set into it, in a ring of six standing stones, each on a flat base and coming to a
   point. The client draws them as cubes in the shapes `client/cube.h` has, a box, a disc and a
@@ -143,19 +145,20 @@ the way. The client sends where (`Input.walk_to`), and the world finds the way a
 it, a step each tick, at a run. The keys, a swing or a skill call the walk off, and so do dying and
 going into another land.
 
-- `terrain/paths.h` marks each metre square of a land a player can walk on: its middle, and four
-  points 35 centimetres around it, are walkable, which keeps the way clear of the tree trunks.
+- `terrain/paths.h` marks a metre square of a land as one a player can walk on when its middle,
+  and four points 35 centimetres around it, are walkable, which keeps the way clear of the tree
+  trunks.
   The world's copies of a land share its squares, made once, as the copies are made, in about ten
   milliseconds.
 - A walk with nothing in the way goes straight, with no search. Otherwise, A* finds the shortest
-  way over the squares: the squares to look at next wait in a priority queue, ordered by the cost
+  way over the squares. The squares to look at next wait in a priority queue, ordered by the cost
   so far plus the octile distance left, as far diagonally as it can and then straight. Each square
   has eight neighbours, and the way doesn't cut the corner between two squares that touch at it.
 - A search looks at 40,000 squares at most, then goes as near as it got. On Ember's Meadows, a
   search from the middle to anywhere on the island takes about a quarter of a millisecond, and the
   slowest about two and a half, against a tick of fifty.
-- The way is straightened to the places where it turns: from where you are, on to the farthest
-  square still in sight, and again from there.
+- The way is straightened to the places where it turns, by going from where you are, on to the
+  farthest square still in sight, and again from there.
 - The cost of each square and where it was reached from stay from one search to the next, and count
   only while stamped with the number of the search going on, so a search clears and allocates
   nothing.

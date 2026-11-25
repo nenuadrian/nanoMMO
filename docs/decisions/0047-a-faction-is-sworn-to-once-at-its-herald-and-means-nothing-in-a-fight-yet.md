@@ -12,32 +12,32 @@ between players were duels and guild wars, which both sides say yes to
 ([0033](0033-players-fight-each-other-in-duels-that-end-at-one-health.md),
 [0041](0041-guilds-at-war-hurt-each-other-anywhere.md)). The episodes after it bring a battle
 zone, Campus Martius, where sides fight on a schedule, and those sides have to exist first, with
-everyone on one. Episode 97 adds them: three factions, Concordia, Fortuna and Victoria. It had to
+everyone on one. Episode 97 adds them as three factions, Concordia, Fortuna and Victoria. It had to
 settle when a player chooses one, whether they can change it, how a faction relates to a guild,
 what a faction does before the zone exists, and where a faction is kept.
 
 ## Decision
 
-- A faction is content: `content/factions.txtpb`, with its schema, `factions.proto`, has each
+- A faction is content. `content/factions.txtpb`, with its schema, `factions.proto`, has each
   faction's `id`, `name`, `color` and `herald`, a kind of NPC. `CheckContent` refuses a faction
   whose herald isn't in the NPCs file, and the content graph has a faction its herald `ENLISTS`
   players in, so one whose herald stands nowhere is out of reach. The factions are in
   `ClientHash`.
-- A new character is in none. A player swears to one at its herald, in the Meadows: a click opens
+- A new character is in none. A player swears to one at its herald, in the Meadows. A click opens
   the herald's window (`client/herald_window.h`), Enlist asks once more, as it's for good, and Swear
-  sends `Input`'s `enlist`, the herald's id. `World::Enlist` checks it as it does a trainer: an NPC
-  in the player's land, within talking reach (`kTalkReach`), who's a herald.
+  sends `Input`'s `enlist`, the herald's id. `World::Enlist` checks that it's an NPC in the player's
+  land, within talking reach (`kTalkReach`), who's a herald, as it checks a trainer.
 - It's for good, for now. A player who's sworn is refused, "You're sworn to $0 already.", whichever
   herald they ask, and nothing in the game takes a faction away.
 - A player's faction is part of what the world saves of them (`Progress`), into Redis with the
   tick's save, and the saver takes it to `players.faction`, from V18, as it takes their skills, with
-  `COALESCE(players.faction, saved.faction)`: it writes one only where the row has none.
+  `COALESCE(players.faction, saved.faction)`, so it writes one only where the row has none.
 - A faction goes to everyone near a player in `Player`'s `faction`, with their name, once a second,
   and the client draws a diamond of its colour before their name, and its name under their own
   frame.
 - Guilds have no faction. Guildmates can be in different factions, and a guild war is between two
   guilds, whatever their players' factions.
-- A faction means nothing in a fight yet: `World::Hostile` doesn't read it, so its players can't
+- A faction means nothing in a fight yet. `World::Hostile` doesn't read it, so its players can't
   hurt another faction's, or be hurt by them, outside a duel or a guild war, as before.
 
 ## Alternatives considered
@@ -56,9 +56,9 @@ what a faction does before the zone exists, and where a faction is kept.
   faction, which is meant to be for good. A war between guilds stays between guilds.
 - Factions hostile to each other everywhere, as soon as they exist. It's open player against
   player in every land, with what [decision 41](0041-guilds-at-war-hurt-each-other-anywhere.md)
-  left out: rules to stop a player hunting the newest, who'd have joined a side on their first day.
-  Campus Martius, in the episodes after this one, is where the sides fight, on a schedule, with
-  everyone there come to fight.
+  left out, rules to stop a player hunting the newest, who'd have joined a side on their
+  first day. Campus Martius, in the episodes after this one, is where the sides fight, on a
+  schedule, with everyone there come to fight.
 - Keeping the faction in MySQL alone, written by the world server as the player swears, `UPDATE
   ... WHERE faction IS NULL`, as a guild's change is. It would be one statement in the tick, once a
   character, but a player's own state goes through Redis and the saver, so that a handover's next

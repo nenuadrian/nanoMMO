@@ -12,8 +12,8 @@ and the token on its way back. Anyone between a player and our servers could rea
 ## Decision
 
 - Everything the clients and the bots send the servers over TCP goes through TLS 1.3, and nothing
-  older, as both ends are ours: logins on port 7778, and the game's connection on 7777, with the
-  token, the input and, over TCP, the world. It's OpenSSL, through Asio's `ssl::stream`.
+  older, as both ends are ours. TLS covers logins on port 7778, and the game's connection on 7777,
+  with the token, the input and, over TCP, the world. It's OpenSSL, through Asio's `ssl::stream`.
 - The certificates come from a certificate authority of our own, which `tls/certificates.sh`
   makes, with ECDSA keys on P-256. It signs one certificate for the servers, with the names
   they're reached by. The clients and the bots trust that authority and no other, and check the
@@ -37,7 +37,7 @@ and the token on its way back. Anyone between a player and our servers could rea
 
 - A handshake costs the server well under a tenth of a millisecond, and a round trip, and the
   encryption runs at gigabytes a second with the processor's AES instructions (episode 14).
-- The certificate has to name each host a client connects to, which bit more than once: the
+- The certificate has to name each host a client connects to, which bit more than once, with the
   Compose names `login` and `server` (episode 14), an address as an IP name rather than a DNS one
   (episode 19), and another machine's address, which `certificates.sh` adds from 0.65.0. A refused
   handshake now says which of these it is.

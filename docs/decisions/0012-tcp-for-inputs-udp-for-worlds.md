@@ -15,7 +15,7 @@ server's packets.
 ## Decision
 
 - The client logs in and says hello over TCP, and its input, and anything that has to arrive, goes
-  over TCP too: chat, bags, quests, events and guild news.
+  over TCP too, which means chat, bags, quests, events and guild news.
 - The world goes over UDP once the client asks for it, by sending its token again in a datagram to
   the world's port, four times a second until worlds come back that way. The server sends them to
   the address the datagram came from, which home routers let through, as the client spoke first.
@@ -30,7 +30,7 @@ server's packets.
 
 - TCP for everything, as from episode 3. In the kind of MMO we're building, you pick a target and
   fight it, so a hiccup now and then ruins nothing, and World of Warcraft ran on TCP for years.
-  Episode 9 measured it: over TCP, the p99 of a world's age climbs with each step of loss, and at
+  Episode 9 measured it. Over TCP, the p99 of a world's age climbs with each step of loss, and at
   ten percent TCP can't keep up with 200 clients at all, while over UDP it stays within a tick or
   two of no loss ([Networking](../networking.md)).
 - UDP for everything, with our own code to make what matters arrive, in order. That's a fair bit

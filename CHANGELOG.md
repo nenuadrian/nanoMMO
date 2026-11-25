@@ -7,6 +7,27 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.97.7 (2026-11-25)
+
+- The docs say what they mean in full sentences, without a colon to set up what follows, in every
+  page, the decision records, the postmortem, their indexes and templates, and the README. A colon
+  stays only in code, in the game's own lines where they're quoted, and in other people's titles.
+  The postmortem and its template have a heading for each part, such as Impact and Root causes,
+  where they had a label. An accepted record and a written postmortem still never change what they
+  say, and their indexes now allow a change to their wording.
+- The island is a page under Worlds and lands, and the client in a browser one under Deployment,
+  in the README's list and in the API docs' menu, where `docs/doxygen/filter.sh` files each under
+  its parent. Worlds and lands links the island from its lands.
+- Deployment lists the gateway, on port 8090, among what the internet reaches on a server, as
+  the deploy starts it with the rest, and has a section on the client in a browser. Offline, a
+  page needs a web server and nothing else. Online, it needs the gateway behind a reverse proxy
+  with a public certificate, which the deploy doesn't set up. On a server, the gateway starts again
+  after a crash or a reboot, as the other services do, and Deployment lists Pyroscope and
+  ClickHouse among what listens on the server's localhost.
+- The client in a browser's page no longer says a page can't reach the servers. It reaches them
+  through the gateway, and plays offline without one. Content counts sixteen skills, as
+  `content/skills.txtpb` has, where it said four.
+
 ## 0.97.6 (2026-11-25)
 
 - On Windows, the build takes `patch` and `sh` from Git for Windows, from beside the `git` it

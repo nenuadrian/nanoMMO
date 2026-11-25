@@ -8,6 +8,10 @@
 #   the label each record's heading gets here, decision-N.
 # - Each postmortem goes under the postmortems' page in the same way, through
 #   a label made from its file's name.
+# - The island goes under Worlds and lands, and the client in a browser under
+#   Deployment. The first link to the page in its parent becomes @subpage,
+#   with the link's words, to the label Doxygen gives the page,
+#   md_docs_2<name>, and the page keeps its address.
 # - The templates aren't pages, so links to them go to GitHub.
 # - The README's cover, an image in .github inside a link, becomes the same
 #   link in HTML, around the copy the docs keep beside their pages, so that it
@@ -33,6 +37,21 @@ case $file in
     ;;
   */docs/reliability.md)
     sed -E "s#\\(postmortems/template\\.md\\)#($repo/blob/main/docs/postmortems/template.md)#" "$file"
+    ;;
+  */docs/worlds.md | */docs/deployment.md)
+    case $file in
+      */worlds.md) child=island ;;
+      *) child=web ;;
+    esac
+    awk -v child="$child" '
+      !done && match($0, "\\[[^]]+\\]\\(" child "\\.md\\)") {
+        link = substr($0, RSTART, RLENGTH)
+        words = substr(link, 2, index(link, "](") - 2)
+        $0 = substr($0, 1, RSTART - 1) "@subpage md_docs_2" child " \"" words "\"" substr($0, RSTART + RLENGTH)
+        done = 1
+      }
+      { print }
+    ' "$file"
     ;;
   *)
     sed -E 's#^\[!\[([^]]*)\]\(\.github/(cover\.jpg)\)\]\(([^)]*)\)$#<a href="\3"><img src="\2" alt="\1"></a>#' "$file"

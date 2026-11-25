@@ -4,19 +4,20 @@
 
 The code follows [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
 clang-format lays it out, and cpplint checks the rest. `docker build --target lint .` runs both, as
-CI does, and `scripts/po.py check`, which checks the translations: that the template, with the
+CI does, and `scripts/po.py check`, which checks the translations, both that the template, with the
 client's strings and the servers' sentences, and each language's file are up to date, and that
 each translation is one the client can show (see [Translations](translations.md#the-workflow)).
 
 ## Checking the code
 
-`CMakePresets.json` names each way the game is built: `release`, the one it ships as, in `build/`,
-and `asan`, `tsan`, `fuzz`, `tidy`, `coverage` and `profile`, each in a `build-<name>/` folder of
-its own, so going from one to another doesn't build the other again. `cmake --list-presets=all`
-lists them, and the Dockerfile's stages and CI build with them. The checks below build with Clang,
-which their presets ask for, version 19 or newer: on Ubuntu 26.04, `sudo apt install clang`. Ubuntu
-24.04's is Clang 18, which crashes generating the code for the timers' lambdas, so run the checks in
-Docker there, where the stages build with Clang 21, Ubuntu 26.04's own.
+`CMakePresets.json` names each way the game is built. They are `release`, the one it ships as, in
+`build/`, and `asan`, `tsan`, `fuzz`, `tidy`, `coverage` and `profile`, each in a `build-<name>/`
+folder of its own, so going from one to another doesn't build the other again.
+`cmake --list-presets=all` lists them, and the Dockerfile's stages and CI build with them. The
+checks below build with Clang, which their presets ask for, version 19 or newer. On Ubuntu 26.04,
+`sudo apt install clang` installs it. Ubuntu 24.04's is Clang 18, which crashes generating the code
+for the timers' lambdas, so run the checks in Docker there, where the stages build with Clang 21,
+Ubuntu 26.04's own.
 
 The tests check what we thought to test. Four more checks look for what we didn't. In a public
 repository, where GitHub's runners are free, CI runs each of them on each push. A private one pays
@@ -40,7 +41,7 @@ shifts and casts and the like. Both stop the program at the first one. The `tsan
 with ThreadSanitizer instead, for data races, which it reports as it goes. The code runs about
 twice as slowly with the first two, and five to fifteen times as slowly with ThreadSanitizer. Each
 has a workflow preset, which configures, builds and runs the tests in one command, and the
-`sanitize` stage runs one in Docker, `asan` unless it's told otherwise:
+`sanitize` stage runs one in Docker, `asan` unless it's told otherwise.
 
 ```bash
 cmake --workflow --preset asan
@@ -55,7 +56,7 @@ stops the program with abseil's `CHECK` at one outside it, in each build.
 
 ThreadSanitizer keeps its own record of memory at addresses that clash with the kernel's when the
 kernel randomizes them with more than 28 bits. Docker Desktop's kernel uses 18, and Ubuntu's 32 or
-33, as on GitHub's runners or in a Colima VM. There, lower it first, once after the machine starts:
+33, as on GitHub's runners or in a Colima VM. There, lower it first, once after the machine starts.
 
 ```bash
 docker run --rm --privileged alpine sysctl -w vm.mmap_rnd_bits=28
@@ -68,7 +69,7 @@ code ThreadSanitizer can't follow.
 
 `compose.sanitize.yaml` runs the login server, the world server, the saver, the bots and the tests
 from the `sanitize` stage, so that the bots play against servers built with the sanitizers. What the
-sanitizers find goes to their logs:
+sanitizers find goes to their logs.
 
 ```bash
 export COMPOSE_FILE=compose.yaml:compose.sanitize.yaml
@@ -98,7 +99,7 @@ docker run --rm nanommo-fuzz build-fuzz/bin/world_fuzzer -max_total_time=60
 When a fuzzer breaks a check, it stops and prints the input that did it, and saves it to a file
 named `crash-` and its hash, which the fuzzer runs again when given that file.
 
-clang-tidy reads the code for bugs that compile: `.clang-tidy` turns on its checks for likely bugs,
+clang-tidy reads the code for bugs that compile. `.clang-tidy` turns on its checks for likely bugs,
 the static analyzer, and its checks for threads and for performance, less a few that flag what we
 mean to do, and makes each finding an error. `docker build --target tidy .` runs it on the code,
 without the tests.
@@ -111,10 +112,11 @@ so that code no test reaches counts, at zero. CI publishes it with the API docs,
 public repository only, as Pages would put a private copy's code where anyone can read it.
 
 `tools/patches/` holds fixes to the libraries we fetch that their releases don't have yet, which
-CMake applies as it fetches them: civetweb's for a data race on the flag that stops its threads,
-which ThreadSanitizer found. A build folder from before they moved here from `patches/` has them
-applied already, and CMake applies them again from their new folder, which GNU patch refuses and
-macOS's patch undoes. Delete those libraries there once, and CMake fetches and patches them afresh:
+CMake applies as it fetches them, such as civetweb's for a data race on the flag that stops its
+threads, which ThreadSanitizer found. A build folder from before they moved here from `patches/` has
+them applied already, and CMake applies them again from their new folder, which GNU patch refuses
+and macOS's patch undoes. Delete those libraries there once, and CMake fetches and patches them
+afresh.
 
 ```bash
 rm -rf build*/_deps/raylib-* build*/_deps/prometheus-cpp-*

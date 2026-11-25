@@ -34,5 +34,5 @@ was back, about twice as often. That had been possible since episode 40.
 
 - Each new kind of input needs its check on the server, and a way for the red-team client to try it.
 - The red-team client is public, with the fixes for what it found.
-- A check the client also does, such as a cooldown it shows, is done twice: once to show it, and
+- A check the client also does, such as a cooldown it shows, is done twice, once to show it, and
   once, on the server, to keep it.

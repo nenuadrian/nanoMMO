@@ -8,8 +8,8 @@ Accepted
 
 Episode 1 named Redis for the hot state and MySQL as the source of truth, and said SQL was mainly
 a preference, which we'd come back to. Episode 5 needed a database for the accounts, and looked at
-what was coming after them: items, guilds, friends and trades, data full of relations, where an
-item mustn't be duplicated or lost halfway through a trade.
+what was coming after them. That was items, guilds, friends and trades, data full of relations,
+where an item mustn't be duplicated or lost halfway through a trade.
 
 ## Decision
 
@@ -17,12 +17,12 @@ item mustn't be duplicated or lost halfway through a trade.
   `mysql` volume, so it outlives the container.
 - The servers talk to it through MySQL's own C API, with every statement prepared and its values
   sent apart from the SQL, so a name with a quote in it is an odd name and nothing more.
-- What the database can hold, it holds: unique keys for an account's name, a character's name in
-  its world and a guild's name in its world, foreign keys that take a character's rows with it,
+- What the database can hold, it holds, with unique keys for an account's name, a character's name
+  in its world and a guild's name in its world, foreign keys that take a character's rows with it,
   and a transaction for each change that has to happen whole, such as a bag's rows (episode 40) or
   a guild's (episode 66).
-- The code that talks to it stays in a few small classes: `Database`, `Accounts`, `Characters`,
-  `Players` and `Guilds`.
+- The code that talks to it stays in a few small classes, which are `Database`, `Accounts`,
+  `Characters`, `Players` and `Guilds`.
 
 ## Alternatives considered
 
@@ -45,7 +45,7 @@ item mustn't be duplicated or lost halfway through a trade.
 - The website reads the same tables for its rankings, and hashes passwords the way the login server
   does, so an account made on either works on both (episode 12).
 - Data read and written whole with its player, and never looked up apart, goes in a column as
-  JSON, not a table of its own: a player's quests (episode 45), and an item's own state, such as
-  its rolls (episode 40).
+  JSON, not a table of its own. That's a player's quests (episode 45), and an item's own state,
+  such as its rolls (episode 40).
 - MySQL waits fifty seconds for a lock by default, which a tick can't, so our connections wait two
   ([0021](0021-guilds-in-mysql-transactions.md)).

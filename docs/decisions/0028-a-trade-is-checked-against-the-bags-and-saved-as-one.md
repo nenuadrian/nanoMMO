@@ -12,7 +12,7 @@ that was empty by then. A ready was for whatever was offered when it arrived. Ea
 saved with its own player, after the next tick ([0013](0013-save-players-through-redis.md)).
 
 In episode 75 the red-team client ([0025](0025-the-server-checks-what-a-client-asks-for.md)) found
-two ways to keep a sword it gave, each three swords from two:
+two ways to keep a sword it gave, each three swords from two.
 
 - `swap` offered its sword from the bag, and once its partner was ready, moved the sword to
   another slot and was ready too. The partner got the copy, and the sword stayed where it went.
@@ -21,8 +21,8 @@ two ways to keep a sword it gave, each three swords from two:
   nothing saved a player who'd gone, so its bag in Redis was the one from before the trade, while
   the partner's was saved with the sword at the next tick.
 
-Both trusted something the server can check: that the places still hold what was offered, and that
-both bags of a trade are saved, or neither.
+Both trusted something the server can check, that the places still hold what was offered, and
+that both bags of a trade are saved, or neither.
 
 ## Decision
 
@@ -74,6 +74,6 @@ both bags of a trade are saved, or neither.
   flush before the other. Redis has both, and a player is loaded from Redis first.
 - An honest player who moves what they've offered is told why, and takes it out of the offer
   first. A ready that crossed a change to an offer on its way has to be pressed again.
-- Still trusted: two stacks of the same item, rolls and count are the same thing, so a copy can't
-  be told from the one it was made from. Serials on items, a lease on each player so that one
-  server saves them at a time, and an audit trail of trades are for a later episode.
+- What's still trusted is that two stacks of the same item, rolls and count are the same thing, so
+  a copy can't be told from the one it was made from. Serials on items, a lease on each player so
+  that one server saves them at a time, and an audit trail of trades are for a later episode.

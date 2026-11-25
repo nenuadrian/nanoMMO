@@ -8,12 +8,12 @@ Accepted
 
 By episode 86, the servers had metrics in Prometheus ([0009](0009-prometheus-grafana-and-loki.md)),
 their logs in Loki, profiles in Pyroscope, and Tracy for the tick. Each says how one process is
-doing. None follows one request through the processes it goes through: a player entering a world
+doing. None follows one request through the processes it goes through. A player entering a world
 goes from the login server, through Redis and MySQL, to a world, and a trade from a world, through
 the trades stream, to the saver. When entering a world got slow, the metrics could say that it had,
 and not where the time went, or in which process.
 
-In episode 87 we traced them, and the traces showed it the first time we looked: each statement to
+In episode 87 we traced them, and the traces showed it the first time we looked. Each statement to
 MySQL took two round trips, a prepare and a run, and a hello four statements, all on the world's
 thread, which ticks. With MySQL's replies delayed by two milliseconds, a hello took 19 milliseconds,
 and a handover of a hundred players kept the next instance from ticking for 1.95 seconds.
@@ -21,14 +21,14 @@ and a handover of a hundred players kept the next instance from ticking for 1.95
 ## Decision
 
 - The login server, the worlds and the saver trace the work they do for a request, with
-  `server/tracing.h`: each request is a trace, and each piece of its work a span, a server span for
+  `server/tracing.h`. Each request is a trace, and each piece of its work a span, a server span for
   the request, an internal one for a piece of its work, such as checking a password, and a client
   span for each call to Redis, MySQL or Consul made for it. The requests are the login server's,
   a player's hello, a trade and a handover.
 - A trace goes from one process to another in what carries the request already, as a W3C
-  `traceparent`: in the token's record in Redis, from the login server or a world handing its
-  players over to the world the player says hello to, and in a trade's record on the trades
-  stream, to the saver.
+  `traceparent`, which goes in the token's record in Redis, from the login server or a world
+  handing its players over to the world the player says hello to, and in a trade's record on the
+  trades stream, to the saver.
 - Spans go to the collector that `NANOMMO_OTLP_ENDPOINT` names, in OpenTelemetry's protocol, as
   JSON over HTTP, from a thread of the tracer's own, through a queue that drops what it can't hold
   and counts it. Unset, a server traces nothing.
@@ -41,9 +41,9 @@ and a handover of a hundred players kept the next instance from ticking for 1.95
 
 - OpenTelemetry's C++ SDK. It builds its own protobuf and curl, which our build would compile beside
   the protobuf it has, and its exporter writes JSON by way of protobuf anyway. We have nlohmann's
-  json and cpp-httplib already, and a span is small enough to write and show: the tracer is about 550
-  lines, comments and all. Speaking OpenTelemetry's formats, Alloy and Tempo read it as they would the
-  SDK's, and swapping it for the SDK later changes how spans are made, not where they go.
+  json and cpp-httplib already, and a span is small enough to write and show. The tracer is about
+  550 lines, comments and all. Speaking OpenTelemetry's formats, Alloy and Tempo read it as they
+  would the SDK's, and swapping it for the SDK later changes how spans are made, not where they go.
 - Jaeger or Zipkin to keep the traces. Tempo keeps them the way Loki keeps logs, cheaply, by their
   ids, sits in the Grafana we have, beside Loki and Pyroscope, makes the service graph and the
   span metrics itself, and searches with TraceQL.
@@ -65,12 +65,12 @@ and a handover of a hundred players kept the next instance from ticking for 1.95
 ## Consequences
 
 - A trace shows where a request's time went, and in which process, which neither metrics nor logs
-  could: the first ones found the prepares, and from 0.87.0 a connection keeps the reads it's
+  could. The first traces found the prepares, and from 0.87.0 a connection keeps the reads it's
   prepared ([Monitoring](../monitoring.md#what-the-traces-showed)).
 - Every call to Redis and MySQL made for a traced request costs a span, a few hundred bytes and a
   lock to queue it. A call the tick makes costs a check of the thread's current span.
-- Alloy holds each trace in memory for ten seconds, and Tempo's metrics count only what's kept: a
-  tenth of the quick traces.
+- Alloy holds each trace in memory for ten seconds, and Tempo's metrics count only what's kept,
+  which for the quick traces is a tenth.
 - A log line's trace opens only if Alloy kept it.
 - The login server serves no metrics, so the spans it drops aren't counted.
 - The hello still runs on the world's thread, and a handover's hellos still come all at once, so a

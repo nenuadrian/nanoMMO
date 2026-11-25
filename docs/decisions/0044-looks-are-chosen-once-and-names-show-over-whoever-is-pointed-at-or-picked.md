@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Until episode 94, nobody chose how their character looked. Their id did: `FeaturesOf`, in
+Until episode 94, nobody chose how their character looked. Their id did. `FeaturesOf`, in
 `content/figures.h`, scatters the id's bits and picks a skin, a hair colour and a way to wear the
 hair from the figures file's lists with them, and the client picked one of the rig's builds by the
 id too, so every client drew a player the same, with nothing to send or save. Making a character
@@ -20,12 +20,12 @@ The screen had filled up too. Every name within 50 metres was over its head, a p
 monster's with its level and its health, and a player's guild, and an NPC's on its own, which in a
 crowd hid the land, and the fight in it, under the names. The game's name was over the worlds and the
 characters, a plate with the land's name over the minimap, and the windows had lines a player reads
-once and then has on the screen for good: the bag's count of its slots used and how to throw an
-item away, and the map's line on clicking to walk.
+once and then has on the screen for good. They were the bag's count of its slots used and how to
+throw an item away, and the map's line on clicking to walk.
 
 ## Decision
 
-- A character's looks are a `Looks`, in `protocol/nanommo.proto`: `build`, a place in the rig's
+- A character's looks are a `Looks`, in `protocol/nanommo.proto`, with `build`, a place in the rig's
   builds, and `skin`, `hair_color` and `hair`, places in the figures file's lists. A `Build` and a
   `Hair` have a `name` for the screen, "Slight" and "Broad", and "Short" to "Bald", and the skins
   and the hair colours are swatches.
@@ -35,7 +35,7 @@ item away, and the map's line on clicking to walk.
 - The login server puts them into `players`, in `build`, `skin`, `hair_color` and `hair`, from V16,
   each a `TINYINT UNSIGNED NULL`, in the statement that makes the character (`Characters::Create`).
   It keeps any place that fits its column, up to 255 (`Characters::kMostLook`), and refuses one
-  past that: "That isn't a look there is."
+  past that, saying "That isn't a look there is."
 - Each client wraps each place round to what its lists have (`FeaturesOf` in `client/animator.h`,
   and `Characters::For` for the build). The figures and the rig are in `ClientHash`, so every
   client in a world has the same lists, and a place out of range is just another look, the same on
@@ -49,8 +49,8 @@ item away, and the map's line on clicking to walk.
   their characters without looks, and theirs are picked the same way.
 - A name shows over a head while the pointer's on them (`PickAnyone`, by `Who`), or they're picked,
   and otherwise only as the settings say (`ShowsName` in `client/nameplates.h`). The settings'
-  Interface page has "Names over heads": always over monsters, other players, NPCs or you, each off
-  to begin with, and with a name its health, its level and a guild, each on, kept as
+  Interface page has "Names over heads", to show them always over monsters, other players, NPCs or
+  you, each off to begin with, and with a name its health, its level and a guild, each on, kept as
   `Interface.nameplates` in `settings.txtpb`. An NPC with a quest for you shows its mark without its
   name.
 - The hints leave the screen for a help window, on H (`client/help_window.h`), with a page each for
@@ -90,9 +90,9 @@ item away, and the map's line on clicking to walk.
 
 ## Consequences
 
-- A player chooses from 360 looks, before what they wear: two builds, six skins, six ways to wear
-  the hair and five hair colours. A new character starts at random among them, rather than on the
-  first of each.
+- A player chooses from 360 looks, before what they wear, with two builds, six skins, six ways to
+  wear the hair and five hair colours. A new character starts at random among them, rather than on
+  the first of each.
 - A look is a place, so a new build, skin, hair colour or way to wear the hair goes at the end of
   its list. One put in before the end, or taken out, changes the looks of each character who chose
   one after it, and nothing in the content's checks catches that.
@@ -120,5 +120,5 @@ item away, and the map's line on clicking to walk.
   too, as the content can't. The keys are one list, for the help and the settings.
 - Nothing points a new player to the help but its button in the bottom right, with H in its
   tooltip.
-- A settings file from before has no `nameplates` and no `minimap`, so it gets the defaults: names
-  only for whoever's noticed, and the minimap.
+- A settings file from before has no `nameplates` and no `minimap`, so it gets the defaults, which
+  are names only for whoever's noticed, and the minimap.

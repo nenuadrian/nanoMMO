@@ -2,21 +2,21 @@
 
 ## Monitoring and load
 
-Each world serves its metrics for Prometheus at http://localhost:9464/metrics: the players online in each land,
-how long each tick takes, how long saving the players takes in each tick, the bytes it sends, the
-messages it receives, the lines of chat, said or refused, and the stories asked for, told, refused
-or failed, with how long each one took, the players it dropped without saving them, by why
-(`nanommo_players_dropped_total`), and the war kills it handed the saver, for their wars' scores
-(`nanommo_war_kills_total`), which the scores in MySQL should add up to. The bots serve theirs on
-port 9465: how old the world on a player's screen would be, by transport, and how long each bot's
-login took, by what came of it, timeouts too (`nanommo_bot_login_duration_seconds`). The saver
-serves its on port 9466: `nanommo_duplicate_items`, the serials that more than one item in MySQL
-has, after its last flush, which is zero unless an item's been copied (see
-[Saving players](saving.md)), when its last good flush ended, and the players waiting for the next.
-The login server serves its on port 9467: how long it took to answer each request, by what came of
-it, ok, refused or failed (`nanommo_login_duration_seconds`). Prometheus finds those two by their
-names, `saver` and `login`. Those are what the objectives in [Reliability](reliability.md) are made
-from.
+Each world serves its metrics for Prometheus at http://localhost:9464/metrics. They cover the
+players online in each land, how long each tick takes, how long saving the players takes in each
+tick, the bytes it sends, the messages it receives, the lines of chat, said or refused, and the
+stories asked for, told, refused or failed, with how long each one took, the players it dropped
+without saving them, by why (`nanommo_players_dropped_total`), and the war kills it handed the
+saver, for their wars' scores (`nanommo_war_kills_total`), which the scores in MySQL should add up
+to. The bots serve theirs on port 9465, measuring how old the world on a player's screen would be,
+by transport, and how long each bot's login took, by what came of it, timeouts too
+(`nanommo_bot_login_duration_seconds`). The saver serves its on port 9466. They cover
+`nanommo_duplicate_items`, the serials that more than one item in MySQL has, after its last flush,
+which is zero unless an item's been copied (see [Saving players](saving.md)), when its last good
+flush ended, and the players waiting for the next. The login server serves its on port 9467,
+measuring how long it took to answer each request, by what came of it, ok, refused or failed
+(`nanommo_login_duration_seconds`). Prometheus finds those two by their names, `saver` and `login`.
+Those are what the objectives in [Reliability](reliability.md) are made from.
 
 `compose.yaml` starts the servers, MySQL and Redis together with Prometheus, which finds the worlds
 in Consul and scrapes each of them every two seconds, with its name as the `world` label, and
@@ -27,9 +27,9 @@ Grafana, with a dashboard of those metrics, world by world. The dashboard and Gr
 docker compose up -d --build
 ```
 
-- Grafana: http://localhost:3000, which opens on the nanoMMO server dashboard.
-- Prometheus: http://localhost:9090.
-- Pyroscope: http://localhost:4040 (see [Benchmarking and profiling](benchmarking.md)).
+- Grafana, at http://localhost:3000, which opens on the nanoMMO server dashboard.
+- Prometheus, at http://localhost:9090.
+- Pyroscope, at http://localhost:4040 (see [Benchmarking and profiling](benchmarking.md)).
 
 `nanommo_bot` connects a swarm of bots that play like players. Each one runs to a random place on the
 island, within 170 metres of the middle, or on one trip in five into its land's gate, and wanders around there like a player at the keys, running a
@@ -40,13 +40,13 @@ for a story about three words from the game. While it wanders around somewhere, 
 four uses one of the skills it knows, from its world, so that the bots' cooldowns go out with their
 worlds, as players' do. A bot drinks a potion once it's down to half its health, one every ten
 seconds, and wears what it finds in a slot it has free, so that the servers save and send bags as
-they would players'. Quests come first: between trips, a bot looks at what's around it, put
+they would players'. Quests come first. Between trips, a bot looks at what's around it, put
 together from the world's parts as the client does, and turns in a quest it's done if its giver is
 there, or goes after the nearest monster a quest it's on asks for, or takes a quest it hasn't done
 from an NPC there who gives it. It runs there, and swings, or takes or turns in the quest, so that
 the servers count kills and save quests as they would players'. Before its quests, a bot swears
 to a faction, each in turn by its number (`FactionFor`, in `bot/factions.h`), unless its world
-shows it sworn already: it walks to the faction's herald, where it sees them, or where the NPCs file
+shows it sworn already. It walks to the faction's herald, where it sees them, or where the NPCs file
 stands them in its land, and swears there, or gives up if nobody's there, so the crowd in the
 Meadows wears all three colours within a few seconds of arriving (see
 [Factions](gameplay.md#factions)). A bot that stops
@@ -54,12 +54,12 @@ getting closer, at the sea or a lake, gives up on its trip. Each one logs in as 
 and creates its account the first time. It takes the login server's
 host, the game server's host, how many bots, how many seconds to spread their arrival over, the
 number of its first bot, so that several swarms can play on one server, the transport for the
-worlds, `udp` or `tcp`, UDP by default, and `war`, which sends the swarm to war: the bots with odd
+worlds, `udp` or `tcp`, UDP by default, and `war`, which sends the swarm to war. The bots with odd
 numbers are in Red, and the even ones in Blue, whose first bots found them, take them to war and ask
 the rest in, by name. Until all its side is in, each bot waits at its side's camp, in lines of five
 8 metres west (Red) or east (Blue) of where new players come in, or for a minute and a half after
 it joined, and then, in their guild, a bot goes for the nearest enemy it can see, before monsters
-and quests (`bot/war.h`), so the two sides charge each other in lines:
+and quests (`bot/war.h`), so the two sides charge each other in lines.
 
 ```bash
 ./build/bin/nanommo_bot localhost localhost 100 10
@@ -75,8 +75,8 @@ A bot that loses its world, say as a world dropped it, logs in again, after a wa
 with each try that fails, from a second to thirty, and a random part of that, so that bots dropped
 together don't all come back together, and five a second at most.
 
-Or in Docker, next to the server: 300 bots, arriving over two minutes, unless `BOTS` and `RAMP` say
-otherwise, from bot1, or `BOTS_FIRST`.
+Or in Docker, next to the server, with 300 bots, arriving over two minutes, unless `BOTS` and `RAMP`
+say otherwise, from bot1, or `BOTS_FIRST`.
 
 ```bash
 docker compose up -d bots
@@ -89,7 +89,7 @@ A few hundred bots need more open files than macOS allows a shell by default, so
 ## Alerts
 
 Prometheus checks the rules in `monitoring/alerts.yml` every five seconds, the objectives' every 30, and its alerts page,
-http://localhost:9090/alerts, shows each one as inactive, pending or firing:
+http://localhost:9090/alerts, shows each of the alerts below as inactive, pending or firing.
 
 - `WorldFallingBehind`, when a world has run fewer than 19 ticks a second, out of its 20, for a
   minute. A world that keeps up runs a little either side of 20.
@@ -100,15 +100,15 @@ http://localhost:9090/alerts, shows each one as inactive, pending or firing:
   an objective's error budget is going fast enough to be gone long before the month is, a page, or
   steadily, a ticket, as [Reliability](reliability.md#alerts-on-how-fast-a-budget-burns) explains.
   They and the recording rules they read are in the `slos` group.
-- `ItemsDuplicated`, when `nanommo_duplicate_items` has been above zero for a minute: two items with
-  one serial, an item and its copy, which a dupe makes, as in
-  [decision 31](decisions/0031-a-character-is-leased-to-one-instance-at-a-time.md). A minute, as a
-  trade that the saver took half of, while it was reading a batch, is whole again at its next
-  flush, five seconds later. The trades table has who gave whom each item, by its serial.
+- `ItemsDuplicated`, when `nanommo_duplicate_items` has been above zero for a minute. Above zero
+  means two items with one serial, an item and its copy, which a dupe makes, as in [decision
+  31](decisions/0031-a-character-is-leased-to-one-instance-at-a-time.md). A minute, as a trade that
+  the saver took half of, while it was reading a batch, is whole again at its next flush, five
+  seconds later. The trades table has who gave whom each item, by its serial.
 
 Prometheus sends the alerts to Alertmanager, at http://localhost:9093, which emails each one when it
 fires and when it resolves. The mail goes to Mailpit, a mail server for development, which keeps it,
-and shows it at http://localhost:8025 and through its API:
+and shows it at http://localhost:8025 and through its API.
 
 ```bash
 curl -s localhost:8025/api/v1/messages | jq -r '.messages[].Subject'
@@ -117,7 +117,7 @@ curl -s localhost:8025/api/v1/message/latest | jq -r .Text
 
 To get the mail somewhere else, `smtp_smarthost` in `monitoring/alertmanager.yml` points at a real mail
 server, with `smtp_auth_username` and `smtp_auth_password_file`. The rules have tests, in
-`monitoring/alerts_test.yml`, which CI runs too:
+`monitoring/alerts_test.yml`, which CI runs too.
 
 ```bash
 docker compose run --rm alerts
@@ -125,18 +125,18 @@ docker compose run --rm alerts
 
 ## Logs
 
-Each server writes what it does to its output: who joins and leaves, what they say, what they
+Each server writes what it does to its output. That's who joins and leaves, what they say, what they
 learn, and what goes wrong. `docker compose logs` shows that a service at a time, and loses it with
 the container. [Loki](https://github.com/grafana/loki), Grafana's log store, keeps the logs of all
-the game's containers, and Grafana queries them next to the metrics:
+the game's containers, and Grafana queries them next to the metrics.
 
 - Loki runs in a single process (`monitoring/loki.yaml`), with the logs on a volume of its own,
   `loki`, and keeps them for a week. It indexes each line by its labels, and not by what it says, so
   that keeping logs costs little, and a query picks the lines by their labels first, then searches
   what they say.
-- [Alloy](https://github.com/grafana/alloy), Grafana's agent, finds the game's containers through
-  Docker's socket, which Compose mounts into it read-only: the ones in the Compose project
-  `nanommo`, and looks for new ones each five seconds. It reads what each one writes, as it comes,
+- [Alloy](https://github.com/grafana/alloy), Grafana's agent, finds the game's containers, the
+  ones in the Compose project `nanommo`, through Docker's socket, which Compose mounts into it
+  read-only, and looks for new ones each five seconds. It reads what each one writes, as it comes,
   and sends it to Loki
   (`monitoring/config.alloy`). Each container's lines get its service's name as the `service` label,
   such as `server` or `saver`, and each line the stream it was written to as the `stream` label,
@@ -144,7 +144,7 @@ the game's containers, and Grafana queries them next to the metrics:
   rest to `stdout`, so `stream="stderr"` picks their errors. Other images use `stderr` for
   everything, such as MySQL's.
 - Grafana has Loki as a second data source, so Explore, at http://localhost:3000/explore, searches
-  the logs with LogQL, Loki's query language:
+  the logs with LogQL, Loki's query language, in queries like these.
 
 ```
 {service="server"}                       # the world server's lines
@@ -152,15 +152,16 @@ the game's containers, and Grafana queries them next to the metrics:
 {service=~"server|login|saver", stream="stderr"}   # what went wrong
 ```
 
-The server dashboard has two panels from Loki at the bottom, under the metrics: errors a minute,
-the servers' `stderr` lines counted a minute at a time by service with LogQL's `count_over_time`,
-and what the servers say, their lines as they come, newest first. A spike on a chart and the lines
-from that minute are on one page. Grafana marks each line with its `level` label, which Alloy gives
-our servers' lines from their stream, `error` from `stderr`, and `info` from `stdout`.
+The server dashboard has two panels from Loki at the bottom, under the metrics. One is errors a
+minute, the servers' `stderr` lines counted a minute at a time by service with LogQL's
+`count_over_time`, and the other what the servers say, their lines as they come, newest first. A
+spike on a chart and the lines from that minute are on one page. Grafana marks each line with its
+`level` label, which Alloy gives our servers' lines from their stream, `error` from `stderr`, and
+`info` from `stdout`.
 
 Loki checks rules on the logs too, like Prometheus checks its rules on the metrics, every 15
 seconds, from `monitoring/loki-rules.yml`, and sends the alerts to the same Alertmanager, which
-emails them (see [Alerts](#alerts)):
+emails them (see [Alerts](#alerts)).
 
 - `SaverFailing`, when the saver has written errors for a minute, such as while MySQL is down. The
   saver keeps going, and the players it couldn't save stay unsaved in Redis until it can, so the
@@ -170,7 +171,7 @@ Loki has no tenants of its own here, so its rules are in its tenant's folder, `f
 gives the tenant when `auth_enabled` is off.
 
 CI checks both configs, as a typo in either would leave us without logs, and Loki and Alloy refuse
-a field they don't know:
+a field they don't know.
 
 ```bash
 docker compose run --rm loki-config      # loki -verify-config
@@ -178,7 +179,7 @@ docker compose run --rm alloy-config     # alloy validate
 ```
 
 Neither looks at the rules' LogQL. A rule Loki can't parse shows up in its log, as `unable to list
-rules`, and the rest of its group doesn't load: `docker compose logs loki | grep rules`.
+rules`, and the rest of its group doesn't load, which `docker compose logs loki | grep rules` shows.
 
 In production, Loki listens on the server's localhost, like Prometheus, and Alloy has no port.
 
@@ -186,7 +187,7 @@ In production, Loki listens on the server's localhost, like Prometheus, and Allo
 
 The metrics say the logins' 99th percentile went up, and a server's log says what that one process
 did. A trace follows one request through each process it goes through, the login server, Redis,
-MySQL, a world and the saver, as spans: each a piece of the work, with when it started, how long it
+MySQL, a world and the saver, as spans, each a piece of the work, with when it started, how long it
 took, and which span it was part of. So a slow login shows where its time went, and in which
 process ([decision 38](decisions/0038-trace-requests-with-a-tracer-of-our-own.md)).
 
@@ -207,7 +208,7 @@ process ([decision 38](decisions/0038-trace-requests-with-a-tracer-of-our-own.md
   how long the slowest take, by kind, and the traces that took over 100 milliseconds, each of which
   opens in Explore. Grafana lets anonymous visitors edit, as Explore is an editor's.
 
-The tracer is our own, `server/tracing.h`, which speaks OpenTelemetry's formats: W3C Trace
+The tracer is our own, `server/tracing.h`, which speaks OpenTelemetry's formats, using W3C Trace
 Context's `traceparent`, `00-<trace id>-<span id>-01`, for a span's place, and OTLP's JSON for the
 spans. A span that's open is its thread's current span, and a span started on the thread goes under
 it. A span that ends goes on a queue, and a thread of the tracer's sends what's there once a second,
@@ -238,7 +239,7 @@ mistake, such as a wrong password, is an attribute, `nanommo.refused`, and the s
 such as MySQL being down, mark their spans as errors. The lines a server prints as it answers a
 traced request end with its trace's id, `trace_id=`.
 
-What isn't traced:
+These aren't traced.
 
 - The tick. It's not a request, and nobody waits on one alone, while a span for each, 20 a second
   in each world, would be 1.7 million a day for what Tracy and `nanommo_tick_duration_seconds`
@@ -255,11 +256,11 @@ What isn't traced:
 ### How a trace goes from one process to another
 
 A trace goes from one process to another in what already carries the request there, as a
-traceparent:
+traceparent.
 
 - **The token.** The token to enter a world goes from the login server, through Redis, to the
   world, which reads it back as the player says hello. Issuing it is a producer span, whose
-  traceparent goes into the token's record, after the player's id: `token:<token>` holds
+  traceparent goes into the token's record, after the player's id, so `token:<token>` holds
   `7 00-…-01`. Redeeming it gives the world that span, and the hello goes under it, so entering a
   world is one trace, across both. A world handing its players over issues their tokens the same
   way, so a deploy is one trace across the two instances. The hello's span starts as its message
@@ -271,9 +272,9 @@ traceparent:
   saver's is the time its record waited in the stream, up to the saver's five seconds.
 
 A record without a traceparent, from a server that doesn't trace, is read as before, and one that
-can't be read loses the trace, not the player. A session from the login server carries no trace:
-it lasts half an hour, through every request a player makes with it, which would make a trace with
-no end, so logging in is a trace of its own, and entering a world another.
+can't be read loses the trace, not the player. A session from the login server carries no trace,
+as it lasts half an hour, through every request a player makes with it, which would make a trace
+with no end, so logging in is a trace of its own, and entering a world another.
 
 ### Sampling
 
@@ -282,11 +283,8 @@ trace starts, decides before anything's happened, so it keeps a slow trace, or o
 more often than the rest, and those are the ones worth reading. Sampling at the tail waits until a
 trace is whole, and decides from all its spans, at the cost of holding each one in memory until
 then. Alloy waits ten seconds from a trace's first span, as a trade's saver half comes up to five
-seconds after its world half, and keeps:
-
-- every trace with an error,
-- every trace that took over 100 milliseconds,
-- and a tenth of the rest, picked by their ids, to see what a normal one looks like.
+seconds after its world half, and keeps every trace with an error, every trace that took over 100
+milliseconds, and a tenth of the rest, picked by their ids, to see what a normal one looks like.
 
 A span that comes after its trace's decision, such as a hello with a token issued 30 seconds
 before, follows it. Tempo makes its metrics from what's kept, so they count a tenth of the quick
@@ -306,7 +304,7 @@ a dot, an exemplar, opens the trace a sample came from.
 { status = error }                                  # what failed
 ```
 
-Tempo's API answers the same, as JSON:
+Tempo's API answers the same, as JSON.
 
 ```bash
 curl -sG localhost:3200/api/search --data-urlencode 'q={ name = "hand over" }'
@@ -316,16 +314,16 @@ curl -s localhost:3200/api/traces/<trace id>
 ### What the traces showed
 
 In episode 87, with a hundred bots, a player's hello took about a millisecond on the world's
-thread, the one that ticks, and most of it was MySQL: three statements to load the player and one
-for their guild, each 0.15 to 0.25 milliseconds against Redis's 0.06. With MySQL's replies delayed
-by two milliseconds, each statement took 4.7, two round trips: `Database::Run` prepared each
-statement, a round trip, ran it, another, and closed it. A hello took 19 milliseconds, and a
+thread, the one that ticks, and most of it was MySQL, with three statements to load the player and
+one for their guild, each 0.15 to 0.25 milliseconds against Redis's 0.06. With MySQL's replies
+delayed by two milliseconds, each statement took 4.7, two round trips, as `Database::Run` prepared
+each statement, a round trip, ran it, another, and closed it. A hello took 19 milliseconds, and a
 handover of a hundred players, whose hellos come all at once, kept the next instance busy with them
 for 1.95 seconds, in which it didn't tick. Since 0.87.0, a connection keeps the reads it's prepared,
-and runs one again in a round trip: with the same delay, each statement takes 2.4 milliseconds, a
+and runs one again in a round trip. With the same delay, each statement takes 2.4 milliseconds, a
 hello 9.9, and the handover's hundred hellos 0.97 seconds.
 
-To see that for yourself, netem, from the Dockerfile's `netem` stage, delays what MySQL sends:
+To see that for yourself, netem, from the Dockerfile's `netem` stage, delays what MySQL sends.
 
 ```bash
 docker build --target netem -t nanommo-netem .
@@ -340,9 +338,9 @@ Compose's network.
 
 ## Analytics
 
-The metrics say how the servers are doing, and the game's analytics say what the players do: who
-killed what, what dropped, which quests they take and which they finish, the levels they reach,
-what they drink and where they die. Each of those is an event, a row in
+The metrics say how the servers are doing, and the game's analytics say what the players do. They
+say who killed what, what dropped, which quests they take and which they finish, the levels they
+reach, what they drink and where they die. Each of those is an event, a row in
 [ClickHouse](https://github.com/ClickHouse/ClickHouse), a database that keeps each column on its own
 and reads the columns a query asks about and nothing more, so that counting millions of rows by a
 few of their columns is quick.
@@ -359,12 +357,13 @@ few of their columns is quick.
   consumer took and didn't acknowledge, so after a failure, or a restart, the recorder takes those
   again first, and an event isn't lost while ClickHouse is down.
 - ClickHouse makes the table from `monitoring/clickhouse/events.sql` the first time it starts, on an
-  empty volume, `clickhouse`: sorted by the kind of event and its time, a partition a month, and
-  kept for a year. A change to the table later takes an `ALTER TABLE` of its own.
+  empty volume, `clickhouse`. The table is sorted by the kind of event and its time, with a
+  partition a month, and kept for a year. A change to the table later takes an `ALTER TABLE` of its
+  own.
 - Grafana has ClickHouse as a data source, through Grafana's ClickHouse plugin, which it installs
-  as it starts, and a second dashboard, nanoMMO game, at http://localhost:3000/d/nanommo-game: the
-  players who did something, kills a minute by monster, the quests taken against the ones done, the
-  items that came into the game against the ones used, where players die in the Meadows, and the
+  as it starts, and a second dashboard, nanoMMO game, at http://localhost:3000/d/nanommo-game, with
+  the players who did something, kills a minute by monster, the quests taken against the ones done,
+  the items that came into the game against the ones used, where players die in the Meadows, and the
   levels reached.
 
 ```bash

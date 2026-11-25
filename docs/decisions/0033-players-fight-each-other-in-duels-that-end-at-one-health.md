@@ -9,13 +9,13 @@ Accepted
 Until episode 81, every blow in the game was a player's on a monster or a monster's on a player.
 A player picked a monster, `Player.target`, by its id, and `World::Land` hurt the monsters a skill
 reached. A player with no health died, waited ten seconds and came back in the middle of their
-land, at full health, and the dead are saved as they'll come back
-([0013](0013-save-players-through-redis.md)): in the middle, at full health.
+land, at full health, and the dead are saved as they'll come back, in the middle, at full health
+([0013](0013-save-players-through-redis.md)).
 
-Episode 81 is the first where players fight each other, and it had to settle three things: who may
-hit whom, what a blow that would kill does, and how a client says which player it means, as
-players' ids are their characters' in MySQL, and monsters' a world's own count from one, so the
-same number can be both.
+Episode 81 is the first where players fight each other, and it had to settle three things. They
+were who may hit whom, what a blow that would kill does, and how a client says which player it
+means, as players' ids are their characters' in MySQL, and monsters' a world's own count from one,
+so the same number can be both.
 
 ## Decision
 
@@ -30,7 +30,7 @@ same number can be both.
   other said yes, or who dies, to a monster, loses too.
 - Health isn't given back at the end. It comes back as after a fight with monsters, from a potion,
   a skill or a new level.
-- The player picked goes beside the monster: `Player.target_player`, which `Input.target_player`
+- The player picked goes beside the monster, in `Player.target_player`, which `Input.target_player`
   (20) sets with each input, and `protocol::Player.target_player` (16) shows while a skill's used.
   `World::Pick` keeps it only for the opponent in a duel that's started, in place of the monster,
   so picking anyone else picks nobody. `World::Target` returns where the one picked is, monster or
@@ -47,9 +47,9 @@ same number can be both.
 - One target for both, with players and monsters told apart by a flag or a range of ids. It would
   be a rule about numbers that both sides of the wire have to keep, where a field of its own says
   what it is, and costs nothing while it's zero, as protobuf leaves it out.
-- Players hurting each other anywhere, or in some lands, with the rules that go with it: who may
-  attack whom, what a death costs, and what stops a player hunting the newest (not weighed: it's for
-  a later episode, if the game has it).
+- Players hurting each other anywhere, or in some lands, with the rules that go with it, on who may
+  attack whom, what a death costs, and what stops a player hunting the newest (not weighed, as it's
+  for a later episode, if the game has it).
 
 ## Consequences
 

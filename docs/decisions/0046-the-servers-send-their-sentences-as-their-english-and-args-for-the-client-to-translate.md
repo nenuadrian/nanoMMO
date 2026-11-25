@@ -7,14 +7,14 @@ Accepted
 ## Context
 
 Episode 95 translated the client's own words ([0045](0045-translate-the-client-with-gettext-po-files-at-display-and-keep-the-content-english.md))
-and left the servers' sentences English: a login server's errors, such as a name that's taken, and
-what a world says in the chat, its refusals, such as a bag that's full, a trade's, a duel's and a
-war's news, a guild's, what a monster dropped, a quest's progress and prizes, and a boss's fall,
-and those of the offline world, which runs the servers' rules. There were over a hundred, each
-glued together in English on the server, from names and numbers, with "a" or "an" before an item,
-an s for more than one, and "The " before a monster or an NPC, and sent as a line's text. Over a
-hundred of the servers' tests read that English. The NPC who tells a story was named in English
-over it too, and the lands' English names are keys.
+and left the servers' sentences English. They were a login server's errors, such as a name that's
+taken, and what a world says in the chat, its refusals, such as a bag that's full, a trade's, a
+duel's and a war's news, a guild's, what a monster dropped, a quest's progress and prizes, and a
+boss's fall, and those of the offline world, which runs the servers' rules. There were over a
+hundred, each glued together in English on the server, from names and numbers, with "a" or "an"
+before an item, an s for more than one, and "The " before a monster or an NPC, and sent as a line's
+text. Over a hundred of the servers' tests read that English. The NPC who tells a story was named in
+English over it too, and the lands' English names are keys.
 
 A world has players in any language at once, and doesn't know which each is in. Episode 96 had to
 settle what a server sends in place of its English, what a sentence's id is, how a name, a number
@@ -24,21 +24,22 @@ the login server's English to hear which version to get.
 
 ## Decision
 
-- A server's sentence goes as a `Message` (`protocol/nanommo.proto`): its English, with `$0` to
-  `$9`, which is its id, as a client string's English is its key, a plural's English for more than
-  one, with its count, and its args. An arg is a number, a name a player gave or a version, which
-  stays as it is, a sentence of its own inside the other, or the content's, by its id: an item, or
-  so many of one, a kind of monster, or so many, an NPC, a quest, a skill or a slot of the bag.
-- The client translates it as it shows it (`Translated`, in `client/messages.h`): the English
-  through `Tr`, or `TrN` for a plural, the content's names through `NameOf`, in their contexts,
-  such as `item 8`, and the args filled in where the translation puts them. So many of an item is a
+- A server's sentence goes as a `Message` (`protocol/nanommo.proto`). It holds its English, with
+  `$0` to `$9`, which is its id, as a client string's English is its key, a plural's English for
+  more than one, with its count, and its args. An arg is a number, a name a player gave or a
+  version, which stays as it is, a sentence of its own inside the other, or the content's, by its
+  id, which names an item, or so many of one, a kind of monster, or so many, an NPC, a quest, a
+  skill or a slot of the bag.
+- The client translates it as it shows it (`Translated`, in `client/messages.h`), with the English
+  through `Tr`, or `TrN` for a plural, the content's names through `NameOf`, in their contexts, such
+  as `item 8`, and the args filled in where the translation puts them. So many of an item is a
   plural of the item's own, "a Bone" and "$0 Bones", in its context.
 - On the servers, `Msg` and `MsgN` make a `Sentence`, the message and its English, from a part for
-  each placeholder: a number, a `Name`, `Of` the content, or another sentence
+  each placeholder, whether a number, a `Name`, `Of` the content, or another sentence
   (`protocol/messages.h`). They mark the English for the template, as `N_` does the client's, and
   `scripts/po.py extract` finds them in `protocol/` and `server/`, with a `// Translators:` comment
   above for what goes in.
-- A refusal is a `Refusal`: an `absl::Status` whose message is the English, with the `Message` as
+- A refusal is a `Refusal`, an `absl::Status` whose message is the English, with the `Message` as
   its payload, which `SentenceOf` takes out, so the world's, the bag's and the guilds' rules return
   statuses as before, and their tests read the English as before. A `Notice` has both too.
 - A list is a sentence of "$0 and $1", with "$0, $1" before the rest of it.
@@ -70,11 +71,11 @@ the login server's English to hear which version to get.
 - `std::expected` with a `Message` in place of `absl::Status` (not weighed in an episode). Each
   function that refuses would change, with its callers and its tests, where a status's payload
   changes none of them.
-- Articles in each language: "a" or "an" before an item and "The" before a monster, as the English
-  had. Romanian puts its article after the noun, as "Scheletul", in a form that depends on the
-  noun's gender, which the content doesn't say. So many of an item is a plural of each item's own,
-  which a translator writes, and a name that would need an article goes in quotes, or after a word
-  that takes none, as "De la $0:", as the client's own sentences do.
+- Articles in each language, such as "a" or "an" before an item and "The" before a monster, as the
+  English had. Romanian puts its article after the noun, as "Scheletul", in a form that depends on
+  the noun's gender, which the content doesn't say. So many of an item is a plural of each item's
+  own, which a translator writes, and a name that would need an article goes in quotes, or after a
+  word that takes none, as `De la $0:`, as the client's own sentences do.
 - ICU's MessageFormat, with plurals and selects inside each sentence. It's as large for the servers'
   sentences as [0045](0045-translate-the-client-with-gettext-po-files-at-display-and-keep-the-content-english.md)
   found it for the client's, and PO files' plurals do what they need.

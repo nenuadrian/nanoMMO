@@ -7,13 +7,13 @@ From a clone to playing, on macOS or Ubuntu 24.04.
 | Packages from | Homebrew | apt |
 | Docker | Docker Desktop | Ubuntu's `docker.io`, with the Compose and buildx plugins |
 | The first build | a few minutes | about four minutes on four cores |
-| The first `docker compose up` | about ten minutes: it builds the saver's image | the same |
+| The first `docker compose up` | about ten minutes, as it builds the saver's image | the same |
 | Disk | about 1 GB for the build, and 10 GB for Docker's images | the same |
 
 | Other systems | |
 |---|---|
 | Ubuntu 22.04 | Its CMake is 3.22 and its compilers are too old for C++23, and the game needs CMake 3.28 and GCC 14 |
-| Windows | Visual Studio 2026 and [vcpkg](https://vcpkg.io), with `VCPKG_ROOT` set to vcpkg's folder: `cmake --workflow --preset windows` from a Developer PowerShell for VS builds it all and runs the tests, as CI does |
+| Windows | Visual Studio 2026 and [vcpkg](https://vcpkg.io), with `VCPKG_ROOT` set to vcpkg's folder. `cmake --workflow --preset windows` from a Developer PowerShell for VS builds it all and runs the tests, as CI does |
 | Other Linux | Not tested |
 
 ## 1. Get the code
@@ -36,13 +36,13 @@ scripts/doctor.sh
 ```
 
 It checks the tools, the libraries, Docker, the ports and the certificates, and ends with one command
-that installs every missing package. What that is on a new machine:
+that installs every missing package. Here's what that is on a new machine.
 
 | | Run |
 |---|---|
 | macOS | [Homebrew](https://brew.sh), `xcode-select --install`, `brew install cmake ninja pkgconf mysql-client libsodium openssl@3`, and [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/) |
 | Ubuntu 24.04 | `sudo apt update && sudo apt install git cmake ninja-build build-essential g++-14 pkg-config libmysqlclient-dev libsodium-dev libssl-dev xorg-dev libgl1-mesa-dev docker.io docker-compose-v2 docker-buildx` |
-| Ubuntu 24.04's compiler | Its GCC 13 is too old for the C++23 the game uses, so build with GCC 14: `echo 'export CXX=g++-14' >> ~/.bashrc`, then open a new terminal |
+| Ubuntu 24.04's compiler | Its GCC 13 is too old for the C++23 the game uses, so build with GCC 14, by running `echo 'export CXX=g++-14' >> ~/.bashrc`, then opening a new terminal |
 | Ubuntu, once | `sudo usermod -aG docker $USER`, then log out and in again |
 
 Run `scripts/doctor.sh` again until every line is a tick.
@@ -66,10 +66,10 @@ the rest of [the checks](checks.md), each in a folder of its own.
 
 | You see | It means |
 |---|---|
-| The first build takes minutes | CMake fetches the libraries a system doesn't have, and builds them: GoogleTest, raylib, Dear ImGui, rlImGui, abseil, protobuf, Asio, prometheus-cpp, hiredis, nlohmann/json and cpp-httplib |
-| Warnings from `_deps/` | They're the libraries', built as they come: the game's own code builds without one |
+| The first build takes minutes | CMake fetches the libraries a system doesn't have, and builds them. They're GoogleTest, raylib, Dear ImGui, rlImGui, abseil, protobuf, Asio, prometheus-cpp, hiredis, nlohmann/json and cpp-httplib |
+| Warnings from `_deps/` | They're the libraries', built as they come, while the game's own code builds without one |
 | `100% tests passed`, and some `(Skipped)` | It's built. The skipped tests need MySQL, Redis and Consul, as in the last row above |
-| `Can't connect to local MySQL server through socket` | MySQL's library takes `localhost` to mean its socket file: use `127.0.0.1` |
+| `Can't connect to local MySQL server through socket` | MySQL's library takes `localhost` to mean its socket file, so use `127.0.0.1` |
 
 ## 4. Start the servers
 
@@ -79,7 +79,7 @@ scripts/certificates.sh
 ./build/bin/nanommo_login
 ```
 
-Then, in another terminal:
+Then start a world in another terminal.
 
 ```bash
 ./build/bin/nanommo_server
@@ -88,16 +88,16 @@ Then, in another terminal:
 | Runs | What it is | Port |
 |---|---|---|
 | `docker compose up` | MySQL, Redis, Consul, and the saver that takes players from Redis to MySQL | 3306, 6379, 8500 |
-| `scripts/certificates.sh` | The certificates, once: [TLS](accounts.md#tls) | |
+| `scripts/certificates.sh` | The certificates, once. More in [TLS](accounts.md#tls) | |
 | `nanommo_login` | The login server | 7778 |
 | `nanommo_server` | A world, Ember | 7777 TCP and UDP, 9464 for metrics |
 
 | To also have | Run |
 |---|---|
-| The storyteller's stories | `docker compose up -d --build storyteller`: [The storyteller](npcs.md#the-storyteller) |
-| A second world | `NANOMMO_WORLD=Frost NANOMMO_METRICS_PORT=9465 ./build/bin/nanommo_server 7787`: [Worlds](worlds.md) |
-| Ten bots, playing | `./build/bin/nanommo_bot localhost localhost 10 10`: [Monitoring](monitoring.md) |
-| Playing in a browser, online | `./build/bin/nanommo_gateway`, on port 8090, and the web build: [The client in a browser](web.md#online-through-the-gateway) |
+| The storyteller's stories | `docker compose up -d --build storyteller`. More in [The storyteller](npcs.md#the-storyteller) |
+| A second world | `NANOMMO_WORLD=Frost NANOMMO_METRICS_PORT=9465 ./build/bin/nanommo_server 7787`. More in [Worlds](worlds.md) |
+| Ten bots, playing | `./build/bin/nanommo_bot localhost localhost 10 10`. More in [Monitoring](monitoring.md) |
+| Playing in a browser, online | `./build/bin/nanommo_gateway`, on port 8090, and the web build. More in [The client in a browser](web.md#online-through-the-gateway) |
 
 ## 5. Play
 
@@ -107,9 +107,9 @@ Then, in another terminal:
 
 | Screen | Do |
 |---|---|
-| Login | A name and a password: Make an account the first time, Log in after |
+| Login | A name and a password, then Make an account the first time, and Log in after |
 | Worlds | Ember, with the arrow keys and Enter, or a click |
-| Characters | New character, or straight there with nobody yet: a name, a build, a skin and hair, and Create. Then Enter the world |
+| Characters | New character, or straight there with nobody yet. Choose a name, a build, a skin and hair, and Create. Then Enter the world |
 
 | Key | Does |
 |---|---|
@@ -134,12 +134,13 @@ Then, in another terminal:
 
 More in [Gameplay](gameplay.md).
 
-Without the servers, `./build/bin/nanommo_client --offline` plays a world of the client's own: the
+Without the servers, `./build/bin/nanommo_client --offline` plays a world of the client's own, the
 Meadows, for you alone, with nothing saved, as a browser plays it ([Offline](web.md#offline)).
 
 ## 6. Play from another computer
 
-On the computer with the servers, at `192.168.1.20` in this example:
+On the computer with the servers, at `192.168.1.20` in this example, make certificates that name
+its address and start the servers.
 
 ```bash
 scripts/certificates.sh tls 192.168.1.20
@@ -147,7 +148,8 @@ scripts/certificates.sh tls 192.168.1.20
 NANOMMO_PUBLIC_HOST=192.168.1.20 ./build/bin/nanommo_server
 ```
 
-On the other computer, with the game built at the same version:
+On the other computer, with the game built at the same version, copy the servers' `ca.crt` and
+start the client with it.
 
 ```bash
 scp you@192.168.1.20:nanoMMO/tls/ca.crt tls/their-ca.crt
@@ -160,8 +162,8 @@ NANOMMO_TLS_CA=tls/their-ca.crt ./build/bin/nanommo_client 192.168.1.20
 | `NANOMMO_PUBLIC_HOST` | A world tells players where to find it, and it's `localhost` without this |
 | `tls/their-ca.crt` | The client trusts only the authority that signed the servers' certificate |
 | The same version | The login server turns away a client of another minor version |
-| A firewall | Let in 7778 over TCP and 7777 over TCP and UDP: `sudo ufw allow 7778/tcp && sudo ufw allow 7777` |
-| macOS | Give the terminal Local Network access: System Settings, Privacy & Security, Local Network |
+| A firewall | Let in 7778 over TCP and 7777 over TCP and UDP, with `sudo ufw allow 7778/tcp && sudo ufw allow 7777` |
+| macOS | Give the terminal Local Network access, in System Settings, Privacy & Security, Local Network |
 
 ## 7. Stop and start over
 
@@ -193,4 +195,4 @@ NANOMMO_TLS_CA=tls/their-ca.crt ./build/bin/nanommo_client 192.168.1.20
 | `This client is 0.64.0, and the servers are 0.65.0` | The client and the servers were built at different versions | Build both at the same tag |
 | `No route to host`, on macOS | The terminal may not use the local network | System Settings, Privacy & Security, Local Network |
 | The storyteller says it can't think of a story | It isn't running | `docker compose up -d --build storyteller` |
-| `couldn't load ... background.mp3` | The music isn't in git, for its licence | The game plays without it: [assets/music](../assets/music/README.md) |
+| `couldn't load ... background.mp3` | The music isn't in git, for its licence | The game plays without it. More in [assets/music](../assets/music/README.md) |

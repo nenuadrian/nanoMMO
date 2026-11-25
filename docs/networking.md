@@ -1,11 +1,11 @@
 # Networking
 
-## Packet loss: TCP and UDP
+## Packet loss over TCP and UDP
 
 The server sends each client the world over TCP, or over UDP once the client asks for it. To see what
 a bad network does to each, `compose.yaml` has a `netem` service. It runs `tools/bench/netem.sh` in
 the server's network namespace, with the `NET_ADMIN` capability, and uses Linux's netem to delay the
-server's packets and drop a share of them: a delay in milliseconds, then a loss in percent.
+server's packets and drop a share of them. It takes a delay in milliseconds, then a loss in percent.
 
 ```bash
 docker compose up -d --build
@@ -28,12 +28,12 @@ tools/bench/loss.sh tcp > tools/bench/results/tcp.json
 tools/bench/loss.sh udp > tools/bench/results/udp.json
 ```
 
-Without loss, the two are level: a world is up to a tick old, plus the delay. Over TCP, the p99 climbs
+Without loss, the two are level, with a world up to a tick old, plus the delay. Over TCP, the p99 climbs
 with each step of loss, as the worlds wait for each lost packet to be sent again, and at ten percent
 TCP can't keep up with 200 clients at all. Over UDP, the p99 stays within a tick or two of no loss. So
 the client and the bots take their worlds over UDP by default.
 
-How the world gets there over UDP:
+This is how the world gets there over UDP.
 
 - The client logs in and says hello over TCP, as before. Its input keeps going over TCP, and so does
   anything that has to arrive.
@@ -70,7 +70,7 @@ would be hidden in the fog anyway.
   once at most (see [A faction's messages](#a-factions-messages)).
 
 With bots that spread over the island, `tools/bench/load.sh 100 12` on an Apple M4 Pro, with the
-bots on the same machine as the server:
+bots on the same machine as the server, gives the numbers below.
 
 | Each player gets | 20 ticks a second up to | At 1,200 players | Sent to each player, with 500 |
 |---|---|---|---|
@@ -85,13 +85,13 @@ about 700 players, where before it fell behind past 400.
 ## What happens near you
 
 The world comes each tick, and the newest replaces the last, so a client knows how things are, but
-not what happened in between: who hit whom, for how much, or that a potion was drunk at the moment a
-skeleton hit. Those are events, which come once each, and the client floats each over the unit it's
-about, as combat text.
+not what happened in between, such as who hit whom, for how much, or that a potion was drunk at the
+moment a skeleton hit. Those are events, which come once each, and the client floats each over the
+unit it's about, as combat text.
 
 - The world records a hit a player lands, a hit a monster lands on a player, health a potion or a
   skill gives back, and a new level, as events (`server/world.h`, `Event`), with the player's id,
-  the monster's id for a hit, and the amount. They're the analytics' events too: the analytics keep
+  the monster's id for a hit, and the amount. They're the analytics' events too. The analytics keep
   the kinds they count (`ForAnalytics`), and not the blows, which come a second or so apart for each
   player in a fight.
 - After the world goes out, the server sends each player the events in their copy of the land whose
@@ -111,15 +111,15 @@ about, as combat text.
 ## Your own moves, before the server answers
 
 The server decides where everyone is, so with nothing more, a key you press moves you a round trip
-later: at 150 milliseconds, you start and stop walking a beat after your fingers. The client walks
+later. At 150 milliseconds, you start and stop walking a beat after your fingers. The client walks
 you at once instead, the way the server will, and the server's answer corrects it.
 
 | Where | What |
 |---|---|
 | The client | Sends its keys once each of the server's ticks, 20 a second, each numbered, from 1 |
-| The server | Applies a player's numbered keys in order, one a tick, before the world steps, keeping a few that arrive together and dropping the oldest past five. A slow frame on the client sends two or three together, so with more than three waiting, it's fallen behind the client, and skips one a tick until it's caught up. Inputs come in as fast as they go out, so a queue a burst filled would stay full: if two or more waited at the start of every tick for a second, it drops one |
+| The server | Applies a player's numbered keys in order, one a tick, before the world steps, keeping a few that arrive together and dropping the oldest past five. A slow frame on the client sends two or three together, so with more than three waiting, it's fallen behind the client, and skips one a tick until it's caught up. Inputs come in as fast as they go out, so a queue a burst filled would stay full. If two or more waited at the start of every tick for a second, it drops one |
 | Each world | Says the last of your inputs the server applied (`acked`), and whether it moved you itself that tick (`steered`), with where you are, in every datagram |
-| The client | Shows the round trip under the minimap, or in its place with the minimap off: from sending an input to the world that says it was applied |
+| The client | Shows the round trip, from sending an input to the world that says it was applied, under the minimap, or in its place with the minimap off |
 
 - The client walks you with each tick's keys as it sends them, with `WalkAlong` from
   `server/walking.h`, which the server walks players with. It's a library both link, built without
@@ -138,7 +138,7 @@ To feel it, put a delay on the server's packets with the `netem` service above, 
 
 ## Everyone else, a moment in the past
 
-Worlds come 20 times a second, but not evenly: one can be late, two can come together, and over
+Worlds come 20 times a second, but not evenly. One can be late, two can come together, and over
 UDP one can be lost. Drawing each player and monster where the newest world has them shows that as
 a stop and a lurch. So the client draws everyone else as they were a moment ago, between two worlds
 it already has (`client/interpolation.h`).
@@ -151,8 +151,8 @@ it already has (`client/interpolation.h`).
   between the two worlds on either side of then. Two ticks is enough for a world up to a tick late.
 - With no world after then, as when the next one is lost, the last two carry them on the way they
   were going, two ticks at most, and then they wait for it.
-- You're the prediction's (above), so you're drawn now, and everyone else 100 milliseconds ago:
-  that's the price of seeing them move smoothly.
+- You're the prediction's (above), so you're drawn now, and everyone else 100 milliseconds ago,
+  which is the price of seeing them move smoothly.
 
 ## Only what's changed
 
@@ -162,8 +162,8 @@ the newest world your client has.
 
 - Each input says the newest world the client has whole, every part of it, by when it was sent
   (`seen`), and the bots' say so too, each tick, as a client's do.
-- The server remembers a second of what it sent each client: the copy of the land it was in, and a
-  hash of each player's and monster's piece (`Server::Delta`).
+- The server remembers a second of what it sent each client, keeping the copy of the land it was in
+  and a hash of each player's and monster's piece (`Server::Delta`).
 - A player or monster whose piece is the same as in the world the client has goes by its id alone,
   in `still_players` or `still_monsters`. The client keeps those as it has them, and as still near
   it. Anyone in neither, in a world that came whole, is gone, as before.
@@ -173,7 +173,7 @@ the newest world your client has.
 
 With forty bots on one machine (`nanommo_bot localhost localhost 40 5 1 udp`), the server sent
 16.8 KB a second to each before, and 7.6 KB after, from `nanommo_bytes_sent_total`. Those who
-move still go whole each tick: a player walking changes where they are, and so their piece.
+move still go whole each tick, as a player walking changes where they are, and so their piece.
 
 ## A duel's messages
 
@@ -186,7 +186,7 @@ player, so the server keeps it to the two who said yes, and checks the rest as i
 | `Input` | `target_player`, 20 | The player picked, with each input, beside the monster's `target`. The world keeps it only for the opponent in a duel that's started, or an enemy at war (below), so it can't hurt anyone else |
 | `World` | `duel`, 27 | Who with, by name and id, how far it's got, the countdown's milliseconds and the flag. On its own, over TCP, to both sides, as it's asked for, at each second of the countdown, and as it starts and ends, with nobody in it once it's over |
 | `Player` | `target_player`, 16 | While they use a skill in a duel, the player it's for, so that its fx land on them on everyone's screen, as `target` does for a monster |
-| `Input` | `drawn`, 21 | When, on the server's clock, in microseconds, the client was drawing everyone else as it sent it, with each numbered input: a blow on the opponent is checked against where they were then (below) |
+| `Input` | `drawn`, 21 | When, on the server's clock, in microseconds, the client was drawing everyone else as it sent it, with each numbered input. A blow on the opponent is checked against where they were then (below) |
 
 ## A war's messages
 
@@ -197,7 +197,7 @@ yours too, and a blow on them is checked as a duel's is (below).
 | Message | Field | What |
 |---|---|---|
 | `GuildAction` | `war`, 11 | A leader's ask, by the other guild's name, or a yes, as asking back is, once, over TCP |
-| `Guild` | `war`, 4 | The guild's war, with its news, a `GuildWar`: the enemy guild, by name, `kills` and `enemy_kills`, from your side, as MySQL has them, a few seconds behind, and `left`, the seconds it had left, which the client counts down from. Nothing, for no war |
+| `Guild` | `war`, 4 | The guild's war, with its news, a `GuildWar`. It has the enemy guild, by name, `kills` and `enemy_kills`, from your side, as MySQL has them, a few seconds behind, and `left`, the seconds it had left, which the client counts down from. Nothing, for no war |
 
 The news comes as the war starts, as its score moves, and as it ends, as the world reads its wars
 every five seconds. Each kill is a line from nobody in both guilds' chat, on `CHANNEL_GUILD`, which
@@ -210,8 +210,8 @@ move in the bag, and the client says no more than which recipe.
 
 | Message | Field | What |
 |---|---|---|
-| `Input` | `craft`, 22 | A `CraftAction`: `start`, a recipe by its id, or `stop`, once, over TCP. Three at once, and then one a second |
-| `World` | `crafting`, 29 | While you're making something, a `Crafting`: the `recipe`, by its id, and `done`, how long you've been at it, in milliseconds, which the client fills its bar from, with the recipe's seconds from its content. In your own part of every world, as `respawn` is, up to 15 bytes, which each datagram leaves room for. Nothing, while you're making nothing |
+| `Input` | `craft`, 22 | A `CraftAction` with `start`, a recipe by its id, or `stop`, once, over TCP. Three at once, and then one a second |
+| `World` | `crafting`, 29 | While you're making something, a `Crafting` with the `recipe`, by its id, and `done`, how long you've been at it, in milliseconds, which the client fills its bar from, with the recipe's seconds from its content. In your own part of every world, as `respawn` is, up to 15 bytes, which each datagram leaves room for. Nothing, while you're making nothing |
 
 What's made goes into the bag, which comes as it always does, once its revision moves, and why
 something couldn't be made, or that it was, is a line from nobody.
@@ -220,9 +220,9 @@ something couldn't be made, or that it was, is a line from nobody.
 
 A player chooses how their character looks as they make them
 ([Gameplay](gameplay.md#making-a-character)), and it never changes, so the looks go as four small
-numbers, a `Looks`: `build`, a place in the rig's builds, and `skin`, `hair_color` and `hair`,
-places in the figures file's lists. Each client wraps each round to what its lists have, so any
-number draws as a look there is, the same on every client in the world, and there's nothing for
+numbers, a `Looks`. They are `build`, a place in the rig's builds, and `skin`, `hair_color` and
+`hair`, places in the figures file's lists. Each client wraps each round to what its lists have, so
+any number draws as a look there is, the same on every client in the world, and there's nothing for
 the servers to check but that it fits its column ([Accounts](accounts.md#characters)).
 
 | Message | Field | What |
@@ -240,8 +240,8 @@ client says no more than which.
 |---|---|---|
 | `Input` | `give_up`, 23 | A quest you're on, by its id in the quests file, once, over TCP. The world takes it off you, kills and all, and your quests come again, as `World`'s `quests`, 17, at their next revision. Zero, the default, gives up nothing |
 
-Giving up a quest you're not on, or one you've turned in, is a line from nobody: "You're not on
-that quest."
+Giving up a quest you're not on, or one you've turned in, is a line from nobody that says "You're
+not on that quest."
 
 ## A faction's messages
 
@@ -250,12 +250,12 @@ client says no more than which herald, and everyone near sees the faction as the
 
 | Message | Field | What |
 |---|---|---|
-| `Input` | `enlist`, 24 | A herald, by the NPC's id, once, over TCP. The world checks it as it does a trainer: an NPC in your land, within talking reach, who's a herald, and you in no faction yet. Zero, the default, swears to nothing |
+| `Input` | `enlist`, 24 | A herald, by the NPC's id, once, over TCP. The world checks it as it does a trainer, for an NPC in your land, within talking reach, who's a herald, and you in no faction yet. Zero, the default, swears to nothing |
 | `Player` | `faction`, 18 | The faction they've sworn to, by its id in the factions file, of everyone near you, once a second, with the name, which the client keeps in between, as it does a guild. A player with their name and no faction is in none. Your own part of each world leaves it out, as it does your name |
 | `Arg` | `faction`, 11 | A faction in a server's sentence, by its id, "You've joined $0.", which the client names in its player's language, in the context `faction 1` |
 
-What's refused is a line from nobody: "Nobody here swears players to a faction.", "You're too far
-away to talk to the Herald of Concordia." or "You're sworn to Concordia already.". A faction is a
+What's refused is a line from nobody. It's "Nobody here swears players to a faction.", "You're too
+far away to talk to the Herald of Concordia." or "You're sworn to Concordia already.". A faction is a
 byte or two in each player's piece of a full world, and nothing in the worlds between.
 
 ## Blows where the attacker saw them
@@ -263,7 +263,7 @@ byte or two in each player's piece of a full world, and nothing in the worlds be
 A client draws everyone else 100 milliseconds in the past (above), and its keys reach the server a
 round trip after the world they answer left it, so by the time a blow lands, the player it was
 aimed at has moved on from where the attacker saw them. Running, at 3.1 metres a second, with a
-round trip of 50 to 200 milliseconds, that's 0.5 to 0.9 metres, against a sword's reach of 1.6: a
+round trip of 50 to 200 milliseconds, that's 0.5 to 0.9 metres, against a sword's reach of 1.6, so a
 blow that looked in reach misses, and one that looked as if it would miss can land. Making up for
 it is called lag compensation, and the server does it for the blows of a duel or a war.
 
@@ -271,20 +271,20 @@ it is called lag compensation, and the server does it for the blows of a duel or
   its own that goes on a step at a time (`server/history.h`). It gives where they were at any time
   in that second, between the ticks on either side.
 - Each numbered input says when, on the server's clock, its client was drawing everyone else as it
-  sent it (`drawn`): 100 milliseconds before the newest world, as the clocks go
+  sent it (`drawn`), which is 100 milliseconds before the newest world, as the clocks go
   (`Interpolation::Drawn`). As the input is applied, the server takes how far behind its own clock
   that is.
 - A player's blows on their duel opponent, or an enemy at war, are checked against where that
-  player was that long before: the reach and the arc, and the aim and the run-up, which go by where
-  the one picked is. Nobody's moved: the history is only looked at.
+  player was that long before, for the reach and the arc, and the aim and the run-up, which go by
+  where the one picked is. Nobody's moved, as the history is only looked at.
 - A client can say anything, so the server believes 200 milliseconds at most
-  (`Inputs::kMostRewind`): the 100 a client draws everyone in the past, and a round trip of up to
-  100. A time further back is 200 milliseconds, and a time ahead of the server's clock is now, as is
-  an input that doesn't say, as a bot's.
+  (`Inputs::kMostRewind`), which is the 100 a client draws everyone in the past, and a round trip
+  of up to 100. A time further back is 200 milliseconds, and a time ahead of the server's clock is
+  now, as is an input that doesn't say, as a bot's.
 - A monster is hit where it is, as a blow pushes and throws it from there. It stands still to swing,
   and comes to whoever hurt it, so where a client drew it a moment ago is near enough.
 
-The cost falls on the player who's hit: running off, out of reach on their own screen, they can
+The cost falls on the player who's hit. Running off, out of reach on their own screen, they can
 still be hit where they were up to 200 milliseconds before, 0.62 metres behind them at a run. A
 client can always say it's the most behind, so a modified one gets that whatever its network, about
 100 milliseconds more than a client beside the server (`stale`, below). Over a round trip of 100
@@ -297,7 +297,7 @@ the other player run out of reach as a blow comes.
 
 ## The sky
 
-Each player's own part of the world carries the sky over their land, `World`'s `sky` (28): the
+Each player's own part of the world carries the sky over their land, `World`'s `sky` (28), with the
 time of day, the weather, how strong it is, and the wind ([Graphics](graphics.md#day-and-night),
 [decision 0037](decisions/0037-the-server-owns-the-sky.md)). The server works it out from the wall
 clock (`server/weather.h`), so it's nothing to keep, and it's about 25 bytes, so it goes in every
@@ -309,8 +309,8 @@ newest world's.
 What the servers say, a refusal, a guild's news, what a monster dropped, or a login server's error,
 goes as a `Message`, for the client to say in its player's language
 ([Translations](translations.md#the-servers-sentences),
-[decision 0046](decisions/0046-the-servers-send-their-sentences-as-their-english-and-args-for-the-client-to-translate.md)):
-its English, which is its key, with `$0` to `$9`, and its args.
+[decision 0046](decisions/0046-the-servers-send-their-sentences-as-their-english-and-args-for-the-client-to-translate.md)).
+It holds its English, which is its key, with `$0` to `$9`, and its args.
 
 | Message | Field | What |
 |---|---|---|
@@ -324,30 +324,30 @@ its English, which is its key, with `$0` to `$9`, and its args.
 | `Chat` | `npc`, 5 | An NPC who speaks, in place of `name`, by its kind, as a storyteller does |
 | `LoginReply` | `why`, 7 | Why not, as a `Message`, beside `error`, 3, its English, which a client from before 0.96.0 reads |
 
-A message is about the size of the line it replaces: its English, with placeholders where the
-names were, and a few bytes for each arg, over TCP, as the lines were.
+A message is about the size of the line it replaces. It has its English, with placeholders where
+the names were, and a few bytes for each arg, and goes over TCP, as the lines did.
 
 ## What a modified client can try
 
 The client runs on the player's machine, so anything it sends can be made up. `nanommo_cheat` is
-the server's red-team client: a player without a window, who breaks the client's rules one way at a
+the server's red-team client, a player without a window, who breaks the client's rules one way at a
 time and prints what it gets for it (`tools/cheat/main.cc`). It runs beside the servers, with an
-account of its own: `nanommo_cheat <name> <password> <cheat>`, and for a trade, a duel or a war, the
-partner, who runs `take` for a trade, for a duel says yes in their client, or runs `duel`, and for a
-war runs `feed`: `nanommo_cheat <name> <password> <cheat> <partner>`.
+account of its own, as `nanommo_cheat <name> <password> <cheat>`. For a trade, a duel or a war, it
+names a partner too, as `nanommo_cheat <name> <password> <cheat> <partner>`, and the partner runs
+`take` for a trade, for a duel says yes in their client, or runs `duel`, and for a war runs `feed`.
 
 | Cheat | What it sends | What it gets |
 |---|---|---|
-| `speed` | Three running inputs a tick, where the client sends one | 3.1 m/s, as running does: the server applies one input a tick (`ServerTest.MoreInputsThanTicksDontRunFaster`) |
-| `teleport` | A direction of 1000, then one that isn't a number | 3.1 m/s: a direction is scaled back to a length of one, and one that isn't a number is ignored, so the last keys go on |
-| `reach` | A swing at a monster 20 metres away | No hit from there: the server runs the player up to the monster first |
-| `rapid` | Its first skill ten times a tick | No more hits than using it once it's ready: the cooldowns are the server's |
-| `cancel` | Its weapon into the bag as each blow lands, and back two ticks later | Nothing, from 0.72.0: a skill keeps the timings of the weapon it started with, so a swing whose blow has landed plays out (`World.PuttingTheWeaponAwayAfterItsBlowDoesntSwingSooner`). Before, the next swing started as soon as the weapon was back, about twice as often |
-| `swap` | Its sword offered from the bag, and once the partner's ready, a move of the sword to another slot, and its own ready | Nothing, from 0.75.0: a place that's offered is held until the trade's over, so the move is refused, and the partner gets the sword (`Trades.WhatsOfferedStaysWhereItIsUntilTheTradesOver`). The trade gives nothing unless each place still has what was offered (`Trades.AnItemMovedAfterItsOfferedIsntGivenTwice`). Before, the partner got the copy made at the offer, and the sword stayed too: three swords from two |
-| `run` | Its sword offered, and once the partner's ready, its own ready, and it leaves at once | Nothing, from 0.75.0: a trade saves both bags, together, as it's done, and a player who leaves is saved as they go, so it comes back without the sword (`ServerTest.ATradeAndALeaveLeaveOneSword`). Before, it left before the tick that would have saved its bag, and came back to the bag Redis had from before the trade: three swords from two |
-| `twice` | A hello to the world's second instance too, with a token of its own, each second for twenty seconds until it's let in, and its sword traded away on the first, which it leaves. On the second, which loaded its bag before the trade, a move of the sword into the bag | Nothing, from 0.79.0: a character plays on one instance at a time, the one that has their lease, so the second turns it away, and the trade goes as it should (`ServerTest.ACharacterPlaysOnOneInstanceAtATime`). Should the first stall for longer than a lease, the second can take it, and the first can't save it any more, and drops it (`ServerTest.AnInstanceDropsAPlayerWhoseLeaseItsLost`). Before, each instance saved it as it had it, and the second saved its bag from before the trade over the trade: three swords from two |
+| `speed` | Three running inputs a tick, where the client sends one | 3.1 m/s, as running does, because the server applies one input a tick (`ServerTest.MoreInputsThanTicksDontRunFaster`) |
+| `teleport` | A direction of 1000, then one that isn't a number | 3.1 m/s, as a direction is scaled back to a length of one, and one that isn't a number is ignored, so the last keys go on |
+| `reach` | A swing at a monster 20 metres away | No hit from there, as the server runs the player up to the monster first |
+| `rapid` | Its first skill ten times a tick | No more hits than using it once it's ready, as the cooldowns are the server's |
+| `cancel` | Its weapon into the bag as each blow lands, and back two ticks later | Nothing, from 0.72.0, as a skill keeps the timings of the weapon it started with, so a swing whose blow has landed plays out (`World.PuttingTheWeaponAwayAfterItsBlowDoesntSwingSooner`). Before, the next swing started as soon as the weapon was back, about twice as often |
+| `swap` | Its sword offered from the bag, and once the partner's ready, a move of the sword to another slot, and its own ready | Nothing, from 0.75.0, as a place that's offered is held until the trade's over, so the move is refused, and the partner gets the sword (`Trades.WhatsOfferedStaysWhereItIsUntilTheTradesOver`). The trade gives nothing unless each place still has what was offered (`Trades.AnItemMovedAfterItsOfferedIsntGivenTwice`). Before, the partner got the copy made at the offer, and the sword stayed too, which made three swords from two |
+| `run` | Its sword offered, and once the partner's ready, its own ready, and it leaves at once | Nothing, from 0.75.0, because a trade saves both bags, together, as it's done, and a player who leaves is saved as they go, so it comes back without the sword (`ServerTest.ATradeAndALeaveLeaveOneSword`). Before, it left before the tick that would have saved its bag, and came back to the bag Redis had from before the trade, which made three swords from two |
+| `twice` | A hello to the world's second instance too, with a token of its own, each second for twenty seconds until it's let in, and its sword traded away on the first, which it leaves. On the second, which loaded its bag before the trade, a move of the sword into the bag | Nothing, from 0.79.0, because a character plays on one instance at a time, the one that has their lease, so the second turns it away, and the trade goes as it should (`ServerTest.ACharacterPlaysOnOneInstanceAtATime`). Should the first stall for longer than a lease, the second can take it, and the first can't save it any more, and drops it (`ServerTest.AnInstanceDropsAPlayerWhoseLeaseItsLost`). Before, each instance saved it as it had it, and the second saved its bag from before the trade over the trade, which made three swords from two |
 | `stale` | In a duel, with each input, that its client drew everyone a second before its newest world, where a client says 100 milliseconds, to hit its opponent where they were a second ago | No more than 200 milliseconds back, from 0.82.0, which the server believes at most (`Inputs.AClaimFurtherBackThanTheMostIsTheMost`), so its blows land within reach of where its opponent was then, and not of where they were a second ago (`ServerTest.ADuelBlowLandsWhereTheClientDrewThemUpToTheMost`). It prints what it says, with how far off its opponent was then and is now, and each blow that lands. That's 100 milliseconds more than a client beside the server says, 0.31 metres on a runner |
-| `farm` | In a war with the partner, a friend in the other guild, who runs `feed`: stands still until it's killed, comes back as soon as it can and walks back. `farm` picks them and swings each tick | 2 kills of 17 scored in six and a half minutes, from 0.92.0: a victim scores for a war once every five minutes at most (`Wars.AVictimScoresOnceEveryFiveMinutes`). The kills still happen. Before, each one scored: 15 to 0 in six minutes, 2.6 a minute, for as long as the war lasts |
+| `farm` | In a war with the partner, a friend in the other guild, who runs `feed` and so stands still until it's killed, comes back as soon as it can and walks back. `farm` picks them and swings each tick | 2 kills of 17 scored in six and a half minutes, from 0.92.0, as a victim scores for a war once every five minutes at most (`Wars.AVictimScoresOnceEveryFiveMinutes`). The kills still happen. Before, each one scored, which made 15 to 0 in six minutes, 2.6 a minute, for as long as the war lasts |
 
 `walk`, `fight`, `swing`, `take`, `duel` and `feed` keep the rules, to compare with. Why the server
 checks everything is [decision 25](decisions/0025-the-server-checks-what-a-client-asks-for.md), how

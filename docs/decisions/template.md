@@ -4,8 +4,8 @@
 
 Accepted
 
-<!-- Or: Superseded by [NNNN](NNNN-kebab-title.md). That line is the only edit an accepted record
-ever gets. -->
+<!-- The status can also be Superseded by [NNNN](NNNN-kebab-title.md). That line is the only edit
+an accepted record ever gets. -->
 
 ## Context
 

@@ -13,7 +13,7 @@ they're playing.
 
 ## Decision
 
-- The game has one version, for the client and all the servers: `project(nanommo VERSION ...)`.
+- The game has one version, for the client and all the servers, in `project(nanommo VERSION ...)`.
   CMake writes it into `protocol/version.h` as it configures the build, as `nanommo::kVersion`.
 - A version is MAJOR.MINOR.PATCH, after Semantic Versioning. While the major version is 0, each
   episode's code is a minor version, 0.59.0 for episode 59's, and a patch fixes a minor version

@@ -19,12 +19,12 @@ into one `build/` folder.
 ## Decision
 
 - The game's programs are C++23 (`CMAKE_CXX_STANDARD 23`), required, without the compilers'
-  extensions. The rest of 0001 holds: CMake and Ninja, Google's style guide, `absl::Status` for what
-  can fail, and a library for what two sides share.
+  extensions. The rest of 0001 holds. That's CMake and Ninja, Google's style guide, `absl::Status`
+  for what can fail, and a library for what two sides share.
 - We use a part of C++23 once the compilers we build with have it, in the versions our platforms
-  ship: GCC 15 and Clang 21, Ubuntu 26.04's, in Docker and CI, Xcode on macOS, and GCC 14 on Ubuntu
-  24.04. Of the parts that came late, the game uses a member function that takes its object as a
-  parameter, `this auto self`, and a subscript operator with two indexes, `grid[j, i]`.
+  ship. They are GCC 15 and Clang 21, Ubuntu 26.04's, in Docker and CI, Xcode on macOS, and GCC 14
+  on Ubuntu 24.04. Of the parts that came late, the game uses a member function that takes its
+  object as a parameter, `this auto self`, and a subscript operator with two indexes, `grid[j, i]`.
   `doctor.sh` asks the compiler to compile both.
 - `Grid` (`terrain/terrain.h`) is our own view of a grid kept in one array, and checks each index
   against its row or column with abseil's `CHECK`, in each build.
@@ -47,8 +47,8 @@ into one `build/` folder.
 - Ubuntu 24.04 builds with `g++-14`, as its GCC 13 can't compile `this auto self`, and Ubuntu 22.04's
   compilers can't build the game ([Getting started](../getting-started.md)).
 - A lambda that takes its own object, with its return type deduced, can't be handed to Asio's
-  `async_wait` before that type is known: async_wait checks it, and deducing it needs the body, which
-  calls async_wait (episode 73, step 5). Those lambdas name it, `-> void`.
+  `async_wait` before that type is known, because async_wait checks it, and deducing it needs the
+  body, which calls async_wait (episode 73, step 5). Those lambdas name it, `-> void`.
 - Clang 18 crashes generating the code for those lambdas, where each hands its own object to
   async_wait (episode 73, step 6), so the Dockerfile's sanitizers, fuzzers, clang-tidy and coverage
   build with Clang 21, Ubuntu 26.04's own, and building the checks takes Clang 19 or newer.

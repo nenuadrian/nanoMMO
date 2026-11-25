@@ -8,13 +8,12 @@ Accepted
 
 Until episode 91, a player hurt another only in a duel that both had said yes to, which ends at
 one health and gives nothing ([0033](0033-players-fight-each-other-in-duels-that-end-at-one-health.md)).
-That decision left players hurting each other anywhere, with the rules that go with it, for a
-later episode: who may attack whom, what a death costs, and what stops a player hunting the
-newest.
+That decision left players hurting each other anywhere, with the rules that go with it on who may
+attack whom, what a death costs, and what stops a player hunting the newest, for a later episode.
 
 Episode 91 brings it in through guilds, which are in MySQL, each change a transaction
-([0021](0021-guilds-in-mysql-transactions.md)): a guild is a group that's chosen to be one, with a
-leader to speak for it, and a war between two is something both can say yes to. It had to settle
+([0021](0021-guilds-in-mysql-transactions.md)). A guild is a group that's chosen to be one, with
+a leader to speak for it, and a war between two is something both can say yes to. It had to settle
 who may hurt whom, what a kill does, where a war is kept, as the world's library knows nothing of
 MySQL ([0008](0008-one-thread-for-the-world.md), [0030](0030-offline-the-client-runs-the-worlds-rules.md)),
 how a war started on one instance reaches the other during a handover, and how a war's kills are
@@ -51,8 +50,8 @@ counted.
 ## Alternatives considered
 
 - Players hurting anyone, anywhere, or in some lands, as decision 33 put it (not weighed in an
-  episode). It needs rules of its own to stop a player hunting the newest: levels, safe places, a
-  cost to killing. A war takes two guilds that both said yes.
+  episode). It needs rules of its own to stop a player hunting the newest, such as levels, safe
+  places, and a cost to killing. A war takes two guilds that both said yes.
 - A war's blows ending at one health, as a duel's do. Nobody would die, so a guild would have
   nothing to win, and a fight between two crowds would go on until one side walked off.
 - A war until one side gives up, or a surrender (not weighed in an episode). A war that one side
@@ -80,9 +79,9 @@ counted.
 - A war starts at once on the instance where it's accepted, and on the other within five seconds.
   It ends up to five seconds after its half hour, and if MySQL can't be read, once it can.
 - A death in a war is a death in the analytics, with no monster.
-- The score is a few seconds behind the game, as the roster's levels are: up to five seconds for
-  the saver's flush, and up to five more for the world to read it. A kill whose save Redis doesn't
-  take, as when it can't be reached, isn't counted.
+- The score is a few seconds behind the game, as the roster's levels are, with up to five seconds
+  for the saver's flush, and up to five more for the world to read it. A kill whose save Redis
+  doesn't take, as when it can't be reached, isn't counted.
 - A blow by a player in a war or a duel goes through each player in their copy of the land. Most
   blows are by players in neither, which pass the players by.
 - The bots pass over a guild's news, so they take no part in wars.

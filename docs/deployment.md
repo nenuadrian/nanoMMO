@@ -5,23 +5,24 @@ The game runs on any Linux server with Docker and Docker Compose, such as a VPS,
 `COMPOSE_FILE=compose.yaml:compose.prod.yaml`, so each `docker compose` command there reads both.
 
 - The internet reaches the login server on TCP port 7778, the worlds on ports 7777 and 7787, TCP and
-  UDP, and their next instances on 7877 and 7887, and the website on port 8080, and nothing else. MySQL, Redis, the storyteller and the worlds'
-  metrics stay on Compose's own network. Docker publishes a port past a firewall such as ufw, so leaving a port out of
-  the file is what keeps it off the internet.
-- Prometheus, Grafana, Loki, Tempo, Alertmanager, Mailpit and Consul listen on the server's localhost. Reach
-  them through SSH: `ssh -L 3000:localhost:3000 -L 9090:localhost:9090 -L 9093:localhost:9093 -L
-  8025:localhost:8025 -L 8500:localhost:8500 debian@203.0.113.7`, then open
-  http://localhost:3000, where Grafana reaches Loki and Tempo on Compose's network.
+  UDP, and their next instances on 7877 and 7887, the gateway on port 8090 (see
+  [In a browser](#in-a-browser)), and the website on port 8080, and nothing else. MySQL, Redis, the
+  storyteller and the worlds' metrics stay on Compose's own network. Docker publishes a port past a
+  firewall such as ufw, so leaving a port out of the file is what keeps it off the internet.
+- Prometheus, Grafana, Loki, Tempo, Pyroscope, Alertmanager, Mailpit, ClickHouse and Consul listen
+  on the server's localhost. Reach them through SSH, with
+  `ssh -L 3000:localhost:3000 -L 9090:localhost:9090 -L 9093:localhost:9093 -L 8025:localhost:8025 -L 8500:localhost:8500 debian@203.0.113.7`,
+  then open http://localhost:3000, where Grafana reaches Loki and Tempo on Compose's network.
 - MySQL's password and the website's `APP_KEY` come from `.env` on the server, which
   `scripts/deploy.sh` makes on the first deploy, with random ones, readable by the deploying user
   alone. Git and the Docker builds leave `.env` out.
-- The worlds' public host comes from `.env` too, as `NANOMMO_PUBLIC_HOST`: `scripts/deploy.sh` adds
-  it, from the address it deploys to, when `.env` doesn't have it yet.
+- The worlds' public host comes from `.env` too, as `NANOMMO_PUBLIC_HOST`, which `scripts/deploy.sh`
+  adds, from the address it deploys to, when `.env` doesn't have it yet.
 - The services start again after a crash or a reboot (`restart: unless-stopped`).
 
 The certificates come from an authority of your own, made on your machine, with the server's address
 on them. `scripts/deploy.sh` sends the servers their certificate and key, and the authority's key
-stays with you. The clients and the bots trust the authority's certificate:
+stays with you. The clients and the bots trust the authority's certificate.
 
 ```bash
 scripts/certificates.sh tls/vps 203.0.113.7             # once
@@ -31,23 +32,23 @@ NANOMMO_TLS_CA=tls/vps/ca.crt ./build/bin/nanommo_client 203.0.113.7
 
 `scripts/deploy.sh` sends the commit with `git archive`, so the server needs no git or access to the
 repo, with the certificates added under `tls/`, all in one SSH connection, so that a deploy right
-after other SSH commands isn't refused: ufw's `limit` on SSH refuses a sixth connection within 30
-seconds. The server unpacks it into `nanommo.next`, and `scripts/release.sh` there starts it: it
+after other SSH commands isn't refused, as ufw's `limit` on SSH refuses a sixth connection within 30
+seconds. The server unpacks it into `nanommo.next`, and `scripts/release.sh` there starts it. It
 keeps `.env`, and builds the images first. The tests run as part of the build, so a release that
 fails them, or doesn't build, leaves the running release as it is. Then the release before moves
 into `nanommo.previous`, the new one into `nanommo`, and
 `docker compose up -d --wait --force-recreate` starts each container again from the new release's
-folder: one left running would keep the folder it started from.
+folder, as one left running would keep the folder it started from.
 
 `scripts/release.sh` starts any release unpacked into `nanommo.next` next to `nanommo`, so something
 on the server can deploy too. A release without certificates keeps the running release's. The first
 release on a server comes from `scripts/deploy.sh`, which passes the server's address, and
 `scripts/release.sh` makes `.env` for it. The worlds start again through `scripts/handover.sh` (see
 [Deploying without downtime](#deploying-without-downtime)), so their players play on through a
-deploy. The images build on the server from the source, protobuf and all: about fifteen minutes on 2
-vCPUs the first time. After that, the server's Docker keeps ccache's cache mount (see [Checking the
-code](checks.md#checking-the-code)), so a deploy compiles what changed. To go back to the release
-before, which builds its images again:
+deploy. The images build on the server from the source, protobuf and all, in about fifteen minutes
+on 2 vCPUs the first time. After that, the server's Docker keeps ccache's cache mount (see [Checking
+the code](checks.md#checking-the-code)), so a deploy compiles what changed. This goes back to the
+release before, which builds its images again.
 
 ```bash
 ssh debian@203.0.113.7 'rm -rf nanommo && mv nanommo.previous nanommo && cd nanommo && docker compose up -d --build --wait --force-recreate'
@@ -56,13 +57,12 @@ ssh debian@203.0.113.7 'rm -rf nanommo && mv nanommo.previous nanommo && cd nano
 The volumes, with the accounts and the players, belong to the Compose project, not to a release, so
 they stay through each deploy, and Flyway runs any new migrations before the servers start. Going
 back leaves the database as the newer release left it, as Flyway skips migrations it doesn't know,
-so a migration has to keep the release before it working. New
-certificates need the servers to start again: `ssh debian@203.0.113.7 'cd nanommo && docker compose
-restart login server frost'`.
+so a migration has to keep the release before it working. New certificates need the servers to
+start again, with `ssh debian@203.0.113.7 'cd nanommo && docker compose restart login server frost'`.
 
 The benchmark runs on the server too, with the bots there, as `scripts/deploy.sh` sends the
 authority's certificate along for them. It needs `jq` on the server (`sudo apt install jq`), and
-`curl`, which Debian has:
+`curl`, which Debian has.
 
 ```bash
 ssh debian@203.0.113.7 'cd nanommo && tools/bench/load.sh 100 10' > tools/bench/results/vps.json
@@ -75,12 +75,12 @@ second up to about 700 players (see
 ## Deploying without downtime
 
 Restarting a world throws its players out to the login screen, and a deploy restarts the worlds.
-Instead, a world hands its players over to its next instance:
+Instead, a world hands its players over to its next instance.
 
 - The next instance starts next to it, on a port of its own, and registers with Consul, where it's
   the world's newest instance, so the login server lists it.
 - On `SIGTERM`, a world leaves Consul, and asks it for the world's newest instance, which is now
-  the next one. If there is one, and the world has players, it hands them over: it stops ticking
+  the next one. If there is one, and the world has players, it hands them over. It stops ticking
   and taking new players, saves each player into Redis, where the next instance loads them from,
   hands each player's lease to the next instance, which turns away a player whose lease another
   instance has (see [One instance at a time](saving.md#one-instance-at-a-time)), and sends each
@@ -98,23 +98,23 @@ in the `next` profile, so `docker compose up` leaves them out. On Compose's netw
 instance answers to its world's name too, so `server` has two addresses while both run. Each world's
 health check asks Consul for its instance, so a world is healthy once Consul lists it, and
 `docker compose up --wait` waits for that. `scripts/handover.sh` starts a world again from its
-newest image while its players play on: it starts the next instance and waits until it's healthy,
+newest image while its players play on. It starts the next instance and waits until it's healthy,
 stops the world, which hands its players over, starts the world again and waits for it, and stops
 the next instance, which hands them back. A world hands its players over to its newest instance in
 Consul, so without the wait, a world could stop before the instance it hands over to has registered,
 and its players would end up at the login screen. So the world ends up where it was, on its own
-port, and the next instance is stopped, as it should be: two instances of a world that both took
-players would split them in two. Each lease names the instance by its port, so the world, started
-again on its own port, is a new instance with the same name, and takes the leases the next instance
-hands back as its own. Alloy gives the next instances' lines a level like the worlds', and the
-dashboard's log panels have them too.
+port, and the next instance is stopped, as it should be, because two instances of a world that
+both took players would split them in two. Each lease names the instance by its port, so the
+world, started again on its own port, is a new instance with the same name, and takes the leases
+the next instance hands back as its own. Alloy gives the next instances' lines a level like the
+worlds', and the dashboard's log panels have them too.
 
 ```bash
 docker compose --profile next build
 scripts/handover.sh server
 ```
 
-The bots follow a move too, like a client: a bot whose world hands it over closes its connection,
+The bots follow a move too, like a client. A bot whose world hands it over closes its connection,
 and a new one with its number says hello to the next instance with the move's token. The bots play
 against a single machine, so a bot keeps the host it was given and takes the move's port. In
 Compose, `server` is both instances' name while both run, and asio's connect tries each address a
@@ -130,17 +130,17 @@ the worlds', TCP and UDP, so they're open to the internet too.
 ## Deploying on push
 
 A runner on the server deploys each push to `main`, once CI passes. It's GitHub Actions' own
-runner, self-hosted: it connects to GitHub and waits there for jobs with its labels, `self-hosted`
+runner, self-hosted, which connects to GitHub and waits there for jobs with its labels, `self-hosted`
 and `nanommo`, so the server opens no port for it. Its image, in `tools/runner/`, is GitHub's runner
 image with Docker Compose added, and it reaches the server's Docker through Docker's socket, which
-belongs to the server's `docker` group: `tools/runner/start.sh` passes the group's number to the
+belongs to the server's `docker` group, so `tools/runner/start.sh` passes the group's number to the
 container, which has no such group of its own.
 
 The runner is in a Compose project of its own, `nanommo-runner`, so a deploy, which starts each
 container of the game's project again, leaves alone the runner it runs on. The first time it starts,
 it registers with the repository, with a registration token that lasts an hour, and its container
-keeps the registration from then on, through restarts and reboots. To start it on a server the game
-runs on:
+keeps the registration from then on, through restarts and reboots. This starts it on a server the
+game runs on.
 
 ```bash
 token=$(gh api -X POST repos/nenuadrian/nanoMMO/actions/runners/registration-token --jq .token)
@@ -148,13 +148,13 @@ ssh debian@203.0.113.7 "nanommo/tools/runner/start.sh https://github.com/nenuadr
 ```
 
 The repository's settings list it under Actions, Runners. A change to its image or to
-`tools/runner/compose.yaml` makes a new container, which registers again, with a new token: the same
-two commands. CI builds its image too.
+`tools/runner/compose.yaml` makes a new container, which registers again, with a new token, by the
+same two commands. CI builds its image too.
 
 The `deploy` job in `.github/workflows/ci.yml` runs on it, for a push to `main`, once the build,
 clang-tidy, the sanitizers and the fuzzers pass. A job waits for a runner with its labels, for a day, so it runs
 only in a repository whose `NANOMMO_DEPLOY` variable is `true`, which leaves it out of forks
-without a runner:
+without a runner. This sets it.
 
 ```bash
 gh variable set NANOMMO_DEPLOY --body true --repo nenuadrian/nanoMMO
@@ -162,21 +162,21 @@ gh variable set NANOMMO_DEPLOY --body true --repo nenuadrian/nanoMMO
 
 The job unpacks the commit into `nanommo.next`, as `scripts/deploy.sh` does, and starts it with
 `scripts/release.sh`, which keeps the running release's `.env` and certificates. The releases are in
-the home folder of the user who deploys, which isn't the runner's: its container has a home of its
-own. So the runner mounts the home folder of the user who started it, and the job finds it in
+the home folder of the user who deploys, which isn't the runner's, as its container has a home of
+its own. So the runner mounts the home folder of the user who started it, and the job finds it in
 `NANOMMO_HOME`. It's mounted at the same path as on the server, because Compose hands the server's
 Docker the paths of what a container mounts, such as Flyway's `./db`, from the folder Compose runs
 in, and Docker looks for them on the server. The runner works as that user, so that it can write
 there, and what it writes is theirs, which `scripts/deploy.sh` can replace. The container may have
 no home folder for that user, so the runner's folder is their home there, where Docker and git keep
-their settings. Deploys go one at a time: a push while one runs waits for it, and a newer push takes
+their settings. Deploys go one at a time. A push while one runs waits for it, and a newer push takes
 the place of one that's waiting, so the newest commit is deployed, and no deploy stops halfway.
 
 The runner can do anything on the server that Docker can, which is anything root can, so it runs our
 deploy and nothing else. The repository is public, and a pull request from a fork runs the workflow
 as the pull request has it, so it could send a job of its own to the runner, by its labels, which is
 why GitHub recommends self-hosted runners for private repositories. So before each job, the runner
-runs `tools/runner/job-started.sh`, from its image, which no pull request can change: it refuses any
+runs `tools/runner/job-started.sh`, from its image, which no pull request can change. It refuses any
 job that isn't for a push to `main`, and a job it refuses fails before its first step. Only someone
 who can push to `main` can give the runner a job, and they can change the game anyway. The
 repository's settings, under Actions, General, also have workflows from forks wait for our approval
@@ -187,3 +187,14 @@ in it runs.
 GITHUB_EVENT_NAME=pull_request GITHUB_REF=refs/pull/7/merge tools/runner/job-started.sh   # refused
 GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main tools/runner/job-started.sh             # taken
 ```
+
+## In a browser
+
+The client runs in a page too ([The client in a browser](web.md)). The `web` preset builds it into a
+few files that any web server hands out as they are, and offline that's all a page needs. Online, a
+page reaches the servers through the gateway, which a deploy starts with the rest, and which the
+internet reaches on port 8090 over `ws://`. A page served over HTTPS, as a website is, may only open
+`wss://`, with a certificate the browser trusts, which your own authority's isn't. So in front of
+the gateway it takes a reverse proxy with a public certificate, such as Caddy, which takes `wss://`
+on port 443 and passes it on to port 8090, and the page names the proxy in its address, as
+`?gateway=wss://` and its host. A deploy doesn't serve the page, nor set up the proxy.

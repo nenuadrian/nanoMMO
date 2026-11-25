@@ -18,7 +18,7 @@ changes it ([0013](0013-save-players-through-redis.md)).
 - Gold is a field of the bag's message, `Inventory.gold`, in no slot. Adding or taking it takes
   the bag to its next revision, like moving an item (`AddGold` and `TakeGold` in
   `server/inventory.h`).
-- So it goes where the bag goes: to the player's client alone, over TCP, as the bag changes; into
+- So it goes where the bag goes, to the player's client alone, over TCP, as the bag changes; into
   Redis in the bag's bytes; and to MySQL in `players.gold`, from V12, which the saver writes with
   `items_revision` when the bag has changed, and leaves as it is when it hasn't.
 - A player carries a billion at most (`Inventory::kMostGold`), so that adding any two amounts never

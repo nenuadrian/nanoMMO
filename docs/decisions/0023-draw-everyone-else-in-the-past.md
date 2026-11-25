@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The server sends a world 20 times a second, evenly, and they don't arrive evenly: one can be late,
+The server sends a world 20 times a second, evenly, and they don't arrive evenly. One can be late,
 two can come together, and over UDP one can be lost
 ([0012](0012-tcp-for-inputs-udp-for-worlds.md)). Until episode 69, each figure eased towards the
 newest place the server had sent, so a world that came late, or not at all, showed as a stop and
@@ -40,7 +40,7 @@ then a lurch. Episode 68 had looked after your own player, and nobody else
 - Everyone else is a tenth of a second behind where the server has them, and you aren't. Someone a
   tenth of a second behind is hard to notice, where a stutter jumps out, and that's the price of
   seeing them move smoothly (episode 69).
-- A lost world no longer shows: for up to two ticks, the others walk on, and past that they stop
+- A lost world no longer shows. For up to two ticks, the others walk on, and past that they stop
   and wait, rather than jump.
 - The animator takes the places as they come, without easing behind them, as the interpolation has
   smoothed them already.

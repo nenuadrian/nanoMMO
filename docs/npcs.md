@@ -52,10 +52,10 @@ the storyteller's kind, and the story is English, as mvGPT writes it (see
 The stories come from [mvGPT](https://github.com/nenuadrian/mvGPT), a small language model built
 from scratch in a series of its own, which learned to write short children's stories from a few
 words, and is on the Hugging Face Hub at its `ep003-sft` tag. `storyteller/` is mvGPT's completions
-server, from its `ep014/end` tag: an OpenAI-style `POST /v1/completions` on port 8000, which writes
-the requests that wait at the same time together, up to 16 at once (see `storyteller/README.md`).
+server, from its `ep014/end` tag. It's an OpenAI-style `POST /v1/completions` on port 8000, which
+writes the requests that wait at the same time together, up to 16 at once (see `storyteller/README.md`).
 Compose runs it as the `storyteller` service, and keeps the model it downloads the first time in a
-volume:
+volume. This starts it and asks it for a story.
 
 ```bash
 docker compose up -d --build storyteller
@@ -71,7 +71,7 @@ curl localhost:8000/v1/completions -H 'Content-Type: application/json' \
 - The words go to the server with your input, as `talk`, with the NPC's id. The server checks that
   the NPC is in your land and talks, and that you're within four metres of it, and cleans the words
   like a line of chat (see [Chat](gameplay.md#chat)).
-- The prompt is the one mvGPT learned from, with the first three words, in lowercase:
+- The prompt is the one mvGPT learned from, with the first three words, in lowercase, as in
   `Words: dragon, castle, gold\nStory:` (`server/stories.h`). Its vocabulary is the 10,000 commonest
   words in its stories, so it knows dragon, castle and sword, and a word it doesn't know, such as
   warden or healer, reaches it as unknown.

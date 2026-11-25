@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Until episode 20, each tick, the server sent each player the whole world: every player and every
+Until episode 20, each tick, the server sent each player the whole world, every player and every
 monster. With N players, that's N worlds of N players each, which grows with the square of the
 players, and most of it was hidden in the fog on the client anyway. Episode 20 also sent the bots
 on trips across the island, so they'd spread out as players would.
@@ -29,8 +29,8 @@ on trips across the island, so they'd spread out as players would.
   ([Networking](../networking.md)).
 - Measuring the distance between each pair of players, which grows with the square of the players
   again, where finding a cell's neighbours is a lookup (episode 20).
-- Three cells each way, everyone within 96 metres, which is where episode 20 started: 20 ticks a
-  second up to 1,000 players, against 1,200 within 64 metres.
+- Three cells each way, everyone within 96 metres, which is where episode 20 started. It kept 20
+  ticks a second up to 1,000 players, against 1,200 within 64 metres.
 
 ## Consequences
 

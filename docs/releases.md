@@ -2,13 +2,13 @@
 
 ## Versions
 
-The game has one version, for the client and all the servers: `project(nanommo VERSION ...)` in
-the top `CMakeLists.txt`. CMake writes it into `protocol/version.h`, in the build folder, from
+The game has one version, for the client and all the servers, set by `project(nanommo VERSION ...)`
+in the top `CMakeLists.txt`. CMake writes it into `protocol/version.h`, in the build folder, from
 `protocol/version.h.in`, as it configures the build, so the code has it as `nanommo::kVersion`.
 
 - The client shows it in the bottom right corner of the login screen.
-- The client, the login server and the world server print it first thing as they start:
-  `nanommo server: version 0.59.0`.
+- The client, the login server and the world server print it first thing as they start,
+  in a line like `nanommo server: version 0.59.0`.
 - Each world server's metrics carry it, as the `version` label of `nanommo_build_info`, which is
   always 1. While a deploy hands the worlds over one at a time, `nanommo_build_info` shows which of
   them run the new version.
@@ -32,28 +32,28 @@ what changed, and tags its commit `v` and the version, such as `v0.59.0`.
 
 ## Dependencies
 
-Each dependency is pinned, so that a build is the same from one day to the next: the C++ libraries
-to a release, a tag or a commit, each with the SHA-256 of what CMake downloads (`URL_HASH`), the
-images to their tags, the actions to their versions, and the website's and the storyteller's
-packages in `composer.lock` and `requirements-server.txt`.
+Each dependency is pinned, so that a build is the same from one day to the next. The C++ libraries
+are pinned to a release, a tag or a commit, each with the SHA-256 of what CMake downloads
+(`URL_HASH`), the images to their tags, the actions to their versions, and the website's and the
+storyteller's packages in `composer.lock` and `requirements-server.txt`.
 
 `scripts/dependencies.py` lists the libraries `CMakeLists.txt` fetches from GitHub, the version each
-is pinned to, and the newest: the latest release, or the newest tag that's a version, for a library
-without releases, or the newest commit, for one pinned to a commit. With `--update`, it writes the
-newest into `CMakeLists.txt`, with its hash. It reads `GITHUB_TOKEN`, when it's set, for GitHub's
-higher limit on requests.
+is pinned to, and the newest, which is the latest release, or the newest tag that's a version, for a
+library without releases, or the newest commit, for one pinned to a commit. With `--update`, it
+writes the newest into `CMakeLists.txt`, with its hash. It reads `GITHUB_TOKEN`, when it's set, for
+GitHub's higher limit on requests.
 
 ```bash
 scripts/dependencies.py             # what's behind
 scripts/dependencies.py --update    # moves each to its newest, pinned by its hash
 ```
 
-Once a week, in the public repository:
+These run once a week, in the public repository.
 
 - Dependabot (`.github/dependabot.yml`) opens a pull request for each kind of dependency it can
-  read with a newer version: the actions, the images in the Dockerfiles and the compose files, the
-  website's PHP packages and the storyteller's Python ones. The minor and patch updates of a kind
-  go in one pull request, and each major update in one of its own.
+  read with a newer version. The kinds are the actions, the images in the Dockerfiles and the
+  compose files, the website's PHP packages and the storyteller's Python ones. The minor and patch
+  updates of a kind go in one pull request, and each major update in one of its own.
 - The Dependencies workflow (`.github/workflows/dependencies.yml`) runs
   `scripts/dependencies.py --update` and opens a pull request, `dependencies/cmake`, with what it
   changed, or brings the open one up to date. A pull request opened with the workflow's token starts

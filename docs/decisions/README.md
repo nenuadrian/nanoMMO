@@ -1,6 +1,6 @@
 # Decisions
 
-This folder keeps nanoMMO's decision records: a page for each choice that shaped the game, with
+This folder keeps nanoMMO's decision records, a page for each choice that shaped the game, with
 what forced it, what we picked, what else we weighed, and what it cost. They follow Michael
 Nygard's architecture decision records, kept short.
 
@@ -38,7 +38,8 @@ one commit could undo, or that the code makes plain, needs none.
   ([0005](0005-the-history-is-the-curriculum.md)) or a migration that has run
   ([0015](0015-migrations-with-flyway.md)). To change a decision, write a new record, and set the
   old one's status to `Superseded by` the new one. That line is the only edit an accepted record
-  gets.
+  gets, apart from its wording, which 0.97.7 changed in every record without changing what any
+  says.
 - Add it to the index below, in the group it's about, or in a new group if none fits.
 
 ## Index
@@ -64,7 +65,7 @@ The records by what they're about, each group in the order they were written.
 | [0017](0017-send-each-player-what-is-near-them.md) | Send each player what's near them, by cells | Accepted | 20 |
 | [0018](0018-find-the-worlds-through-consul.md) | Find the worlds through Consul | Accepted | 21 |
 | [0031](0031-a-character-is-leased-to-one-instance-at-a-time.md) | A character is leased to one instance at a time | Accepted | 79 |
-| [0037](0037-the-server-owns-the-sky.md) | The server owns the sky: the time of day and the weather, from the clock | Accepted | 85 |
+| [0037](0037-the-server-owns-the-sky.md) | The server owns the sky, and the time of day and the weather come from the clock | Accepted | 85 |
 
 ### Networking
 

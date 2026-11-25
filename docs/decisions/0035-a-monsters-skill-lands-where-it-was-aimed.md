@@ -8,22 +8,22 @@ Accepted
 
 Until episode 83, a monster only swung at the player it was fighting, a blow that lands 0.65
 seconds in if they're still within its 1.2 metres. Nothing to see coming, and nothing to do but
-trade blows or run. Episode 84 brings a world boss, and a boss's fight is about its big attacks:
-each shows where it will land, for long enough to get out of the way. Episode 83 gives the Ash and
+trade blows or run. Episode 84 brings a world boss, and a boss's fight is about its big attacks.
+Each shows where it will land, for long enough to get out of the way. Episode 83 gives the Ash and
 Crypt Skeletons one each, the Ground Slam, a circle three metres round the monster, and the Bone
 Sweep, a cone 90 degrees wide and four metres long, to build that on.
 
 Stepping out only works if what's checked as the skill lands is what the player saw as it started,
-and the player sees it through the network: their keys reach the server half a round trip late,
+and the player sees it through the network. Their keys reach the server half a round trip late,
 and the world that says it's landed reaches them half a round trip after it has.
 
 ## Decision
 
-- A monster's skills are content (`content/monsters.proto`'s `Skill`, in `Kind.skills`): a shape,
-  `CIRCLE` or `CONE` with its `arc`, a `size`, a `telegraph_ms`, a `damage`, a `cooldown_ms` and a
-  `range`. A monster uses the first that's ready, and within whose range the player it's fighting
-  is, in place of a swing.
-- The shape is fixed as the skill starts: where the monster stands, the way it faces
+- A monster's skills are content (`content/monsters.proto`'s `Skill`, in `Kind.skills`). Each has a
+  shape, `CIRCLE` or `CONE` with its `arc`, a `size`, a `telegraph_ms`, a `damage`, a `cooldown_ms`
+  and a `range`. A monster uses the first that's ready, and within whose range the player it's
+  fighting is, in place of a swing.
+- The shape is fixed as the skill starts, to where the monster stands and the way it faces
   (`Monster.cast_x`, `cast_z`). A push moves the monster and not the shape. A throw calls it off.
 - As it lands, the world hits each living player in the shape where they are on the server then
   (`World::LandSkill`, with `InShape` from the content's library, which the bots use too).
@@ -53,16 +53,16 @@ and the world that says it's landed reaches them half a round trip after it has.
   in, and the client would have to work out the server's clock from the interpolation's. A few
   bytes a tick for a monster under way is cheap.
 - A count of the skills each monster has started, as `Player.casts` has, to tell the next skill from
-  the last. The time left does it: a skill only counts down, so one with more left than a late world
+  the last. The time left does it. A skill only counts down, so one with more left than a late world
   could say is the next.
 
 ## Consequences
 
-- Fights with Ash and Crypt Skeletons are about where you stand: walk out of a slam in time and it
+- Fights with Ash and Crypt Skeletons are about where you stand. Walk out of a slam in time and it
   misses, stay and it takes about a quarter of your health
   (`World.StepOutOfTheCircleAndItMisses`, `World.StayInTheCircleAndItHits`).
-- A player has to be out a round trip before the fill ends on their screen: 50 to 200
-  milliseconds of the two seconds the slam shows, and of the second and a half the sweep does.
+- A player has to be out a round trip before the fill ends on their screen. The round trip is 50 to
+  200 milliseconds of the two seconds the slam shows, and of the second and a half the sweep does.
 - A monster knocked out of its own shape still hits whoever stayed in it
   (`World.ASkillLandsWhereItWasAimed`).
 - A monster under way is sent again each tick, as one that moves is.

@@ -8,7 +8,7 @@ Accepted
 
 The game is built in a video series, a step at a time, and from episode 1 each episode's code is
 a git tag that a viewer can check out, build and run. So the history isn't a by-product of the
-work: it's what the series teaches from, and a choice about history is a choice about what a
+work. It's what the series teaches from, and a choice about history is a choice about what a
 viewer finds at a tag.
 
 ## Decision
@@ -22,7 +22,7 @@ viewer finds at a tag.
   as backups.
 - Once an episode is published, its tags never move. A change of mind about published code is a
   step in a later episode.
-- Some steps fail on purpose, to show an error and how to fix it: a rounding bug in
+- Some steps fail on purpose, to show an error and how to fix it, such as a rounding bug in
   `ep001/step-2`, which step 3's test catches, or a migration Flyway refuses in `ep018/step-2`. The
   commit says so, so a check that builds every tag knows to expect it.
 - The episodes ahead of the videos stay in a private copy of the repository, and the public one
@@ -43,7 +43,7 @@ viewer finds at a tag.
   each rewrite keeps the refs from before it, as `backup/` branches.
 - One exception so far. Episode 28's sanitizers, fuzzers and clang-tidy look at the code as it
   stood, so what they found in earlier steps was fixed in episode 28, and nothing moved back.
-- The client's first history, on Vulkan, wasn't thrown away: the `vulkan-series` branch keeps it,
+- The client's first history, on Vulkan, wasn't thrown away. The `vulkan-series` branch keeps it,
   and nothing builds on it ([0006](0006-draw-the-client-with-vulkan.md)).
-- These records follow the same rule as a published step: once accepted, a record doesn't change,
+- These records follow the same rule as a published step. Once accepted, a record doesn't change,
   and a later one supersedes it ([README](README.md)).

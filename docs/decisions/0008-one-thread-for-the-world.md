@@ -16,10 +16,11 @@ them touch the world, and something had to decide which runs when.
   too, with standalone Asio, which needs nothing more than a compiler. Its acceptor, its sessions,
   the tick's timer and the signals are handlers on that thread, which run one after another, so
   two of them never touch the world at once, and the world needs no locks.
-- Work that would block the thread, and doesn't touch the world, goes to threads of its own:
-  Consul's heartbeat, on a pool of one (episode 21), and the storyteller's requests (episode 25).
-- Work that would make a tick late goes to another program: checking passwords to the login server
-  ([0011](0011-a-login-server-of-its-own.md)), writing to MySQL to the saver
+- Work that would block the thread, and doesn't touch the world, goes to threads of its own.
+  That's Consul's heartbeat, on a pool of one (episode 21), and the storyteller's requests
+  (episode 25).
+- Work that would make a tick late goes to another program. Checking passwords goes to the login
+  server ([0011](0011-a-login-server-of-its-own.md)), writing to MySQL to the saver
   ([0013](0013-save-players-through-redis.md)), and analytics to the recorder (episode 47).
 
 ## Alternatives considered
@@ -43,7 +44,7 @@ them touch the world, and something had to decide which runs when.
   (episode 52). A MySQL statement waits two seconds at most for a lock, not fifty (episode 66).
 - cpp-httplib's sockets block, so the requests to Consul stay off the tick's thread, and a
   heartbeat that finds the last one still waiting skips (episode 21).
-- The bots are a thousand players on one thread, so a bot never blocks either: everything it does
+- The bots are a thousand players on one thread, so a bot never blocks either. Everything it does
   is a chain of handlers.
 - The server's test runs the server and its players on the test's own thread, one handler at a
   time, until what it waits for happens (episode 29).

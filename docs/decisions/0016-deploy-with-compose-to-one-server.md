@@ -37,8 +37,8 @@ that, and episode 37 deployed each push to `main`.
 
 ## Consequences
 
-- Each deploy builds the C++ on the cores the game runs on: about fifteen minutes the first time,
-  protobuf and all, and after that, ccache's mount keeps it to what changed.
+- Each deploy builds the C++ on the cores the game runs on. That takes about fifteen minutes the
+  first time, protobuf and all, and after that, ccache's mount keeps it to what changed.
 - A build or a test that fails leaves the running release as it is.
 - The database is the Compose project's, not a release's, so a migration has to keep the release
   before it working ([0015](0015-migrations-with-flyway.md)).
