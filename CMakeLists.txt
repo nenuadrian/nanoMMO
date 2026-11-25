@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(nanommo VERSION 0.97.4 LANGUAGES CXX)
+project(nanommo VERSION 0.97.5 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,6 +25,21 @@ if(NANOMMO_SANITIZE)
 endif()
 
 include(FetchContent)
+# raylib and prometheus-cpp take patches of ours, from tools/patches. Windows
+# has no patch, so there it's Git's, which FindPatch finds.
+if(WIN32)
+  find_package(Patch REQUIRED)
+  set(NANOMMO_PATCH ${Patch_EXECUTABLE})
+else()
+  set(NANOMMO_PATCH patch)
+endif()
+# The build makes the tests' certificates with scripts/certificates.sh. On
+# Windows, sh is Git's, from its bin, which puts Git's tools on the PATH.
+if(WIN32)
+  find_program(NANOMMO_SH sh PATH_SUFFIXES Git/bin REQUIRED)
+else()
+  set(NANOMMO_SH sh)
+endif()
 set(ABSL_PROPAGATE_CXX_STD ON)
 FetchContent_Declare(
   abseil
@@ -51,7 +66,7 @@ FetchContent_Declare(
   # WebGL couldn't, but hands WebGL an array of them, the bones', untransposed;
   # the patch transposes those on the CPU too. Without it, people in a browser
   # grow spindles.
-  PATCH_COMMAND patch -p1 -i ${PROJECT_SOURCE_DIR}/tools/patches/raylib-webgl-bone-matrices.patch
+  PATCH_COMMAND ${NANOMMO_PATCH} -p1 -i ${PROJECT_SOURCE_DIR}/tools/patches/raylib-webgl-bone-matrices.patch
   SYSTEM
 )
 FetchContent_Declare(
@@ -148,7 +163,7 @@ FetchContent_Declare(
   prometheus-cpp
   URL https://github.com/jupp0r/prometheus-cpp/releases/download/v1.3.0/prometheus-cpp-with-submodules.tar.gz
   URL_HASH SHA256=62bc2cc9772db2314dbaae506ae2a75c8ee897dab053d8729e86a637b018fdb6
-  PATCH_COMMAND patch -p1 -i ${PROJECT_SOURCE_DIR}/tools/patches/civetweb-stop-flag.patch
+  PATCH_COMMAND ${NANOMMO_PATCH} -p1 -i ${PROJECT_SOURCE_DIR}/tools/patches/civetweb-stop-flag.patch
   SYSTEM
 )
 FetchContent_MakeAvailable(prometheus-cpp)
@@ -214,22 +229,44 @@ if(MSVC)
   set_target_properties(smollergraph PROPERTIES COMPILE_OPTIONS "${options}")
 endif()
 
-find_package(PkgConfig REQUIRED)
-# Homebrew keeps mysql-client and OpenSSL out of the places pkg-config and
-# CMake look in.
-if(APPLE)
-  foreach(package mysql-client openssl@3)
-    execute_process(
-      COMMAND brew --prefix ${package}
-      OUTPUT_VARIABLE prefix
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-      ERROR_QUIET
-    )
-    list(APPEND CMAKE_PREFIX_PATH ${prefix})
-  endforeach()
+# The MySQL client and libsodium, as targets of ours. On Windows, they're
+# vcpkg's, which come with CMake's configs, and there's no pkg-config.
+add_library(nanommo_mysqlclient INTERFACE)
+add_library(nanommo_sodium INTERFACE)
+if(WIN32)
+  find_package(unofficial-libmysql CONFIG REQUIRED)
+  find_package(unofficial-sodium CONFIG REQUIRED)
+  # The MySQL client's headers are in include/mysql, which its target leaves
+  # out.
+  get_target_property(include unofficial::libmysql::libmysql
+    INTERFACE_INCLUDE_DIRECTORIES)
+  find_path(mysql_include mysql.h HINTS ${include} PATH_SUFFIXES mysql
+    NO_DEFAULT_PATH REQUIRED)
+  target_include_directories(nanommo_mysqlclient SYSTEM INTERFACE
+    ${mysql_include})
+  target_link_libraries(nanommo_mysqlclient INTERFACE
+    unofficial::libmysql::libmysql)
+  target_link_libraries(nanommo_sodium INTERFACE unofficial-sodium::sodium)
+else()
+  find_package(PkgConfig REQUIRED)
+  # Homebrew keeps mysql-client and OpenSSL out of the places pkg-config and
+  # CMake look in.
+  if(APPLE)
+    foreach(package mysql-client openssl@3)
+      execute_process(
+        COMMAND brew --prefix ${package}
+        OUTPUT_VARIABLE prefix
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+      )
+      list(APPEND CMAKE_PREFIX_PATH ${prefix})
+    endforeach()
+  endif()
+  pkg_check_modules(mysqlclient REQUIRED IMPORTED_TARGET mysqlclient)
+  pkg_check_modules(sodium REQUIRED IMPORTED_TARGET libsodium)
+  target_link_libraries(nanommo_mysqlclient INTERFACE PkgConfig::mysqlclient)
+  target_link_libraries(nanommo_sodium INTERFACE PkgConfig::sodium)
 endif()
-pkg_check_modules(mysqlclient REQUIRED IMPORTED_TARGET mysqlclient)
-pkg_check_modules(sodium REQUIRED IMPORTED_TARGET libsodium)
 find_package(OpenSSL 3 REQUIRED)
 endif()
 

@@ -1,0 +1,4 @@
+{
+  "$comment": "The servers' libraries on Windows, which vcpkg installs for the windows preset in CMakePresets.json.",
+  "dependencies": ["libmysql", "libsodium", "openssl"]
+}

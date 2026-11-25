@@ -40,7 +40,7 @@ set(test_tls ${CMAKE_CURRENT_BINARY_DIR}/tls)
 foreach(authority ours theirs)
   add_custom_command(
     OUTPUT ${test_tls}/${authority}/server.crt
-    COMMAND sh ${PROJECT_SOURCE_DIR}/scripts/certificates.sh ${test_tls}/${authority}
+    COMMAND ${NANOMMO_SH} ${PROJECT_SOURCE_DIR}/scripts/certificates.sh ${test_tls}/${authority}
     DEPENDS ${PROJECT_SOURCE_DIR}/scripts/certificates.sh
   )
 endforeach()

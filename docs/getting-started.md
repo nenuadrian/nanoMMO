@@ -13,7 +13,7 @@ From a clone to playing, on macOS or Ubuntu 24.04.
 | Other systems | |
 |---|---|
 | Ubuntu 22.04 | Its CMake is 3.22 and its compilers are too old for C++23, and the game needs CMake 3.28 and GCC 14 |
-| Windows | Builds with Visual Studio 2026 and vcpkg's libraries, and the tests pass, but CI doesn't check it; see [0.97.3](../CHANGELOG.md) for what it takes |
+| Windows | Visual Studio 2026 and [vcpkg](https://vcpkg.io), with `VCPKG_ROOT` set to vcpkg's folder: `cmake --workflow --preset windows` from a Developer PowerShell for VS builds it all and runs the tests, as CI does |
 | Other Linux | Not tested |
 
 ## 1. Get the code

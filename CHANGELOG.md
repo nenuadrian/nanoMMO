@@ -7,6 +7,21 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.97.5 (2026-11-25)
+
+- CI builds the game on Windows too, with Visual Studio 2026's MSVC and vcpkg's libraries, and
+  runs its tests there. The runner has no GPU, so the client's tests draw with Mesa's llvmpipe, as
+  they do in Docker. A deploy waits for it, as for the other checks, and in a private repository
+  it's one of the night's, as Windows' minutes cost twice as much.
+- The `windows` preset builds it all and runs the tests from a Developer PowerShell for Visual
+  Studio, with `VCPKG_ROOT` set to vcpkg's folder: `cmake --workflow --preset windows`.
+  `vcpkg.json` names the MySQL client, libsodium and OpenSSL, which vcpkg installs into the build
+  folder. On Windows, CMake takes the MySQL client and libsodium from vcpkg's CMake configs, as
+  there's no pkg-config, and `patch` and `sh` from Git for Windows, so the PATH needs nothing but
+  Visual Studio's tools.
+- The README has a badge for each build: Linux, Windows, clang-tidy, the sanitizers and the
+  fuzzers.
+
 ## 0.97.4 (2026-11-25)
 
 - The client, the bots and the gateway look up the servers' IPv4 addresses alone, as the servers

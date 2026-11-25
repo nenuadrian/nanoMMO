@@ -63,6 +63,20 @@
       "cacheVariables": { "TRACY_ENABLE": "ON" }
     },
     {
+      "name": "windows",
+      "displayName": "Windows, with MSVC from a Developer PowerShell, and vcpkg's libraries",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
       "name": "web",
       "displayName": "The client in a browser, with Emscripten's emcmake",
       "generator": "Ninja",
@@ -93,11 +107,13 @@
       "configurePreset": "profile",
       "targets": ["nanommo_server"]
     },
-    { "name": "web", "configurePreset": "web", "targets": ["nanommo_client"] }
+    { "name": "web", "configurePreset": "web", "targets": ["nanommo_client"] },
+    { "name": "windows", "configurePreset": "windows" }
   ],
   "testPresets": [
     { "name": "tests", "hidden": true, "output": { "outputOnFailure": true } },
     { "name": "release", "inherits": "tests", "configurePreset": "release" },
+    { "name": "windows", "inherits": "tests", "configurePreset": "windows" },
     { "name": "asan", "inherits": "tests", "configurePreset": "asan" },
     {
       "name": "tsan",
@@ -121,6 +137,14 @@
         { "type": "configure", "name": "release" },
         { "type": "build", "name": "release" },
         { "type": "test", "name": "release" }
+      ]
+    },
+    {
+      "name": "windows",
+      "steps": [
+        { "type": "configure", "name": "windows" },
+        { "type": "build", "name": "windows" },
+        { "type": "test", "name": "windows" }
       ]
     },
     {
