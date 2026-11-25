@@ -35,7 +35,9 @@ gtest_discover_tests(nanommo_content_tests)
 
 # The content as a graph in smollerGraph, for checks that follow it from a new
 # player to each thing in the game, and a tool that writes it out for sg to
-# serve. The game's own programs don't link it.
+# serve. The game's own programs don't link it, and a browser's build has no
+# smollerGraph (the top CMakeLists.txt fetches it for the servers and tools).
+if(NOT EMSCRIPTEN)
 add_library(nanommo_content_graph graph.cc)
 target_link_libraries(nanommo_content_graph PUBLIC
   nanommo_content smollergraph::smollergraph absl::status absl::statusor
@@ -53,3 +55,4 @@ gtest_discover_tests(nanommo_content_graph_tests)
 
 add_executable(nanommo_graph graph_main.cc)
 target_link_libraries(nanommo_graph PRIVATE nanommo_content_graph)
+endif()

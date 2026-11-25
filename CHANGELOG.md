@@ -7,6 +7,13 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.97.1 (2026-11-25)
+
+- The client builds for a browser again. Since 0.90.0, `content/CMakeLists.txt` made the content
+  graph, which links smollerGraph, in every build, and a browser's build fetches no smollerGraph,
+  so Emscripten's CMake stopped before it compiled anything. The graph, its tests and
+  `nanommo_graph` are the servers' and the tools' now, as smollerGraph is.
+
 ## 0.97.0 (2026-11-23)
 
 - Factions: Concordia, in sky blue, Fortuna, in gold, and Victoria, in crimson, named in Latin
