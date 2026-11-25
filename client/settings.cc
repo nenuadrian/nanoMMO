@@ -2,6 +2,10 @@
 
 #include <raylib.h>
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 #include <algorithm>
 #include <cerrno>
 #include <cmath>
@@ -153,10 +157,19 @@ absl::Status SaveSettings(const std::string& path, const Settings& player) {
       return absl::UnavailableError(absl::StrCat("couldn't write ", written));
     }
   }
+  // Windows' rename won't replace a file that's there, as after the first
+  // save, and MoveFileEx will.
+#if defined(_WIN32)
+  if (!MoveFileExA(written.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+    return absl::UnavailableError(absl::StrCat(
+        "couldn't replace ", path, ": Windows error ", GetLastError()));
+  }
+#else
   if (std::rename(written.c_str(), path.c_str()) != 0) {
     return absl::UnavailableError(
         absl::StrCat("couldn't replace ", path, ": ", std::strerror(errno)));
   }
+#endif
   return absl::OkStatus();
 }
 

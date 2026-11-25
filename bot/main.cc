@@ -229,9 +229,10 @@ class Swarm {
         continue;
       }
       std::error_code error;
+      // IPv4, which the servers listen on, as LogIn looks up.
       const asio::ip::tcp::resolver::results_type next =
           asio::ip::tcp::resolver(io_).resolve(
-              host_, std::to_string(move->port()), error);
+              asio::ip::tcp::v4(), host_, std::to_string(move->port()), error);
       if (error) {
         std::cerr << "nanommo bot: couldn't find " << host_ << ": "
                   << error.message() << "\n";
@@ -412,8 +413,9 @@ int main(int argc, char* argv[]) {
   asio::io_context io;
   asio::ip::tcp::resolver resolver(io);
   std::error_code error;
-  const asio::ip::tcp::resolver::results_type server =
-      resolver.resolve(host, std::to_string(kGamePort), error);
+  // IPv4, which the servers listen on, as LogIn looks up.
+  const asio::ip::tcp::resolver::results_type server = resolver.resolve(
+      asio::ip::tcp::v4(), host, std::to_string(kGamePort), error);
   if (error) {
     std::cerr << "nanommo bot: couldn't find " << host << ": "
               << error.message() << "\n";

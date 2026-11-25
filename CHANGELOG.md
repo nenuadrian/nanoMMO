@@ -7,6 +7,17 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.97.4 (2026-11-25)
+
+- The client, the bots and the gateway look up the servers' IPv4 addresses alone, as the servers
+  listen on IPv4 alone. On Windows, `localhost` was `::1` first, and Windows gives up on that only
+  after two seconds, so a client logged in two seconds late and a bot never got into its world. Now
+  both get in at once.
+- On Windows, the client keeps its settings after the first save. It writes them to a new file and
+  puts that in place of the old one, which POSIX's `rename` does over a file that's there, but
+  Windows' doesn't, so every save after the first failed. On Windows, `MoveFileEx` does it now, and
+  the settings' test saves twice. Nothing the client and the servers say to each other changes.
+
 ## 0.97.3 (2026-11-25)
 
 - nanoMMO builds on Windows, with Visual Studio 2026's MSVC, and its tests pass there. CMake gives

@@ -29,6 +29,9 @@ TEST(Settings, KeepsThemBetweenRuns) {
              .hotbar = {3, 1, 2},
              .language = "ro"}};
   ASSERT_TRUE(nanommo::SaveSettings(path, settings).ok());
+  // Saved again, over the first, as each change after it is.
+  const absl::Status again = nanommo::SaveSettings(path, settings);
+  ASSERT_TRUE(again.ok()) << again;
 
   const absl::StatusOr<nanommo::Settings> loaded = nanommo::LoadSettings(path);
   ASSERT_TRUE(loaded.ok()) << loaded.status();

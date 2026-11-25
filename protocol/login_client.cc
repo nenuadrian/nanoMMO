@@ -64,8 +64,11 @@ absl::StatusOr<protocol::LoginReply> LogIn(
           }
         });
   };
+  // The servers listen on IPv4 alone (server/listen.cc), so we look up IPv4
+  // addresses alone. Otherwise Windows tries localhost's ::1 first, and gives
+  // up on it only after two seconds.
   resolver.async_resolve(
-      host, std::to_string(port),
+      asio::ip::tcp::v4(), host, std::to_string(port),
       [&](std::error_code error,
           const asio::ip::tcp::resolver::results_type& endpoints) {
         if (error) {

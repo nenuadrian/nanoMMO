@@ -89,10 +89,8 @@ TEST(LogIn, GetsTheAnswerOfOneThatAnswersInTime) {
     asio::write(server, asio::buffer(frame), error);
   });
 
-  // The address the login server listens on, not localhost, which Windows
-  // tries as ::1 first, and gives up on only after two seconds.
   const absl::StatusOr<nanommo::protocol::LoginReply> reply =
-      nanommo::LogIn("127.0.0.1", acceptor.local_endpoint().port(), *tls,
+      nanommo::LogIn("localhost", acceptor.local_endpoint().port(), *tls,
                      Request(), milliseconds(2000));
   login.join();
   ASSERT_TRUE(reply.ok()) << reply.status();

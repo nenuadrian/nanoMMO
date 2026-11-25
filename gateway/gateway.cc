@@ -116,8 +116,9 @@ class Session : public std::enable_shared_from_this<Session> {
   }
 
   void Connect(const Upstream& upstream, const std::string& key) {
+    // IPv4, which the servers listen on, as LogIn looks up.
     resolver_.async_resolve(
-        upstream.host, std::to_string(upstream.port),
+        tcp::v4(), upstream.host, std::to_string(upstream.port),
         [this, self = shared_from_this(), upstream, key](
             std::error_code error, const tcp::resolver::results_type& found) {
           if (error) {

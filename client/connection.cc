@@ -35,8 +35,9 @@ absl::Status Connection::Start(const std::string& host, uint16_t port,
                                const std::string& token, bool udp) {
   asio::ip::tcp::resolver resolver(io_);
   std::error_code error;
+  // IPv4, which the servers listen on, as LogIn looks up.
   const asio::ip::tcp::resolver::results_type endpoints =
-      resolver.resolve(host, std::to_string(port), error);
+      resolver.resolve(asio::ip::tcp::v4(), host, std::to_string(port), error);
   if (!error) {
     asio::connect(stream_.lowest_layer(), endpoints, error);
   }
