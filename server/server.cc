@@ -164,14 +164,15 @@ uint16_t Server::port() const {
 }
 
 absl::Status Server::Start(uint16_t port) {
-  const absl::Status listening = Listen(acceptor_, port);
+  // On port zero, the system gives TCP a free port, and UDP takes that number
+  // too, which can be one taken for UDP already: in Docker, its DNS holds one
+  // at random. So it asks the system again, a few times. A port we were given
+  // is tried once.
+  constexpr int kTries = 8;
+  const std::vector<uint16_t> ports(port == 0 ? kTries : 1, port);
+  const absl::Status listening = ListenAndBind(acceptor_, udp_, ports);
   if (!listening.ok()) {
     return listening;
-  }
-  // On port zero, the system gave TCP a free port, and UDP takes that one too.
-  const absl::Status bound = Bind(udp_, this->port());
-  if (!bound.ok()) {
-    return bound;
   }
   instance_ = InstanceId({.name = name_, .port = this->port()});
   // One socket sends all the datagrams, so it gets more room for those on

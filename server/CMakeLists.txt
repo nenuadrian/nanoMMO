@@ -78,7 +78,7 @@ add_executable(nanommo_server_tests
   database_test.cc accounts_test.cc guilds_test.cc players_test.cc redis_test.cc tokens_test.cc
   login_server_test.cc consul_test.cc token_bucket_test.cc stories_test.cc
   events_test.cc recorder_test.cc tracing_test.cc
-  server_test.cc
+  listen_test.cc server_test.cc
 )
 target_link_libraries(nanommo_server_tests PRIVATE nanommo_server_core GTest::gtest_main)
 # The server's test talks TLS with the certificates the protocol tests made.

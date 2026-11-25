@@ -44,4 +44,23 @@ absl::Status Bind(asio::ip::udp::socket& socket, uint16_t port) {
   return absl::OkStatus();
 }
 
+absl::Status ListenAndBind(asio::ip::tcp::acceptor& acceptor,
+                           asio::ip::udp::socket& socket,
+                           std::span<const uint16_t> ports) {
+  absl::Status status = absl::InvalidArgumentError("no port to listen on");
+  for (const uint16_t port : ports) {
+    status = Listen(acceptor, port);
+    std::error_code ignored;
+    if (status.ok()) {
+      status = Bind(socket, acceptor.local_endpoint(ignored).port());
+    }
+    if (status.ok()) {
+      return status;
+    }
+    acceptor.close(ignored);
+    socket.close(ignored);
+  }
+  return status;
+}
+
 }  // namespace nanommo
