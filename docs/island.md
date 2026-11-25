@@ -78,7 +78,7 @@ and a file to write the numbers to as JSON too:
 
 ```bash
 ./build/bin/nanommo_client_bench
-./build/bin/nanommo_client_bench 1200 1 bench/results/frames.json
+./build/bin/nanommo_client_bench 1200 1 tools/bench/results/frames.json
 ```
 
 Build it as Release (`-DCMAKE_BUILD_TYPE=Release`) to measure. With a draw for each tree and the

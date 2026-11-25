@@ -3,8 +3,8 @@
 ## Packet loss: TCP and UDP
 
 The server sends each client the world over TCP, or over UDP once the client asks for it. To see what
-a bad network does to each, `compose.yaml` has a `netem` service. It runs `bench/netem.sh` in the
-server's network namespace, with the `NET_ADMIN` capability, and uses Linux's netem to delay the
+a bad network does to each, `compose.yaml` has a `netem` service. It runs `tools/bench/netem.sh` in
+the server's network namespace, with the `NET_ADMIN` capability, and uses Linux's netem to delay the
 server's packets and drop a share of them: a delay in milliseconds, then a loss in percent.
 
 ```bash
@@ -18,14 +18,14 @@ up to 64 KB at a time, to be cut into packets later, and netem drops all of thos
 It also lets netem hold 100,000 packets, as its default of 1,000 drops packets of its own once a busy
 server has more than that waiting.
 
-`bench/loss.sh` starts 200 bots over the transport you give it, then steps the loss from none to ten
-percent, with 50 ms of delay, and after a minute at each step asks Prometheus for the p50 and p99 of
-the bots' world age. Like `load.sh`, it needs `curl` and `jq`.
+`tools/bench/loss.sh` starts 200 bots over the transport you give it, then steps the loss from none
+to ten percent, with 50 ms of delay, and after a minute at each step asks Prometheus for the p50 and
+p99 of the bots' world age. Like `load.sh`, it needs `curl` and `jq`.
 
 ```bash
-mkdir -p bench/results
-bench/loss.sh tcp > bench/results/tcp.json
-bench/loss.sh udp > bench/results/udp.json
+mkdir -p tools/bench/results
+tools/bench/loss.sh tcp > tools/bench/results/tcp.json
+tools/bench/loss.sh udp > tools/bench/results/udp.json
 ```
 
 Without loss, the two are level: a world is up to a tick old, plus the delay. Over TCP, the p99 climbs
@@ -69,8 +69,8 @@ would be hidden in the fog anyway.
   change (see [A character's looks](#a-characters-looks)), and so does their faction, which changes
   once at most (see [A faction's messages](#a-factions-messages)).
 
-With bots that spread over the island, `bench/load.sh 100 12` on an Apple M4 Pro, with the bots on the
-same machine as the server:
+With bots that spread over the island, `tools/bench/load.sh 100 12` on an Apple M4 Pro, with the
+bots on the same machine as the server:
 
 | Each player gets | 20 ticks a second up to | At 1,200 players | Sent to each player, with 500 |
 |---|---|---|---|
@@ -331,8 +331,8 @@ names were, and a few bytes for each arg, over TCP, as the lines were.
 
 The client runs on the player's machine, so anything it sends can be made up. `nanommo_cheat` is
 the server's red-team client: a player without a window, who breaks the client's rules one way at a
-time and prints what it gets for it (`cheat/main.cc`). It runs beside the servers, with an account
-of its own: `nanommo_cheat <name> <password> <cheat>`, and for a trade, a duel or a war, the
+time and prints what it gets for it (`tools/cheat/main.cc`). It runs beside the servers, with an
+account of its own: `nanommo_cheat <name> <password> <cheat>`, and for a trade, a duel or a war, the
 partner, who runs `take` for a trade, for a duel says yes in their client, or runs `duel`, and for a
 war runs `feed`: `nanommo_cheat <name> <password> <cheat> <partner>`.
 

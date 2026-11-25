@@ -10,8 +10,8 @@ ever gets. -->
 ## Context
 
 What forced a choice, and the episode it came up in. The problem as it stood then, with what was
-measured, and where (`bench/results/`, a doc, a commit). No more than the reader needs to see why
-it mattered.
+measured, and where (`tools/bench/results/`, a doc, a commit). No more than the reader needs to see
+why it mattered.
 
 ## Decision
 

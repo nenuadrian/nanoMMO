@@ -130,7 +130,7 @@ jobs:
           docker build web
 
       - name: Build the runner's image
-        run: docker build runner
+        run: docker build tools/runner
 
       # The API docs and the coverage report are only published from a public
       # repository, so a private one doesn't make them.
@@ -299,7 +299,7 @@ jobs:
           rm -rf nanommo.next
           mkdir nanommo.next
           git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C nanommo.next
-          nanommo.next/release.sh
+          nanommo.next/scripts/release.sh
 
   docs:
     if: github.ref == 'refs/heads/main' && !github.event.repository.private

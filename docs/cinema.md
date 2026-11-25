@@ -6,23 +6,23 @@ size, and the game's clock can run slower than the film's. Each shot goes into a
 game's sounds. The trailer is made with it, and the quiet shots of the weather.
 
 ```sh
-./build/bin/nanommo_cinema cinema/trailer.txtpb out
-./build/bin/nanommo_cinema cinema/trailer.txtpb out shots=earthsplitter size=3840x2160
-./build/bin/nanommo_cinema cinema/trailer.txtpb out shots=earthsplitter tall=1   # 1080x1920
-./build/bin/nanommo_cinema cinema/trailer.txtpb out still=2.5                    # one frame, as a PNG
-./build/bin/nanommo_cinema cinema/weather.txtpb out cel=1                        # with cel shading
-./build/bin/nanommo_cinema scout Meadows 9                                       # open ground
-./build/bin/nanommo_cinema peaks Meadows                                         # high places
-./build/bin/nanommo_cinema shores Ashlands                                       # by the sea
+./build/bin/nanommo_cinema tools/cinema/trailer.txtpb out
+./build/bin/nanommo_cinema tools/cinema/trailer.txtpb out shots=earthsplitter size=3840x2160
+./build/bin/nanommo_cinema tools/cinema/trailer.txtpb out shots=earthsplitter tall=1   # 1080x1920
+./build/bin/nanommo_cinema tools/cinema/trailer.txtpb out still=2.5                    # one frame, as a PNG
+./build/bin/nanommo_cinema tools/cinema/weather.txtpb out cel=1                        # with cel shading
+./build/bin/nanommo_cinema scout Meadows 9                                             # open ground
+./build/bin/nanommo_cinema peaks Meadows                                               # high places
+./build/bin/nanommo_cinema shores Ashlands                                             # by the sea
 ```
 
 It needs ffmpeg on the path, which takes the frames as raw pixels on its input and adds the sound.
 
 ## Shots
 
-A film is a text file of shots (`cinema/film.proto`), written like the content files. A shot names
-its land, how long it is, and where the camera goes: keys at moments of the film, each with where
-the camera is, what it looks at and its lens, which it passes through on a smooth curve
+A film is a text file of shots (`tools/cinema/film.proto`), written like the content files. A shot
+names its land, how long it is, and where the camera goes: keys at moments of the film, each with
+where the camera is, what it looks at and its lens, which it passes through on a smooth curve
 (Catmull-Rom), or an orbit round a point. `ease` sets off and stops gently. Heights are above the
 ground under a point, or above the sea with `sea`, which keeps a camera flying over hills level.
 `tall` and `tall_orbit` give a short's vertical frame a camera of its own, and `sky` changes the
@@ -42,7 +42,7 @@ otherwise on the command line.
   their side, looking past them at something far off, and drifting in from `back` to `back_end`.
   The player turns to face what it looks at. `nanommo_cinema peaks <land>` and `shores <land>` list
   the highest places and the places by the sea, a dozen apart, for someone to stand and look out
-  from. `cinema/weather.txtpb` has the weather's shots.
+  from. `tools/cinema/weather.txtpb` has the weather's shots.
 
 ## Slow motion
 
@@ -54,8 +54,8 @@ clouds all go by it, while the camera keeps to the film's own time.
 ## The stage
 
 Players and monsters are written into the shot, and the stage plays them out on the game's clock
-(`cinema/film.h`): players walk or run their legs at the server's speeds and use their skills when
-the shot says, and the stage hands the client's animator the world as the server would send it.
+(`tools/cinema/film.h`): players walk or run their legs at the server's speeds and use their skills
+when the shot says, and the stage hands the client's animator the world as the server would send it.
 A skill's blow lands at its `hit_ms`, with its reach, its arc and its push, as the server's do:
 monsters in reach fall at their last hit, and a push knocks them back. Monsters can charge a player
 and swing once they're in reach, and a pack spreads many of a kind round a place, like the seeds of

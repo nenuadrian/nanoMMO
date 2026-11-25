@@ -45,7 +45,7 @@ FetchContent_Declare(
   # WebGL couldn't, but hands WebGL an array of them, the bones', untransposed;
   # the patch transposes those on the CPU too. Without it, people in a browser
   # grow spindles.
-  PATCH_COMMAND patch -p1 -i ${PROJECT_SOURCE_DIR}/patches/raylib-webgl-bone-matrices.patch
+  PATCH_COMMAND patch -p1 -i ${PROJECT_SOURCE_DIR}/tools/patches/raylib-webgl-bone-matrices.patch
   SYSTEM
 )
 FetchContent_Declare(
@@ -131,7 +131,7 @@ FetchContent_Declare(
   prometheus-cpp
   URL https://github.com/jupp0r/prometheus-cpp/releases/download/v1.3.0/prometheus-cpp-with-submodules.tar.gz
   URL_HASH SHA256=62bc2cc9772db2314dbaae506ae2a75c8ee897dab053d8729e86a637b018fdb6
-  PATCH_COMMAND patch -p1 -i ${PROJECT_SOURCE_DIR}/patches/civetweb-stop-flag.patch
+  PATCH_COMMAND patch -p1 -i ${PROJECT_SOURCE_DIR}/tools/patches/civetweb-stop-flag.patch
   SYSTEM
 )
 FetchContent_MakeAvailable(prometheus-cpp)
@@ -234,7 +234,7 @@ if(NANOMMO_COVERAGE)
   add_link_options(-fprofile-instr-generate)
 endif()
 
-option(NANOMMO_FUZZ "Build the fuzzers in fuzz/, with Clang" OFF)
+option(NANOMMO_FUZZ "Build the fuzzers in tools/fuzz/, with Clang" OFF)
 if(NANOMMO_FUZZ)
   # So that libFuzzer sees which of our code each input reaches.
   add_compile_options(-fsanitize=fuzzer-no-link)
@@ -248,11 +248,11 @@ add_subdirectory(client)
 if(NOT EMSCRIPTEN)
   add_subdirectory(gateway)
   add_subdirectory(bot)
-  add_subdirectory(cheat)
-  add_subdirectory(cinema)
+  add_subdirectory(tools/cheat)
+  add_subdirectory(tools/cinema)
 endif()
 if(NANOMMO_FUZZ)
-  add_subdirectory(fuzz)
+  add_subdirectory(tools/fuzz)
 endif()
 
 find_package(Doxygen)
@@ -315,5 +315,5 @@ if(DOXYGEN_FOUND AND NOT EMSCRIPTEN)
     docs/reliability.md docs/postmortems/README.md docs/postmortems
     docs/deployment.md docs/web.md docs/translations.md docs/checks.md docs/releases.md
     docs/decisions/README.md docs/decisions
-    protocol content terrain server gateway bot client cheat cinema)
+    protocol content terrain server gateway bot client tools/cheat tools/cinema)
 endif()

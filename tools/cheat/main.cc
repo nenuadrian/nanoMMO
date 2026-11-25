@@ -71,7 +71,6 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "asio/ssl/context.hpp"
-#include "cheat/measure.h"
 #include "client/connection.h"
 #include "protocol/login_client.h"
 #include "protocol/nanommo.pb.h"
@@ -79,6 +78,7 @@
 #include "protocol/tls.h"
 #include "protocol/version.h"
 #include "server/history.h"
+#include "tools/cheat/measure.h"
 
 namespace {
 

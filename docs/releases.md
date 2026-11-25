@@ -37,15 +37,15 @@ to a release, a tag or a commit, each with the SHA-256 of what CMake downloads (
 images to their tags, the actions to their versions, and the website's and the storyteller's
 packages in `composer.lock` and `requirements-server.txt`.
 
-`dependencies.py` lists the libraries `CMakeLists.txt` fetches from GitHub, the version each is
-pinned to, and the newest: the latest release, or the newest tag that's a version, for a library
+`scripts/dependencies.py` lists the libraries `CMakeLists.txt` fetches from GitHub, the version each
+is pinned to, and the newest: the latest release, or the newest tag that's a version, for a library
 without releases, or the newest commit, for one pinned to a commit. With `--update`, it writes the
 newest into `CMakeLists.txt`, with its hash. It reads `GITHUB_TOKEN`, when it's set, for GitHub's
 higher limit on requests.
 
 ```bash
-./dependencies.py             # what's behind
-./dependencies.py --update    # moves each to its newest, pinned by its hash
+scripts/dependencies.py             # what's behind
+scripts/dependencies.py --update    # moves each to its newest, pinned by its hash
 ```
 
 Once a week, in the public repository:
@@ -54,11 +54,11 @@ Once a week, in the public repository:
   read with a newer version: the actions, the images in the Dockerfiles and the compose files, the
   website's PHP packages and the storyteller's Python ones. The minor and patch updates of a kind
   go in one pull request, and each major update in one of its own.
-- The Dependencies workflow (`.github/workflows/dependencies.yml`) runs `dependencies.py --update`
-  and opens a pull request, `dependencies/cmake`, with what it changed, or brings the open one up to
-  date. A pull request opened with the workflow's token starts no workflows, so it starts CI on
-  the branch by hand. It needs the repository's Actions settings to allow GitHub Actions to create
-  pull requests.
+- The Dependencies workflow (`.github/workflows/dependencies.yml`) runs
+  `scripts/dependencies.py --update` and opens a pull request, `dependencies/cmake`, with what it
+  changed, or brings the open one up to date. A pull request opened with the workflow's token starts
+  no workflows, so it starts CI on the branch by hand. It needs the repository's Actions settings to
+  allow GitHub Actions to create pull requests.
 
 CI checks each pull request like any other. The updates that pass go into the game in the next
 episode, as a commit of their own, and the pull request is closed.

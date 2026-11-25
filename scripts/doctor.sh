@@ -6,7 +6,7 @@
 # on macOS and apt on Ubuntu. It exits 1 when the game can't build or run
 # without something.
 set -u
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 mac=false
 [ "$(uname)" = Darwin ] && mac=true
@@ -203,7 +203,7 @@ if [ -f tls/server.crt ]; then
     sed -n '/Subject Alternative Name/{n;s/^ *//;p;}')
   ok "tls/server.crt names $names"
 else
-  note "none yet" "tls/certificates.sh makes them, before the servers start"
+  note "none yet" "scripts/certificates.sh makes them, before the servers start"
 fi
 
 if [ -n "$packages" ]; then

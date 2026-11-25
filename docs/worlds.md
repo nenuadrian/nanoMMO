@@ -36,7 +36,7 @@ A world takes its port as its first argument (7777 by default), and the rest fro
   once, at its newest instance, and Prometheus labels each instance with its world, from the
   `world` in its registration.
 - To play from another machine, start the worlds with the address of this one, which the servers'
-  certificate has to name too: `tls/certificates.sh tls 192.168.1.20`, then
+  certificate has to name too: `scripts/certificates.sh tls 192.168.1.20`, then
   `NANOMMO_PUBLIC_HOST=192.168.1.20 docker compose up -d` (see
   [Getting started](getting-started.md#6-play-from-another-computer)).
 - Consul runs in development mode: one server, which keeps everything in memory. Each world

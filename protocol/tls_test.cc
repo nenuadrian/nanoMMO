@@ -81,5 +81,5 @@ TEST(Tls, SaysWhichNameTheCertificateLacks) {
   EXPECT_TRUE(absl::StrContains(Refusal(*server, *ours, "nanommo.example.com"),
                                 "doesn't name nanommo.example.com"));
   EXPECT_TRUE(absl::StrContains(Refusal(*server, *ours, "192.168.1.20"),
-                                "tls/certificates.sh tls 192.168.1.20"));
+                                "scripts/certificates.sh tls 192.168.1.20"));
 }

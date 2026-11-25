@@ -3,10 +3,10 @@ build/
 build-*/
 CMakeUserPresets.json
 profile/
-bench/results/
+tools/bench/results/
 site/
 assets/music/*.mp3
 assets/sounds/*.ogg
 tls/*
-!tls/certificates.sh
+!tls/.gitkeep
 .env

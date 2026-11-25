@@ -87,14 +87,15 @@ Everything the clients and the servers send over TCP goes through TLS 1.3, with 
 Asio's `ssl::stream`: logins on port 7778, and the game's connection on port 7777, with the token,
 the input and, over TCP, the world. Both ends are ours, so they speak TLS 1.3 and nothing older.
 
-The certificates come from a certificate authority of our own. `tls/certificates.sh` makes its key,
-`tls/ca.key`, and its certificate, `tls/ca.crt`. Then a key for the servers, `tls/server.key`, and a
-certificate the authority signs for it, `tls/server.crt`, for `localhost`, `127.0.0.1`, and `login` and
-`server`, their names in Docker Compose. The keys are ECDSA, on the P-256 curve. Names after the folder
-go on the certificate too, such as a server's domain, or its address, which goes on as an IP name:
+The certificates come from a certificate authority of our own. `scripts/certificates.sh` makes its
+key, `tls/ca.key`, and its certificate, `tls/ca.crt`. Then a key for the servers, `tls/server.key`,
+and a certificate the authority signs for it, `tls/server.crt`, for `localhost`, `127.0.0.1`, and
+`login` and `server`, their names in Docker Compose. The keys are ECDSA, on the P-256 curve. Names
+after the folder go on the certificate too, such as a server's domain, or its address, which goes on
+as an IP name:
 
 ```bash
-tls/certificates.sh tls play.example.com 203.0.113.7
+scripts/certificates.sh tls play.example.com 203.0.113.7
 ```
 
 Run again, it keeps what's there. Given a name the certificate lacks, or once the certificate has

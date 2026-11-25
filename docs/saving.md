@@ -236,12 +236,12 @@ Like the trades, the kills reach MySQL at least once. A batch that MySQL committ
 saver hearing so, or whose kills the saver couldn't take out of the stream after, as when Redis
 hangs in between, is read again by the next flush. Before episode 92, the saver added each batch's
 kills to counts in `guild_wars`, `challenger_kills` and `challenged_kills`, so a batch read again
-was counted again: `bench/chaos.sh war-replay` has Redis hang just then, and the scores came to more
-than the kills the worlds counted, three times out of three ([Reliability](reliability.md#a-wars-kills-counted-twice)).
-Now `INSERT IGNORE` skips a kill whose id is there already, and one whose war has gone since, so
-each kill counts once. The counts' columns aren't written any more, and stay, as the servers of
-0.91.0 read them until they're replaced. A kill from one of those, during a deploy, has no id, and
-goes by its entry's in the stream.
+was counted again: `tools/bench/chaos.sh war-replay` has Redis hang just then, and the scores came
+to more than the kills the worlds counted, three times out of three
+([Reliability](reliability.md#a-wars-kills-counted-twice)). Now `INSERT IGNORE` skips a kill whose
+id is there already, and one whose war has gone since, so each kill counts once. The counts' columns
+aren't written any more, and stay, as the servers of 0.91.0 read them until they're replaced. A kill
+from one of those, during a deploy, has no id, and goes by its entry's in the stream.
 
 A player scores for a war once every five minutes at most: the world server remembers when each
 victim last scored, by the war, and hands the saver only the kills that score

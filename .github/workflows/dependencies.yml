@@ -1,6 +1,6 @@
 name: Dependencies
 
-# Once a week, dependencies.py moves the C++ libraries to their newest
+# Once a week, scripts/dependencies.py moves the C++ libraries to their newest
 # versions, in a pull request that CI checks like any other. Only in the
 # public repository: the updates that pass go into the game in an episode.
 on:
@@ -24,7 +24,7 @@ jobs:
       TITLE: Move the C++ libraries to their newest versions
     steps:
       - uses: actions/checkout@v7
-      - run: ./dependencies.py --update | tee updates.txt
+      - run: scripts/dependencies.py --update | tee updates.txt
       - name: Open the pull request, or bring it up to date
         run: |
           if git diff --quiet; then

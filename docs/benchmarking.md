@@ -1,14 +1,15 @@
 # Benchmarking and profiling
 
-`bench/load.sh` measures how the server copes as players arrive. With the stack from `compose.yaml`
-running, it adds bots in steps, 250 at a time by default, and after each step it asks Prometheus about
-the last 25 seconds: the players online, the ticks the server managed each second, the tick's p50 and
-p99, the megabytes it sent each second, and the p99 of saving the players. It needs `curl` and `jq`.
+`tools/bench/load.sh` measures how the server copes as players arrive. With the stack from
+`compose.yaml` running, it adds bots in steps, 250 at a time by default, and after each step it asks
+Prometheus about the last 25 seconds: the players online, the ticks the server managed each second,
+the tick's p50 and p99, the megabytes it sent each second, and the p99 of saving the players. It
+needs `curl` and `jq`.
 
 ```bash
 docker compose up -d --build
-mkdir -p bench/results
-bench/load.sh 250 10 > bench/results/before.json
+mkdir -p tools/bench/results
+tools/bench/load.sh 250 10 > tools/bench/results/before.json
 ```
 
 The server keeps up while it manages 20 ticks a second. Once a tick takes longer than its 50
@@ -61,14 +62,14 @@ by packet, which is why each player gets what's near them, and no more (see
 
 ## Chaos experiments
 
-`bench/chaos.sh` breaks one thing on purpose, while bots play, and reports what the game did: what
-[Reliability](reliability.md) says about the objectives, and what each experiment found. With the
-stack from `compose.yaml` running, the monitoring included:
+`tools/bench/chaos.sh` breaks one thing on purpose, while bots play, and reports what the game did:
+what [Reliability](reliability.md) says about the objectives, and what each experiment found. With
+the stack from `compose.yaml` running, the monitoring included:
 
 ```bash
 docker compose up -d --build login server frost saver prometheus loki tempo alloy grafana alertmanager mailpit
-mkdir -p bench/results
-bench/chaos.sh redis-pause 5 > bench/results/redis-pause.json
+mkdir -p tools/bench/results
+tools/bench/chaos.sh redis-pause 5 > tools/bench/results/redis-pause.json
 ```
 
 It starts `BOTS` bots, 100 by default, arriving over `RAMP` seconds, 30, and waits until the game's
@@ -113,5 +114,5 @@ itself on the reliability dashboard, http://localhost:3000/d/nanommo-reliability
 It refuses a stack started with `compose.prod.yaml`, which `.env` names on a server, and Docker on
 another machine, `DOCKER_HOST`: production is never where we break things on purpose. A fault takes
 itself out as the script ends, however it ends, and should the script be killed, a backstop takes
-it out a little after it should have ended. `bench/chaos.sh restore` puts back whatever's left:
-paused containers, a delay, stopped services, a killed run's backstops, and the bots.
+it out a little after it should have ended. `tools/bench/chaos.sh restore` puts back whatever's
+left: paused containers, a delay, stopped services, a killed run's backstops, and the bots.

@@ -74,9 +74,9 @@ With one maintainer, that's the whole policy.
 Chaos engineering, as the [Principles of Chaos Engineering](https://principlesofchaos.org/) put it,
 is "the discipline of experimenting on a system in order to build confidence in the system's
 capability to withstand turbulent conditions in production". An experiment says what the steady
-state is, guesses what a fault will do to it, puts the fault in, and watches. `bench/chaos.sh` does
-that, one fault at a time, in staging, while bots play ([Benchmarking](benchmarking.md#chaos-experiments)
-has how to run it, and what its report says).
+state is, guesses what a fault will do to it, puts the fault in, and watches. `tools/bench/chaos.sh`
+does that, one fault at a time, in staging, while bots play
+([Benchmarking](benchmarking.md#chaos-experiments) has how to run it, and what its report says).
 
 The principles also say to run experiments in production, as Netflix's Chaos Monkey does, killing
 instances at random: each of their services runs many instances behind a balancer, so losing one
@@ -182,7 +182,7 @@ chapter by chapter, honestly, as of episode 89.
 | Chapters | What it's about | What we have | What we don't |
 |---|---|---|---|
 | 3, 4: Embracing Risk; Service Level Objectives | How reliable is reliable enough, as a number | Three SLOs and their error budgets (episode 88). Risks we took on purpose before, such as dropping players whose lease ran out ([0031](decisions/0031-a-character-is-leased-to-one-instance-at-a-time.md)) | An agreement with players about them: they're our own goals |
-| 5, 7: Eliminating Toil; The Evolution of Automation at Google | Doing by hand what a machine should | `deploy.sh` and `release.sh` (episode 19), `handover.sh` (36), deploying on push (37), `doctor.sh` (65), the Dependencies workflow, Flyway (18), `bench/chaos.sh` (88) | Rolling back is a command in [Deployment](deployment.md), by hand; runners' tokens and certificates are renewed by hand |
+| 5, 7: Eliminating Toil; The Evolution of Automation at Google | Doing by hand what a machine should | `scripts/deploy.sh` and `scripts/release.sh` (episode 19), `scripts/handover.sh` (36), deploying on push (37), `scripts/doctor.sh` (65), the Dependencies workflow, Flyway (18), `tools/bench/chaos.sh` (88) | Rolling back is a command in [Deployment](deployment.md), by hand; runners' tokens and certificates are renewed by hand |
 | 6, 10: Monitoring Distributed Systems; Practical Alerting | The four golden signals; alerting on symptoms | Latency (ticks, saves, stories, logins, the bots' world age), traffic (messages, bytes, players), errors (stderr in Loki, refused chat and stories, failed logins), saturation only as ticks a second out of 20; alerts on symptoms (`WorldFallingBehind`, `ItemsDuplicated`, the burn rates); promtool tests in CI; logs, profiles, traces. Prometheus descends from Borgmon, chapter 10's subject | No memory or CPU metrics of our own binaries; no exporters for Redis or MySQL; nothing watches the watchers: Prometheus, Alertmanager, Loki and Alloy can be down and nothing says so; no runbooks |
 | 8: Release Engineering | Builds you can repeat, from pinned inputs | Pinned dependencies and image tags, builds and tests in Docker ([0004](decisions/0004-build-test-and-check-in-docker.md)), sanitizers, fuzzers and clang-tidy (28), versions and a changelog ([0020](decisions/0020-one-version-for-the-whole-game.md)) | The images are built again on the server, so what runs isn't the binary CI tested |
 | 9: Simplicity | Less code, fewer moving parts | One thread for a world ([0008](decisions/0008-one-thread-for-the-world.md)), one server ([0016](decisions/0016-deploy-with-compose-to-one-server.md)), decision records | |

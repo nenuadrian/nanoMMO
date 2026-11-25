@@ -1,21 +1,27 @@
 #!/bin/sh
 # Makes a certificate authority of our own, and a certificate it signs for our
-# servers, in the folder given (default: this script's). Any names after the
+# servers, in the folder given (default: the repo's tls). Any names after the
 # folder go on the certificate too, such as a server's domain or address. Run
 # again with a name the certificate lacks, or once it's expired, it signs a new
 # one with every name, from the same authority, so the clients' ca.crt still
 # trusts it.
 set -eu
 
-dir=${1:-$(dirname "$0")}
-[ $# -gt 0 ] && shift
+if [ $# -gt 0 ]; then
+  dir=$1
+  shift
+else
+  # The servers look for them in tls, at the top of the repo.
+  cd "$(dirname "$0")/.."
+  dir=tls
+fi
 # A name where the folder goes would quietly make a folder of that name.
 case $dir in
   */*) ;;
   *.*)
     if [ ! -d "$dir" ]; then
       echo "certificates: the folder comes first, then the names:" \
-        "tls/certificates.sh tls $dir" >&2
+        "scripts/certificates.sh tls $dir" >&2
       exit 1
     fi
     ;;

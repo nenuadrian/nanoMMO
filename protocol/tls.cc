@@ -18,7 +18,7 @@ namespace {
 absl::Status LoadError(const std::string& path, const std::error_code& error) {
   return absl::FailedPreconditionError(
       absl::StrCat("couldn't load ", path, ": ", error.message(),
-                   ". tls/certificates.sh makes them."));
+                   ". scripts/certificates.sh makes them."));
 }
 
 }  // namespace
@@ -68,9 +68,9 @@ std::string HandshakeError(TlsStream& stream, const std::string& host,
     case X509_V_ERR_IP_ADDRESS_MISMATCH:
       return absl::StrCat("its certificate doesn't name ", host,
                           ". On the server, make it again with "
-                          "tls/certificates.sh tls ",
+                          "scripts/certificates.sh tls ",
                           host, ", and start the servers again");
-    // Every authority tls/certificates.sh makes has the same name, so
+    // Every authority scripts/certificates.sh makes has the same name, so
     // another one's certificate fails on its signature.
     case X509_V_ERR_CERT_SIGNATURE_FAILURE:
     case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
@@ -80,7 +80,7 @@ std::string HandshakeError(TlsStream& stream, const std::string& host,
              "server's tls/ca.crt here, or set NANOMMO_TLS_CA to where it is";
     case X509_V_ERR_CERT_HAS_EXPIRED:
       return "its certificate has expired. On the server, make new ones with "
-             "tls/certificates.sh";
+             "scripts/certificates.sh";
     default:
       return error.message();
   }

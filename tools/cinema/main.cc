@@ -29,7 +29,6 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
-#include "cinema/film.h"
 #include "client/ambience.h"
 #include "client/animator.h"
 #include "client/atmosphere.h"
@@ -45,6 +44,7 @@
 #include "client/synth.h"
 #include "content/content.h"
 #include "terrain/lands.h"
+#include "tools/cinema/film.h"
 
 namespace {
 

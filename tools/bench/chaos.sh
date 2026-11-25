@@ -5,8 +5,8 @@
 # deployment's stack, and production is never where we break things on
 # purpose.
 #
-#   bench/chaos.sh <experiment> [seconds]
-#   bench/chaos.sh restore      undoes what a run that was killed left
+#   tools/bench/chaos.sh <experiment> [seconds]
+#   tools/bench/chaos.sh restore      undoes what a run that was killed left
 #
 # Each experiment, and how long its fault lasts unless seconds says:
 #
@@ -31,7 +31,7 @@
 # machine's ports by default.
 set -euo pipefail
 
-experiment=${1:?"usage: bench/chaos.sh <experiment> [seconds], or restore"}
+experiment=${1:?"usage: tools/bench/chaos.sh <experiment> [seconds], or restore"}
 bots=${BOTS:-100}
 ramp=${RAMP:-30}
 probes=${PROBES:-10}

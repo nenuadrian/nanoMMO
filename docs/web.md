@@ -95,4 +95,4 @@ The protocol's login and TLS code, the servers, the bots and the tools aren't in
 | The page doesn't load the client's files | It was opened as a file | Serve the folder, as above |
 | `couldn't reach the gateway` on the login screen | The gateway isn't up, or the address is wrong | `docker compose up -d gateway`, and check `?gateway=` |
 | The gateway's log says it turned a page down | A path or a world it doesn't know: the world's host and port have to be the ones Consul lists | Check the world list's address |
-| Tall spindles stand by each person | raylib without `patches/raylib-webgl-bone-matrices.patch` | Delete `build-web/_deps/raylib-*` and configure again, which fetches and patches raylib |
+| Tall spindles stand by each person | raylib without `tools/patches/raylib-webgl-bone-matrices.patch` | Delete `build-web/_deps/raylib-*` and configure again, which fetches and patches raylib |

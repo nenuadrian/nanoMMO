@@ -3,7 +3,7 @@
 # website's PHP packages and the storyteller's Python ones. For each kind, it
 # opens a pull request with the minor and patch updates together, and one for
 # each major update, as that's the kind that breaks things. It can't read
-# CMake's FetchContent, so the C++ libraries are dependencies.py's.
+# CMake's FetchContent, so the C++ libraries are scripts/dependencies.py's.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -15,7 +15,7 @@ updates:
         patterns: ["*"]
         update-types: [minor, patch]
   - package-ecosystem: docker
-    directories: [/, /web, /storyteller, /runner]
+    directories: [/, /web, /storyteller, /tools/runner]
     schedule:
       interval: weekly
     groups:

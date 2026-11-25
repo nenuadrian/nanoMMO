@@ -1,5 +1,5 @@
-#ifndef NANOMMO_CINEMA_FILM_H_
-#define NANOMMO_CINEMA_FILM_H_
+#ifndef NANOMMO_TOOLS_CINEMA_FILM_H_
+#define NANOMMO_TOOLS_CINEMA_FILM_H_
 
 #include <raylib.h>
 
@@ -7,10 +7,10 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "cinema/film.pb.h"
 #include "content/content.h"
 #include "protocol/nanommo.pb.h"
 #include "terrain/terrain.h"
+#include "tools/cinema/film.pb.h"
 
 namespace nanommo::cinema {
 
@@ -106,4 +106,4 @@ class Stage {
 
 }  // namespace nanommo::cinema
 
-#endif  // NANOMMO_CINEMA_FILM_H_
+#endif  // NANOMMO_TOOLS_CINEMA_FILM_H_

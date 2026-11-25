@@ -358,9 +358,9 @@ few of their columns is quick.
   its JSONEachRow format, over its HTTP interface, then acknowledges them. Redis remembers what each
   consumer took and didn't acknowledge, so after a failure, or a restart, the recorder takes those
   again first, and an event isn't lost while ClickHouse is down.
-- ClickHouse makes the table from `analytics/events.sql` the first time it starts, on an empty
-  volume, `clickhouse`: sorted by the kind of event and its time, a partition a month, and kept for
-  a year. A change to the table later takes an `ALTER TABLE` of its own.
+- ClickHouse makes the table from `monitoring/clickhouse/events.sql` the first time it starts, on an
+  empty volume, `clickhouse`: sorted by the kind of event and its time, a partition a month, and
+  kept for a year. A change to the table later takes an `ALTER TABLE` of its own.
 - Grafana has ClickHouse as a data source, through Grafana's ClickHouse plugin, which it installs
   as it starts, and a second dashboard, nanoMMO game, at http://localhost:3000/d/nanommo-game: the
   players who did something, kills a minute by monster, the quests taken against the ones done, the

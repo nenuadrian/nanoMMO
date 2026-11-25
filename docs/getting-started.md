@@ -31,7 +31,7 @@ cd nanoMMO
 ## 2. Install what it needs
 
 ```bash
-./doctor.sh
+scripts/doctor.sh
 ```
 
 It checks the tools, the libraries, Docker, the ports and the certificates, and ends with one command
@@ -44,7 +44,7 @@ that installs every missing package. What that is on a new machine:
 | Ubuntu 24.04's compiler | Its GCC 13 is too old for the C++23 the game uses, so build with GCC 14: `echo 'export CXX=g++-14' >> ~/.bashrc`, then open a new terminal |
 | Ubuntu, once | `sudo usermod -aG docker $USER`, then log out and in again |
 
-Run `./doctor.sh` again until every line is a tick.
+Run `scripts/doctor.sh` again until every line is a tick.
 
 ## 3. Build and test
 
@@ -74,7 +74,7 @@ the rest of [the checks](checks.md), each in a folder of its own.
 
 ```bash
 docker compose up -d --build mysql redis consul saver
-tls/certificates.sh
+scripts/certificates.sh
 ./build/bin/nanommo_login
 ```
 
@@ -87,7 +87,7 @@ Then, in another terminal:
 | Runs | What it is | Port |
 |---|---|---|
 | `docker compose up` | MySQL, Redis, Consul, and the saver that takes players from Redis to MySQL | 3306, 6379, 8500 |
-| `tls/certificates.sh` | The certificates, once: [TLS](accounts.md#tls) | |
+| `scripts/certificates.sh` | The certificates, once: [TLS](accounts.md#tls) | |
 | `nanommo_login` | The login server | 7778 |
 | `nanommo_server` | A world, Ember | 7777 TCP and UDP, 9464 for metrics |
 
@@ -141,7 +141,7 @@ Meadows, for you alone, with nothing saved, as a browser plays it ([Offline](web
 On the computer with the servers, at `192.168.1.20` in this example:
 
 ```bash
-tls/certificates.sh tls 192.168.1.20
+scripts/certificates.sh tls 192.168.1.20
 ./build/bin/nanommo_login
 NANOMMO_PUBLIC_HOST=192.168.1.20 ./build/bin/nanommo_server
 ```
@@ -155,7 +155,7 @@ NANOMMO_TLS_CA=tls/their-ca.crt ./build/bin/nanommo_client 192.168.1.20
 
 | Why | |
 |---|---|
-| `tls/certificates.sh tls 192.168.1.20` | The certificate has to name the address the client asks for |
+| `scripts/certificates.sh tls 192.168.1.20` | The certificate has to name the address the client asks for |
 | `NANOMMO_PUBLIC_HOST` | A world tells players where to find it, and it's `localhost` without this |
 | `tls/their-ca.crt` | The client trusts only the authority that signed the servers' certificate |
 | The same version | The login server turns away a client of another minor version |
@@ -170,22 +170,22 @@ NANOMMO_TLS_CA=tls/their-ca.crt ./build/bin/nanommo_client 192.168.1.20
 | Stop the services | `docker compose down` |
 | Start over, without accounts or players | `docker compose down -v` |
 | See the saver's log | `docker compose logs saver` |
-| Find who holds a port | `./doctor.sh` |
+| Find who holds a port | `scripts/doctor.sh` |
 
 ## When something goes wrong
 
 | You see | Why | Do |
 |---|---|---|
-| `cmake: command not found`, or `CMake 3.28 or higher is required` | No CMake, or an old one | `./doctor.sh` says which, and what to install |
-| `too old for C++23` from `./doctor.sh`, or errors at `this auto self` | A compiler from before the parts of C++23 the game uses, such as Ubuntu 24.04's GCC 13 | GCC 14, as in step 2. CMake keeps the compiler of its first run, so `rm -rf build` before building again |
+| `cmake: command not found`, or `CMake 3.28 or higher is required` | No CMake, or an old one | `scripts/doctor.sh` says which, and what to install |
+| `too old for C++23` from `scripts/doctor.sh`, or errors at `this auto self` | A compiler from before the parts of C++23 the game uses, such as Ubuntu 24.04's GCC 13 | GCC 14, as in step 2. CMake keeps the compiler of its first run, so `rm -rf build` before building again |
 | `permission denied while trying to connect to the Docker daemon socket` | Docker is the docker group's | `sudo usermod -aG docker $USER`, then log out and in again |
 | `the --mount option requires BuildKit` | No buildx | `sudo apt install docker-buildx` |
 | `could not determine a constructor for the tag '!override'` | Compose 1, from `apt install docker-compose` | `sudo apt install docker-compose-v2`, and `docker compose`, with a space |
-| `address already in use`, or `port is already allocated` | Something else holds one of the ports | `./doctor.sh` says who |
+| `address already in use`, or `port is already allocated` | Something else holds one of the ports | `scripts/doctor.sh` says who |
 | Renderer, Sea and other client tests fail, and `DISPLAY` is missing | No screen | `xvfb-run -a ctest --preset release` |
 | `No worlds are up.` | No world has registered with Consul | Start `nanommo_server`, then Refresh |
-| `its certificate doesn't name 192.168.1.20` | The certificate lacks the address you asked for | `tls/certificates.sh tls 192.168.1.20` on the server, then start the servers again |
-| `its certificate has expired` | The servers' certificate lasts 825 days | `tls/certificates.sh` on the server, then start the servers again |
+| `its certificate doesn't name 192.168.1.20` | The certificate lacks the address you asked for | `scripts/certificates.sh tls 192.168.1.20` on the server, then start the servers again |
+| `its certificate has expired` | The servers' certificate lasts 825 days | `scripts/certificates.sh` on the server, then start the servers again |
 | `its certificate isn't from the authority we trust` | The client has another copy's `ca.crt` | Copy the server's `tls/ca.crt`, and point `NANOMMO_TLS_CA` at it |
 | `Ember says it's at localhost` | The world was started without its address | `NANOMMO_PUBLIC_HOST=<its address> ./build/bin/nanommo_server` |
 | `couldn't serve metrics on port 9464` | Another world runs on this machine | Give this one its own port and `NANOMMO_METRICS_PORT` |

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Ships a commit of this repo to a server over SSH, such as debian@203.0.113.7,
-# with certificates from a folder tls/certificates.sh made, and starts it there
+# with certificates from a folder scripts/certificates.sh made, and starts it there
 # with release.sh.
 set -eu
 
@@ -19,5 +19,5 @@ git archive --format=tar --prefix=tls/ --add-file="$certificates/ca.crt" \
   rm -rf nanommo.next
   mkdir nanommo.next
   tar -x -C nanommo.next
-  public_host=$public_host nanommo.next/release.sh
+  public_host=$public_host nanommo.next/scripts/release.sh
 '

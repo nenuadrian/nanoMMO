@@ -80,14 +80,14 @@ docker compose logs server bots
 `PRESET=tsan` in front of the `up` builds them with ThreadSanitizer, and `docker compose run --rm
 tests` runs the tests against MySQL, Redis and Consul with the sanitizers on.
 
-The fuzzers in `fuzz/` run with libFuzzer, which comes with Clang. Each is a function that takes
-bytes, and libFuzzer calls it with input after input, made from the inputs that reached code the
-others didn't, with the sanitizers on. `stories_fuzzer` hands the storyteller's lines whatever a
+The fuzzers in `tools/fuzz/` run with libFuzzer, which comes with Clang. Each is a function that
+takes bytes, and libFuzzer calls it with input after input, made from the inputs that reached code
+the others didn't, with the sanitizers on. `stories_fuzzer` hands the storyteller's lines whatever a
 model might write, and checks that each line fits in the chat, whole characters and all.
 `world_fuzzer` plays the game with whatever a client might send, and checks that each player stays
-somewhere real, with health between nothing and their most, that their bag holds no stack
-bigger than it can, in a slot that's there, and wears each item in its slot, and that each quest
-they're on is one the content has, with no more kills than it asks for, and not one they've done.
+somewhere real, with health between nothing and their most, that their bag holds no stack bigger
+than it can, in a slot that's there, and wears each item in its slot, and that each quest they're on
+is one the content has, with no more kills than it asks for, and not one they've done.
 
 ```bash
 docker build --target fuzz -t nanommo-fuzz .
@@ -110,6 +110,12 @@ so that code no test reaches counts, at zero. CI publishes it with the API docs,
 [nenuadrian.github.io/nanoMMO/coverage](https://nenuadrian.github.io/nanoMMO/coverage/), from a
 public repository only, as Pages would put a private copy's code where anyone can read it.
 
-`patches/` holds fixes to the libraries we fetch that their releases don't have yet, which CMake
-applies as it fetches them: civetweb's for a data race on the flag that stops its threads, which
-ThreadSanitizer found.
+`tools/patches/` holds fixes to the libraries we fetch that their releases don't have yet, which
+CMake applies as it fetches them: civetweb's for a data race on the flag that stops its threads,
+which ThreadSanitizer found. A build folder from before they moved here from `patches/` has them
+applied already, and CMake applies them again from their new folder, which GNU patch refuses and
+macOS's patch undoes. Delete those libraries there once, and CMake fetches and patches them afresh:
+
+```bash
+rm -rf build*/_deps/raylib-* build*/_deps/prometheus-cpp-*
+```

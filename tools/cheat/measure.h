@@ -1,5 +1,5 @@
-#ifndef NANOMMO_CHEAT_MEASURE_H_
-#define NANOMMO_CHEAT_MEASURE_H_
+#ifndef NANOMMO_TOOLS_CHEAT_MEASURE_H_
+#define NANOMMO_TOOLS_CHEAT_MEASURE_H_
 
 #include <cstdint>
 #include <deque>
@@ -48,4 +48,4 @@ class Hits {
 
 }  // namespace nanommo
 
-#endif  // NANOMMO_CHEAT_MEASURE_H_
+#endif  // NANOMMO_TOOLS_CHEAT_MEASURE_H_

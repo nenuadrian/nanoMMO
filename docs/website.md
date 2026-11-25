@@ -22,9 +22,9 @@ so there's no CSS of our own, and nothing to build with npm.
 - The tables come from the migrations in `db/`, which Flyway runs (see [Migrations](saving.md#migrations)).
   The website has no migrations of its own, so the tables are described in one place.
 - `APP_KEY` in `compose.yaml` encrypts the website's cookies. Like the MySQL password next to it,
-  it's for your own machine. On a server, `deploy.sh` makes a new one (see [Deployment](deployment.md)).
-  To make one yourself, run `docker compose run --rm --no-deps web php artisan key:generate --show`,
-  and keep it out of git.
+  it's for your own machine. On a server, `scripts/deploy.sh` makes a new one (see
+  [Deployment](deployment.md)). To make one yourself, run
+  `docker compose run --rm --no-deps web php artisan key:generate --show`, and keep it out of git.
 
 The website's tests, and Pint, Laravel's formatter, which fails on code it would change:
 

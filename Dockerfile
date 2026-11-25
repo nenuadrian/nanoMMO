@@ -70,7 +70,7 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
  && cmake --build --preset tidy \
  && ccache --show-stats \
  && run-clang-tidy -quiet -p build-tidy \
-      '^/src/(server|gateway|bot|client|protocol|content|terrain|fuzz)/(?!.*_test\.cc)'
+      '^/src/(server|gateway|bot|client|protocol|content|terrain|tools/fuzz)/(?!.*_test\.cc)'
 
 FROM clang AS coverage
 WORKDIR /src
@@ -131,14 +131,14 @@ FROM ubuntu:26.04 AS certificates
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl \
  && rm -rf /var/lib/apt/lists/*
-COPY tls/certificates.sh /usr/local/bin/
+COPY scripts/certificates.sh /usr/local/bin/
 ENTRYPOINT ["certificates.sh"]
 
 FROM ubuntu:26.04 AS netem
 RUN apt-get update \
  && apt-get install -y --no-install-recommends iproute2 ethtool \
  && rm -rf /var/lib/apt/lists/*
-COPY bench/netem.sh /usr/local/bin/
+COPY tools/bench/netem.sh /usr/local/bin/
 ENTRYPOINT ["netem.sh"]
 
 FROM build AS profile-build
@@ -162,7 +162,7 @@ ENV PATH=/opt/flamegraph:$PATH
 COPY --from=profile-build /src/build-profile/bin/nanommo_server /usr/local/bin/
 COPY content/*.txtpb /usr/local/share/nanommo/content/
 ENV NANOMMO_CONTENT=/usr/local/share/nanommo/content
-COPY bench/profile.sh /usr/local/bin/
+COPY tools/bench/profile.sh /usr/local/bin/
 EXPOSE 7777 7777/udp 9464 8086
 ENTRYPOINT ["nanommo_server"]
 
@@ -180,7 +180,7 @@ WORKDIR /nanommo
 COPY . .
 # And the translations: the template as the sources have it, each language
 # merged with it, and each translation one the client can show.
-RUN find server gateway bot client cheat protocol content terrain fuzz cinema -name '*.cc' -o -name '*.h' \
+RUN find server gateway bot client tools/cheat protocol content terrain tools/fuzz tools/cinema -name '*.cc' -o -name '*.h' \
  | xargs clang-format --dry-run --Werror \
- && cpplint --root=.. --recursive --quiet server gateway bot client cheat protocol content terrain fuzz cinema \
+ && cpplint --root=.. --recursive --quiet server gateway bot client tools/cheat protocol content terrain tools/fuzz tools/cinema \
  && python3 scripts/po.py check

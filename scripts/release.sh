@@ -1,10 +1,10 @@
 #!/bin/sh
-# Starts the release in the folder this script is in, nanommo.next on a server,
+# Starts the release in the folder above this script's, nanommo.next on a server,
 # such as a commit deploy.sh sent: it builds the release's images, and if they
 # build and the tests pass, the release becomes nanommo, the one that runs.
 set -eu
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 if [ -d nanommo ]; then
   cp nanommo/.env nanommo.next/
   # A release without certificates keeps the ones the release before has.
@@ -35,5 +35,5 @@ cd nanommo
 # one at a time, so that their players play on.
 docker compose up -d --wait --force-recreate \
   $(docker compose config --services | grep -vx -e server -e frost)
-./handover.sh server
-./handover.sh frost
+scripts/handover.sh server
+scripts/handover.sh frost

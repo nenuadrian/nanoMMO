@@ -29,13 +29,13 @@ and Ubuntu 24.04, with what each error means. In short:
 git clone https://github.com/nenuadrian/nanoMMO.git
 cd nanoMMO
 # What this machine is missing, and the command that installs it.
-./doctor.sh
+scripts/doctor.sh
 cmake --preset release
 cmake --build --preset release
 ctest --preset release
 # MySQL, Redis, Consul and the saver, then the certificates, once.
 docker compose up -d --build mysql redis consul saver
-tls/certificates.sh
+scripts/certificates.sh
 ./build/bin/nanommo_login
 ```
 
@@ -72,7 +72,7 @@ Each game server is a world, which registers with Consul, and the login server l
 from there (see [Worlds](docs/worlds.md)). Docker Compose runs MySQL, Redis, Consul and the saver, and
 before them Flyway, which makes the tables from the migrations in `db/` (see
 [Migrations](docs/saving.md#migrations)). The clients talk to the servers over TLS, with certificates from an
-authority of our own, which `tls/certificates.sh` makes the first time (see [TLS](docs/accounts.md#tls)).
+authority of our own, which `scripts/certificates.sh` makes the first time (see [TLS](docs/accounts.md#tls)).
 The client asks the login server on `localhost`, or on the host you give it, and how to play from
 another computer is in [Getting started](docs/getting-started.md#6-play-from-another-computer).
 

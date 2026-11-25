@@ -56,7 +56,7 @@ services:
     volumes:
       - clickhouse:/var/lib/clickhouse
       # Run once, as ClickHouse starts on an empty volume.
-      - ./analytics:/docker-entrypoint-initdb.d:ro
+      - ./monitoring/clickhouse:/docker-entrypoint-initdb.d:ro
     ports:
       - "127.0.0.1:8123:8123"
     ulimits:
@@ -436,7 +436,7 @@ services:
     build:
       context: .
       target: coverage
-    command: ["./coverage.sh"]
+    command: ["scripts/coverage.sh"]
     environment:
       NANOMMO_MYSQL_HOST: mysql
       NANOMMO_REDIS_HOST: redis
