@@ -7,6 +7,19 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.97.2 (2026-11-25)
+
+- Flyway 13.13.0, ClickHouse 26.10.9.12 and Pyroscope 2.4.4 in `compose.yaml`, and FrankenPHP
+  1.13.6 for the website.
+- The top of the repo is tidier. The tools beside the game, `cheat`, `cinema`, `bench`, `fuzz`,
+  `runner` and `patches`, are in `tools/`, and the scripts, `coverage.sh`, `deploy.sh`, `doctor.sh`,
+  `handover.sh`, `release.sh`, `dependencies.py` and `certificates.sh`, from `tls/`, in `scripts/`,
+  so it's `scripts/doctor.sh` and `scripts/certificates.sh` now. ClickHouse's table is
+  `monitoring/clickhouse/events.sql`. Nothing else works differently, but a build folder from
+  before has raylib and prometheus-cpp patched already, and CMake patches them again from
+  `tools/patches/`, so delete them there once:
+  `rm -rf build*/_deps/raylib-* build*/_deps/prometheus-cpp-*`.
+
 ## 0.97.1 (2026-11-25)
 
 - The client builds for a browser again. Since 0.90.0, `content/CMakeLists.txt` made the content
