@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(nanommo VERSION 0.97.5 LANGUAGES CXX)
+project(nanommo VERSION 0.97.6 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,19 +25,23 @@ if(NANOMMO_SANITIZE)
 endif()
 
 include(FetchContent)
-# raylib and prometheus-cpp take patches of ours, from tools/patches. Windows
-# has no patch, so there it's Git's, which FindPatch finds.
+# raylib and prometheus-cpp take patches of ours, from tools/patches, and the
+# build makes the tests' certificates with scripts/certificates.sh. Windows has
+# no patch or sh, so there they're Git for Windows', from beside the git we
+# find, and never another on the PATH: GitHub's runners have Strawberry Perl's
+# patch 2.5.9, which can't apply ours. Git's sh, from its bin, puts Git's tools
+# on the PATH for the script.
 if(WIN32)
-  find_package(Patch REQUIRED)
-  set(NANOMMO_PATCH ${Patch_EXECUTABLE})
+  find_package(Git REQUIRED)
+  # git is in Git's cmd or bin, or in its mingw64/bin.
+  get_filename_component(git_dir "${GIT_EXECUTABLE}" DIRECTORY)
+  find_program(NANOMMO_PATCH patch
+    HINTS "${git_dir}/../usr/bin" "${git_dir}/../../usr/bin"
+    NO_DEFAULT_PATH REQUIRED)
+  find_program(NANOMMO_SH sh HINTS "${git_dir}/../bin" "${git_dir}/../../bin"
+    NO_DEFAULT_PATH REQUIRED)
 else()
   set(NANOMMO_PATCH patch)
-endif()
-# The build makes the tests' certificates with scripts/certificates.sh. On
-# Windows, sh is Git's, from its bin, which puts Git's tools on the PATH.
-if(WIN32)
-  find_program(NANOMMO_SH sh PATH_SUFFIXES Git/bin REQUIRED)
-else()
   set(NANOMMO_SH sh)
 endif()
 set(ABSL_PROPAGATE_CXX_STD ON)

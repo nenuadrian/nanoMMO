@@ -7,6 +7,14 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.97.6 (2026-11-25)
+
+- On Windows, the build takes `patch` and `sh` from Git for Windows, from beside the `git` it
+  finds, and never another on the PATH. GitHub's Windows runners have Strawberry Perl's patch 2.5.9
+  on it, which stops at raylib's patch, so CI's first Windows job failed before it built anything.
+- CI's Windows job keeps what vcpkg built in GitHub's cache even when the build or a test fails, so
+  the run after a failed one doesn't build the MySQL client again.
+
 ## 0.97.5 (2026-11-25)
 
 - CI builds the game on Windows too, with Visual Studio 2026's MSVC and vcpkg's libraries, and
