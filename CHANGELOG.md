@@ -7,6 +7,23 @@ A version is MAJOR.MINOR.PATCH, from `project()` in `CMakeLists.txt`. While the 
 changing what the client and the servers say to each other. The login server lets in a client of
 its own major and minor version, and turns any other away.
 
+## 0.97.8 (2026-11-25)
+
+- A world server on port 0, as the tests start them, listens on a TCP port the system picks and
+  binds UDP on the same number, which could be one taken for UDP already. In Docker, the network's
+  DNS holds a UDP port of its own, at random, so now and then a test's server didn't start, as in
+  CI for Dependabot's pull request #18. On port 0, it now closes both and asks for another, up to
+  eight times. A port it's given is tried once, as before.
+- The coverage report is in the API docs' look, light and dark. Its first page has the totals, a
+  trend across versions of the share of lines run and of the lines there are, and each folder with
+  a bar, which opens to its files. Each file links to its code, as llvm-cov draws it, in the same
+  colours now, under `coverage/files/`, so a link to one of llvm-cov's pages from before, under
+  `coverage/coverage/`, is gone. CI keeps the trend's history, `history.json`, with the report,
+  and adds each version it measures to the one it published last. Its first points, in
+  `scripts/coverage/history.json`, are episodes 28 and 29, 0.73.0, 0.80.0, 0.86.1 and 0.97.2.
+- The README has a coverage badge beside the builds' badges, which shields.io draws from the
+  report's `badge.json`.
+
 ## 0.97.7 (2026-11-25)
 
 - The docs say what they mean in full sentences, without a colon to set up what follows, in every

@@ -111,6 +111,22 @@ so that code no test reaches counts, at zero. CI publishes it with the API docs,
 [nenuadrian.github.io/nanoMMO/coverage](https://nenuadrian.github.io/nanoMMO/coverage/), from a
 public repository only, as Pages would put a private copy's code where anyone can read it.
 
+Its first page has the totals, a trend across versions, and each folder with a bar for the share of
+its lines the tests run, which opens to its files. Each file links to its code as llvm-cov draws it,
+in `files/`, with how many times each line ran and what never did. `scripts/coverage/report.py`
+writes the first page from llvm-cov's `summary.json`, puts llvm-cov's pages in the API docs' look
+(`scripts/coverage/coverage.css`, light and dark), and writes `badge.json`, which the README's
+badge is drawn from, and `badge.svg`, the same badge for anywhere else.
+
+The trend comes from `history.json`, which has a point for each version with its lines, functions,
+branches and regions run and the day it was measured. CI fetches the one it published last before
+it measures, and the report adds the version it measures, in place of that version's point if it
+has one. `scripts/coverage/history.json` is the seed. It holds the versions measured before there
+was a history, from episodes 28 and 29 on, and a point of the published history never replaces one
+of its own. With nothing published yet, the trend starts from the seed, and when the site doesn't
+answer, CI on `main` stops rather than publish a history without the versions measured since. A
+report made locally goes on from the `history.json` in `site/coverage`.
+
 `tools/patches/` holds fixes to the libraries we fetch that their releases don't have yet, which
 CMake applies as it fetches them, such as civetweb's for a data race on the flag that stops its
 threads, which ThreadSanitizer found. A build folder from before they moved here from `patches/` has
