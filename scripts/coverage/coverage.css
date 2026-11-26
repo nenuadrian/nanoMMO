@@ -1,0 +1,845 @@
+/* The coverage report in the API docs' look: their colours, faces and sizes,
+ * which are doxygen-awesome-css's (MIT, github.com/jothepro/doxygen-awesome-css),
+ * and like theirs, dark when the system is. The summary page is body.summary,
+ * and llvm-cov's own pages, which link this file after their style.css, are
+ * body.llvm-cov. */
+
+html {
+  --primary-color: #1779c4;
+  --primary-light-color: #70b1e9;
+  --page-background-color: #ffffff;
+  --page-foreground-color: #2f4153;
+  --page-secondary-foreground-color: #6f7e8e;
+  --separator-color: #dedede;
+  --side-nav-background: #fbfbfb;
+  --tablehead-background: #f1f1f1;
+  --code-background: #f5f5f5;
+  --odd-color: rgba(0, 0, 0, .028);
+  --track-color: #dbe9f6;
+  --hover-color: rgba(23, 121, 196, .06);
+  --uncovered-color: #b61825;
+  --uncovered-wash: rgba(182, 24, 37, .12);
+  --uncovered-strong: rgba(182, 24, 37, .28);
+  --partial-wash: rgba(243, 166, 0, .16);
+  --covered-wash: rgba(68, 184, 111, .14);
+  --box-shadow: 0 2px 8px 0 rgba(0, 0, 0, .075);
+
+  --font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell,
+    Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  --font-family-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono,
+    monospace;
+  --page-font-size: 15.6px;
+  --navigation-font-size: 14.4px;
+  --code-font-size: 13px;
+  --title-font-size: 22px;
+  --content-line-height: 27px;
+  --content-maxwidth: 1050px;
+  --side-nav-width: 335px;
+  --border-radius-large: 10px;
+  --border-radius-small: 5px;
+  --spacing-small: 5px;
+  --spacing-medium: 10px;
+  --spacing-large: 16px;
+  --spacing-xlarge: 20px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    --primary-color: #1982d2;
+    --primary-light-color: #4779ac;
+    --page-background-color: #1c1d1f;
+    --page-foreground-color: #d2dbde;
+    --page-secondary-foreground-color: #859399;
+    --separator-color: #38393b;
+    --side-nav-background: #252628;
+    --tablehead-background: #2a2c2f;
+    --code-background: #2a2c2f;
+    --odd-color: rgba(100, 100, 100, .06);
+    --track-color: #20364a;
+    --hover-color: rgba(25, 130, 210, .1);
+    --uncovered-color: #f5b1aa;
+    --uncovered-wash: rgba(173, 38, 23, .2);
+    --uncovered-strong: rgba(173, 38, 23, .5);
+    --partial-wash: rgba(241, 182, 2, .14);
+    --covered-wash: rgba(118, 206, 150, .12);
+    --box-shadow: 0 2px 8px 0 rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--page-background-color);
+  color: var(--page-foreground-color);
+  font-family: var(--font-family);
+  font-size: var(--page-font-size);
+  -webkit-font-smoothing: antialiased;
+}
+
+a, a:visited {
+  color: var(--primary-color);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* The side bar, as the API docs have it: the project's name, its version and
+ * its brief, and the pages under them. */
+
+body.summary {
+  display: flex;
+  align-items: stretch;
+}
+
+.side {
+  flex: 0 0 var(--side-nav-width);
+  box-sizing: border-box;
+  background: var(--side-nav-background);
+  border-right: 1px solid var(--separator-color);
+}
+
+.side > .stick {
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow-y: auto;
+}
+
+.project {
+  padding: 13px 24px var(--spacing-large);
+}
+
+.project .name {
+  font-size: var(--title-font-size);
+  font-weight: 600;
+  color: var(--page-foreground-color);
+}
+
+.project .number {
+  font-size: 60%;
+  font-weight: 600;
+}
+
+.project .brief {
+  margin-top: 2px;
+  font-size: 80%;
+}
+
+.project a,
+.project a:visited {
+  color: var(--page-foreground-color);
+}
+
+.project a:hover {
+  text-decoration: none;
+}
+
+.side nav {
+  padding: 0 0 var(--spacing-xlarge);
+}
+
+.side nav a {
+  position: relative;
+  display: block;
+  padding: 0 24px 0 34px;
+  line-height: 30px;
+  font-size: var(--navigation-font-size);
+  font-weight: normal;
+  color: var(--page-foreground-color);
+}
+
+.side nav a.sub {
+  padding-left: 52px;
+  color: var(--page-secondary-foreground-color);
+}
+
+.side nav a.current {
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.side nav a.current::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 0;
+  width: 4px;
+  border-radius: 0 var(--border-radius-small) var(--border-radius-small) 0;
+  background: var(--primary-color);
+}
+
+/* The page beside it. */
+
+.page {
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page > header {
+  border-bottom: 1px solid var(--separator-color);
+  padding-top: 40px;
+}
+
+.page > header h1,
+.contents {
+  max-width: var(--content-maxwidth);
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 0 var(--spacing-xlarge);
+}
+
+.page > header h1 {
+  font-size: 225%;
+  font-weight: 600;
+  padding-top: var(--spacing-medium);
+  padding-bottom: var(--spacing-medium);
+  margin-top: calc(var(--spacing-medium) + .2em);
+  margin-bottom: var(--spacing-medium);
+}
+
+.contents {
+  width: 100%;
+  flex: 1;
+  padding-bottom: calc(3 * var(--spacing-large));
+}
+
+.contents p {
+  line-height: var(--content-line-height);
+}
+
+.contents h2 {
+  font-size: 160%;
+  font-weight: 600;
+  margin: 1.6em 0 .5em;
+}
+
+.page > footer {
+  border-top: 1px solid var(--separator-color);
+  padding: 6px var(--spacing-xlarge);
+  font-size: 12px;
+  text-align: right;
+  color: var(--page-secondary-foreground-color);
+}
+
+code {
+  font-family: var(--font-family-monospace);
+  font-size: 90%;
+  background: var(--code-background);
+  border: 1px solid var(--separator-color);
+  border-radius: var(--border-radius-small);
+  padding: 1px 4px;
+}
+
+.muted {
+  color: var(--page-secondary-foreground-color);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The totals: one tile each, with a bar of the share run. */
+
+.totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--spacing-large);
+  margin: var(--spacing-xlarge) 0;
+}
+
+.tile {
+  border: 1px solid var(--separator-color);
+  border-radius: var(--border-radius-large);
+  padding: var(--spacing-large);
+  box-shadow: var(--box-shadow);
+}
+
+.tile .label {
+  font-size: 14px;
+  color: var(--page-secondary-foreground-color);
+}
+
+.tile .value {
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 2px 0 var(--spacing-medium);
+}
+
+.tile .of {
+  margin-top: var(--spacing-medium);
+  font-size: 13px;
+  color: var(--page-secondary-foreground-color);
+}
+
+.tile.lead .value {
+  color: var(--primary-color);
+}
+
+/* A share as a bar: the part run over a lighter track of the same blue. */
+
+.meter {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--track-color);
+  overflow: hidden;
+}
+
+.meter > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--primary-color);
+}
+
+/* The trend: two charts side by side, sharing their versions. */
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-large);
+}
+
+figure.chart {
+  margin: 0;
+  border: 1px solid var(--separator-color);
+  border-radius: var(--border-radius-large);
+  padding: var(--spacing-large) var(--spacing-large) var(--spacing-small);
+}
+
+figure.chart figcaption {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+figure.chart figcaption .muted {
+  font-weight: normal;
+  font-size: 13px;
+}
+
+figure.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: var(--spacing-small);
+  overflow: visible;
+}
+
+svg .grid {
+  stroke: var(--separator-color);
+  stroke-width: 1;
+}
+
+svg .axis {
+  fill: var(--page-secondary-foreground-color);
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+svg .value {
+  fill: var(--page-foreground-color);
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+svg .line {
+  fill: none;
+  stroke: var(--primary-color);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+svg .area {
+  fill: var(--primary-color);
+  opacity: .1;
+}
+
+svg .dot {
+  fill: var(--primary-color);
+  stroke: var(--page-background-color);
+  stroke-width: 2;
+}
+
+svg .bar {
+  fill: var(--primary-color);
+}
+
+svg .hit {
+  fill: transparent;
+}
+
+svg g.point:hover .dot {
+  r: 6px;
+}
+
+svg g.point:hover .bar {
+  fill: var(--primary-light-color);
+}
+
+details.table {
+  margin-top: var(--spacing-medium);
+  font-size: 14px;
+}
+
+details.table summary {
+  cursor: pointer;
+  color: var(--primary-color);
+}
+
+/* Tables: the trend's numbers, and the folders and their files. */
+
+table.numbers {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  margin-top: var(--spacing-medium);
+  border: 1px solid var(--separator-color);
+  border-radius: var(--border-radius-large);
+  overflow: hidden;
+  font-size: 14px;
+}
+
+table.numbers th,
+table.numbers td {
+  padding: 6px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--separator-color);
+  font-variant-numeric: tabular-nums;
+}
+
+table.numbers tr:last-child td {
+  border-bottom: none;
+}
+
+table.numbers th {
+  background: var(--tablehead-background);
+  font-weight: 600;
+}
+
+table.numbers th:first-child,
+table.numbers td:first-child {
+  text-align: left;
+}
+
+.folders {
+  border: 1px solid var(--separator-color);
+  border-radius: var(--border-radius-large);
+  overflow: hidden;
+  font-size: 14px;
+}
+
+.folders .row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr) 4.5em 8.5em 5.5em 5.5em;
+  align-items: center;
+  gap: var(--spacing-large);
+  padding: 7px var(--spacing-large);
+}
+
+.folders .head {
+  background: var(--tablehead-background);
+  font-weight: 600;
+  border-bottom: 1px solid var(--separator-color);
+}
+
+.folders .row > .r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.folders .head > .r {
+  font-variant-numeric: normal;
+}
+
+.folders details + details,
+.folders .head + details {
+  border-top: 1px solid var(--separator-color);
+}
+
+.folders summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.folders summary::-webkit-details-marker {
+  display: none;
+}
+
+.folders summary:hover,
+.folders .file:hover {
+  background: var(--hover-color);
+}
+
+.folders summary .name {
+  font-weight: 600;
+}
+
+.folders summary .name::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin: 0 9px 1px 1px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 6px solid var(--page-secondary-foreground-color);
+  transition: transform .12s;
+}
+
+.folders details[open] summary .name::before {
+  transform: rotate(90deg);
+}
+
+.folders details[open] summary {
+  border-bottom: 1px solid var(--separator-color);
+}
+
+.folders .files {
+  background: var(--odd-color);
+  padding: 4px 0;
+}
+
+.folders .file {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.folders .file .name {
+  padding-left: 16px;
+  font-family: var(--font-family-monospace);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folders .file .meter {
+  height: 6px;
+}
+
+.folders .file a {
+  font-weight: normal;
+}
+
+/* Phones and narrow windows: the side bar goes on top, as in the API docs. */
+
+@media screen and (max-width: 767px) {
+  body.summary {
+    display: block;
+  }
+
+  .side {
+    border-right: none;
+    border-bottom: 1px solid var(--separator-color);
+  }
+
+  .side > .stick {
+    position: static;
+    max-height: none;
+  }
+
+  .side nav a.sub {
+    display: none;
+  }
+
+  .project {
+    padding: 13px 16px var(--spacing-medium);
+  }
+
+  .side nav a {
+    padding-left: 16px;
+  }
+
+  .page {
+    min-height: 0;
+  }
+
+  .page > header {
+    padding-top: 0;
+  }
+
+  .page > header h1,
+  .contents {
+    padding-left: var(--spacing-large);
+    padding-right: var(--spacing-large);
+  }
+
+  .totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-medium);
+  }
+
+  .tile .value {
+    font-size: 26px;
+  }
+
+  .charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .folders .row {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 3.8em;
+    gap: var(--spacing-medium);
+    padding-left: var(--spacing-medium);
+    padding-right: var(--spacing-medium);
+  }
+
+  .folders .row > .wide {
+    display: none;
+  }
+
+  .folders .file .name {
+    padding-left: 8px;
+  }
+}
+
+/* llvm-cov's pages: its tables and its code, in the same colours. */
+
+body.llvm-cov {
+  padding: 0;
+}
+
+body.llvm-cov > .bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 13px 24px 12px;
+  background: var(--side-nav-background);
+  border-bottom: 1px solid var(--separator-color);
+}
+
+body.llvm-cov > .bar .name {
+  font-size: var(--title-font-size);
+  font-weight: 600;
+  color: var(--page-foreground-color);
+}
+
+body.llvm-cov > .bar .number {
+  font-size: 60%;
+  font-weight: 600;
+  color: var(--page-foreground-color);
+}
+
+body.llvm-cov > .bar .crumbs {
+  font-size: var(--navigation-font-size);
+  color: var(--page-secondary-foreground-color);
+}
+
+body.llvm-cov > .bar .crumbs a {
+  font-weight: 500;
+}
+
+body.llvm-cov > .bar .crumbs .here {
+  font-family: var(--font-family-monospace);
+  font-size: 13px;
+  color: var(--page-foreground-color);
+}
+
+body.llvm-cov > h1,
+body.llvm-cov > h2 {
+  display: none;
+}
+
+body.llvm-cov > h4,
+body.llvm-cov > p {
+  margin: var(--spacing-large) 24px 0;
+  font-size: 14px;
+  font-weight: normal;
+  color: var(--page-secondary-foreground-color);
+}
+
+body.llvm-cov .control {
+  top: auto;
+  bottom: var(--spacing-large);
+  right: var(--spacing-large);
+  padding: 8px 14px;
+  font-size: 13px;
+  background: var(--page-background-color);
+  border: 1px solid var(--separator-color);
+  border-radius: 20px;
+  box-shadow: var(--box-shadow);
+}
+
+body.llvm-cov .control a {
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+body.llvm-cov .centered {
+  display: block;
+  margin: var(--spacing-large) 24px calc(4 * var(--spacing-large));
+  border: 1px solid var(--separator-color);
+  border-radius: var(--border-radius-large);
+  overflow-x: auto;
+}
+
+body.llvm-cov .centered > table {
+  width: 100%;
+}
+
+body.llvm-cov .source-name-title {
+  padding: 8px var(--spacing-large);
+  background: var(--tablehead-background);
+  border-bottom: 1px solid var(--separator-color);
+  line-height: 24px;
+  font-weight: 600;
+}
+
+body.llvm-cov pre {
+  font-family: var(--font-family-monospace);
+  font-size: var(--code-font-size);
+  line-height: 20px;
+}
+
+body.llvm-cov th,
+body.llvm-cov td {
+  border-color: var(--separator-color);
+  padding: 0 10px;
+}
+
+body.llvm-cov tr {
+  border-color: var(--separator-color);
+}
+
+body.llvm-cov tr:hover {
+  background-color: var(--hover-color);
+}
+
+body.llvm-cov .column-entry-bold,
+body.llvm-cov tr:first-child > td {
+  background: var(--tablehead-background);
+  font-weight: 600;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+body.llvm-cov .light-row,
+body.llvm-cov .light-row-bold {
+  border-color: var(--separator-color);
+}
+
+body.llvm-cov .column-entry-green {
+  background-color: var(--covered-wash);
+}
+
+body.llvm-cov .column-entry-yellow {
+  background-color: var(--partial-wash);
+}
+
+body.llvm-cov .column-entry-red {
+  background-color: var(--uncovered-wash);
+}
+
+body.llvm-cov .column-entry-gray {
+  background-color: transparent;
+  color: var(--page-secondary-foreground-color);
+}
+
+body.llvm-cov td.line-number {
+  background: var(--code-background);
+  color: var(--page-secondary-foreground-color);
+  user-select: none;
+}
+
+body.llvm-cov td.line-number a {
+  font-weight: normal;
+  text-decoration: none;
+  color: inherit;
+}
+
+body.llvm-cov .covered-line,
+body.llvm-cov .uncovered-line,
+body.llvm-cov .skipped-line {
+  min-width: 4em;
+  font-variant-numeric: tabular-nums;
+}
+
+body.llvm-cov .covered-line {
+  color: var(--primary-color);
+}
+
+body.llvm-cov .uncovered-line {
+  color: var(--uncovered-color);
+  background: var(--uncovered-wash);
+}
+
+body.llvm-cov .uncovered-line.selected {
+  color: var(--uncovered-color);
+}
+
+body.llvm-cov .red {
+  background-color: var(--uncovered-wash);
+  border-radius: 3px;
+}
+
+body.llvm-cov .region.red.selected,
+body.llvm-cov .branch.red.selected {
+  background-color: var(--uncovered-strong);
+}
+
+body.llvm-cov .cyan {
+  background-color: var(--partial-wash);
+  border-radius: 3px;
+}
+
+body.llvm-cov .tooltip {
+  background-color: var(--track-color);
+  border-radius: 3px;
+}
+
+body.llvm-cov .tooltip span.tooltip-content {
+  background: var(--page-foreground-color);
+  color: var(--page-background-color);
+  font-family: var(--font-family);
+  font-size: 12px;
+}
+
+body.llvm-cov .tooltip span.tooltip-content:after {
+  border-top-color: var(--page-foreground-color);
+}
+
+body.llvm-cov tr:has(> td > a:target),
+body.llvm-cov tr:has(> td.uncovered-line.selected) {
+  background-color: var(--hover-color);
+}
+
+body.llvm-cov .expansion-view {
+  border-color: var(--separator-color);
+  border-radius: var(--border-radius-small);
+  background: var(--odd-color);
+}
+
+@media screen and (max-width: 767px) {
+  body.llvm-cov > .bar {
+    padding: 13px 16px 12px;
+  }
+
+  body.llvm-cov .centered {
+    margin-left: 0;
+    margin-right: 0;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+  }
+
+  body.llvm-cov .control {
+    display: none;
+  }
+}

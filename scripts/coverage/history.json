@@ -1,0 +1,8 @@
+{"points": [
+  {"ref": "ep028/step-10", "measured": "2026-10-18", "lines": {"covered": 2191, "count": 5197}, "functions": {"covered": 222, "count": 415}, "branches": {"covered": 637, "count": 1610}, "regions": {"covered": 1104, "count": 2371}},
+  {"ref": "ep029/end", "measured": "2026-10-18", "lines": {"covered": 2700, "count": 5201}, "functions": {"covered": 271, "count": 416}, "branches": {"covered": 738, "count": 1610}, "regions": {"covered": 1281, "count": 2372}},
+  {"version": "0.73.0", "ref": "v0.73.0", "measured": "2026-11-25", "lines": {"covered": 8670, "count": 18090}, "functions": {"covered": 682, "count": 1168}, "branches": {"covered": 2974, "count": 6776}, "regions": {"covered": 4466, "count": 9265}},
+  {"version": "0.80.0", "ref": "v0.80.0", "measured": "2026-11-25", "lines": {"covered": 10078, "count": 20358}, "functions": {"covered": 805, "count": 1338}, "branches": {"covered": 3432, "count": 7658}, "regions": {"covered": 5196, "count": 10451}},
+  {"version": "0.86.1", "ref": "v0.86.1", "measured": "2026-11-25", "lines": {"covered": 11857, "count": 23203}, "functions": {"covered": 937, "count": 1516}, "branches": {"covered": 4056, "count": 8740}, "regions": {"covered": 6086, "count": 11858}},
+  {"version": "0.97.2", "ref": "v0.97.2", "measured": "2026-11-25", "lines": {"covered": 14714, "count": 27696}, "functions": {"covered": 1159, "count": 1810}, "branches": {"covered": 5141, "count": 10570}, "regions": {"covered": 7632, "count": 14259}}
+]}

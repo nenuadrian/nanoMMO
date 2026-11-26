@@ -145,6 +145,32 @@ jobs:
         if: needs.gate.outputs.private == 'false'
         run: docker build --target docs --output site .
 
+      # The report's trend goes on from the history the published one has,
+      # which this run adds its version to. With none published yet, it starts
+      # from the seed in scripts/coverage/history.json. If the site doesn't
+      # answer, main stops here, as publishing would lose the versions measured
+      # since the seed, and elsewhere, where nothing's published, it goes on.
+      - name: Fetch the coverage report's history
+        if: needs.gate.outputs.private == 'false'
+        run: |
+          mkdir -p site/coverage
+          url="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/coverage/history.json"
+          status=$(curl -sSL --retry 3 --retry-all-errors -o site/coverage/history.json \
+            -w '%{http_code}' "$url" || true)
+          case "$status" in
+            200) ;;
+            404)
+              rm -f site/coverage/history.json
+              echo "::notice::No coverage history at $url yet, so the trend starts from the seed." ;;
+            *)
+              rm -f site/coverage/history.json
+              if [ "$GITHUB_REF" = refs/heads/main ]; then
+                echo "::error::Couldn't fetch the coverage history from $url ($status)."
+                exit 1
+              fi
+              echo "::warning::Couldn't fetch the coverage history from $url ($status)." ;;
+          esac
+
       - name: Measure what the tests cover
         if: needs.gate.outputs.private == 'false'
         run: docker compose run --rm coverage

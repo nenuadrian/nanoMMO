@@ -73,6 +73,10 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
       '^/src/(server|gateway|bot|client|protocol|content|terrain|tools/fuzz)/(?!.*_test\.cc)'
 
 FROM clang AS coverage
+# scripts/coverage/report.py writes the report's own pages.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/ccache \

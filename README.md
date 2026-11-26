@@ -9,6 +9,7 @@
 [![AddressSanitizer and UBSan](https://img.shields.io/github/check-runs/nenuadrian/nanoMMO/main?nameFilter=sanitize%20%28asan%29&label=ASan%20%2B%20UBSan)](https://github.com/nenuadrian/nanoMMO/actions/workflows/ci.yml)
 [![ThreadSanitizer](https://img.shields.io/github/check-runs/nenuadrian/nanoMMO/main?nameFilter=sanitize%20%28tsan%29&label=TSan)](https://github.com/nenuadrian/nanoMMO/actions/workflows/ci.yml)
 [![Fuzzing](https://img.shields.io/github/check-runs/nenuadrian/nanoMMO/main?nameFilter=fuzz&label=fuzzing)](https://github.com/nenuadrian/nanoMMO/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fnenuadrian.github.io%2FnanoMMO%2Fcoverage%2Fbadge.json)](https://nenuadrian.github.io/nanoMMO/coverage/)
 
 nanoMMO is a devlog where I build an MMO from scratch in C++, with features I'd like to see exist,
 even if some might be impractical for most games, such as players creating their own skills. It's a
