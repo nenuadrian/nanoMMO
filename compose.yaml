@@ -48,7 +48,7 @@ services:
       retries: 30
 
   clickhouse:
-    image: clickhouse/clickhouse-server:26.10.9.12
+    image: clickhouse/clickhouse-server:26.10.14
     environment:
       CLICKHOUSE_DB: nanommo
       CLICKHOUSE_USER: nanommo
